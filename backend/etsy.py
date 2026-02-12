@@ -14,9 +14,15 @@ def extract_listing_id(value):
     value = value.strip()
     if value.isdigit():
         return value
+    # Handle seller dashboard URLs: /listing-editor/edit/1812320210
+    match = re.search(r"/listing-editor/edit/(\d+)", value)
+    if match:
+        return match.group(1)
+    # Handle public listing URLs: /listing/1812320210
     match = re.search(r"/listing/(\d+)", value)
     if match:
         return match.group(1)
+    # Fallback: extract any digits
     digits = re.findall(r"(\d+)", value)
     return digits[-1] if digits else None
 
