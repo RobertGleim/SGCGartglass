@@ -35,8 +35,14 @@ def require_auth(handler):
         token = auth_header.split(" ", 1)[1].strip()
         try:
             decode_token(token)
-        except jwt.PyJWTError:
-            return jsonify({"error": "invalid_token"}), 401
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "token_expired"}), 401
+        except jwt.InvalidIssuerError:
+            return jsonify({"error": "invalid_issuer"}), 401
+        except jwt.DecodeError:
+            return jsonify({"error": "malformed_token"}), 401
+        except jwt.PyJWTError as e:
+            return jsonify({"error": f"invalid_token: {type(e).__name__}"}), 401
         return handler(*args, **kwargs)
 
     return wrapper

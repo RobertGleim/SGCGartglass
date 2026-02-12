@@ -77,9 +77,19 @@ function App() {
   }
 
   const handleAddItem = async (value) => {
-    const created = await createItem(authToken, value)
-    setItems((prev) => [created, ...prev])
-    return created
+    try {
+      const created = await createItem(authToken, value)
+      setItems((prev) => [created, ...prev])
+      return created
+    } catch (error) {
+      // Auto-logout on authentication errors (expired/invalid token)
+      if (error.message.includes('token') || error.message.includes('Unauthorized')) {
+        setAuthToken('')
+        window.localStorage.removeItem('sgcg_token')
+        throw new Error('Session expired. Please log in again.')
+      }
+      throw error
+    }
   }
 
   return (

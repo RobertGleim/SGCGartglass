@@ -13,7 +13,14 @@ api = Blueprint("api", __name__)
 
 @api.get("/health")
 def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "config": {
+            "etsy_api_configured": bool(os.environ.get("ETSY_API_KEY") and os.environ.get("ETSY_SHARED_SECRET")),
+            "jwt_configured": bool(os.environ.get("JWT_SECRET")),
+            "admin_configured": bool(os.environ.get("ADMIN_EMAIL") and os.environ.get("ADMIN_PASSWORD_HASH")),
+        }
+    }
 
 
 @api.post("/auth/login")

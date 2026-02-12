@@ -11,7 +11,11 @@ const request = async (path, options = {}) => {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}))
-    const message = payload.error || 'request_failed'
+    const message = payload.error || `request_failed (${response.status})`
+    // Include status for 401 Unauthorized detection
+    if (response.status === 401) {
+      throw new Error(`Unauthorized: ${message}`)
+    }
     throw new Error(message)
   }
 
