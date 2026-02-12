@@ -2,6 +2,8 @@
 
 A lightweight React + Flask MVP that mirrors the Etsy seller experience with a home page, product spotlight, and admin listing sync.
 
+**Live site:** https://sgcgartglass.vercel.app
+
 ## Project layout
 - frontend: Vite + React client
 - backend: Flask API with JWT auth and Etsy listing sync
@@ -28,9 +30,9 @@ A lightweight React + Flask MVP that mirrors the Etsy seller experience with a h
 - Development and test dependencies are listed under "Development" and "Testing" in requirements.txt.
 
 ## Deployment notes
-- Vercel: build the frontend folder with npm run build.
-- Render: start command can use "gunicorn backend.wsgi:app".
-- GitHub Pages: set VITE_BASE_PATH before building if the site is served from a subpath.
+- **Vercel (frontend):** https://sgcgartglass.vercel.app - Set VITE_API_BASE_URL to your Render backend URL in environment variables.
+- **Render (backend):** Start command uses "gunicorn backend.wsgi:app". Set all environment variables from .env.example.
+- **GitHub Pages:** set VITE_BASE_PATH before building if the site is served from a subpath.
 
 ## Branding
 - Replace frontend/public/brand-logo.svg with your uploaded logo for accurate styling.

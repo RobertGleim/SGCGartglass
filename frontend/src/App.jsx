@@ -95,7 +95,6 @@ function App() {
         <nav className="nav-links">
           <a href="#/">Home</a>
           <a href="#/product">Product</a>
-          <a href="#/admin">Admin</a>
         </nav>
       </header>
 
@@ -112,9 +111,6 @@ function App() {
               <div className="hero-actions">
                 <a className="button primary" href="#/product">
                   View featured piece
-                </a>
-                <a className="button ghost" href="#/admin">
-                  Manage inventory
                 </a>
               </div>
             </div>
@@ -223,15 +219,19 @@ function App() {
 
       {route.path === '/admin' && (
         <main className="admin-page">
-          <section className="section-header">
-            <h2>Admin control</h2>
-            <p>Link Etsy listings and keep featured items current.</p>
-          </section>
-          <AdminPanel
-            onLogin={handleLogin}
-            onAddItem={handleAddItem}
-            isAuthed={Boolean(authToken)}
-          />
+          {!authToken ? (
+            <AdminLogin onLogin={handleLogin} />
+          ) : (
+            <AdminDashboard
+              authToken={authToken}
+              items={items}
+              onAddItem={handleAddItem}
+              onLogout={() => {
+                setAuthToken('')
+                window.localStorage.removeItem('sgcg_token')
+              }}
+            />
+          )}
         </main>
       )}
 
@@ -242,43 +242,26 @@ function App() {
   )
 }
 
-function AdminPanel({ onLogin, onAddItem, isAuthed }) {
+function AdminLogin({ onLogin }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [listingValue, setListingValue] = useState('')
   const [status, setStatus] = useState('')
 
-  const handleLoginSubmit = async (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     setStatus('Signing in...')
     try {
       await onLogin(email, password)
-      setStatus('Signed in. Ready to add listings.')
     } catch (error) {
       setStatus('Login failed. Check credentials.')
     }
   }
 
-  const handleAddItemSubmit = async (event) => {
-    event.preventDefault()
-    if (!listingValue) {
-      setStatus('Enter an Etsy listing URL or ID.')
-      return
-    }
-    setStatus('Linking listing...')
-    try {
-      await onAddItem(listingValue)
-      setListingValue('')
-      setStatus('Listing linked.')
-    } catch (error) {
-      setStatus('Unable to link listing. Check Etsy API settings.')
-    }
-  }
-
   return (
-    <div className="admin-panel">
-      <form className="card" onSubmit={handleLoginSubmit}>
-        <h3>Admin sign-in</h3>
+    <div className="admin-login">
+      <form className="card login-card" onSubmit={handleSubmit}>
+        <h2>Admin Access</h2>
+        <p className="form-note">Sign in to access the dashboard.</p>
         <label>
           Email
           <input
@@ -302,29 +285,171 @@ function AdminPanel({ onLogin, onAddItem, isAuthed }) {
         <button className="button primary" type="submit">
           Sign in
         </button>
+        {status && <p className="status-text">{status}</p>}
       </form>
+    </div>
+  )
+}
 
-      <form className="card" onSubmit={handleAddItemSubmit}>
-        <h3>Link Etsy listing</h3>
-        <label>
-          Etsy listing URL or ID
-          <input
-            type="text"
-            value={listingValue}
-            onChange={(event) => setListingValue(event.target.value)}
-            placeholder="https://www.etsy.com/listing/123456789/"
-            required
-          />
-        </label>
-        <button className="button" type="submit" disabled={!isAuthed}>
-          Add listing
+function AdminDashboard({ items, onAddItem, onLogout }) {
+  const [listingValue, setListingValue] = useState('')
+  const [status, setStatus] = useState('')
+  const [activeTab, setActiveTab] = useState('products')
+
+  const handleAddItemSubmit = async (event) => {
+    event.preventDefault()
+    if (!listingValue) {
+      setStatus('Enter an Etsy listing URL or ID.')
+      return
+    }
+    setStatus('Linking listing...')
+    try {
+      await onAddItem(listingValue)
+      setListingValue('')
+      setStatus('Listing linked successfully.')
+    } catch (error) {
+      setStatus('Unable to link listing. Check Etsy API settings.')
+    }
+  }
+
+  return (
+    <div className="admin-dashboard">
+      <div className="dashboard-header">
+        <div>
+          <h2>Admin Dashboard</h2>
+          <p>Manage products and view analytics.</p>
+        </div>
+        <button className="button" onClick={onLogout}>
+          Sign out
         </button>
-        {!isAuthed && (
-          <p className="form-note">Sign in first to enable listing sync.</p>
-        )}
-      </form>
+      </div>
 
-      <p className="status-text">{status}</p>
+      <div className="dashboard-tabs">
+        <button
+          className={`tab ${activeTab === 'products' ? 'active' : ''}`}
+          onClick={() => setActiveTab('products')}
+        >
+          Products
+        </button>
+        <button
+          className={`tab ${activeTab === 'sales' ? 'active' : ''}`}
+          onClick={() => setActiveTab('sales')}
+        >
+          Sales Stats
+        </button>
+        <button
+          className={`tab ${activeTab === 'etsy' ? 'active' : ''}`}
+          onClick={() => setActiveTab('etsy')}
+        >
+          Etsy Analytics
+        </button>
+      </div>
+
+      <div className="dashboard-content">
+        {activeTab === 'products' && (
+          <div className="tab-panel">
+            <div className="panel-section">
+              <h3>Add Etsy Listing</h3>
+              <form className="inline-form" onSubmit={handleAddItemSubmit}>
+                <input
+                  type="text"
+                  value={listingValue}
+                  onChange={(event) => setListingValue(event.target.value)}
+                  placeholder="Paste Etsy listing URL or ID"
+                  required
+                />
+                <button className="button primary" type="submit">
+                  Link listing
+                </button>
+              </form>
+              {status && <p className="status-text">{status}</p>}
+            </div>
+
+            <div className="panel-section">
+              <h3>Linked Products ({items.length})</h3>
+              {items.length === 0 ? (
+                <div className="empty-state">No products linked yet.</div>
+              ) : (
+                <div className="product-list">
+                  {items.map((item) => (
+                    <div key={item.id} className="product-row">
+                      <div className="product-thumb">
+                        {item.image_url ? (
+                          <img src={item.image_url} alt={item.title || 'Product'} />
+                        ) : (
+                          <div className="thumb-placeholder">No image</div>
+                        )}
+                      </div>
+                      <div className="product-details">
+                        <h4>{item.title || 'Untitled'}</h4>
+                        <p className="product-meta">
+                          {item.price_amount && `${item.price_amount} ${item.price_currency || ''}`}
+                        </p>
+                      </div>
+                      <a
+                        className="text-link"
+                        href={item.etsy_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        View on Etsy
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'sales' && (
+          <div className="tab-panel">
+            <div className="panel-section">
+              <h3>Sales Overview</h3>
+              <div className="stats-grid">
+                <div className="stat-card">
+                  <p className="stat-label">Total Sales</p>
+                  <p className="stat-value">Coming soon</p>
+                </div>
+                <div className="stat-card">
+                  <p className="stat-label">Revenue</p>
+                  <p className="stat-value">Coming soon</p>
+                </div>
+                <div className="stat-card">
+                  <p className="stat-label">Avg. Order Value</p>
+                  <p className="stat-value">Coming soon</p>
+                </div>
+              </div>
+              <p className="form-note">Sales tracking will be integrated in a future update.</p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'etsy' && (
+          <div className="tab-panel">
+            <div className="panel-section">
+              <h3>Etsy Store Analytics</h3>
+              <div className="stats-grid">
+                <div className="stat-card">
+                  <p className="stat-label">Views</p>
+                  <p className="stat-value">Coming soon</p>
+                </div>
+                <div className="stat-card">
+                  <p className="stat-label">Favorites</p>
+                  <p className="stat-value">Coming soon</p>
+                </div>
+                <div className="stat-card">
+                  <p className="stat-label">Orders</p>
+                  <p className="stat-value">Coming soon</p>
+                </div>
+              </div>
+              <p className="form-note">
+                Connect Etsy OAuth to pull real-time shop analytics. Rate limit: 5 QPS, 5K QPD.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
