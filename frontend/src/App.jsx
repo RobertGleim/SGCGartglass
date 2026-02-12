@@ -86,7 +86,7 @@ function App() {
     <div className="page">
       <header className="site-header">
         <div className="logo-block">
-          <img src="/brand-logo.svg" alt="SGCG Art Glass logo" />
+          <img src="/logo1.jpg" alt="SGCG Art Glass logo" />
           <div>
             <p className="logo-title">{BRAND_NAME}</p>
             <p className="logo-subtitle">Handcrafted glass studio</p>

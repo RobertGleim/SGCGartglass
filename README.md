@@ -30,8 +30,8 @@ A lightweight React + Flask MVP that mirrors the Etsy seller experience with a h
 - Development and test dependencies are listed under "Development" and "Testing" in requirements.txt.
 
 ## Deployment notes
-- **Vercel (frontend):** https://sgcgartglass.vercel.app - Set VITE_API_BASE_URL to your Render backend URL in environment variables.
-- **Render (backend):** Start command uses "gunicorn backend.wsgi:app". Set all environment variables from .env.example.
+- **Vercel (frontend):** https://sgcgartglass.vercel.app - Set VITE_API_BASE_URL to https://sgcgartglass.onrender.com in environment variables.
+- **Render (backend):** https://sgcgartglass.onrender.com - Set all environment variables from .env.example.
 - **GitHub Pages:** set VITE_BASE_PATH before building if the site is served from a subpath.
 
 ## Branding
