@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EtsyListing",
+  "type": "object",
+  "required": ["etsy_listing_id"],
+  "properties": {
+    "id": {
+      "type": "integer"
+    },
+    "etsy_listing_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "price_amount": {
+      "type": "string"
+    },
+    "price_currency": {
+      "type": "string"
+    },
+    "image_url": {
+      "type": "string"
+    },
+    "etsy_url": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string"
+    }
+  }
+}

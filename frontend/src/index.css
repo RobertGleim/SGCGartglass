@@ -1,0 +1,38 @@
+:root {
+  font-family: "Trebuchet MS", "Gill Sans", "Gill Sans MT", Calibri, sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+  color: #1f2f4d;
+  background-color: #f7f7f8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(circle at 10% 10%, rgba(31, 78, 161, 0.08), transparent 40%),
+    radial-gradient(circle at 90% 20%, rgba(31, 78, 161, 0.06), transparent 50%),
+    linear-gradient(180deg, #f7f7f8 0%, #eef1f5 100%);
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+p {
+  margin: 0;
+}
+
+img {
+  display: block;
+}

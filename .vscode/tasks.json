@@ -1,0 +1,29 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Dev: frontend",
+			"type": "shell",
+			"command": "cd /d frontend && npm run dev",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Dev: backend",
+			"type": "shell",
+			"command": "C:/Users/rglei/OneDrive/Desktop/Sgcg/.venv/Scripts/python.exe -m backend.app",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Dev: frontend",
+			"type": "shell",
+			"command": "cd /d frontend && npm run dev",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}
