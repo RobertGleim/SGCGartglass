@@ -41,13 +41,16 @@ def _format_price(price):
 
 def fetch_listing(listing_id):
     api_key = os.environ.get("ETSY_API_KEY")
+    shared_secret = os.environ.get("ETSY_SHARED_SECRET")
     base_url = os.environ.get("ETSY_API_BASE", "https://openapi.etsy.com/v3/application")
     access_token = os.environ.get("ETSY_ACCESS_TOKEN")
-    if not api_key:
-        raise RuntimeError("ETSY_API_KEY not configured")
+    
+    if not api_key or not shared_secret:
+        raise RuntimeError("ETSY_API_KEY and ETSY_SHARED_SECRET must be configured")
 
-    url = f"{base_url}{LISTING_PATH}{listing_id}?includes=images"
-    headers = {"x-api-key": api_key}
+    # Etsy API requires x-api-key header in format "keystring:shared_secret"
+    url = f"{base_url}{LISTING_PATH}{listing_id}?includes=Images"
+    headers = {"x-api-key": f"{api_key}:{shared_secret}"}
     if access_token:
         headers["Authorization"] = f"Bearer {access_token}"
 
