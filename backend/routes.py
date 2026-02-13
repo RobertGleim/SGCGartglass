@@ -61,10 +61,25 @@ def get_item(item_id):
 def create_item():
     init_db()
     payload = request.get_json(silent=True) or {}
-    listing_value = payload.get("etsy_listing_id") or payload.get("etsy_url")
+    if not payload:
+        payload = request.form.to_dict() or {}
+
+    listing_value = (
+        payload.get("etsy_listing_id")
+        or payload.get("etsy_url")
+        or payload.get("listing_value")
+        or payload.get("listing_id")
+        or payload.get("listingId")
+        or request.args.get("etsy_listing_id")
+        or request.args.get("etsy_url")
+        or request.args.get("listing_id")
+    )
     listing_id = extract_listing_id(listing_value)
     if not listing_id:
-        return jsonify({"error": "missing_listing_id"}), 400
+        return jsonify({
+            "error": "missing_listing_id",
+            "detail": "Provide an Etsy listing URL or numeric listing ID.",
+        }), 400
 
     try:
         listing = fetch_listing(listing_id)

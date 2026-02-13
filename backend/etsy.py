@@ -3,23 +3,40 @@ import os
 import re
 import urllib.error
 import urllib.request
+from urllib.parse import parse_qs, urlparse
 
 
 LISTING_PATH = "/listings/"
 
 
 def extract_listing_id(value):
+    if value is None:
+        return None
+    value = str(value).strip()
     if not value:
         return None
-    value = value.strip()
     if value.isdigit():
         return value
+
+    parsed = urlparse(value)
+    if parsed.scheme and parsed.netloc:
+        query = parse_qs(parsed.query)
+        for key in ("listing_id", "listingId"):
+            if key in query and query[key]:
+                listing_candidate = query[key][0].strip()
+                if listing_candidate.isdigit():
+                    return listing_candidate
+
     # Handle seller dashboard URLs: /listing-editor/edit/1812320210
     match = re.search(r"/listing-editor/edit/(\d+)", value)
     if match:
         return match.group(1)
-    # Handle public listing URLs: /listing/1812320210
-    match = re.search(r"/listing/(\d+)", value)
+    # Handle public listing URLs: /listing/1812320210 or /listings/1812320210
+    match = re.search(r"/listings?/(\d+)", value)
+    if match:
+        return match.group(1)
+    # Handle query-style parameters in raw strings.
+    match = re.search(r"listing[_-]?id=(\d+)", value)
     if match:
         return match.group(1)
     # Fallback: extract any digits
