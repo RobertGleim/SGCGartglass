@@ -1,3 +1,4 @@
+import json
 import os
 
 from flask import Blueprint, jsonify, request
@@ -63,6 +64,12 @@ def create_item():
     payload = request.get_json(silent=True) or {}
     if not payload:
         payload = request.form.to_dict() or {}
+    if not payload:
+        raw_body = request.get_data(as_text=True) or ""
+        try:
+            payload = json.loads(raw_body) if raw_body else {}
+        except json.JSONDecodeError:
+            payload = {}
 
     listing_value = (
         payload.get("etsy_listing_id")
