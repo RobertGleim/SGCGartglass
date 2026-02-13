@@ -21,6 +21,7 @@ CREATE TABLE manual_products (
     depth REAL,
     price REAL NOT NULL,
     quantity INTEGER NOT NULL,
+    is_featured INTEGER DEFAULT 0,
     created_at TEXT,
     updated_at TEXT
 );

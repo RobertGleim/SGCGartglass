@@ -7,6 +7,8 @@ import {
   login,
   createManualProduct,
   fetchManualProducts,
+  updateManualProduct,
+  deleteManualProduct,
 } from './lib/api'
 
 const BRAND_NAME = 'SGCG Art Glass'
@@ -80,10 +82,77 @@ function App() {
       setSelectedItem(null)
       return
     }
-    fetchItemById(itemId).then((data) => setSelectedItem(data))
-  }, [route])
+    
+    // Check if it's a manual product (prefix with 'm-')
+    if (itemId.startsWith('m-')) {
+      const manualId = parseInt(itemId.substring(2))
+      const manualProduct = manualProducts.find(p => p.id === manualId)
+      if (manualProduct) {
+        // Convert manual product to item format
+        setSelectedItem({
+          ...manualProduct,
+          title: manualProduct.name,
+          price_amount: manualProduct.price,
+          price_currency: 'USD',
+          image_url: manualProduct.images?.[0]?.image_url,
+          isManual: true
+        })
+      }
+    } else {
+      fetchItemById(itemId).then((data) => setSelectedItem(data))
+    }
+  }, [route, manualProducts])
 
-  const featuredItems = useMemo(() => items.slice(0, 4), [items])
+  // Combine Etsy items and manual products for featured display
+  const allProducts = useMemo(() => {
+    const manualItems = manualProducts.map(p => ({
+      id: `m-${p.id}`,
+      title: p.name,
+      description: p.description,
+      price_amount: p.price,
+      price_currency: 'USD',
+      image_url: p.images?.[0]?.image_url,
+      category: p.category,
+      isManual: true,
+      is_featured: p.is_featured === 1 || p.is_featured === true,
+      originalData: p
+    }))
+    return [...manualItems, ...items]
+  }, [items, manualProducts])
+
+  const featuredItems = useMemo(() => {
+    // Prioritize featured products, then show remaining products
+    const featured = allProducts.filter(p => p.is_featured)
+    const nonFeatured = allProducts.filter(p => !p.is_featured)
+    return [...featured, ...nonFeatured].slice(0, 8) // Show up to 8 items in carousel
+  }, [allProducts])
+
+  const [currentSlide, setCurrentSlide] = useState(0)
+  const [isPaused, setIsPaused] = useState(false)
+  const itemsPerPage = 4
+  const totalSlides = Math.ceil(featuredItems.length / itemsPerPage)
+
+  // Auto-scroll carousel
+  useEffect(() => {
+    if (!isPaused && featuredItems.length > itemsPerPage) {
+      const interval = setInterval(() => {
+        setCurrentSlide((prev) => (prev + 1) % totalSlides)
+      }, 4000) // Change slide every 4 seconds
+      return () => clearInterval(interval)
+    }
+  }, [isPaused, totalSlides, featuredItems.length, itemsPerPage])
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % totalSlides)
+  }
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides)
+  }
+
+  const goToSlide = (index) => {
+    setCurrentSlide(index)
+  }
 
   const handleLogin = async (email, password) => {
     const token = await login(email, password)
@@ -163,33 +232,72 @@ function App() {
                 No Etsy items linked yet. Add listings from the admin page.
               </div>
             ) : (
-              <div className="featured-grid">
-                {featuredItems.map((item) => (
-                  <article key={item.id} className="product-card">
-                    <div className="card-image">
-                      {item.image_url ? (
-                        <img src={item.image_url} alt={item.title || 'Glass art'} />
-                      ) : (
-                        <div className="image-placeholder">No image</div>
-                      )}
-                    </div>
-                    <div className="card-body">
-                      <h3>{item.title || 'Untitled piece'}</h3>
-                      <p className="card-description">
-                        {item.description || 'Details will appear after Etsy sync.'}
-                      </p>
-                      <div className="card-meta">
-                        <span className="price">
-                          {item.price_amount || '--'}
-                          {item.price_currency ? ` ${item.price_currency}` : ''}
-                        </span>
-                        <a className="text-link" href={`#/product/${item.id}`}>
-                          View
-                        </a>
+              <div 
+                className="carousel-container"
+                onMouseEnter={() => setIsPaused(true)}
+                onMouseLeave={() => setIsPaused(false)}
+              >
+                <div className="carousel-wrapper">
+                  <div 
+                    className="carousel-track"
+                    style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+                  >
+                    {Array.from({ length: totalSlides }).map((_, slideIndex) => (
+                      <div key={slideIndex} className="carousel-slide">
+                        {featuredItems
+                          .slice(slideIndex * itemsPerPage, (slideIndex + 1) * itemsPerPage)
+                          .map((item) => (
+                            <article key={item.id} className="product-card">
+                              <div className="card-image">
+                                {item.image_url ? (
+                                  <img src={item.image_url} alt={item.title || 'Glass art'} />
+                                ) : (
+                                  <div className="image-placeholder">No image</div>
+                                )}
+                              </div>
+                              <div className="card-body">
+                                <h3>{item.title || 'Untitled piece'}</h3>
+                                <p className="card-description">
+                                  {item.description || 'Details will appear after Etsy sync.'}
+                                </p>
+                                <div className="card-meta">
+                                  <span className="price">
+                                    {item.price_amount || '--'}
+                                    {item.price_currency ? ` ${item.price_currency}` : ''}
+                                  </span>
+                                  <a className="text-link" href={`#/product/${item.id}`}>
+                                    View
+                                  </a>
+                                </div>
+                              </div>
+                            </article>
+                          ))}
                       </div>
+                    ))}
+                  </div>
+                </div>
+                
+                {totalSlides > 1 && (
+                  <>
+                    <button className="carousel-btn prev" onClick={prevSlide} aria-label="Previous">
+                      ‹
+                    </button>
+                    <button className="carousel-btn next" onClick={nextSlide} aria-label="Next">
+                      ›
+                    </button>
+                    
+                    <div className="carousel-dots">
+                      {Array.from({ length: totalSlides }).map((_, index) => (
+                        <button
+                          key={index}
+                          className={`dot ${index === currentSlide ? 'active' : ''}`}
+                          onClick={() => goToSlide(index)}
+                          aria-label={`Go to slide ${index + 1}`}
+                        />
+                      ))}
                     </div>
-                  </article>
-                ))}
+                  </>
+                )}
               </div>
             )}
           </section>
@@ -214,10 +322,24 @@ function App() {
             <div className="product-detail">
               <div className="product-image">
                 {selectedItem.image_url ? (
-                  <img
-                    src={selectedItem.image_url}
-                    alt={selectedItem.title || 'Glass art'}
-                  />
+                  selectedItem.isManual && selectedItem.originalData?.images?.length > 1 ? (
+                    <div className="image-gallery">
+                      {selectedItem.originalData.images.map((img, idx) => (
+                        <div key={idx} className="gallery-image">
+                          {img.media_type === 'video' ? (
+                            <video src={img.image_url} controls />
+                          ) : (
+                            <img src={img.image_url} alt={`${selectedItem.title} ${idx + 1}`} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <img
+                      src={selectedItem.image_url}
+                      alt={selectedItem.title || 'Glass art'}
+                    />
+                  )
                 ) : (
                   <div className="image-placeholder">No image</div>
                 )}
@@ -231,7 +353,26 @@ function App() {
                 <p className="card-description">
                   {selectedItem.description || 'Details will appear after Etsy sync.'}
                 </p>
-                {selectedItem.etsy_url && (
+                {selectedItem.isManual ? (
+                  <div className="product-details-list">
+                    {selectedItem.originalData?.category && (
+                      <p><strong>Category:</strong> {selectedItem.originalData.category}</p>
+                    )}
+                    {selectedItem.originalData?.materials && (
+                      <p><strong>Materials:</strong> {selectedItem.originalData.materials}</p>
+                    )}
+                    {(selectedItem.originalData?.width || selectedItem.originalData?.height || selectedItem.originalData?.depth) && (
+                      <p><strong>Dimensions:</strong> {[
+                        selectedItem.originalData.width && `${selectedItem.originalData.width}"W`,
+                        selectedItem.originalData.height && `${selectedItem.originalData.height}"H`,
+                        selectedItem.originalData.depth && `${selectedItem.originalData.depth}"D`
+                      ].filter(Boolean).join(' × ')}</p>
+                    )}
+                    {selectedItem.originalData?.quantity > 0 && (
+                      <p><strong>Available:</strong> {selectedItem.originalData.quantity} in stock</p>
+                    )}
+                  </div>
+                ) : selectedItem.etsy_url && (
                   <a className="button primary" href={selectedItem.etsy_url}>
                     View on Etsy
                   </a>
@@ -256,6 +397,15 @@ function App() {
                 const created = await createManualProduct(authToken, productData)
                 setManualProducts((prev) => [created, ...prev])
                 return created
+              }}
+              onUpdateManualProduct={async (id, productData) => {
+                const updated = await updateManualProduct(authToken, id, productData)
+                setManualProducts((prev) => prev.map(p => p.id === id ? updated : p))
+                return updated
+              }}
+              onDeleteManualProduct={async (id) => {
+                await deleteManualProduct(authToken, id)
+                setManualProducts((prev) => prev.filter(p => p.id !== id))
               }}
               onLogout={() => {
                 setAuthToken('')
@@ -322,11 +472,12 @@ function AdminLogin({ onLogin }) {
   )
 }
 
-function AdminDashboard({ items, manualProducts, onAddItem, onAddManualProduct, onLogout }) {
+function AdminDashboard({ items, manualProducts, onAddItem, onAddManualProduct, onUpdateManualProduct, onDeleteManualProduct, onLogout }) {
   const [listingValue, setListingValue] = useState('')
   const [status, setStatus] = useState('')
   const [activeTab, setActiveTab] = useState('products')
   const [showManualProductModal, setShowManualProductModal] = useState(false)
+  const [editingProduct, setEditingProduct] = useState(null)
   const [manualProduct, setManualProduct] = useState({
     name: '',
     images: [],
@@ -337,7 +488,8 @@ function AdminDashboard({ items, manualProducts, onAddItem, onAddManualProduct, 
     height: '',
     depth: '',
     price: '',
-    quantity: ''
+    quantity: '',
+    is_featured: false
   })
 
   const handleAddItemSubmit = async (event) => {
@@ -358,7 +510,9 @@ function AdminDashboard({ items, manualProducts, onAddItem, onAddManualProduct, 
 
   const handleManualProductSubmit = async (event) => {
     event.preventDefault()
-    setStatus('Adding manual product...')
+    setStatus(editingProduct ? 'Updating product...' : 'Adding manual product...')
+    
+    console.log('Form state before processing:', manualProduct)
     
     try {
       // Convert images to base64
@@ -377,6 +531,7 @@ function AdminDashboard({ items, manualProducts, onAddItem, onAddManualProduct, 
       })
       
       const imageData = await Promise.all(imagePromises)
+      console.log('Processed images:', imageData.length, 'images')
       
       const productData = {
         name: manualProduct.name.trim(),
@@ -388,14 +543,22 @@ function AdminDashboard({ items, manualProducts, onAddItem, onAddManualProduct, 
         depth: manualProduct.depth ? parseFloat(manualProduct.depth) : null,
         price: parseFloat(manualProduct.price),
         quantity: parseInt(manualProduct.quantity, 10),
-        images: imageData
+        is_featured: manualProduct.is_featured,
+        images: imageData.length > 0 ? imageData : (editingProduct?.images || [])
       }
       
       console.log('Submitting product data:', productData)
       
-      await onAddManualProduct(productData)
-      setStatus('Manual product added successfully!')
+      if (editingProduct) {
+        await onUpdateManualProduct(editingProduct.id, productData)
+        setStatus('Product updated successfully!')
+      } else {
+        await onAddManualProduct(productData)
+        setStatus('Manual product added successfully!')
+      }
+      
       setShowManualProductModal(false)
+      setEditingProduct(null)
       
       // Clean up preview URLs
       manualProduct.images.forEach(item => {
@@ -413,12 +576,65 @@ function AdminDashboard({ items, manualProducts, onAddItem, onAddManualProduct, 
         height: '',
         depth: '',
         price: '',
-        quantity: ''
+        quantity: '',
+        is_featured: false
       })
     } catch (error) {
       console.error('Error adding manual product:', error)
       setStatus(`Error: ${error.message}`)
     }
+  }
+  
+  const handleEditProduct = (product) => {
+    setEditingProduct(product)
+    setManualProduct({
+      name: product.name || '',
+      images: [],
+      description: product.description || '',
+      category: product.category || '',
+      materials: product.materials || '',
+      width: product.width?.toString() || '',
+      height: product.height?.toString() || '',
+      depth: product.depth?.toString() || '',
+      price: product.price?.toString() || '',
+      quantity: product.quantity?.toString() || '',
+      is_featured: product.is_featured === 1 || product.is_featured === true
+    })
+    setShowManualProductModal(true)
+  }
+  
+  const handleDeleteProduct = async (product) => {
+    const confirmDelete = window.confirm(
+      `⚠️ Delete Product?\n\nAre you sure you want to permanently delete "${product.name}"?\n\nThis action cannot be undone.`
+    )
+    
+    if (confirmDelete) {
+      try {
+        setStatus('Deleting product...')
+        await onDeleteManualProduct(product.id)
+        setStatus('Product deleted successfully!')
+      } catch (error) {
+        setStatus(`Error deleting product: ${error.message}`)
+      }
+    }
+  }
+  
+  const handleCloseModal = () => {
+    setShowManualProductModal(false)
+    setEditingProduct(null)
+    setManualProduct({
+      name: '',
+      images: [],
+      description: '',
+      category: '',
+      materials: '',
+      width: '',
+      height: '',
+      depth: '',
+      price: '',
+      quantity: '',
+      is_featured: false
+    })
   }
 
   const handleImageUpload = (event) => {
@@ -564,11 +780,32 @@ function AdminDashboard({ items, manualProducts, onAddItem, onAddManualProduct, 
                         )}
                       </div>
                       <div className="product-details">
-                        <h4>{product.name}</h4>
+                        <h4>
+                          {product.name}
+                          {(product.is_featured === 1 || product.is_featured === true) && (
+                            <span className="featured-badge">★ Featured</span>
+                          )}
+                        </h4>
                         <p className="product-meta">
                           ${product.price} · Qty: {product.quantity}
                           {product.category && ` · ${product.category}`}
                         </p>
+                      </div>
+                      <div className="product-actions">
+                        <button
+                          className="button-icon edit"
+                          onClick={() => handleEditProduct(product)}
+                          title="Edit product"
+                        >
+                          ✎
+                        </button>
+                        <button
+                          className="button-icon delete"
+                          onClick={() => handleDeleteProduct(product)}
+                          title="Delete product"
+                        >
+                          🗑
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -628,13 +865,13 @@ function AdminDashboard({ items, manualProducts, onAddItem, onAddManualProduct, 
       </div>
 
       {showManualProductModal && (
-        <div className="modal-overlay" onClick={() => setShowManualProductModal(false)}>
+        <div className="modal-overlay" onClick={handleCloseModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Add Manual Product</h2>
+              <h2>{editingProduct ? 'Edit Product' : 'Add Manual Product'}</h2>
               <button 
                 className="modal-close" 
-                onClick={() => setShowManualProductModal(false)}
+                onClick={handleCloseModal}
                 aria-label="Close"
               >
                 ×
@@ -774,12 +1011,21 @@ function AdminDashboard({ items, manualProducts, onAddItem, onAddManualProduct, 
                 </label>
               </div>
 
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={manualProduct.is_featured}
+                  onChange={(e) => setManualProduct({...manualProduct, is_featured: e.target.checked})}
+                />
+                <span>Feature this product on the home page</span>
+              </label>
+
               <div className="modal-actions">
-                <button type="button" className="button" onClick={() => setShowManualProductModal(false)}>
+                <button type="button" className="button" onClick={handleCloseModal}>
                   Cancel
                 </button>
                 <button type="submit" className="button primary">
-                  Add Listing
+                  {editingProduct ? 'Update Product' : 'Add Listing'}
                 </button>
               </div>
             </form>

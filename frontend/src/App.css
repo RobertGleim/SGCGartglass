@@ -140,6 +140,120 @@
   gap: 1.5rem;
 }
 
+/* Carousel styles */
+.carousel-container {
+  position: relative;
+  overflow: hidden;
+  margin-top: 1rem;
+  padding: 1rem 0;
+}
+
+.carousel-wrapper {
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.carousel-track {
+  display: flex;
+  transition: transform 0.6s ease-in-out;
+}
+
+.carousel-slide {
+  min-width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+  padding: 0 0.5rem;
+}
+
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #ddd;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 32px;
+  color: #333;
+  transition: all 0.3s ease;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.carousel-btn:hover {
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.carousel-btn.prev {
+  left: -20px;
+}
+
+.carousel-btn.next {
+  right: -20px;
+}
+
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.carousel-dots .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ddd;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+.carousel-dots .dot:hover {
+  background: #bbb;
+  transform: scale(1.2);
+}
+
+.carousel-dots .dot.active {
+  background: #4CAF50;
+  width: 32px;
+  border-radius: 6px;
+}
+
+/* Responsive carousel */
+@media (max-width: 1200px) {
+  .carousel-slide {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .carousel-slide {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .carousel-slide {
+    grid-template-columns: 1fr;
+  }
+  
+  .carousel-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+  }
+}
+
 .product-card {
   background: #ffffff;
   border-radius: 20px;
@@ -215,6 +329,43 @@
 
 .product-info h2 {
   margin-top: 0;
+}
+
+.image-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.gallery-image {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #eef1f7;
+  aspect-ratio: 1;
+}
+
+.gallery-image img,
+.gallery-image video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-details-list {
+  background: #f8f9fb;
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.product-details-list p {
+  margin: 0.5rem 0;
+  color: #2f3b52;
+}
+
+.product-details-list strong {
+  color: #1f4ea1;
+  margin-right: 0.5rem;
 }
 
 .admin-panel {
@@ -405,12 +556,93 @@
   margin: 0 0 0.4rem;
   font-size: 1rem;
   color: #1f2f4d;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .product-meta {
   margin: 0;
   font-size: 0.9rem;
   color: #5d6470;
+}
+
+.featured-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.6rem;
+  background: #1f4ea1;
+  color: white;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.product-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.button-icon {
+  background: transparent;
+  border: 1px solid #d7dbe4;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.button-icon:hover {
+  background: #f8f9fb;
+  transform: translateY(-1px);
+}
+
+.button-icon.edit:hover {
+  border-color: #1f4ea1;
+  color: #1f4ea1;
+  background: rgba(31, 78, 161, 0.05);
+}
+
+.button-icon.delete:hover {
+  border-color: #dc2626;
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.05);
+}
+
+.checkbox-label {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.75rem !important;
+  padding: 1rem;
+  background: #f8f9fb;
+  border-radius: 12px;
+  border: 1px solid #d7dbe4;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.checkbox-label:hover {
+  background: #eef1f7;
+  border-color: #1f4ea1;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #1f4ea1;
+}
+
+.checkbox-label span {
+  font-weight: 600;
+  color: #2f3b52;
+  user-select: none;
 }
 
 .card {

@@ -44,6 +44,7 @@ def init_db():
             depth REAL,
             price REAL NOT NULL,
             quantity INTEGER NOT NULL,
+            is_featured INTEGER DEFAULT 0,
             created_at TEXT,
             updated_at TEXT
         )
@@ -131,9 +132,9 @@ def create_manual_product(payload):
         """
         INSERT INTO manual_products (
             name, description, category, materials,
-            width, height, depth, price, quantity,
+            width, height, depth, price, quantity, is_featured,
             created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             payload["name"],
@@ -145,6 +146,7 @@ def create_manual_product(payload):
             payload.get("depth"),
             payload["price"],
             payload["quantity"],
+            1 if payload.get("is_featured") else 0,
             now,
             now,
         ),
@@ -222,7 +224,7 @@ def update_manual_product(product_id, payload):
         UPDATE manual_products
         SET name = ?, description = ?, category = ?, materials = ?,
             width = ?, height = ?, depth = ?, price = ?, quantity = ?,
-            updated_at = ?
+            is_featured = ?, updated_at = ?
         WHERE id = ?
         """,
         (
@@ -235,6 +237,7 @@ def update_manual_product(product_id, payload):
             payload.get("depth"),
             payload["price"],
             payload["quantity"],
+            1 if payload.get("is_featured") else 0,
             now,
             product_id,
         ),
