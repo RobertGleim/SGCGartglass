@@ -5,7 +5,17 @@ from flask import Blueprint, jsonify, request
 from werkzeug.security import check_password_hash
 
 from .auth import create_token, require_auth
-from .db import fetch_item, fetch_items, init_db, upsert_item
+from .db import (
+    fetch_item,
+    fetch_items,
+    init_db,
+    upsert_item,
+    create_manual_product,
+    fetch_manual_products,
+    fetch_manual_product,
+    update_manual_product,
+    delete_manual_product,
+)
 from .etsy import extract_listing_id, fetch_listing
 
 
@@ -106,3 +116,85 @@ def create_item():
     item_id = upsert_item(listing)
     item = fetch_item(item_id) or listing
     return jsonify(item), 201
+
+
+@api.get("/manual-products")
+def list_manual_products():
+    init_db()
+    return jsonify(fetch_manual_products())
+
+
+@api.get("/manual-products/<int:product_id>")
+def get_manual_product(product_id):
+    init_db()
+    product = fetch_manual_product(product_id)
+    if not product:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify(product)
+
+
+@api.post("/manual-products")
+@require_auth
+def create_manual_product_endpoint():
+    init_db()
+    payload = request.get_json(silent=True) or {}
+    
+    # Validate required fields
+    if not payload.get("name"):
+        return jsonify({"error": "missing_name"}), 400
+    if not payload.get("description"):
+        return jsonify({"error": "missing_description"}), 400
+    if payload.get("price") is None:
+        return jsonify({"error": "missing_price"}), 400
+    if payload.get("quantity") is None:
+        return jsonify({"error": "missing_quantity"}), 400
+    
+    try:
+        product_id = create_manual_product(payload)
+        product = fetch_manual_product(product_id)
+        return jsonify(product), 201
+    except Exception as exc:
+        return jsonify({"error": "creation_failed", "detail": str(exc)}), 500
+
+
+@api.put("/manual-products/<int:product_id>")
+@require_auth
+def update_manual_product_endpoint(product_id):
+    init_db()
+    product = fetch_manual_product(product_id)
+    if not product:
+        return jsonify({"error": "not_found"}), 404
+    
+    payload = request.get_json(silent=True) or {}
+    
+    # Validate required fields
+    if not payload.get("name"):
+        return jsonify({"error": "missing_name"}), 400
+    if not payload.get("description"):
+        return jsonify({"error": "missing_description"}), 400
+    if payload.get("price") is None:
+        return jsonify({"error": "missing_price"}), 400
+    if payload.get("quantity") is None:
+        return jsonify({"error": "missing_quantity"}), 400
+    
+    try:
+        update_manual_product(product_id, payload)
+        updated_product = fetch_manual_product(product_id)
+        return jsonify(updated_product)
+    except Exception as exc:
+        return jsonify({"error": "update_failed", "detail": str(exc)}), 500
+
+
+@api.delete("/manual-products/<int:product_id>")
+@require_auth
+def delete_manual_product_endpoint(product_id):
+    init_db()
+    product = fetch_manual_product(product_id)
+    if not product:
+        return jsonify({"error": "not_found"}), 404
+    
+    try:
+        delete_manual_product(product_id)
+        return jsonify({"success": True, "message": "Product deleted"}), 200
+    except Exception as exc:
+        return jsonify({"error": "deletion_failed", "detail": str(exc)}), 500

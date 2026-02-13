@@ -31,6 +31,36 @@ def init_db():
         )
         """
     )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS manual_products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL,
+            category TEXT,
+            materials TEXT,
+            width REAL,
+            height REAL,
+            depth REAL,
+            price REAL NOT NULL,
+            quantity INTEGER NOT NULL,
+            created_at TEXT,
+            updated_at TEXT
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS product_images (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            image_url TEXT NOT NULL,
+            media_type TEXT DEFAULT 'image',
+            display_order INTEGER DEFAULT 0,
+            FOREIGN KEY (product_id) REFERENCES manual_products(id) ON DELETE CASCADE
+        )
+        """
+    )
     conn.commit()
     conn.close()
 
@@ -90,3 +120,152 @@ def fetch_item(item_id):
     row = cursor.execute("SELECT * FROM items WHERE id = ?", (item_id,)).fetchone()
     conn.close()
     return dict(row) if row else None
+
+
+def create_manual_product(payload):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    
+    cursor.execute(
+        """
+        INSERT INTO manual_products (
+            name, description, category, materials,
+            width, height, depth, price, quantity,
+            created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            payload["name"],
+            payload["description"],
+            payload.get("category"),
+            payload.get("materials"),
+            payload.get("width"),
+            payload.get("height"),
+            payload.get("depth"),
+            payload["price"],
+            payload["quantity"],
+            now,
+            now,
+        ),
+    )
+    product_id = cursor.lastrowid
+    
+    # Insert images if provided
+    images = payload.get("images", [])
+    for idx, image in enumerate(images):
+        cursor.execute(
+            """
+            INSERT INTO product_images (product_id, image_url, media_type, display_order)
+            VALUES (?, ?, ?, ?)
+            """,
+            (product_id, image["url"], image.get("type", "image"), idx)
+        )
+    
+    conn.commit()
+    conn.close()
+    return product_id
+
+
+def fetch_manual_products():
+    conn = get_db()
+    cursor = conn.cursor()
+    rows = cursor.execute(
+        "SELECT * FROM manual_products ORDER BY created_at DESC"
+    ).fetchall()
+    
+    products = []
+    for row in rows:
+        product = dict(row)
+        # Fetch images for this product
+        images = cursor.execute(
+            "SELECT image_url, media_type FROM product_images WHERE product_id = ? ORDER BY display_order",
+            (product["id"],)
+        ).fetchall()
+        product["images"] = [dict(img) for img in images]
+        products.append(product)
+    
+    conn.close()
+    return products
+
+
+def fetch_manual_product(product_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    row = cursor.execute(
+        "SELECT * FROM manual_products WHERE id = ?", (product_id,)
+    ).fetchone()
+    
+    if not row:
+        conn.close()
+        return None
+    
+    product = dict(row)
+    # Fetch images for this product
+    images = cursor.execute(
+        "SELECT image_url, media_type FROM product_images WHERE product_id = ? ORDER BY display_order",
+        (product_id,)
+    ).fetchall()
+    product["images"] = [dict(img) for img in images]
+    
+    conn.close()
+    return product
+
+
+def update_manual_product(product_id, payload):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    
+    cursor.execute(
+        """
+        UPDATE manual_products
+        SET name = ?, description = ?, category = ?, materials = ?,
+            width = ?, height = ?, depth = ?, price = ?, quantity = ?,
+            updated_at = ?
+        WHERE id = ?
+        """,
+        (
+            payload["name"],
+            payload["description"],
+            payload.get("category"),
+            payload.get("materials"),
+            payload.get("width"),
+            payload.get("height"),
+            payload.get("depth"),
+            payload["price"],
+            payload["quantity"],
+            now,
+            product_id,
+        ),
+    )
+    
+    # Update images if provided
+    if "images" in payload:
+        # Delete old images
+        cursor.execute("DELETE FROM product_images WHERE product_id = ?", (product_id,))
+        # Insert new images
+        for idx, image in enumerate(payload["images"]):
+            cursor.execute(
+                """
+                INSERT INTO product_images (product_id, image_url, media_type, display_order)
+                VALUES (?, ?, ?, ?)
+                """,
+                (product_id, image["url"], image.get("type", "image"), idx)
+            )
+    
+    conn.commit()
+    conn.close()
+    return True
+
+
+def delete_manual_product(product_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    # Delete images first (cascade should handle this, but being explicit)
+    cursor.execute("DELETE FROM product_images WHERE product_id = ?", (product_id,))
+    cursor.execute("DELETE FROM manual_products WHERE id = ?", (product_id,))
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+    return affected > 0

@@ -46,3 +46,36 @@ export const createItem = async (token, listingValue) => {
     }),
   })
 }
+
+export const fetchManualProducts = () => request('/api/manual-products')
+
+export const fetchManualProductById = (id) => request(`/api/manual-products/${id}`)
+
+export const createManualProduct = async (token, productData) => {
+  return request('/api/manual-products', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(productData),
+  })
+}
+
+export const updateManualProduct = async (token, id, productData) => {
+  return request(`/api/manual-products/${id}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(productData),
+  })
+}
+
+export const deleteManualProduct = async (token, id) => {
+  return request(`/api/manual-products/${id}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+}

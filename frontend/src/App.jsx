@@ -5,6 +5,8 @@ import {
   fetchItemById,
   fetchItems,
   login,
+  createManualProduct,
+  fetchManualProducts,
 } from './lib/api'
 
 const BRAND_NAME = 'SGCG Art Glass'
@@ -26,6 +28,7 @@ function App() {
   const [items, setItems] = useState([])
   const [itemsLoading, setItemsLoading] = useState(true)
   const [selectedItem, setSelectedItem] = useState(null)
+  const [manualProducts, setManualProducts] = useState([])
   const [authToken, setAuthToken] = useState(
     () => window.localStorage.getItem('sgcg_token') || ''
   )
@@ -50,6 +53,18 @@ function App() {
           setItemsLoading(false)
         }
       })
+    
+    // Fetch manual products
+    fetchManualProducts()
+      .then((data) => {
+        if (isActive) {
+          setManualProducts(data)
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching manual products:', error)
+      })
+    
     return () => {
       isActive = false
     }
@@ -235,7 +250,13 @@ function App() {
             <AdminDashboard
               authToken={authToken}
               items={items}
+              manualProducts={manualProducts}
               onAddItem={handleAddItem}
+              onAddManualProduct={async (productData) => {
+                const created = await createManualProduct(authToken, productData)
+                setManualProducts((prev) => [created, ...prev])
+                return created
+              }}
               onLogout={() => {
                 setAuthToken('')
                 window.localStorage.removeItem('sgcg_token')
@@ -262,7 +283,7 @@ function AdminLogin({ onLogin }) {
     setStatus('Signing in...')
     try {
       await onLogin(email, password)
-    } catch (error) {
+    } catch {
       setStatus('Login failed. Check credentials.')
     }
   }
@@ -301,10 +322,23 @@ function AdminLogin({ onLogin }) {
   )
 }
 
-function AdminDashboard({ items, onAddItem, onLogout }) {
+function AdminDashboard({ items, manualProducts, onAddItem, onAddManualProduct, onLogout }) {
   const [listingValue, setListingValue] = useState('')
   const [status, setStatus] = useState('')
   const [activeTab, setActiveTab] = useState('products')
+  const [showManualProductModal, setShowManualProductModal] = useState(false)
+  const [manualProduct, setManualProduct] = useState({
+    name: '',
+    images: [],
+    description: '',
+    category: '',
+    materials: '',
+    width: '',
+    height: '',
+    depth: '',
+    price: '',
+    quantity: ''
+  })
 
   const handleAddItemSubmit = async (event) => {
     event.preventDefault()
@@ -317,9 +351,95 @@ function AdminDashboard({ items, onAddItem, onLogout }) {
       await onAddItem(listingValue)
       setListingValue('')
       setStatus('Listing linked successfully.')
-    } catch (error) {
+    } catch {
       setStatus('Unable to link listing. Check Etsy API settings.')
     }
+  }
+
+  const handleManualProductSubmit = async (event) => {
+    event.preventDefault()
+    setStatus('Adding manual product...')
+    
+    try {
+      // Convert images to base64
+      const imagePromises = manualProduct.images.map((item) => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            resolve({
+              url: e.target.result,
+              type: item.type
+            })
+          }
+          reader.onerror = reject
+          reader.readAsDataURL(item.file)
+        })
+      })
+      
+      const imageData = await Promise.all(imagePromises)
+      
+      const productData = {
+        name: manualProduct.name,
+        description: manualProduct.description,
+        category: manualProduct.category || null,
+        materials: manualProduct.materials || null,
+        width: manualProduct.width ? parseFloat(manualProduct.width) : null,
+        height: manualProduct.height ? parseFloat(manualProduct.height) : null,
+        depth: manualProduct.depth ? parseFloat(manualProduct.depth) : null,
+        price: parseFloat(manualProduct.price),
+        quantity: parseInt(manualProduct.quantity),
+        images: imageData
+      }
+      
+      await onAddManualProduct(productData)
+      setStatus('Manual product added successfully!')
+      setShowManualProductModal(false)
+      
+      // Clean up preview URLs
+      manualProduct.images.forEach(item => {
+        URL.revokeObjectURL(item.preview)
+      })
+      
+      // Reset form
+      setManualProduct({
+        name: '',
+        images: [],
+        description: '',
+        category: '',
+        materials: '',
+        width: '',
+        height: '',
+        depth: '',
+        price: '',
+        quantity: ''
+      })
+    } catch (error) {
+      console.error('Error adding manual product:', error)
+      setStatus(`Error: ${error.message}`)
+    }
+  }
+
+  const handleImageUpload = (event) => {
+    const files = Array.from(event.target.files)
+    // Store file objects and create preview URLs
+    setManualProduct(prev => ({
+      ...prev,
+      images: [...prev.images, ...files.map(file => ({
+        file,
+        preview: URL.createObjectURL(file),
+        type: file.type.startsWith('video/') ? 'video' : 'image'
+      }))]
+    }))
+  }
+
+  const removeImage = (index) => {
+    setManualProduct(prev => {
+      const newImages = [...prev.images]
+      // Revoke URL to prevent memory leaks
+      URL.revokeObjectURL(newImages[index].preview)
+      newImages.splice(index, 1)
+      return { ...prev, images: newImages }
+    })
   }
 
   return (
@@ -376,6 +496,18 @@ function AdminDashboard({ items, onAddItem, onLogout }) {
             </div>
 
             <div className="panel-section">
+              <h3>Add Manual Product</h3>
+              <p className="form-note">Add products that are not listed on Etsy</p>
+              <button 
+                className="button primary" 
+                type="button"
+                onClick={() => setShowManualProductModal(true)}
+              >
+                Add Product
+              </button>
+            </div>
+
+            <div className="panel-section">
               <h3>Linked Products ({items.length})</h3>
               {items.length === 0 ? (
                 <div className="empty-state">No products linked yet.</div>
@@ -404,6 +536,38 @@ function AdminDashboard({ items, onAddItem, onLogout }) {
                       >
                         View on Etsy
                       </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="panel-section">
+              <h3>Manual Products ({manualProducts.length})</h3>
+              {manualProducts.length === 0 ? (
+                <div className="empty-state">No manual products added yet.</div>
+              ) : (
+                <div className="product-list">
+                  {manualProducts.map((product) => (
+                    <div key={product.id} className="product-row">
+                      <div className="product-thumb">
+                        {product.images && product.images.length > 0 ? (
+                          product.images[0].media_type === 'video' ? (
+                            <video src={product.images[0].image_url} className="thumb-placeholder" />
+                          ) : (
+                            <img src={product.images[0].image_url} alt={product.name} />
+                          )
+                        ) : (
+                          <div className="thumb-placeholder">No image</div>
+                        )}
+                      </div>
+                      <div className="product-details">
+                        <h4>{product.name}</h4>
+                        <p className="product-meta">
+                          ${product.price} · Qty: {product.quantity}
+                          {product.category && ` · ${product.category}`}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -460,6 +624,166 @@ function AdminDashboard({ items, onAddItem, onLogout }) {
           </div>
         )}
       </div>
+
+      {showManualProductModal && (
+        <div className="modal-overlay" onClick={() => setShowManualProductModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Add Manual Product</h2>
+              <button 
+                className="modal-close" 
+                onClick={() => setShowManualProductModal(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <form className="modal-form" onSubmit={handleManualProductSubmit}>
+              <label>
+                Product Name *
+                <input
+                  type="text"
+                  value={manualProduct.name}
+                  onChange={(e) => setManualProduct({...manualProduct, name: e.target.value})}
+                  placeholder="Enter product name"
+                  required
+                />
+              </label>
+
+              <label>
+                Images / Video
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  multiple
+                  onChange={handleImageUpload}
+                />
+                <span className="form-note">Upload multiple images or a video</span>
+              </label>
+
+              {manualProduct.images.length > 0 && (
+                <div className="image-preview-grid">
+                  {manualProduct.images.map((item, index) => (
+                    <div key={index} className="image-preview-item">
+                      {item.type === 'video' ? (
+                        <video src={item.preview} controls className="preview-media" />
+                      ) : (
+                        <img src={item.preview} alt={`Preview ${index + 1}`} className="preview-media" />
+                      )}
+                      <button
+                        type="button"
+                        className="remove-media-btn"
+                        onClick={() => removeImage(index)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <label>
+                Description *
+                <textarea
+                  value={manualProduct.description}
+                  onChange={(e) => setManualProduct({...manualProduct, description: e.target.value})}
+                  placeholder="Enter product description"
+                  rows="4"
+                  required
+                />
+              </label>
+
+              <label>
+                Category
+                <input
+                  type="text"
+                  value={manualProduct.category}
+                  onChange={(e) => setManualProduct({...manualProduct, category: e.target.value})}
+                  placeholder="e.g., Vase, Bowl, Sculpture"
+                />
+              </label>
+
+              <label>
+                Materials
+                <input
+                  type="text"
+                  value={manualProduct.materials}
+                  onChange={(e) => setManualProduct({...manualProduct, materials: e.target.value})}
+                  placeholder="e.g., Hand-blown glass, Stained glass"
+                />
+              </label>
+
+              <div className="size-inputs">
+                <label>
+                  Width (inches)
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={manualProduct.width}
+                    onChange={(e) => setManualProduct({...manualProduct, width: e.target.value})}
+                    placeholder="0.00"
+                  />
+                </label>
+                <label>
+                  Height (inches)
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={manualProduct.height}
+                    onChange={(e) => setManualProduct({...manualProduct, height: e.target.value})}
+                    placeholder="0.00"
+                  />
+                </label>
+                <label>
+                  Depth (inches)
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={manualProduct.depth}
+                    onChange={(e) => setManualProduct({...manualProduct, depth: e.target.value})}
+                    placeholder="0.00"
+                  />
+                </label>
+              </div>
+
+              <div className="price-quantity-inputs">
+                <label>
+                  Price *
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={manualProduct.price}
+                    onChange={(e) => setManualProduct({...manualProduct, price: e.target.value})}
+                    placeholder="0.00"
+                    required
+                  />
+                </label>
+                <label>
+                  Quantity *
+                  <input
+                    type="number"
+                    min="0"
+                    value={manualProduct.quantity}
+                    onChange={(e) => setManualProduct({...manualProduct, quantity: e.target.value})}
+                    placeholder="0"
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="button" onClick={() => setShowManualProductModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="button primary">
+                  Add Listing
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
