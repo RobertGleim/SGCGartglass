@@ -91,7 +91,17 @@ def create_item():
     try:
         listing = fetch_listing(listing_id)
     except RuntimeError as exc:
-        return jsonify({"error": str(exc)}), 502
+        message = str(exc)
+        if message.startswith("etsy_api_error:"):
+            parts = message.split(":", 2)
+            status = parts[1] if len(parts) > 1 else ""
+            detail = parts[2] if len(parts) > 2 else ""
+            return jsonify({
+                "error": "etsy_api_error",
+                "status": status,
+                "detail": detail or "Etsy API request failed.",
+            }), 502
+        return jsonify({"error": message}), 502
 
     item_id = upsert_item(listing)
     item = fetch_item(item_id) or listing

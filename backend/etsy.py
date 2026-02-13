@@ -75,7 +75,33 @@ def fetch_listing(listing_id):
         with urllib.request.urlopen(request, timeout=10) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        raise RuntimeError(f"etsy_api_error:{exc.code}") from exc
+        body = ""
+        try:
+            body = exc.read().decode("utf-8")
+        except Exception:
+            body = ""
+
+        detail = ""
+        if body:
+            try:
+                error_payload = json.loads(body)
+            except json.JSONDecodeError:
+                error_payload = None
+            if isinstance(error_payload, dict):
+                detail = (
+                    error_payload.get("error")
+                    or error_payload.get("message")
+                    or error_payload.get("error_description")
+                    or ""
+                )
+                if not detail and error_payload.get("errors"):
+                    detail = str(error_payload.get("errors"))
+            elif body:
+                detail = body.strip()
+
+        if not detail:
+            detail = exc.reason or "Etsy API request failed"
+        raise RuntimeError(f"etsy_api_error:{exc.code}:{detail}") from exc
 
     title = payload.get("title")
     description = payload.get("description")
