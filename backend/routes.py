@@ -139,21 +139,28 @@ def create_manual_product_endpoint():
     init_db()
     payload = request.get_json(silent=True) or {}
     
+    # Debug logging
+    import sys
+    print(f"Received payload: {payload}", file=sys.stderr)
+    
     # Validate required fields
-    if not payload.get("name"):
-        return jsonify({"error": "missing_name"}), 400
-    if not payload.get("description"):
-        return jsonify({"error": "missing_description"}), 400
-    if payload.get("price") is None:
-        return jsonify({"error": "missing_price"}), 400
-    if payload.get("quantity") is None:
-        return jsonify({"error": "missing_quantity"}), 400
+    if not payload.get("name") or not payload.get("name").strip():
+        return jsonify({"error": "missing_name", "detail": "Product name is required"}), 400
+    if not payload.get("description") or not payload.get("description").strip():
+        return jsonify({"error": "missing_description", "detail": "Product description is required"}), 400
+    if payload.get("price") is None or payload.get("price") == "":
+        return jsonify({"error": "missing_price", "detail": "Product price is required"}), 400
+    if payload.get("quantity") is None or payload.get("quantity") == "":
+        return jsonify({"error": "missing_quantity", "detail": "Product quantity is required"}), 400
     
     try:
         product_id = create_manual_product(payload)
         product = fetch_manual_product(product_id)
         return jsonify(product), 201
     except Exception as exc:
+        print(f"Error creating product: {exc}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": "creation_failed", "detail": str(exc)}), 500
 
 

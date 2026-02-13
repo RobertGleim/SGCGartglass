@@ -1,7 +1,14 @@
+import os
+from pathlib import Path
 from flask import Flask
+from dotenv import load_dotenv
 
 from .routes import api
 from .db import init_db
+
+# Load environment variables from .env file
+env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 
 def create_app():

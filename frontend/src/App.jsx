@@ -379,17 +379,19 @@ function AdminDashboard({ items, manualProducts, onAddItem, onAddManualProduct, 
       const imageData = await Promise.all(imagePromises)
       
       const productData = {
-        name: manualProduct.name,
-        description: manualProduct.description,
-        category: manualProduct.category || null,
-        materials: manualProduct.materials || null,
+        name: manualProduct.name.trim(),
+        description: manualProduct.description.trim(),
+        category: manualProduct.category?.trim() || null,
+        materials: manualProduct.materials?.trim() || null,
         width: manualProduct.width ? parseFloat(manualProduct.width) : null,
         height: manualProduct.height ? parseFloat(manualProduct.height) : null,
         depth: manualProduct.depth ? parseFloat(manualProduct.depth) : null,
         price: parseFloat(manualProduct.price),
-        quantity: parseInt(manualProduct.quantity),
+        quantity: parseInt(manualProduct.quantity, 10),
         images: imageData
       }
+      
+      console.log('Submitting product data:', productData)
       
       await onAddManualProduct(productData)
       setStatus('Manual product added successfully!')
