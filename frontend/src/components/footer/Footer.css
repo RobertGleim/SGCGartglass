@@ -1,0 +1,8 @@
+.site-footer {
+    display: flex;
+    margin: auto;
+  margin-top: auto;
+  padding: 2rem 6vw;
+  color: #6b7280;
+  border-top: 1px solid rgba(31, 78, 161, 0.08);
+}

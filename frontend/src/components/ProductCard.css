@@ -1,0 +1,130 @@
+* {
+  margin: 0;
+  padding: 0;
+}
+.product-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: none;
+  border: 1px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  gap: 0;
+  margin: 0;
+  transition: box-shadow 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+
+.product-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border-color: #e0e0e0;
+}
+
+@media (max-width: 720px) {
+  .product-card {
+    max-width: 350px;
+    margin: 0 auto 1.5rem auto;
+  }
+}
+
+
+.card-image {
+  width: 100%;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+  background: #f7f7f7;
+  position: relative;
+}
+
+.card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0;
+}
+
+.image-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #e6eaf5;
+  color: #5d6470;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+}
+
+.card-body {
+  width: 100%;
+  padding: 0.75rem;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card-title {
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: #222;
+  margin: 0;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.card-pricing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.price {
+  font-weight: 600;
+  color: #222;
+  font-size: 1.1rem;
+}
+
+.old-price {
+  color: #888;
+  text-decoration: line-through;
+  font-size: 0.9rem;
+}
+
+.discount {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.free-shipping {
+  background: #d5efd5;
+  color: #218a4a;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  display: inline-block;
+  width: fit-content;
+}
+
+
+

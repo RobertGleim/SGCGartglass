@@ -1,0 +1,157 @@
+/* Responsive dropdown sidebar styles */
+.sidebar-dropdown {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  width: 100vw;
+  background: #fafafc;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(31, 78, 161, 0.07);
+  border-radius: 12px;
+  padding: 1.5rem 1rem;
+}
+
+.sidebar-toggle {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1rem;
+  margin: 1rem 0;
+  cursor: pointer;
+}
+
+.sidebar-toggle-icon {
+  font-size: 1rem;
+  color: #1f2f4d;
+}
+
+@media (max-width: 720px) {
+  .sidebar {
+    display: none;
+  }
+  .sidebar-toggle {
+    display: block;
+  }
+}
+.sidebar {
+  min-width: 200px;
+  max-width: 220px;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+.sidebar li {
+  margin-bottom: 0.25rem;
+}
+
+.sidebar button {
+  background: none;
+  border: none;
+  color: #595959;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0.4rem 0;
+  border-radius: 0;
+  transition: color 0.2s;
+  text-align: left;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sidebar button.active,
+.sidebar button:hover {
+  background: transparent;
+  color: #222;
+  font-weight: 400;
+}
+
+.sidebar button.active {
+  font-weight: 600;
+}
+
+.category-name {
+  flex: 1;
+}
+
+.category-count {
+  color: #595959;
+  font-size: 0.9rem;
+  margin-left: 0.5rem;
+}
+
+.sidebar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.sidebar-action-btn {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #222;
+  border-radius: 24px;
+  background: white;
+  color: #222;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.sidebar-action-btn:hover {
+  background: #f7f7f7;
+}
+
+.sidebar-action-btn.primary {
+  background: #f56400;
+  color: white;
+  border-color: #f56400;
+}
+
+.sidebar-action-btn.primary:hover {
+  background: #d05600;
+  border-color: #d05600;
+}
+
+.sidebar-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.stat-link {
+  font-size: 0.9rem;
+  color: #595959;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.stat-link:hover {
+  color: #222;
+}

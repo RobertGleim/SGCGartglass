@@ -1,0 +1,59 @@
+.hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  padding: 4rem 6vw 3rem;
+  align-items: center;
+}
+
+.hero-content h1 {
+  font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+  font-size: clamp(2.4rem, 4vw, 3.6rem);
+  margin: 0 0 1rem;
+  color: #1f2f4d;
+  animation: float-in 0.8s ease-out;
+}
+
+.hero-content .lead {
+  font-size: 1.05rem;
+  color: #4b5160;
+  max-width: 520px;
+}
+
+.hero-content .eyebrow {
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  color: #1f4ea1;
+  margin-bottom: 0.8rem;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.hero-panel {
+  display: flex;
+  justify-content: center;
+}
+
+.hero-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 20px 40px rgba(31, 46, 77, 0.08);
+  max-width: 360px;
+  animation: float-in 1s ease-out;
+}
+
+.hero-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #1f4ea1;
+  margin-bottom: 0.5rem;
+}
