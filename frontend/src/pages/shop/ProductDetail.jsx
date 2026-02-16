@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import '../styles/ProductDetail.css'
+import '../../styles/ProductDetail.css'
 
 export default function ProductDetail({ product }) {
   const [selectedImage, setSelectedImage] = useState(0)

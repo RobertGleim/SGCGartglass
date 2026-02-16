@@ -1,5 +1,5 @@
-import useCarousel from '../hooks/useCarousel'
-import '../styles/FeaturedCarousel.css'
+import useCarousel from '../../hooks/useCarousel'
+import '../../styles/FeaturedCarousel.css'
 
 export default function FeaturedCarousel({ items, itemsLoading }) {
   const {

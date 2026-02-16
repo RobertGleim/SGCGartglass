@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import './styles/App.css'
-import FeaturedCarousel from './components/FeaturedCarousel'
-import Footer from './components/footer/Footer'
-import Header from './components/header/Header'
-import HeroSection from './components/hero/HeroSection'
-import ProductPage from './views/ProductPage'
-import ProductDetail from './views/ProductDetail'
+import FeaturedCarousel from './components/product/FeaturedCarousel'
+import Footer from './components/layout/footer/Footer'
+import Header from './components/layout/header/Header'
+import HeroSection from './components/layout/hero/HeroSection'
+import ProductPage from './pages/shop/ProductPage'
+import ProductDetail from './pages/shop/ProductDetail'
 import useHashRoute from './hooks/useHashRoute'
 import useAuth from './hooks/useAuth'
 import {
   createItem,
   fetchItems,
   fetchManualProducts
-} from './config/api'
-import AdminLogin from './views/admin/AdminLogin'
-import AdminDashboard from './views/admin/AdminDashboard'
+} from './services/api'
+import AdminLogin from './pages/admin/AdminLogin'
+import AdminDashboard from './pages/admin/AdminDashboard'
 
 const BRAND_NAME = 'SGCG Art Glass'
 
@@ -150,19 +150,19 @@ function App() {
               manualProducts={manualProducts}
               onAddItem={handleAddItem}
               onAddManualProduct={async (productData) => {
-                const { createManualProduct } = await import('./config/api')
+                const { createManualProduct } = await import('./services/api')
                 const created = await createManualProduct(authToken, productData)
                 setManualProducts((prev) => [created, ...prev])
                 return created
               }}
               onUpdateManualProduct={async (id, productData) => {
-                const { updateManualProduct } = await import('./config/api')
+                const { updateManualProduct } = await import('./services/api')
                 const updated = await updateManualProduct(authToken, id, productData)
                 setManualProducts((prev) => prev.map(p => p.id === id ? updated : p))
                 return updated
               }}
               onDeleteManualProduct={async (id) => {
-                const { deleteManualProduct } = await import('./config/api')
+                const { deleteManualProduct } = await import('./services/api')
                 await deleteManualProduct(authToken, id)
                 setManualProducts((prev) => prev.filter(p => p.id !== id))
               }}
