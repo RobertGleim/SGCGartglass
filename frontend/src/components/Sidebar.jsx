@@ -1,4 +1,4 @@
-import './Sidebar.css'
+import '../styles/Sidebar.css'
 
 export default function Sidebar({ categories, categoryCounts, selectedCategory, setSelectedCategory, totalProducts }) {
   return (

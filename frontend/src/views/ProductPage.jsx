@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Sidebar from '../components/Sidebar';
 import ProductCard from '../components/ProductCard';
 import SearchBar from '../components/SearchBar';
-import './ProductPage.css';
+import '../styles/ProductPage.css';
 
 export default function ProductPage({ products }) {
   const [search, setSearch] = useState('')

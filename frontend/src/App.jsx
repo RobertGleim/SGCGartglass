@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import './App.css'
+import './styles/App.css'
 import FeaturedCarousel from './components/FeaturedCarousel'
 import Footer from './components/footer/Footer'
 import Header from './components/header/Header'

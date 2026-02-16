@@ -3,7 +3,11 @@ import '../styles/ProductDetail.css'
 
 export default function ProductDetail({ product }) {
   const [selectedImage, setSelectedImage] = useState(0)
-  const [quantity, setQuantity] = useState(1)
+  
+  const handleAddToCart = () => {
+    // TODO: Implement add to cart logic
+    console.log('Added to cart:', product)
+  }
 
   // Calculate discount if there's an old price
   const hasDiscount = product.old_price && product.old_price > product.price_amount
@@ -15,10 +19,7 @@ export default function ProductDetail({ product }) {
   const images = product.images || (product.image_url ? [{ image_url: product.image_url }] : [])
   const mainImage = images.length > 0 ? images[selectedImage].image_url : null
 
-  const handleAddToCart = () => {
-    console.log(`Added ${quantity} of ${product.title} to cart`)
-    // TODO: Implement cart functionality
-  }
+ 
 
   return (
     <div className="product-detail">
@@ -112,18 +113,7 @@ export default function ProductDetail({ product }) {
 
           {/* Quantity & Add to Cart */}
           <div className="purchase-section">
-            <div className="quantity-selector">
-              <label htmlFor="quantity">Quantity:</label>
-              <select 
-                id="quantity" 
-                value={quantity} 
-                onChange={(e) => setQuantity(parseInt(e.target.value))}
-              >
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                  <option key={num} value={num}>{num}</option>
-                ))}
-              </select>
-            </div>
+            
             <button className="add-to-cart-btn" onClick={handleAddToCart}>
               Add to cart
             </button>

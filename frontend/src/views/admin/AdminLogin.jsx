@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import '../../styles/AdminDashboard.css'
 
 export default function AdminLogin({ onLogin }) {
   const [email, setEmail] = useState('')
@@ -31,7 +32,7 @@ export default function AdminLogin({ onLogin }) {
             required
           />
         </label>
-        <label style={{ position: 'relative' }}>
+        <label className="password-label-wrapper">
           Password
           <input
             type={showPassword ? 'text' : 'password'}
@@ -39,10 +40,10 @@ export default function AdminLogin({ onLogin }) {
             onChange={(event) => setPassword(event.target.value)}
             placeholder="********"
             required
-            style={{ paddingRight: '2.5em' }}
+            className="password-input"
           />
           <span
-            style={{ position: 'absolute', right: '0.5em', top: '2.7em', cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center' }}
+            className="password-toggle"
             onClick={() => setShowPassword((v) => !v)}
             title={showPassword ? 'Hide password' : 'Show password'}
           >

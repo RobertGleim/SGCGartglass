@@ -1,0 +1,136 @@
+/* Admin Dashboard Styles */
+
+/* Multi-select label wrapper */
+.multi-select-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.multi-select-inner {
+  flex: 1;
+}
+
+.multi-select-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.multi-select-dropdown {
+  flex: 1;
+  padding: 0.5rem;
+}
+
+.multi-select-add-btn {
+  padding: 0.5rem 0.75rem;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+.multi-select-add-btn:hover {
+  background-color: #45a049;
+}
+
+.multi-select-input {
+  width: 100%;
+}
+
+.multi-select-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Category tags */
+.category-tag {
+  background-color: #e3f2fd;
+  border: 1px solid #2196F3;
+  border-radius: 20px;
+  padding: 0.4rem 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #1976D2;
+}
+
+.category-tag-remove {
+  background: none;
+  border: none;
+  color: #1976D2;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  line-height: 1;
+  transition: opacity 0.2s ease;
+}
+
+.category-tag-remove:hover {
+  opacity: 0.7;
+}
+
+/* Material tags */
+.material-tag {
+  background-color: #f3e5f5;
+  border: 1px solid #9c27b0;
+  border-radius: 20px;
+  padding: 0.4rem 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #6a1b9a;
+}
+
+.material-tag-remove {
+  background: none;
+  border: none;
+  color: #6a1b9a;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  line-height: 1;
+  transition: opacity 0.2s ease;
+}
+
+.material-tag-remove:hover {
+  opacity: 0.7;
+}
+
+/* Admin Login Styles */
+
+.password-label-wrapper {
+  position: relative;
+}
+
+.password-input {
+  padding-right: 2.5em;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.5em;
+  top: 2.7em;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.2s ease;
+}
+
+.password-toggle:hover {
+  opacity: 0.7;
+}
+
+.password-toggle svg {
+  width: 22px;
+  height: 22px;
+}

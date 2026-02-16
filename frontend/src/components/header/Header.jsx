@@ -1,4 +1,4 @@
-import './Header.css'
+import '../../styles/Header.css'
 import { useState } from 'react'
 
 export default function Header({ brandName, authToken, route }) {

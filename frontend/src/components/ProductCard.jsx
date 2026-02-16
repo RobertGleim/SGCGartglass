@@ -1,4 +1,4 @@
-import './ProductCard.css'
+import '../styles/ProductCard.css'
 
 export default function ProductCard({ product }) {
   // Calculate discount if there's an old price

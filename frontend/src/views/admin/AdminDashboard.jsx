@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import '../../styles/AdminDashboard.css'
 
 export default function AdminDashboard({ items, manualProducts, onAddItem, onAddManualProduct, onUpdateManualProduct, onDeleteManualProduct, onLogout }) {
   const [listingValue, setListingValue] = useState('')
@@ -6,12 +7,14 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
   const [activeTab, setActiveTab] = useState('products')
   const [showManualProductModal, setShowManualProductModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
+  const [favoriteCategories, setFavoriteCategories] = useState(['Vase', 'Bowl', 'Sculpture'])
+  const [favoriteMaterials, setFavoriteMaterials] = useState(['Hand-blown glass', 'Stained glass', 'Fused glass'])
   const [manualProduct, setManualProduct] = useState({
     name: '',
     images: [],
     description: '',
-    category: '',
-    materials: '',
+    category: [],
+    materials: [],
     width: '',
     height: '',
     depth: '',
@@ -19,6 +22,8 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
     quantity: '',
     is_featured: false
   })
+  const [categoryInput, setCategoryInput] = useState('')
+  const [materialInput, setMaterialInput] = useState('')
 
   const handleAddItemSubmit = async (event) => {
     event.preventDefault()
@@ -43,8 +48,8 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
       const productData = {
         name: manualProduct.name.trim(),
         description: manualProduct.description.trim(),
-        category: manualProduct.category?.trim() || null,
-        materials: manualProduct.materials?.trim() || null,
+        category: manualProduct.category.length > 0 ? manualProduct.category : null,
+        materials: manualProduct.materials.length > 0 ? manualProduct.materials : null,
         width: manualProduct.width ? parseFloat(manualProduct.width) : null,
         height: manualProduct.height ? parseFloat(manualProduct.height) : null,
         depth: manualProduct.depth ? parseFloat(manualProduct.depth) : null,
@@ -66,8 +71,8 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
         name: '',
         images: [],
         description: '',
-        category: '',
-        materials: '',
+        category: [],
+        materials: [],
         width: '',
         height: '',
         depth: '',
@@ -86,8 +91,8 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
       name: product.name || '',
       images: product.images || [],
       description: product.description || '',
-      category: product.category || '',
-      materials: product.materials || '',
+      category: Array.isArray(product.category) ? product.category : (product.category ? [product.category] : []),
+      materials: Array.isArray(product.materials) ? product.materials : (product.materials ? [product.materials] : []),
       width: product.width?.toString() || '',
       height: product.height?.toString() || '',
       depth: product.depth?.toString() || '',
@@ -95,6 +100,8 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
       quantity: product.quantity?.toString() || '',
       is_featured: product.is_featured === 1 || product.is_featured === true
     })
+    setCategoryInput('')
+    setMaterialInput('')
     setShowManualProductModal(true)
   }
 
@@ -120,8 +127,8 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
       name: '',
       images: [],
       description: '',
-      category: '',
-      materials: '',
+      category: [],
+      materials: [],
       width: '',
       height: '',
       depth: '',
@@ -129,6 +136,8 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
       quantity: '',
       is_featured: false
     })
+    setCategoryInput('')
+    setMaterialInput('')
   }
 
   return (
@@ -260,7 +269,8 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
                         </h4>
                         <p className="product-meta">
                           ${product.price} · Qty: {product.quantity}
-                          {product.category && ` · ${product.category}`}
+                          {product.category && ` · ${Array.isArray(product.category) ? product.category.join(', ') : product.category}`}
+                          {product.materials && ` · ${Array.isArray(product.materials) ? product.materials.join(', ') : product.materials}`}
                         </p>
                       </div>
                       <div className="product-actions">
@@ -384,23 +394,163 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
               </label>
 
               <label>
-                Category
-                <input
-                  type="text"
-                  value={manualProduct.category}
-                  onChange={(e) => setManualProduct({...manualProduct, category: e.target.value})}
-                  placeholder="e.g., Vase, Bowl, Sculpture"
-                />
+                Categories
+                <div className="multi-select-wrapper">
+                  <div className="multi-select-inner">
+                    <div className="multi-select-row">
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value && !manualProduct.category.includes(e.target.value)) {
+                            setManualProduct({...manualProduct, category: [...manualProduct.category, e.target.value]})
+                          }
+                        }}
+                        className="multi-select-dropdown"
+                      >
+                        <option value="">Select a favorite category...</option>
+                        {favoriteCategories.map((cat) => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (categoryInput.trim() && !manualProduct.category.includes(categoryInput.trim())) {
+                            setManualProduct({...manualProduct, category: [...manualProduct.category, categoryInput.trim()]})
+                            if (!favoriteCategories.includes(categoryInput.trim())) {
+                              setFavoriteCategories([...favoriteCategories, categoryInput.trim()])
+                            }
+                            setCategoryInput('')
+                          }
+                        }}
+                        title="Add category"
+                        className="multi-select-add-btn"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={categoryInput}
+                      onChange={(e) => setCategoryInput(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          if (categoryInput.trim() && !manualProduct.category.includes(categoryInput.trim())) {
+                            setManualProduct({...manualProduct, category: [...manualProduct.category, categoryInput.trim()]})
+                            if (!favoriteCategories.includes(categoryInput.trim())) {
+                              setFavoriteCategories([...favoriteCategories, categoryInput.trim()])
+                            }
+                            setCategoryInput('')
+                          }
+                        }
+                      }}
+                      placeholder="Or type and press Enter"
+                      className="multi-select-input"
+                    />
+                    {manualProduct.category.length > 0 && (
+                      <div className="multi-select-tags">
+                        {manualProduct.category.map((cat) => (
+                          <div
+                            key={cat}
+                            className="category-tag"
+                          >
+                            {cat}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setManualProduct({...manualProduct, category: manualProduct.category.filter(c => c !== cat)})
+                              }}
+                              className="category-tag-remove"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </label>
 
               <label>
                 Materials
-                <input
-                  type="text"
-                  value={manualProduct.materials}
-                  onChange={(e) => setManualProduct({...manualProduct, materials: e.target.value})}
-                  placeholder="e.g., Hand-blown glass, Stained glass"
-                />
+                <div className="multi-select-wrapper">
+                  <div className="multi-select-inner">
+                    <div className="multi-select-row">
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value && !manualProduct.materials.includes(e.target.value)) {
+                            setManualProduct({...manualProduct, materials: [...manualProduct.materials, e.target.value]})
+                          }
+                        }}
+                        className="multi-select-dropdown"
+                      >
+                        <option value="">Select a favorite material...</option>
+                        {favoriteMaterials.map((mat) => (
+                          <option key={mat} value={mat}>{mat}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (materialInput.trim() && !manualProduct.materials.includes(materialInput.trim())) {
+                            setManualProduct({...manualProduct, materials: [...manualProduct.materials, materialInput.trim()]})
+                            if (!favoriteMaterials.includes(materialInput.trim())) {
+                              setFavoriteMaterials([...favoriteMaterials, materialInput.trim()])
+                            }
+                            setMaterialInput('')
+                          }
+                        }}
+                        title="Add material"
+                        className="multi-select-add-btn"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={materialInput}
+                      onChange={(e) => setMaterialInput(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          if (materialInput.trim() && !manualProduct.materials.includes(materialInput.trim())) {
+                            setManualProduct({...manualProduct, materials: [...manualProduct.materials, materialInput.trim()]})
+                            if (!favoriteMaterials.includes(materialInput.trim())) {
+                              setFavoriteMaterials([...favoriteMaterials, materialInput.trim()])
+                            }
+                            setMaterialInput('')
+                          }
+                        }
+                      }}
+                      placeholder="Or type and press Enter"
+                      className="multi-select-input"
+                    />
+                    {manualProduct.materials.length > 0 && (
+                      <div className="multi-select-tags">
+                        {manualProduct.materials.map((mat) => (
+                          <div
+                            key={mat}
+                            className="material-tag"
+                          >
+                            {mat}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setManualProduct({...manualProduct, materials: manualProduct.materials.filter(m => m !== mat)})
+                              }}
+                              className="material-tag-remove"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </label>
 
               <div className="size-inputs">
@@ -412,6 +562,7 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
                     value={manualProduct.width}
                     onChange={(e) => setManualProduct({...manualProduct, width: e.target.value})}
                     placeholder="0.00"
+                    style={{ width: '130px' }}
                   />
                 </label>
                 <label>
@@ -422,6 +573,7 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
                     value={manualProduct.height}
                     onChange={(e) => setManualProduct({...manualProduct, height: e.target.value})}
                     placeholder="0.00"
+                    style={{ width: '130px' }}
                   />
                 </label>
                 <label>
@@ -432,6 +584,7 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
                     value={manualProduct.depth}
                     onChange={(e) => setManualProduct({...manualProduct, depth: e.target.value})}
                     placeholder="0.00"
+                    style={{ width: '130px' }}
                   />
                 </label>
               </div>
@@ -446,6 +599,7 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
                     value={manualProduct.price}
                     onChange={(e) => setManualProduct({...manualProduct, price: e.target.value})}
                     placeholder="0.00"
+                    style={{ width: '130px' }}
                     required
                   />
                 </label>
