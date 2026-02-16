@@ -2,6 +2,13 @@
   margin: 0;
   padding: 0;
 }
+
+.product-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
 .product-card {
   background: #fff;
   border-radius: 8px;

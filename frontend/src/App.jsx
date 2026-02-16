@@ -5,6 +5,7 @@ import Footer from './components/footer/Footer'
 import Header from './components/header/Header'
 import HeroSection from './components/hero/HeroSection'
 import ProductPage from './views/ProductPage'
+import ProductDetail from './views/ProductDetail'
 import useHashRoute from './hooks/useHashRoute'
 import useAuth from './hooks/useAuth'
 import {
@@ -52,6 +53,11 @@ function App() {
       isActive = false
     }
   }, [])
+
+  // Scroll to top whenever route changes
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [route.path, route.params?.id])
 
   const allProducts = useMemo(() => {
     const manualItems = manualProducts.map(p => ({
@@ -110,8 +116,28 @@ function App() {
         </main>
       )}
 
-      {route.path === '/product' && (
+      {route.path === '/product' && !route.params?.id && (
         <ProductPage products={allProducts} />
+      )}
+
+      {route.path === '/product' && route.params?.id && (
+        <main className="product-detail-page">
+          {(() => {
+            const product = allProducts.find(p => String(p.id) === String(route.params.id))
+            if (!product) {
+              return (
+                <div style={{ padding: '2rem', textAlign: 'center' }}>
+                  <h2>Product not found</h2>
+                  <p>The product you're looking for doesn't exist.</p>
+                  <a href="#/product" style={{ color: '#1a1a1a', textDecoration: 'underline' }}>
+                    Back to shop
+                  </a>
+                </div>
+              )
+            }
+            return <ProductDetail product={product} />
+          })()}
+        </main>
       )}
 
       {route.path === '/admin' && (

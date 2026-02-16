@@ -7,6 +7,8 @@ import './ProductPage.css';
 export default function ProductPage({ products }) {
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
+  const [priceFilter, setPriceFilter] = useState('any')
+  const [sortBy, setSortBy] = useState('recent')
   const [activeTab, setActiveTab] = useState('items')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -38,7 +40,7 @@ export default function ProductPage({ products }) {
 
   const filtered = useMemo(() => {
     const lowerSearch = search.toLowerCase()
-    return products.filter((product) => {
+    let result = products.filter((product) => {
       let matchesCategory = true
       if (selectedCategory === 'All') {
         matchesCategory = true
@@ -51,9 +53,36 @@ export default function ProductPage({ products }) {
       const matchesSearch =
         product.title?.toLowerCase().includes(lowerSearch) ||
         product.description?.toLowerCase().includes(lowerSearch)
-      return matchesCategory && matchesSearch
+      
+      // Price filter
+      let matchesPrice = true
+      const price = product.price_amount || 0
+      if (priceFilter === 'under100') matchesPrice = price < 100
+      else if (priceFilter === '100to250') matchesPrice = price >= 100 && price <= 250
+      else if (priceFilter === '250to500') matchesPrice = price >= 250 && price <= 500
+      else if (priceFilter === 'over500') matchesPrice = price > 500
+      
+      return matchesCategory && matchesSearch && matchesPrice
     })
-  }, [products, search, selectedCategory])
+    
+    // Sort
+    if (sortBy === 'featured') {
+      result = result.filter(p => p.is_featured)
+    } else if (sortBy === 'lowest') {
+      result = [...result].sort((a, b) => (a.price_amount || 0) - (b.price_amount || 0))
+    } else if (sortBy === 'highest') {
+      result = [...result].sort((a, b) => (b.price_amount || 0) - (a.price_amount || 0))
+    } else if (sortBy === 'recent') {
+      // Sort by created_at timestamp (newest first)
+      result = [...result].sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at) : new Date(0)
+        const dateB = b.created_at ? new Date(b.created_at) : new Date(0)
+        return dateB - dateA
+      })
+    }
+    
+    return result
+  }, [products, search, selectedCategory, priceFilter, sortBy])
 
   return (
     <div className="product-page-wrapper">
@@ -125,19 +154,28 @@ export default function ProductPage({ products }) {
         {/* Product List Area */}
         <main className="product-list-area">
           <div className="content-header">
-            <h2 className="section-heading">Featured items</h2>
+            <h2 className="section-heading">All items</h2>
             <div className="filter-controls">
-              <select className="filter-dropdown">
-                <option>Price: Any price</option>
-                <option>Under $25</option>
-                <option>$25 to $50</option>
-                <option>$50 to $100</option>
-                <option>Over $100</option>
+              <select 
+                className="filter-dropdown" 
+                value={priceFilter} 
+                onChange={(e) => setPriceFilter(e.target.value)}
+              >
+                <option value="any">Price: Any price</option>
+                <option value="under100">Under $100</option>
+                <option value="100to250">$100 to $250</option>
+                <option value="250to500">$250 to $500</option>
+                <option value="over500">Over $500</option>
               </select>
-              <select className="filter-dropdown">
-                <option>Sort: Most Recent</option>
-                <option>Lowest Price</option>
-                <option>Highest Price</option>
+              <select 
+                className="filter-dropdown" 
+                value={sortBy} 
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="recent">Sort: Most Recent</option>
+                <option value="featured">Featured Items</option>
+                <option value="lowest">Lowest Price</option>
+                <option value="highest">Highest Price</option>
               </select>
             </div>
           </div>
@@ -150,18 +188,6 @@ export default function ProductPage({ products }) {
               ))
             )}
           </div>
-          
-          {/* All Items Section */}
-          {filtered.length > 0 && (
-            <>
-              <h2 className="section-heading all-items-heading">All items</h2>
-              <div className="product-grid">
-                {filtered.map((product) => (
-                  <ProductCard product={product} key={`all-${product.id}`} />
-                ))}
-              </div>
-            </>
-          )}
         </main>
       </div>
     </div>
