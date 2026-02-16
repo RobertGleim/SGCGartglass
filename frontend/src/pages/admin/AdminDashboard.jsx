@@ -24,6 +24,115 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
   })
   const [categoryInput, setCategoryInput] = useState('')
   const [materialInput, setMaterialInput] = useState('')
+  const [imagePreviews, setImagePreviews] = useState([])
+  const [enableWatermark, setEnableWatermark] = useState(true)
+  const [watermarkText, setWatermarkText] = useState('SGCG ART GLASS')
+
+  const applyWatermark = (file, watermarkText, shouldApply) => {
+    return new Promise((resolve) => {
+      const img = new Image()
+      const reader = new FileReader()
+      
+      reader.onload = (e) => {
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          
+          canvas.width = img.width
+          canvas.height = img.height
+          
+          // Draw the original image
+          ctx.drawImage(img, 0, 0)
+          
+          // Apply watermark if enabled
+          if (shouldApply && watermarkText) {
+            // Calculate font size based on image size
+            const fontSize = Math.max(40, Math.min(img.width, img.height) / 12)
+            ctx.font = `bold ${fontSize}px Arial`
+            
+            // Light grey, see-through color
+            ctx.fillStyle = 'rgba(57, 54, 243, 0.5)'
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'middle'
+            
+            // Rotate and position for diagonal watermark (bottom-left to top-right)
+            ctx.save()
+            ctx.translate(canvas.width / 2, canvas.height / 2)
+            ctx.rotate(-Math.PI / 8) 
+            ctx.fillText(watermarkText, 0, 0)
+            ctx.restore()
+          }
+          
+          // Convert canvas to blob
+          canvas.toBlob((blob) => {
+            resolve(new File([blob], file.name, { type: file.type }))
+          }, file.type)
+        }
+        img.src = e.target.result
+      }
+      
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const handleAddImages = async (files) => {
+    const newPreviews = []
+    
+    for (const file of Array.from(files)) {
+      // Skip watermark for videos
+      const isVideo = file.type.startsWith('video')
+      let processedFile = file
+      
+      // Apply watermark to images only
+      if (!isVideo) {
+        processedFile = await applyWatermark(file, watermarkText, enableWatermark)
+      }
+      
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        newPreviews.push({
+          id: Math.random(),
+          src: e.target.result,
+          file: processedFile,
+          type: isVideo ? 'video' : 'image'
+        })
+        
+        // Only update when all previews are loaded
+        if (newPreviews.length === Array.from(files).length) {
+          setImagePreviews((prev) => [...prev, ...newPreviews])
+          setManualProduct((prev) => ({
+            ...prev,
+            images: [...(prev.images || []), ...newPreviews.map(p => p.file)]
+          }))
+        }
+      }
+      reader.readAsDataURL(processedFile)
+    }
+  }
+
+  const handleRemoveImage = (id) => {
+    // Calculate remaining previews once to avoid stale state issues
+    const remainingPreviews = imagePreviews.filter((img) => img.id !== id)
+    
+    setImagePreviews(remainingPreviews)
+    setManualProduct((prev) => {
+      // Filter images to keep only those matching remaining previews
+      const remainingImages = prev.images.filter((img) => {
+        // If it's a File object, check if its preview is in remainingPreviews
+        if (img instanceof File) {
+          return remainingPreviews.some((preview) => preview.file === img)
+        }
+        // If it's an existing image object, check by id
+        const imgId = `existing-${prev.images.indexOf(img)}`
+        return remainingPreviews.some((preview) => preview.id === imgId)
+      })
+      
+      return {
+        ...prev,
+        images: remainingImages
+      }
+    })
+  }
 
   const handleAddItemSubmit = async (event) => {
     event.preventDefault()
@@ -36,8 +145,12 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
       await onAddItem(listingValue)
       setListingValue('')
       setStatus('Listing linked successfully.')
-    } catch {
-      setStatus('Unable to link listing. Check Etsy API settings.')
+    } catch (error) {
+      if (error.message.includes('Unauthorized') || error.message.includes('401')) {
+        setStatus('Session expired. Please log out and log back in.')
+      } else {
+        setStatus('Unable to link listing. Check Etsy API settings.')
+      }
     }
   }
 
@@ -45,6 +158,30 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
     event.preventDefault()
     setStatus(editingProduct ? 'Updating product...' : 'Adding manual product...')
     try {
+      // Convert File objects to data URLs for images
+      const processedImages = []
+      
+      for (const img of manualProduct.images || []) {
+        if (img instanceof File) {
+          // New file - convert to data URL
+          const dataUrl = await new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onload = (e) => resolve(e.target.result)
+            reader.readAsDataURL(img)
+          })
+          processedImages.push({
+            url: dataUrl,
+            type: img.type.startsWith('video') ? 'video' : 'image'
+          })
+        } else if (img.image_url) {
+          // Existing image from database
+          processedImages.push({
+            image_url: img.image_url,
+            media_type: img.media_type || 'image'
+          })
+        }
+      }
+
       const productData = {
         name: manualProduct.name.trim(),
         description: manualProduct.description.trim(),
@@ -56,8 +193,9 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
         price: parseFloat(manualProduct.price),
         quantity: parseInt(manualProduct.quantity, 10),
         is_featured: manualProduct.is_featured,
-        images: manualProduct.images || []
+        images: processedImages
       }
+
       if (editingProduct) {
         await onUpdateManualProduct(editingProduct.id, productData)
         setStatus('Product updated successfully!')
@@ -65,6 +203,8 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
         await onAddManualProduct(productData)
         setStatus('Manual product added successfully!')
       }
+      
+      // Close modal and reset state
       setShowManualProductModal(false)
       setEditingProduct(null)
       setManualProduct({
@@ -80,13 +220,28 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
         quantity: '',
         is_featured: false
       })
+      setImagePreviews([])
+      setEnableWatermark(true) // Always reset to true after submission
+      setWatermarkText('SGCG ART GLASS') // Reset to default text
     } catch (error) {
-      setStatus(`Error: ${error.message}`)
+      // Check if it's an authentication error
+      if (error.message.includes('Unauthorized') || error.message.includes('401')) {
+        setStatus('Session expired. Please log out and log back in.')
+      } else {
+        setStatus(`Error: ${error.message}`)
+      }
     }
   }
 
   const handleEditProduct = (product) => {
     setEditingProduct(product)
+    const existingImages = (product.images || []).map((img, idx) => ({
+      id: `existing-${idx}`,
+      src: img.image_url,
+      type: img.media_type === 'video' ? 'video' : 'image',
+      isExisting: true
+    }))
+    setImagePreviews(existingImages)
     setManualProduct({
       name: product.name || '',
       images: product.images || [],
@@ -115,7 +270,11 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
         await onDeleteManualProduct(product.id)
         setStatus('Product deleted successfully!')
       } catch (error) {
-        setStatus(`Error deleting product: ${error.message}`)
+        if (error.message.includes('Unauthorized') || error.message.includes('401')) {
+          setStatus('Session expired. Please log out and log back in.')
+        } else {
+          setStatus(`Error deleting product: ${error.message}`)
+        }
       }
     }
   }
@@ -138,6 +297,9 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
     })
     setCategoryInput('')
     setMaterialInput('')
+    setImagePreviews([])
+    setEnableWatermark(true) // Always reset to true when modal closes
+    setWatermarkText('SGCG ART GLASS') // Reset to default text
   }
 
   return (
@@ -371,16 +533,92 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
                 />
               </label>
 
-              <label>
-                Images / Video
-                <input
-                  type="file"
-                  accept="image/*,video/*"
-                  multiple
-                  onChange={(e) => setManualProduct({...manualProduct, images: Array.from(e.target.files)})}
-                />
-                <span className="form-note">Upload multiple images or a video</span>
-              </label>
+              <div className="form-field">
+                <label>Images / Video</label>
+                <div className="image-upload-section">
+                  {/* Watermark Settings - At the top */}
+                  <div className="watermark-section">
+                    <h4>Watermark Settings</h4>
+                    <div className="watermark-controls">
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={enableWatermark}
+                          onChange={(e) => setEnableWatermark(e.target.checked)}
+                        />
+                        <span>Apply watermark to new images</span>
+                      </label>
+                      
+                      {enableWatermark && (
+                        <div className="watermark-input-group">
+                          <label>
+                            Watermark Text
+                            <input
+                              type="text"
+                              value={watermarkText}
+                              onChange={(e) => setWatermarkText(e.target.value)}
+                              placeholder="Enter watermark text"
+                            />
+                          </label>
+                          <span className="form-note">
+                            Watermark will appear diagonally across the image
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="image-upload-input">
+                    <input
+                      type="file"
+                      id="image-input"
+                      accept="image/*,video/*"
+                      multiple
+                      onChange={(e) => handleAddImages(e.target.files)}
+                      style={{ display: 'none' }}
+                    />
+                    <label htmlFor="image-input" className="upload-button">
+                      + Add Images/Video
+                    </label>
+                    <span className="form-note">Click to add multiple images or a video</span>
+                  </div>
+
+                  {imagePreviews.length > 0 && (
+                    <div className="image-gallery">
+                      <h4>Added Images ({imagePreviews.length})</h4>
+                      <div className="image-grid">
+                        {imagePreviews.map((preview) => (
+                          <div 
+                            key={preview.id} 
+                            className="image-item"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {preview.type === 'video' ? (
+                              <video src={preview.src} className="image-preview" />
+                            ) : (
+                              <img src={preview.src} alt="Preview" className="image-preview" />
+                            )}
+                            <button
+                              type="button"
+                              className="remove-image-btn"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleRemoveImage(preview.id)
+                              }}
+                              title="Remove image"
+                            >
+                              ✕
+                            </button>
+                            {preview.type === 'video' && (
+                              <span className="media-badge">Video</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
 
               <label>
                 Description *

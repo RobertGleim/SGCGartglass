@@ -1,12 +1,54 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import '../../styles/ProductDetail.css'
 
 export default function ProductDetail({ product }) {
   const [selectedImage, setSelectedImage] = useState(0)
+  const [showZoom, setShowZoom] = useState(false)
+  
+  // Get images from originalData (for manual products) or use image_url
+  const images = useMemo(() => {
+    if (product.originalData?.images && product.originalData.images.length > 0) {
+      return product.originalData.images
+    } else if (product.images && product.images.length > 0) {
+      return product.images
+    } else if (product.image_url) {
+      return [{ image_url: product.image_url }]
+    }
+    return []
+  }, [product])
+
+  const mainImage = images.length > 0 ? images[selectedImage].image_url : null
+  const showThumbnails = images.length > 1
   
   const handleAddToCart = () => {
     // TODO: Implement add to cart logic
     console.log('Added to cart:', product)
+  }
+
+  // Handle keyboard navigation in zoom mode
+  useEffect(() => {
+    if (!showZoom) return
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setShowZoom(false)
+      } else if (e.key === 'ArrowLeft') {
+        setSelectedImage((prev) => (prev > 0 ? prev - 1 : images.length - 1))
+      } else if (e.key === 'ArrowRight') {
+        setSelectedImage((prev) => (prev < images.length - 1 ? prev + 1 : 0))
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showZoom, images.length])
+
+  const handlePrevImage = () => {
+    setSelectedImage((prev) => (prev > 0 ? prev - 1 : images.length - 1))
+  }
+
+  const handleNextImage = () => {
+    setSelectedImage((prev) => (prev < images.length - 1 ? prev + 1 : 0))
   }
 
   // Calculate discount if there's an old price
@@ -15,27 +57,13 @@ export default function ProductDetail({ product }) {
     ? Math.round(((product.old_price - product.price_amount) / product.old_price) * 100)
     : 0
 
-  // For now, assume single image; in future could support image arrays
-  const images = product.images || (product.image_url ? [{ image_url: product.image_url }] : [])
-  const mainImage = images.length > 0 ? images[selectedImage].image_url : null
-
- 
-
   return (
     <div className="product-detail">
       <div className="product-detail-container">
         {/* Product Images Section */}
         <div className="product-images-section">
-          <div className="main-image-container">
-            {mainImage ? (
-              <img src={mainImage} alt={product.title} className="main-image" />
-            ) : (
-              <div className="image-placeholder">No image available</div>
-            )}
-          </div>
-
-          {/* Image thumbnails (if multiple images exist) */}
-          {images.length > 1 && (
+          {/* Image thumbnails on the left (if multiple images exist) */}
+          {showThumbnails && (
             <div className="image-thumbnails">
               {images.map((img, idx) => (
                 <button
@@ -48,6 +76,19 @@ export default function ProductDetail({ product }) {
               ))}
             </div>
           )}
+          
+          {/* Main image on the right */}
+          <div 
+            className={`main-image-container ${showThumbnails ? 'with-thumbnails' : 'single-image'}`}
+            onClick={() => setShowZoom(true)}
+            style={{ cursor: 'zoom-in' }}
+          >
+            {mainImage ? (
+              <img src={mainImage} alt={product.title} className="main-image" />
+            ) : (
+              <div className="image-placeholder">No image available</div>
+            )}
+          </div>
         </div>
 
         {/* Product Info Section */}
@@ -155,6 +196,62 @@ export default function ProductDetail({ product }) {
         <h2>More from this shop</h2>
         <p className="related-placeholder">Related products will appear here</p>
       </div>
+
+      {/* Image Zoom Modal */}
+      {showZoom && (
+        <div className="zoom-modal" onClick={() => setShowZoom(false)}>
+          <button className="zoom-close" onClick={() => setShowZoom(false)}>
+            ×
+          </button>
+
+          {/* Main zoomed image */}
+          <div className="zoom-content" onClick={(e) => e.stopPropagation()}>
+            <div className="zoom-main-image">
+              {mainImage && (
+                images[selectedImage].media_type === 'video' ? (
+                  <video src={mainImage} controls className="zoomed-image" />
+                ) : (
+                  <img src={mainImage} alt={product.title} className="zoomed-image" />
+                )
+              )}
+            </div>
+
+            {/* Navigation arrows */}
+            {images.length > 1 && (
+              <>
+                <button className="zoom-arrow zoom-arrow-left" onClick={handlePrevImage}>
+                  ‹
+                </button>
+                <button className="zoom-arrow zoom-arrow-right" onClick={handleNextImage}>
+                  ›
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Thumbnail strip on the right */}
+          {images.length > 1 && (
+            <div className="zoom-thumbnails">
+              {images.map((img, idx) => (
+                <button
+                  key={idx}
+                  className={`zoom-thumbnail ${idx === selectedImage ? 'active' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedImage(idx)
+                  }}
+                >
+                  {img.media_type === 'video' ? (
+                    <video src={img.image_url} className="zoom-thumb-image" />
+                  ) : (
+                    <img src={img.image_url} alt={`Thumbnail ${idx + 1}`} className="zoom-thumb-image" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

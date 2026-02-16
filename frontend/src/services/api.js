@@ -42,14 +42,20 @@ export const createManualProduct = async (token, productData) => {
   })
 }
 
-export const updateManualProduct = async (token, id, productData) =>
-  request(`/api/manual-products/${id}`, {
+export const updateManualProduct = async (token, id, productData) => {
+  console.log('updateManualProduct called with:', {
+    token: token ? `${token.substring(0, 20)}...` : 'NO TOKEN',
+    id,
+    productData
+  })
+  return request(`/api/manual-products/${id}`, {
     method: 'PUT',
     headers: {
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(productData),
   })
+}
 
 export const deleteManualProduct = async (token, id) => {
   console.log('deleteManualProduct called with id:', id)

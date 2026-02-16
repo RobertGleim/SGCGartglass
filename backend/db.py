@@ -124,9 +124,19 @@ def fetch_item(item_id):
 
 
 def create_manual_product(payload):
+    import json
     conn = get_db()
     cursor = conn.cursor()
     now = datetime.utcnow().isoformat()
+    
+    # Serialize category and materials if they are lists
+    category = payload.get("category")
+    if isinstance(category, list):
+        category = json.dumps(category) if category else None
+    
+    materials = payload.get("materials")
+    if isinstance(materials, list):
+        materials = json.dumps(materials) if materials else None
     
     cursor.execute(
         """
@@ -139,8 +149,8 @@ def create_manual_product(payload):
         (
             payload["name"],
             payload["description"],
-            payload.get("category"),
-            payload.get("materials"),
+            category,
+            materials,
             payload.get("width"),
             payload.get("height"),
             payload.get("depth"),
@@ -170,6 +180,7 @@ def create_manual_product(payload):
 
 
 def fetch_manual_products():
+    import json
     conn = get_db()
     cursor = conn.cursor()
     rows = cursor.execute(
@@ -179,6 +190,20 @@ def fetch_manual_products():
     products = []
     for row in rows:
         product = dict(row)
+        
+        # Deserialize category and materials from JSON strings
+        if product.get("category"):
+            try:
+                product["category"] = json.loads(product["category"])
+            except (json.JSONDecodeError, TypeError):
+                pass  # Keep as string if not valid JSON
+        
+        if product.get("materials"):
+            try:
+                product["materials"] = json.loads(product["materials"])
+            except (json.JSONDecodeError, TypeError):
+                pass  # Keep as string if not valid JSON
+        
         # Fetch images for this product
         images = cursor.execute(
             "SELECT image_url, media_type FROM product_images WHERE product_id = ? ORDER BY display_order",
@@ -192,6 +217,7 @@ def fetch_manual_products():
 
 
 def fetch_manual_product(product_id):
+    import json
     conn = get_db()
     cursor = conn.cursor()
     row = cursor.execute(
@@ -203,6 +229,20 @@ def fetch_manual_product(product_id):
         return None
     
     product = dict(row)
+    
+    # Deserialize category and materials from JSON strings
+    if product.get("category"):
+        try:
+            product["category"] = json.loads(product["category"])
+        except (json.JSONDecodeError, TypeError):
+            pass  # Keep as string if not valid JSON
+    
+    if product.get("materials"):
+        try:
+            product["materials"] = json.loads(product["materials"])
+        except (json.JSONDecodeError, TypeError):
+            pass  # Keep as string if not valid JSON
+    
     # Fetch images for this product
     images = cursor.execute(
         "SELECT image_url, media_type FROM product_images WHERE product_id = ? ORDER BY display_order",
@@ -215,9 +255,19 @@ def fetch_manual_product(product_id):
 
 
 def update_manual_product(product_id, payload):
+    import json
     conn = get_db()
     cursor = conn.cursor()
     now = datetime.utcnow().isoformat()
+    
+    # Serialize category and materials if they are lists
+    category = payload.get("category")
+    if isinstance(category, list):
+        category = json.dumps(category) if category else None
+    
+    materials = payload.get("materials")
+    if isinstance(materials, list):
+        materials = json.dumps(materials) if materials else None
     
     cursor.execute(
         """
@@ -230,8 +280,8 @@ def update_manual_product(product_id, payload):
         (
             payload["name"],
             payload["description"],
-            payload.get("category"),
-            payload.get("materials"),
+            category,
+            materials,
             payload.get("width"),
             payload.get("height"),
             payload.get("depth"),

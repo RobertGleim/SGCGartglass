@@ -10,6 +10,9 @@ import useHashRoute from './hooks/useHashRoute'
 import useAuth from './hooks/useAuth'
 import {
   createItem,
+  createManualProduct,
+  updateManualProduct,
+  deleteManualProduct,
   fetchItems,
   fetchManualProducts
 } from './services/api'
@@ -150,19 +153,17 @@ function App() {
               manualProducts={manualProducts}
               onAddItem={handleAddItem}
               onAddManualProduct={async (productData) => {
-                const { createManualProduct } = await import('./services/api')
                 const created = await createManualProduct(authToken, productData)
                 setManualProducts((prev) => [created, ...prev])
                 return created
               }}
               onUpdateManualProduct={async (id, productData) => {
-                const { updateManualProduct } = await import('./services/api')
+                console.log('Update product called with authToken:', authToken ? `${authToken.substring(0, 20)}...` : 'NO TOKEN')
                 const updated = await updateManualProduct(authToken, id, productData)
                 setManualProducts((prev) => prev.map(p => p.id === id ? updated : p))
                 return updated
               }}
               onDeleteManualProduct={async (id) => {
-                const { deleteManualProduct } = await import('./services/api')
                 await deleteManualProduct(authToken, id)
                 setManualProducts((prev) => prev.filter(p => p.id !== id))
               }}
