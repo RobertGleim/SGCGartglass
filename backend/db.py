@@ -249,13 +249,18 @@ def update_manual_product(product_id, payload):
         cursor.execute("DELETE FROM product_images WHERE product_id = ?", (product_id,))
         # Insert new images
         for idx, image in enumerate(payload["images"]):
-            cursor.execute(
-                """
-                INSERT INTO product_images (product_id, image_url, media_type, display_order)
-                VALUES (?, ?, ?, ?)
-                """,
-                (product_id, image["url"], image.get("type", "image"), idx)
-            )
+            # Handle both new uploads (with "url" and "type") and existing images (with "image_url" and "media_type")
+            image_url = image.get("url") or image.get("image_url")
+            media_type = image.get("type") or image.get("media_type", "image")
+            
+            if image_url:  # Only insert if we have a valid image URL
+                cursor.execute(
+                    """
+                    INSERT INTO product_images (product_id, image_url, media_type, display_order)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (product_id, image_url, media_type, idx)
+                )
     
     conn.commit()
     conn.close()

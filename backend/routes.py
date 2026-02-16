@@ -174,6 +174,11 @@ def update_manual_product_endpoint(product_id):
     
     payload = request.get_json(silent=True) or {}
     
+    # Debug logging
+    import sys
+    print(f"Update payload for product {product_id}: {payload}", file=sys.stderr)
+    print(f"Payload keys: {list(payload.keys())}", file=sys.stderr)
+    
     # Validate required fields
     if not payload.get("name"):
         return jsonify({"error": "missing_name"}), 400
@@ -189,6 +194,9 @@ def update_manual_product_endpoint(product_id):
         updated_product = fetch_manual_product(product_id)
         return jsonify(updated_product)
     except Exception as exc:
+        print(f"Error updating product: {exc}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": "update_failed", "detail": str(exc)}), 500
 
 

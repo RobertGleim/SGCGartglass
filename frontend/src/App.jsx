@@ -129,18 +129,30 @@ function App() {
 
   const [currentSlide, setCurrentSlide] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
-  const itemsPerPage = 4
-  const totalSlides = Math.ceil(featuredItems.length / itemsPerPage)
+  const itemsPerPage = 1 // Show 1 item at a time for auto-scroll
+  const totalSlides = featuredItems.length // Each item is a slide
 
   // Auto-scroll carousel
   useEffect(() => {
-    if (!isPaused && featuredItems.length > itemsPerPage) {
+    if (!isPaused && featuredItems.length > 1) {
       const interval = setInterval(() => {
         setCurrentSlide((prev) => (prev + 1) % totalSlides)
-      }, 4000) // Change slide every 4 seconds
+      }, 3000) // Change slide every 3 seconds
       return () => clearInterval(interval)
     }
-  }, [isPaused, totalSlides, featuredItems.length, itemsPerPage])
+  }, [isPaused, totalSlides, featuredItems.length])
+
+  const visibleSlides = useMemo(() => {
+    const len = featuredItems.length
+    if (!len) return []
+    const maxOffset = Math.min(2, Math.floor(len / 2) || 1)
+    const offsets = []
+    for (let offset = -maxOffset; offset <= maxOffset; offset += 1) {
+      const index = (currentSlide + offset + len) % len
+      offsets.push({ offset, item: featuredItems[index], index })
+    }
+    return offsets
+  }, [featuredItems, currentSlide])
 
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % totalSlides)
@@ -238,42 +250,65 @@ function App() {
                 onMouseLeave={() => setIsPaused(false)}
               >
                 <div className="carousel-wrapper">
-                  <div 
-                    className="carousel-track"
-                    style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-                  >
-                    {Array.from({ length: totalSlides }).map((_, slideIndex) => (
-                      <div key={slideIndex} className="carousel-slide">
-                        {featuredItems
-                          .slice(slideIndex * itemsPerPage, (slideIndex + 1) * itemsPerPage)
-                          .map((item) => (
-                            <article key={item.id} className="product-card">
-                              <div className="card-image">
-                                {item.image_url ? (
-                                  <img src={item.image_url} alt={item.title || 'Glass art'} />
-                                ) : (
-                                  <div className="image-placeholder">No image</div>
-                                )}
+                  <div className="carousel-track">
+                    {visibleSlides.map(({ offset, item, index }) => {
+                      const absOffset = Math.abs(offset)
+                      const isCenter = absOffset === 0
+
+                      let scale = 1
+                      let opacity = 1
+                      let translateX = offset * 420
+
+                      if (absOffset === 1) {
+                        scale = 0.8
+                        opacity = 0.65
+                        translateX = offset * 320
+                      } else if (absOffset === 2) {
+                        scale = 0.62
+                        opacity = 0.35
+                        translateX = offset * 260
+                      }
+
+                      return (
+                        <div
+                          key={`${index}-${offset}`}
+                          className={`carousel-slide ${
+                            isCenter ? 'center' : absOffset === 1 ? 'adjacent' : 'far'
+                          }`}
+                          style={{
+                            transform: `translate(calc(-50% + ${translateX}px), -50%) scale(${scale})`,
+                            opacity,
+                            zIndex: isCenter ? 10 : 10 - absOffset,
+                            pointerEvents: isCenter ? 'auto' : 'none'
+                          }}
+                        >
+                          <article className="product-card">
+                            <div className="card-image">
+                              {item.image_url ? (
+                                <img src={item.image_url} alt={item.title || 'Glass art'} />
+                              ) : (
+                                <div className="image-placeholder">No image</div>
+                              )}
+                            </div>
+                            <div className="card-body">
+                              <h3>{item.title || 'Untitled piece'}</h3>
+                              <p className="card-description">
+                                {item.description || 'Details will appear after Etsy sync.'}
+                              </p>
+                              <div className="card-meta">
+                                <span className="price">
+                                  {item.price_amount || '--'}
+                                  {item.price_currency ? ` ${item.price_currency}` : ''}
+                                </span>
+                                <a className="text-link" href={`#/product/${item.id}`}>
+                                  View
+                                </a>
                               </div>
-                              <div className="card-body">
-                                <h3>{item.title || 'Untitled piece'}</h3>
-                                <p className="card-description">
-                                  {item.description || 'Details will appear after Etsy sync.'}
-                                </p>
-                                <div className="card-meta">
-                                  <span className="price">
-                                    {item.price_amount || '--'}
-                                    {item.price_currency ? ` ${item.price_currency}` : ''}
-                                  </span>
-                                  <a className="text-link" href={`#/product/${item.id}`}>
-                                    View
-                                  </a>
-                                </div>
-                              </div>
-                            </article>
-                          ))}
-                      </div>
-                    ))}
+                            </div>
+                          </article>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
                 
@@ -285,18 +320,27 @@ function App() {
                     <button className="carousel-btn next" onClick={nextSlide} aria-label="Next">
                       ›
                     </button>
-                    
-                    <div className="carousel-dots">
-                      {Array.from({ length: totalSlides }).map((_, index) => (
-                        <button
-                          key={index}
-                          className={`dot ${index === currentSlide ? 'active' : ''}`}
-                          onClick={() => goToSlide(index)}
-                          aria-label={`Go to slide ${index + 1}`}
-                        />
-                      ))}
-                    </div>
                   </>
+                )}
+                
+                {/* Thumbnail Navigation */}
+                {featuredItems.length > 0 && (
+                  <div className="carousel-thumbnails">
+                    {featuredItems.map((item, index) => (
+                      <button
+                        key={index}
+                        className={`thumbnail ${index === currentSlide ? 'active' : ''}`}
+                        onClick={() => goToSlide(index)}
+                        aria-label={`View ${item.title || 'item'}`}
+                      >
+                        {item.image_url ? (
+                          <img src={item.image_url} alt={item.title || 'Glass art'} />
+                        ) : (
+                          <div className="image-placeholder">No image</div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
