@@ -61,6 +61,12 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
                   opacity,
                   zIndex: isCenter ? 10 : 10 - absOffset,
                   pointerEvents: isCenter ? 'auto' : 'none',
+                  cursor: isCenter ? 'pointer' : 'default',
+                }}
+                onClick={() => {
+                  if (isCenter) {
+                    window.location.hash = `#/product/${item.id}`
+                  }
                 }}
               >
                 <article className="product-card">
