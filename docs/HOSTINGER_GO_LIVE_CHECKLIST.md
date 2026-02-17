@@ -23,25 +23,25 @@ MySQL credentials are already configured in `.env`:
 - [x] Database password is set
 
 Set these in Render dashboard > Environment:
-- [ ] `DB_HOST=srv1224.hstgr.io`
-- [ ] `DB_PORT=3306`
-- [ ] `DB_USER=u159464737_sgcgart`
-- [ ] `DB_PASSWORD=wG+6EI5z=@&9`
-- [ ] `DB_NAME=u159464737_sgcgdb`
-- [ ] `JWT_SECRET=00a6ac5ea5859aa8c86bc530317d81d4`
-- [ ] `ADMIN_EMAIL=sgcgartglass@gmail.com`
-- [ ] `ADMIN_PASSWORD_HASH=scrypt:32768:8:1$qOF1FrRyotgOpdAe$ca9e08380e972e4e50f42cac8767eeb3a4806ef0544224d887fa3a315c057b18ade0f6b770b67c06e844241cf592194b4168afbf120ec2bfeca6bad1fdb9f8ec`
-- [ ] `ETSY_API_KEY=lemw09rcpx51kqhml18rcc94`
-- [ ] `ETSY_SHARED_SECRET=vi4vs6h5zv`
-- [ ] `CORS_ORIGINS=https://sgcgart.com,https://www.sgcgart.com`
-- [ ] `FLASK_DEBUG=false`
+- [x ] `DB_HOST=srv1224.hstgr.io`
+- [x ] `DB_PORT=3306`
+- [x ] `DB_USER=u159464737_sgcgart`
+- [x ] `DB_PASSWORD=wG+6EI5z=@&9`
+- [x ] `DB_NAME=u159464737_sgcgdb`
+- [ x] `JWT_SECRET=00a6ac5ea5859aa8c86bc530317d81d4`
+- [ x] `ADMIN_EMAIL=sgcgartglass@gmail.com`
+- [x ] `ADMIN_PASSWORD_HASH=scrypt:32768:8:1$qOF1FrRyotgOpdAe$ca9e08380e972e4e50f42cac8767eeb3a4806ef0544224d887fa3a315c057b18ade0f6b770b67c06e844241cf592194b4168afbf120ec2bfeca6bad1fdb9f8ec`
+- [x ] `ETSY_API_KEY=lemw09rcpx51kqhml18rcc94`
+- [x ] `ETSY_SHARED_SECRET=vi4vs6h5zv`
+- [x ] `CORS_ORIGINS=https://sgcgart.com,https://www.sgcgart.com`
+- [x ] `FLASK_DEBUG=false`
 
 ## 3a) Hostinger MySQL Remote Access ⚠️ CRITICAL
 
-- [ ] In Hostinger hPanel > Databases > Remote MySQL
-- [ ] Add Render's IP address: **`74.220.48.242`**
-- [ ] Select database `u159464737_sgcgdb`
-- [ ] Save allowlist settings
+- [x ] In Hostinger hPanel > Databases > Remote MySQL
+- [ x] Add Render's IP address: **`74.220.48.242`**
+- [ x] Select database `u159464737_sgcgdb`
+- [x ] Save allowlist settings
 - [ ] Wait 30 seconds for propagation
 
 ## 4) Frontend build variables
