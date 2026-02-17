@@ -1,7 +1,7 @@
 import '../../../styles/Header.css'
 import { useState } from 'react'
 
-export default function Header({ brandName, authToken, route }) {
+export default function Header({ brandName, authToken }) {
   const [menuOpen, setMenuOpen] = useState(false)
   return (
     <header className="site-header">
