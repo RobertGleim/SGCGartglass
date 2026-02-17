@@ -78,3 +78,4 @@ Set these in Render dashboard > Environment:
 - [ ] Enable regular database backup strategy.
 - [ ] Monitor app + Nginx logs for first 24 hours.
 - [ ] Save final deployment values in secure password manager.
+- 
