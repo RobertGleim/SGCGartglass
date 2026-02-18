@@ -3,10 +3,10 @@ from datetime import datetime, timedelta, timezone
 from functools import wraps
 
 import jwt
-from flask import jsonify, request
+from flask import g, jsonify, request
 
 
-def create_token(subject):
+def create_token(subject, role=None, customer_id=None):
     secret = os.environ.get("JWT_SECRET", "dev-secret")
     issuer = os.environ.get("JWT_ISSUER", "sgcgartglass")
     ttl_seconds = int(os.environ.get("JWT_TTL_SECONDS", "3600"))
@@ -17,6 +17,10 @@ def create_token(subject):
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(seconds=ttl_seconds)).timestamp()),
     }
+    if role:
+        payload["role"] = role
+    if customer_id is not None:
+        payload["customer_id"] = customer_id
     return jwt.encode(payload, secret, algorithm="HS256")
 
 
@@ -43,6 +47,33 @@ def require_auth(handler):
             return jsonify({"error": "malformed_token"}), 401
         except jwt.PyJWTError as e:
             return jsonify({"error": f"invalid_token: {type(e).__name__}"}), 401
+        return handler(*args, **kwargs)
+
+    return wrapper
+
+
+def require_customer(handler):
+    @wraps(handler)
+    def wrapper(*args, **kwargs):
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return jsonify({"error": "missing_token"}), 401
+        token = auth_header.split(" ", 1)[1].strip()
+        try:
+            payload = decode_token(token)
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "token_expired"}), 401
+        except jwt.InvalidIssuerError:
+            return jsonify({"error": "invalid_issuer"}), 401
+        except jwt.DecodeError:
+            return jsonify({"error": "malformed_token"}), 401
+        except jwt.PyJWTError as e:
+            return jsonify({"error": f"invalid_token: {type(e).__name__}"}), 401
+
+        if payload.get("role") != "customer":
+            return jsonify({"error": "forbidden"}), 403
+
+        g.auth_payload = payload
         return handler(*args, **kwargs)
 
     return wrapper

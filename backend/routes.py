@@ -1,10 +1,10 @@
 import json
 import os
 
-from flask import Blueprint, jsonify, request
-from werkzeug.security import check_password_hash
+from flask import Blueprint, jsonify, request, g
+from werkzeug.security import check_password_hash, generate_password_hash
 
-from .auth import create_token, require_auth
+from .auth import create_token, require_auth, require_customer
 from .db import (
     fetch_item,
     fetch_items,
@@ -15,6 +15,25 @@ from .db import (
     fetch_manual_product,
     update_manual_product,
     delete_manual_product,
+    fetch_customer_by_email,
+    fetch_customer_by_id,
+    create_customer,
+    update_customer_last_login,
+    list_customer_addresses,
+    create_customer_address,
+    list_customer_favorites,
+    add_customer_favorite,
+    remove_customer_favorite,
+    list_customer_cart_items,
+    upsert_customer_cart_item,
+    update_customer_cart_item_quantity,
+    remove_customer_cart_item,
+    list_customer_orders,
+    list_customer_order_items,
+    has_verified_purchase,
+    list_reviews_for_product,
+    list_customer_reviews,
+    create_customer_review,
 )
 from .etsy import extract_listing_id, fetch_listing
 
@@ -50,6 +69,205 @@ def login():
 
     token = create_token(email)
     return jsonify({"token": token})
+
+
+@api.post("/customer/signup")
+def customer_signup():
+    init_db()
+    payload = request.get_json(silent=True) or {}
+    email = payload.get("email", "").strip().lower()
+    password = payload.get("password", "")
+
+    if not email or not password:
+        return jsonify({"error": "missing_credentials"}), 400
+    if fetch_customer_by_email(email):
+        return jsonify({"error": "email_in_use"}), 409
+
+    customer_id = create_customer({
+        "email": email,
+        "password_hash": generate_password_hash(password),
+        "first_name": payload.get("first_name"),
+        "last_name": payload.get("last_name"),
+        "phone": payload.get("phone"),
+    })
+    token = create_token(email, role="customer", customer_id=customer_id)
+    return jsonify({"token": token, "customer_id": customer_id}), 201
+
+
+@api.post("/customer/login")
+def customer_login():
+    init_db()
+    payload = request.get_json(silent=True) or {}
+    email = payload.get("email", "").strip().lower()
+    password = payload.get("password", "")
+
+    customer = fetch_customer_by_email(email)
+    if not customer or not check_password_hash(customer["password_hash"], password):
+        return jsonify({"error": "invalid_credentials"}), 401
+
+    update_customer_last_login(customer["id"])
+    token = create_token(email, role="customer", customer_id=customer["id"])
+    return jsonify({"token": token, "customer_id": customer["id"]})
+
+
+@api.get("/customer/me")
+@require_customer
+def customer_me():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    customer = fetch_customer_by_id(customer_id)
+    if not customer:
+        return jsonify({"error": "not_found"}), 404
+    customer.pop("password_hash", None)
+    return jsonify(customer)
+
+
+@api.get("/customer/addresses")
+@require_customer
+def customer_addresses():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    return jsonify(list_customer_addresses(customer_id))
+
+
+@api.post("/customer/addresses")
+@require_customer
+def customer_add_address():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    payload = request.get_json(silent=True) or {}
+    if not payload.get("line1"):
+        return jsonify({"error": "missing_address"}), 400
+    address_id = create_customer_address(customer_id, payload)
+    return jsonify({"id": address_id}), 201
+
+
+@api.get("/customer/favorites")
+@require_customer
+def customer_favorites():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    return jsonify(list_customer_favorites(customer_id))
+
+
+@api.post("/customer/favorites")
+@require_customer
+def customer_add_favorite():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    payload = request.get_json(silent=True) or {}
+    product_type = payload.get("product_type")
+    product_id = payload.get("product_id")
+    if not product_type or not product_id:
+        return jsonify({"error": "missing_product"}), 400
+    add_customer_favorite(customer_id, product_type, str(product_id))
+    return jsonify({"success": True}), 201
+
+
+@api.delete("/customer/favorites/<int:favorite_id>")
+@require_customer
+def customer_remove_favorite(favorite_id):
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    remove_customer_favorite(customer_id, favorite_id)
+    return jsonify({"success": True})
+
+
+@api.get("/customer/cart")
+@require_customer
+def customer_cart():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    return jsonify(list_customer_cart_items(customer_id))
+
+
+@api.post("/customer/cart/items")
+@require_customer
+def customer_add_cart_item():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    payload = request.get_json(silent=True) or {}
+    product_type = payload.get("product_type")
+    product_id = payload.get("product_id")
+    quantity = int(payload.get("quantity", 1))
+    if not product_type or not product_id:
+        return jsonify({"error": "missing_product"}), 400
+    upsert_customer_cart_item(customer_id, product_type, str(product_id), quantity)
+    return jsonify({"success": True}), 201
+
+
+@api.put("/customer/cart/items/<int:item_id>")
+@require_customer
+def customer_update_cart_item(item_id):
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    payload = request.get_json(silent=True) or {}
+    quantity = int(payload.get("quantity", 1))
+    update_customer_cart_item_quantity(customer_id, item_id, quantity)
+    return jsonify({"success": True})
+
+
+@api.delete("/customer/cart/items/<int:item_id>")
+@require_customer
+def customer_remove_cart_item(item_id):
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    remove_customer_cart_item(customer_id, item_id)
+    return jsonify({"success": True})
+
+
+@api.get("/customer/orders")
+@require_customer
+def customer_orders():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    return jsonify(list_customer_orders(customer_id))
+
+
+@api.get("/customer/orders/<int:order_id>/items")
+@require_customer
+def customer_order_items(order_id):
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    return jsonify(list_customer_order_items(customer_id, order_id))
+
+
+@api.get("/customer/reviews")
+@require_customer
+def customer_reviews():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    return jsonify(list_customer_reviews(customer_id))
+
+
+@api.get("/reviews")
+def product_reviews():
+    init_db()
+    product_type = request.args.get("product_type")
+    product_id = request.args.get("product_id")
+    if not product_type or not product_id:
+        return jsonify({"error": "missing_product"}), 400
+    return jsonify(list_reviews_for_product(product_type, str(product_id)))
+
+
+@api.post("/customer/reviews")
+@require_customer
+def customer_create_review():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    payload = request.get_json(silent=True) or {}
+    product_type = payload.get("product_type")
+    product_id = payload.get("product_id")
+    rating = payload.get("rating")
+    if not product_type or not product_id or not rating:
+        return jsonify({"error": "missing_fields"}), 400
+
+    verified = has_verified_purchase(customer_id, product_type, str(product_id))
+    if not verified:
+        return jsonify({"error": "not_verified_buyer"}), 403
+
+    review_id = create_customer_review(customer_id, payload, verified)
+    return jsonify({"id": review_id}), 201
 
 
 @api.get("/items")

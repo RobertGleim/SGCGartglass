@@ -27,6 +27,22 @@ def create_app():
     
     app.register_blueprint(api, url_prefix="/api")
 
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            response = app.make_default_options_response()
+            request_origin = request.headers.get("Origin")
+            
+            if "*" in allowed_origins:
+                response.headers["Access-Control-Allow-Origin"] = "*"
+            elif request_origin in allowed_origins:
+                response.headers["Access-Control-Allow-Origin"] = request_origin
+            
+            response.headers["Vary"] = "Origin"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+            return response
+
     @app.after_request
     def add_cors_headers(response):
         request_origin = request.headers.get("Origin")

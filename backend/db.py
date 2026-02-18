@@ -82,6 +82,117 @@ def init_db():
         )
         """
     )
+    cursor.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS customers (
+            id INTEGER PRIMARY KEY {auto_inc},
+            email VARCHAR(255) NOT NULL UNIQUE,
+            password_hash VARCHAR(255) NOT NULL,
+            first_name VARCHAR(120),
+            last_name VARCHAR(120),
+            phone VARCHAR(50),
+            created_at VARCHAR(50),
+            updated_at VARCHAR(50),
+            last_login_at VARCHAR(50)
+        )
+        """
+    )
+    cursor.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS customer_addresses (
+            id INTEGER PRIMARY KEY {auto_inc},
+            customer_id INTEGER NOT NULL,
+            label VARCHAR(120),
+            line1 VARCHAR(255) NOT NULL,
+            line2 VARCHAR(255),
+            city VARCHAR(120),
+            state VARCHAR(120),
+            postal_code VARCHAR(40),
+            country VARCHAR(80),
+            is_default INTEGER DEFAULT 0,
+            created_at VARCHAR(50),
+            updated_at VARCHAR(50),
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+        )
+        """
+    )
+    cursor.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS customer_favorites (
+            id INTEGER PRIMARY KEY {auto_inc},
+            customer_id INTEGER NOT NULL,
+            product_type VARCHAR(20) NOT NULL,
+            product_id VARCHAR(64) NOT NULL,
+            created_at VARCHAR(50),
+            UNIQUE (customer_id, product_type, product_id),
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+        )
+        """
+    )
+    cursor.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS customer_cart_items (
+            id INTEGER PRIMARY KEY {auto_inc},
+            customer_id INTEGER NOT NULL,
+            product_type VARCHAR(20) NOT NULL,
+            product_id VARCHAR(64) NOT NULL,
+            quantity INTEGER DEFAULT 1,
+            created_at VARCHAR(50),
+            updated_at VARCHAR(50),
+            UNIQUE (customer_id, product_type, product_id),
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+        )
+        """
+    )
+    cursor.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS customer_orders (
+            id INTEGER PRIMARY KEY {auto_inc},
+            customer_id INTEGER NOT NULL,
+            order_number VARCHAR(50),
+            status VARCHAR(30) DEFAULT 'pending',
+            total_amount REAL,
+            currency VARCHAR(10) DEFAULT 'USD',
+            created_at VARCHAR(50),
+            updated_at VARCHAR(50),
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+        )
+        """
+    )
+    cursor.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS customer_order_items (
+            id INTEGER PRIMARY KEY {auto_inc},
+            order_id INTEGER NOT NULL,
+            product_type VARCHAR(20) NOT NULL,
+            product_id VARCHAR(64) NOT NULL,
+            title TEXT,
+            price REAL,
+            quantity INTEGER DEFAULT 1,
+            image_url TEXT,
+            FOREIGN KEY (order_id) REFERENCES customer_orders(id) ON DELETE CASCADE
+        )
+        """
+    )
+    cursor.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS customer_reviews (
+            id INTEGER PRIMARY KEY {auto_inc},
+            customer_id INTEGER NOT NULL,
+            product_type VARCHAR(20) NOT NULL,
+            product_id VARCHAR(64) NOT NULL,
+            rating INTEGER NOT NULL,
+            title VARCHAR(200),
+            body TEXT,
+            verified_purchase INTEGER DEFAULT 0,
+            status VARCHAR(20) DEFAULT 'pending',
+            created_at VARCHAR(50),
+            updated_at VARCHAR(50),
+            UNIQUE (customer_id, product_type, product_id),
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+        )
+        """
+    )
     conn.commit()
     conn.close()
 
@@ -402,3 +513,375 @@ def delete_manual_product(product_id):
     affected = cursor.rowcount
     conn.close()
     return affected > 0
+
+
+def fetch_customer_by_email(email):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(f"SELECT * FROM customers WHERE email = {placeholder}", (email,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def fetch_customer_by_id(customer_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(f"SELECT * FROM customers WHERE id = {placeholder}", (customer_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def create_customer(payload):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"""
+        INSERT INTO customers (
+            email, password_hash, first_name, last_name, phone,
+            created_at, updated_at
+        ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder},
+                  {placeholder}, {placeholder})
+        """,
+        (
+            payload["email"],
+            payload["password_hash"],
+            payload.get("first_name"),
+            payload.get("last_name"),
+            payload.get("phone"),
+            now,
+            now,
+        ),
+    )
+    customer_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return customer_id
+
+
+def update_customer_last_login(customer_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"""
+        UPDATE customers
+        SET last_login_at = {placeholder}, updated_at = {placeholder}
+        WHERE id = {placeholder}
+        """,
+        (now, now, customer_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def list_customer_addresses(customer_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"SELECT * FROM customer_addresses WHERE customer_id = {placeholder} ORDER BY is_default DESC, created_at DESC",
+        (customer_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def create_customer_address(customer_id, payload):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    cursor.execute(
+        f"""
+        INSERT INTO customer_addresses (
+            customer_id, label, line1, line2, city, state, postal_code, country,
+            is_default, created_at, updated_at
+        ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder},
+                  {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+        """,
+        (
+            customer_id,
+            payload.get("label"),
+            payload.get("line1"),
+            payload.get("line2"),
+            payload.get("city"),
+            payload.get("state"),
+            payload.get("postal_code"),
+            payload.get("country"),
+            1 if payload.get("is_default") else 0,
+            now,
+            now,
+        ),
+    )
+    address_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return address_id
+
+
+def list_customer_favorites(customer_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"SELECT * FROM customer_favorites WHERE customer_id = {placeholder} ORDER BY created_at DESC",
+        (customer_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def add_customer_favorite(customer_id, product_type, product_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    try:
+        cursor.execute(
+            f"""
+            INSERT INTO customer_favorites (customer_id, product_type, product_id, created_at)
+            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder})
+            """,
+            (customer_id, product_type, product_id, now),
+        )
+    except Exception:
+        pass
+    conn.commit()
+    conn.close()
+
+
+def remove_customer_favorite(customer_id, favorite_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"DELETE FROM customer_favorites WHERE id = {placeholder} AND customer_id = {placeholder}",
+        (favorite_id, customer_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def list_customer_cart_items(customer_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"SELECT * FROM customer_cart_items WHERE customer_id = {placeholder} ORDER BY updated_at DESC",
+        (customer_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def upsert_customer_cart_item(customer_id, product_type, product_id, quantity):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    cursor.execute(
+        f"""
+        SELECT id, quantity FROM customer_cart_items
+        WHERE customer_id = {placeholder} AND product_type = {placeholder} AND product_id = {placeholder}
+        """,
+        (customer_id, product_type, product_id),
+    )
+    row = cursor.fetchone()
+    if row:
+        new_quantity = max(1, int(row["quantity"]) + int(quantity))
+        cursor.execute(
+            f"""
+            UPDATE customer_cart_items
+            SET quantity = {placeholder}, updated_at = {placeholder}
+            WHERE id = {placeholder}
+            """,
+            (new_quantity, now, row["id"]),
+        )
+    else:
+        cursor.execute(
+            f"""
+            INSERT INTO customer_cart_items (customer_id, product_type, product_id, quantity, created_at, updated_at)
+            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+            """,
+            (customer_id, product_type, product_id, quantity, now, now),
+        )
+    conn.commit()
+    conn.close()
+
+
+def update_customer_cart_item_quantity(customer_id, item_id, quantity):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"""
+        UPDATE customer_cart_items
+        SET quantity = {placeholder}, updated_at = {placeholder}
+        WHERE id = {placeholder} AND customer_id = {placeholder}
+        """,
+        (quantity, now, item_id, customer_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def remove_customer_cart_item(customer_id, item_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"DELETE FROM customer_cart_items WHERE id = {placeholder} AND customer_id = {placeholder}",
+        (item_id, customer_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def list_customer_orders(customer_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"SELECT * FROM customer_orders WHERE customer_id = {placeholder} ORDER BY created_at DESC",
+        (customer_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def list_customer_order_items(customer_id, order_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"""
+        SELECT oi.*
+        FROM customer_order_items oi
+        JOIN customer_orders o ON o.id = oi.order_id
+        WHERE oi.order_id = {placeholder} AND o.customer_id = {placeholder}
+        """,
+        (order_id, customer_id),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def has_verified_purchase(customer_id, product_type, product_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"""
+        SELECT oi.id
+        FROM customer_order_items oi
+        JOIN customer_orders o ON o.id = oi.order_id
+        WHERE o.customer_id = {placeholder}
+          AND oi.product_type = {placeholder}
+          AND oi.product_id = {placeholder}
+        LIMIT 1
+        """,
+        (customer_id, product_type, product_id),
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return bool(row)
+
+
+def list_reviews_for_product(product_type, product_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"""
+        SELECT r.*, c.first_name, c.last_name
+        FROM customer_reviews r
+        JOIN customers c ON c.id = r.customer_id
+        WHERE r.product_type = {placeholder}
+          AND r.product_id = {placeholder}
+          AND r.status = 'approved'
+        ORDER BY r.created_at DESC
+        """,
+        (product_type, product_id),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def list_customer_reviews(customer_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"SELECT * FROM customer_reviews WHERE customer_id = {placeholder} ORDER BY created_at DESC",
+        (customer_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def create_customer_review(customer_id, payload, verified_purchase):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"""
+        INSERT INTO customer_reviews (
+            customer_id, product_type, product_id, rating, title, body,
+            verified_purchase, status, created_at, updated_at
+        ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder},
+                  {placeholder}, {placeholder}, {placeholder}, {placeholder})
+        """,
+        (
+            customer_id,
+            payload["product_type"],
+            payload["product_id"],
+            payload["rating"],
+            payload.get("title"),
+            payload.get("body"),
+            1 if verified_purchase else 0,
+            "approved" if verified_purchase else "pending",
+            now,
+            now,
+        ),
+    )
+    review_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return review_id
