@@ -17,12 +17,14 @@ export default function UnifiedLogin({ onAdminLogin, onCustomerLogin }) {
       // Try admin login first
       await onAdminLogin(email, password)
       // If successful, will redirect to admin dashboard via App.jsx
+    // eslint-disable-next-line no-unused-vars
     } catch (adminError) {
       // If admin login fails, try customer login
       try {
         await onCustomerLogin(email, password)
         // If successful, redirect to customer account
         window.location.hash = '#/account'
+      // eslint-disable-next-line no-unused-vars
       } catch (customerError) {
         // Both failed
         setError('Invalid email or password. Please try again.')
