@@ -38,5 +38,6 @@ jobs:
           port: 21
           protocol: ftp
           local-dir: ./frontend/dist/
-          server-dir: /public_html/
+          server-dir: ./public_html/
+          log-level: verbose
           timeout: 300000

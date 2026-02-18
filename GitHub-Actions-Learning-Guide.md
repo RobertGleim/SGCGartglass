@@ -118,10 +118,10 @@ Pre-built reusable units of code that perform specific tasks.
 - Saves time vs. writing custom scripts
 - Examples: `actions/checkout`, `actions/setup-node`
 
-**Format:** `owner/repo@version` or `owner/repo/path@version`....
+**Format:** `owner/repo@version` or `owner/repo/path@version`
 
 ```yaml
-uses: actions/setup-node@v3
+uses: actions/setup-node@v3 ...
 ```
 
 ### 6. **Runners**
