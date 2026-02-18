@@ -45,7 +45,7 @@ def init_db():
             description TEXT,
             price_amount VARCHAR(50),
             price_currency VARCHAR(10),
-            image_url TEXT,
+            image_url LONGTEXT,
             etsy_url TEXT,
             updated_at VARCHAR(50)
         )
@@ -75,7 +75,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS product_images (
             id INTEGER PRIMARY KEY {auto_inc},
             product_id INTEGER NOT NULL,
-            image_url TEXT NOT NULL,
+            image_url LONGTEXT NOT NULL,
             media_type VARCHAR(50) DEFAULT 'image',
             display_order INTEGER DEFAULT 0,
             FOREIGN KEY (product_id) REFERENCES manual_products(id) ON DELETE CASCADE
