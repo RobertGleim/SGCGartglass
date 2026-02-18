@@ -5,6 +5,7 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
   const [listingValue, setListingValue] = useState('')
   const [status, setStatus] = useState('')
   const [activeTab, setActiveTab] = useState('products')
+  const [manualProductSearch, setManualProductSearch] = useState('')
   const [showManualProductModal, setShowManualProductModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [favoriteCategories, setFavoriteCategories] = useState(['Vase', 'Bowl', 'Sculpture'])
@@ -405,56 +406,92 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
 
             <div className="panel-section">
               <h3>Manual Products ({manualProducts.length})</h3>
-              {manualProducts.length === 0 ? (
-                <div className="empty-state">No manual products added yet.</div>
-              ) : (
-                <div className="product-list">
-                  {manualProducts.map((product) => (
-                    <div key={product.id} className="product-row">
-                      <div className="product-thumb">
-                        {product.images && product.images.length > 0 ? (
-                          product.images[0].media_type === 'video' ? (
-                            <video src={product.images[0].image_url} className="thumb-placeholder" />
+              <div className="search-box-container">
+                <input
+                  type="text"
+                  placeholder="Search products by name, category, or materials..."
+                  value={manualProductSearch}
+                  onChange={(e) => setManualProductSearch(e.target.value)}
+                  className="search-input"
+                />
+              </div>
+              {(() => {
+                const filteredProducts = manualProducts.filter((product) => {
+                  const searchLower = manualProductSearch.toLowerCase()
+                  const name = product.name?.toLowerCase() || ''
+                  const description = product.description?.toLowerCase() || ''
+                  const category = Array.isArray(product.category) 
+                    ? product.category.join(' ').toLowerCase() 
+                    : (product.category?.toLowerCase() || '')
+                  const materials = Array.isArray(product.materials)
+                    ? product.materials.join(' ').toLowerCase()
+                    : (product.materials?.toLowerCase() || '')
+                  
+                  return (
+                    name.includes(searchLower) ||
+                    description.includes(searchLower) ||
+                    category.includes(searchLower) ||
+                    materials.includes(searchLower)
+                  )
+                })
+
+                if (filteredProducts.length === 0 && manualProducts.length === 0) {
+                  return <div className="empty-state">No manual products added yet.</div>
+                }
+
+                if (filteredProducts.length === 0) {
+                  return <div className="empty-state">No products match your search.</div>
+                }
+
+                return (
+                  <div className="product-list">
+                    {filteredProducts.map((product) => (
+                      <div key={product.id} className="product-row">
+                        <div className="product-thumb">
+                          {product.images && product.images.length > 0 ? (
+                            product.images[0].media_type === 'video' ? (
+                              <video src={product.images[0].image_url} className="thumb-placeholder" />
+                            ) : (
+                              <img src={product.images[0].image_url} alt={product.name} />
+                            )
                           ) : (
-                            <img src={product.images[0].image_url} alt={product.name} />
-                          )
-                        ) : (
-                          <div className="thumb-placeholder">No image</div>
-                        )}
-                      </div>
-                      <div className="product-details">
-                        <h4>
-                          {product.name}
-                          {(product.is_featured === 1 || product.is_featured === true) && (
-                            <span className="featured-badge">★ Featured</span>
+                            <div className="thumb-placeholder">No image</div>
                           )}
-                        </h4>
-                        <p className="product-meta">
-                          ${product.price} · Qty: {product.quantity}
-                          {product.category && ` · ${Array.isArray(product.category) ? product.category.join(', ') : product.category}`}
-                          {product.materials && ` · ${Array.isArray(product.materials) ? product.materials.join(', ') : product.materials}`}
-                        </p>
+                        </div>
+                        <div className="product-details">
+                          <h4>
+                            {product.name}
+                            {(product.is_featured === 1 || product.is_featured === true) && (
+                              <span className="featured-badge">★ Featured</span>
+                            )}
+                          </h4>
+                          <p className="product-meta">
+                            ${product.price} · Qty: {product.quantity}
+                            {product.category && ` · ${Array.isArray(product.category) ? product.category.join(', ') : product.category}`}
+                            {product.materials && ` · ${Array.isArray(product.materials) ? product.materials.join(', ') : product.materials}`}
+                          </p>
+                        </div>
+                        <div className="product-actions">
+                          <button
+                            className="button-icon edit"
+                            onClick={() => handleEditProduct(product)}
+                            title="Edit product"
+                          >
+                            ✎
+                          </button>
+                          <button
+                            className="button-icon delete"
+                            onClick={() => handleDeleteProduct(product)}
+                            title="Delete product"
+                          >
+                            🗑
+                          </button>
+                        </div>
                       </div>
-                      <div className="product-actions">
-                        <button
-                          className="button-icon edit"
-                          onClick={() => handleEditProduct(product)}
-                          title="Edit product"
-                        >
-                          ✎
-                        </button>
-                        <button
-                          className="button-icon delete"
-                          onClick={() => handleDeleteProduct(product)}
-                          title="Delete product"
-                        >
-                          🗑
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )
+              })()}
             </div>
           </div>
         )}

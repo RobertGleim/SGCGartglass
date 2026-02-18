@@ -302,3 +302,32 @@
   width: 100%;
   max-width: 300px;
 }
+
+/* Search Box Styles */
+.search-box-container {
+  margin-bottom: 1rem;
+  margin-top: 0.5rem;
+}
+
+.search-input {
+  width: 100%;
+  max-width: 500px;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #fafafa;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+  background-color: #fff;
+}
+
+.search-input::placeholder {
+  color: #999;
+}
+
