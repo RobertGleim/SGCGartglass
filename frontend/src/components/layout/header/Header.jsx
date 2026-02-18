@@ -20,13 +20,10 @@ export default function Header({ brandName, authToken, customerToken }) {
         <a href="#/product">Product</a>
         {authToken ? (
           <a href="#/admin">Admin</a>
-        ) : (
-          <a href="#/admin">Sign In</a>
-        )}
-        {customerToken ? (
+        ) : customerToken ? (
           <a href="#/account">Account</a>
         ) : (
-          <a href="#/account/login">Customer</a>
+          <a href="#/account/login">Sign In</a>
         )}
       </nav>
     </header>

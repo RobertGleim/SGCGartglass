@@ -17,9 +17,8 @@ import {
   fetchItems,
   fetchManualProducts
 } from './services/api'
-import AdminLogin from './pages/admin/AdminLogin'
+import UnifiedLogin from './pages/auth/UnifiedLogin'
 import AdminDashboard from './pages/admin/AdminDashboard'
-import CustomerLogin from './pages/customer/CustomerLogin'
 import CustomerSignup from './pages/customer/CustomerSignup'
 import CustomerPortal from './pages/customer/CustomerPortal'
 
@@ -161,7 +160,7 @@ function App() {
       {route.path === '/admin' && (
         <main className="admin-page">
           {!authToken ? (
-            <AdminLogin onLogin={handleLogin} />
+            <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
           ) : (
             <AdminDashboard
               items={items}
@@ -190,7 +189,7 @@ function App() {
 
       {route.path === '/account/login' && (
         <main className="admin-page">
-          <CustomerLogin onLogin={customerLogin} />
+          <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
         </main>
       )}
 
@@ -203,7 +202,7 @@ function App() {
       {route.path === '/account' && (
         <main className="admin-page">
           {!customerToken ? (
-            <CustomerLogin onLogin={customerLogin} />
+            <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
           ) : (
             <CustomerPortal manualProducts={manualProducts} />
           )}
