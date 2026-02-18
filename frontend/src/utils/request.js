@@ -1,6 +1,7 @@
+const DEFAULT_API_BASE = 'https://sgcgartglass.onrender.com'
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.PROD ? '' : 'http://localhost:5000')
+  (import.meta.env.PROD ? DEFAULT_API_BASE : 'http://localhost:5000')
 
 export const request = async (path, options = {}) => {
   console.log(`Making ${options.method || 'GET'} request to ${path}`, {
