@@ -4,7 +4,7 @@ export default function HeroSection() {
   return (
     <section className="hero">
       <div className="hero-content">
-        <p className="eyebrow">Glass in motion</p>
+        <p className="eyebrow">Art in motion</p>
         <h1>Gallery-worthy art glass made to glow.</h1>
         <p className="lead">
           Curated pieces from the SGCG Art Glass, brought into a
