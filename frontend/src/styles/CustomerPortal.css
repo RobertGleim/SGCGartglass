@@ -1,0 +1,140 @@
+.customer-portal {
+  max-width: 1200px;
+  margin: 2.5rem auto 4rem;
+  padding: 0 4vw;
+}
+
+.customer-portal-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.customer-portal-header h2 {
+  margin: 0;
+  font-size: 2rem;
+  color: #1f2f4d;
+}
+
+.customer-portal-header p {
+  margin: 0;
+  color: #5d6470;
+}
+
+.portal-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.portal-tabs button {
+  border: 1px solid #d6dce6;
+  background: #fff;
+  border-radius: 999px;
+  padding: 0.5rem 1.2rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: #1f2f4d;
+}
+
+.portal-tabs button.active {
+  background: #1f4ea1;
+  color: #fff;
+  border-color: #1f4ea1;
+}
+
+.portal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+.portal-card {
+  background: #fff;
+  border: 1px solid #e2e7f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 10px 24px rgba(31, 46, 77, 0.06);
+}
+
+.portal-card h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+  color: #1f2f4d;
+}
+
+.portal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.portal-list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: #f7f8fb;
+  border: 1px solid #e6e9ef;
+}
+
+.portal-muted {
+  color: #6a7282;
+  font-size: 0.9rem;
+}
+
+.portal-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.portal-actions button {
+  border: none;
+  background: #1f4ea1;
+  color: #fff;
+  padding: 0.45rem 0.9rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.portal-actions button.secondary {
+  background: #f0f3f8;
+  color: #1f2f4d;
+}
+
+.portal-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.portal-form input,
+.portal-form select,
+.portal-form textarea {
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid #d6dce6;
+  font-size: 0.9rem;
+}
+
+.portal-form textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.customer-auth-error {
+  background: #ffe9e9;
+  color: #a53a3a;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}

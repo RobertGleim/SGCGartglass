@@ -9,6 +9,15 @@ const getRoute = () => {
   if (parts[0] === 'admin') {
     return { path: '/admin', params: {} }
   }
+  if (parts[0] === 'account') {
+    if (parts[1] === 'login') {
+      return { path: '/account/login', params: {} }
+    }
+    if (parts[1] === 'signup') {
+      return { path: '/account/signup', params: {} }
+    }
+    return { path: '/account', params: {} }
+  }
   return { path: '/', params: {} }
 }
 

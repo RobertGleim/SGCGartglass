@@ -8,6 +8,7 @@ import ProductPage from './pages/shop/ProductPage'
 import ProductDetail from './pages/shop/ProductDetail'
 import useHashRoute from './hooks/useHashRoute'
 import useAuth from './hooks/useAuth'
+import useCustomerAuth from './hooks/useCustomerAuth'
 import {
   createItem,
   createManualProduct,
@@ -18,6 +19,9 @@ import {
 } from './services/api'
 import AdminLogin from './pages/admin/AdminLogin'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import CustomerLogin from './pages/customer/CustomerLogin'
+import CustomerSignup from './pages/customer/CustomerSignup'
+import CustomerPortal from './pages/customer/CustomerPortal'
 
 const BRAND_NAME = 'SGCG Art Glass'
 
@@ -27,6 +31,12 @@ function App() {
   const [itemsLoading, setItemsLoading] = useState(true)
   const [manualProducts, setManualProducts] = useState([])
   const { authToken, login: loginWithCredentials, logout } = useAuth()
+  const {
+    customerToken,
+    login: customerLogin,
+    signup: customerSignup,
+    logout: customerLogout,
+  } = useCustomerAuth()
 
   useEffect(() => {
     let isActive = true
@@ -104,7 +114,12 @@ function App() {
 
   return (
     <div className="page">
-      <Header brandName={BRAND_NAME} authToken={authToken} route={route} />
+      <Header
+        brandName={BRAND_NAME}
+        authToken={authToken}
+        customerToken={customerToken}
+        route={route}
+      />
 
       {route.path === '/' && (
         <main>
@@ -169,6 +184,28 @@ function App() {
               }}
               onLogout={logout}
             />
+          )}
+        </main>
+      )}
+
+      {route.path === '/account/login' && (
+        <main className="admin-page">
+          <CustomerLogin onLogin={customerLogin} />
+        </main>
+      )}
+
+      {route.path === '/account/signup' && (
+        <main className="admin-page">
+          <CustomerSignup onSignup={customerSignup} />
+        </main>
+      )}
+
+      {route.path === '/account' && (
+        <main className="admin-page">
+          {!customerToken ? (
+            <CustomerLogin onLogin={customerLogin} />
+          ) : (
+            <CustomerPortal manualProducts={manualProducts} />
           )}
         </main>
       )}

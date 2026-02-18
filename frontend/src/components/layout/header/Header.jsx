@@ -1,7 +1,7 @@
 import '../../../styles/Header.css'
 import { useState } from 'react'
 
-export default function Header({ brandName, authToken }) {
+export default function Header({ brandName, authToken, customerToken }) {
   const [menuOpen, setMenuOpen] = useState(false)
   return (
     <header className="site-header">
@@ -23,7 +23,11 @@ export default function Header({ brandName, authToken }) {
         ) : (
           <a href="#/admin">Sign In</a>
         )}
-        {/* Future: Add customer profile link here when implemented */}
+        {customerToken ? (
+          <a href="#/account">Account</a>
+        ) : (
+          <a href="#/account/login">Customer</a>
+        )}
       </nav>
     </header>
   )
