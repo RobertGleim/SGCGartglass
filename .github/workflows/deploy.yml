@@ -35,9 +35,10 @@ jobs:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
           local-dir: ./frontend/dist/
           server-dir: /public_html/
-          dangerous-delete-files: true
+          dangerous-clean-slate: true
           exclude: |
             **/.git*
             **/.DS_Store
