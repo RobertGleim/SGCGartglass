@@ -1,0 +1,573 @@
+/* Mobile-first Manual Product Form Styles (320px+) */
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 10000;
+  padding: 0.5rem;
+  overflow-y: auto;
+}
+
+.modal-content {
+  background-color: white;
+  border-radius: 8px;
+  max-width: 700px;
+  width: 100%;
+  max-height: none;
+  margin: 0.5rem auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.75rem;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.modal-close:hover {
+  color: #333;
+}
+
+.modal-form {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal-form label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.modal-form input[type="text"],
+.modal-form input[type="number"],
+.modal-form textarea {
+  width: 100%;
+  padding: 0.65rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.modal-form input:focus,
+.modal-form textarea:focus {
+  outline: none;
+  border-color: #2196F3;
+}
+
+.modal-form textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-note {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 0;
+}
+
+/* Image Upload Section */
+.image-upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.image-upload-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.upload-button {
+  display: inline-block;
+  padding: 0.75rem 1.25rem;
+  background-color: #2196F3;
+  color: white;
+  border: 2px dashed transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.upload-button:hover {
+  background-color: #1976D2;
+}
+
+/* Watermark Settings */
+.watermark-section {
+  padding: 1rem;
+  background-color: #f0f7ff;
+  border: 1px solid #2196F3;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.watermark-section h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  color: #1976D2;
+  font-weight: 600;
+}
+
+.watermark-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.watermark-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-left: 0.5rem;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 200px;
+  }
+}
+
+.watermark-input-group label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Image Gallery */
+.image-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.image-gallery h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 0.75rem;
+}
+
+.image-item {
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: #e0e0e0;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 32px;
+  height: 32px;
+  background-color: #e53935;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  line-height: 1;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  opacity: 0;
+}
+
+.image-item:hover .remove-image-btn {
+  opacity: 1;
+}
+
+.remove-image-btn:hover {
+  background-color: #c62828;
+  transform: scale(1.1);
+}
+
+.media-badge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Multi-select Controls */
+.multi-select-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.multi-select-inner {
+  flex: 1;
+}
+
+.multi-select-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.multi-select-dropdown {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.multi-select-add-btn {
+  padding: 0.5rem 0.75rem;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+.multi-select-add-btn:hover {
+  background-color: #45a049;
+}
+
+.multi-select-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.multi-select-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Category Tags */
+.category-tag {
+  background-color: #e3f2fd;
+  border: 1px solid #2196F3;
+  border-radius: 20px;
+  padding: 0.4rem 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #1976D2;
+}
+
+.category-tag-remove {
+  background: none;
+  border: none;
+  color: #1976D2;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  line-height: 1;
+  transition: opacity 0.2s ease;
+}
+
+.category-tag-remove:hover {
+  opacity: 0.7;
+}
+
+/* Material Tags */
+.material-tag {
+  background-color: #f3e5f5;
+  border: 1px solid #9c27b0;
+  border-radius: 20px;
+  padding: 0.4rem 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #6a1b9a;
+}
+
+.material-tag-remove {
+  background: none;
+  border: none;
+  color: #6a1b9a;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  line-height: 1;
+  transition: opacity 0.2s ease;
+}
+
+.material-tag-remove:hover {
+  opacity: 0.7;
+}
+
+/* Size Inputs */
+.size-inputs {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.size-inputs label {
+  flex: 1;
+  min-width: 130px;
+}
+
+/* Price and Quantity Inputs */
+.price-quantity-inputs {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.price-quantity-inputs label {
+  flex: 1;
+  min-width: 130px;
+}
+
+/* Checkbox Label */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
+}
+
+.checkbox-label span {
+  font-weight: normal;
+  color: #333;
+}
+
+/* Modal Actions */
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.modal-actions .button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.modal-actions .button:not(.primary) {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.modal-actions .button:not(.primary):hover {
+  background-color: #e0e0e0;
+}
+
+.modal-actions .button.primary {
+  background-color: #2196F3;
+  color: white;
+}
+
+.modal-actions .button.primary:hover {
+  background-color: #1976D2;
+}
+
+/* Responsive Breakpoints - Progressive Enhancement */
+
+/* Small phones (375px+) */
+@media (min-width: 375px) {
+  .modal-header {
+    padding: 1.15rem;
+  }
+
+  .modal-header h2 {
+    font-size: 1.3rem;
+  }
+
+  .modal-form {
+    padding: 1.15rem;
+    gap: 1.1rem;
+  }
+
+  .image-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .upload-button {
+    padding: 0.8rem 1.3rem;
+  }
+}
+
+/* Large phones (480px+) */
+@media (min-width: 480px) {
+  .modal-overlay {
+    padding: 1rem;
+    align-items: center;
+  }
+
+  .modal-content {
+    margin: 1rem auto;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-header {
+    padding: 1.25rem;
+  }
+
+  .modal-header h2 {
+    font-size: 1.4rem;
+  }
+
+  .modal-form {
+    padding: 1.25rem;
+    gap: 1.15rem;
+  }
+
+  .modal-form input[type="text"],
+  .modal-form input[type="number"],
+  .modal-form textarea {
+    padding: 0.7rem;
+  }
+
+  .image-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .size-inputs {
+    gap: 1.25rem;
+  }
+
+  .price-quantity-inputs {
+    gap: 1.25rem;
+  }
+
+  .modal-actions {
+    gap: 1rem;
+  }
+}
+
+/* Tablets (768px+) */
+@media (min-width: 768px) {
+  .modal-header {
+    padding: 1.5rem;
+  }
+
+  .modal-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .modal-form {
+    padding: 1.5rem;
+    gap: 1.25rem;
+  }
+
+  .modal-form input[type="text"],
+  .modal-form input[type="number"],
+  .modal-form textarea {
+    padding: 0.75rem;
+  }
+
+  .image-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .upload-button {
+    padding: 0.75rem 1.25rem;
+  }
+
+  .watermark-section {
+    padding: 1.25rem;
+  }
+
+  .image-gallery {
+    padding: 1.25rem;
+  }
+}

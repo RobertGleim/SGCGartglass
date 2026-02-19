@@ -9,7 +9,7 @@ export default function Header({ brandName, authToken, customerToken }) {
         <img src="/logo1.jpg" alt="SGCG Art Glass logo" />
         <div>
           <p className="logo-title">{brandName}</p>
-          <p className="logo-subtitle">Handcrafted glass studio</p>
+          <p className="logo-subtitle">Handcrafted Studio</p>
         </div>
       </div>
       <button className="nav-toggle" onClick={() => setMenuOpen(v => !v)} aria-label="Toggle menu">

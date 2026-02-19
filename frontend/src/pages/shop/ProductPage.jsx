@@ -4,14 +4,26 @@ import ProductCard from '../../components/product/ProductCard';
 import SearchBar from '../../components/common/SearchBar';
 import '../../styles/ProductPage.css';
 
+const normalizeText = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((entry) => String(entry || '')).join(' ').toLowerCase()
+  }
+  return String(value || '').toLowerCase()
+}
+
 export default function ProductPage({ products }) {
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [priceFilter, setPriceFilter] = useState('any')
   const [sortBy, setSortBy] = useState('recent')
-  const [activeTab, setActiveTab] = useState('items')
+  const [activeTab, setActiveTab] = useState('stained-glass')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+
+  // Show all products regardless of tab
+  const sectionProducts = products
+
+  const sectionLabel = activeTab === 'wood-work' ? 'Wood Work' : 'Stained Glass'
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 720)
@@ -22,16 +34,16 @@ export default function ProductPage({ products }) {
 
   const categoryCounts = useMemo(() => {
     const counts = { 
-      All: products.length,
-      'On sale': products.filter(p => p.old_price && p.old_price > p.price_amount).length
+      All: sectionProducts.length,
+      'On sale': sectionProducts.filter(p => p.old_price && p.old_price > p.price_amount).length
     }
-    products.forEach((product) => {
+    sectionProducts.forEach((product) => {
       if (product.category) {
         counts[product.category] = (counts[product.category] || 0) + 1
       }
     })
     return counts
-  }, [products])
+  }, [sectionProducts])
 
   const categories = useMemo(() => {
     const cats = ['All', 'On sale', ...Object.keys(categoryCounts).filter(c => c !== 'All' && c !== 'On sale')]
@@ -40,7 +52,7 @@ export default function ProductPage({ products }) {
 
   const filtered = useMemo(() => {
     const lowerSearch = search.toLowerCase()
-    let result = products.filter((product) => {
+    let result = sectionProducts.filter((product) => {
       let matchesCategory = true
       if (selectedCategory === 'All') {
         matchesCategory = true
@@ -82,7 +94,11 @@ export default function ProductPage({ products }) {
     }
     
     return result
-  }, [products, search, selectedCategory, priceFilter, sortBy])
+  }, [sectionProducts, search, selectedCategory, priceFilter, sortBy])
+
+  useEffect(() => {
+    setSelectedCategory('All')
+  }, [activeTab])
 
   return (
     <div className="product-page-wrapper">
@@ -91,32 +107,20 @@ export default function ProductPage({ products }) {
         <div className="shop-nav-inner">
           <div className="nav-tabs">
             <button 
-              className={`nav-tab ${activeTab === 'items' ? 'active' : ''}`}
-              onClick={() => setActiveTab('items')}
+              className={`nav-tab ${activeTab === 'stained-glass' ? 'active' : ''}`}
+              onClick={() => setActiveTab('stained-glass')}
             >
-              Items
+              Stained Glass
             </button>
             <button 
-              className={`nav-tab ${activeTab === 'reviews' ? 'active' : ''}`}
-              onClick={() => setActiveTab('reviews')}
+              className={`nav-tab ${activeTab === 'wood-work' ? 'active' : ''}`}
+              onClick={() => setActiveTab('wood-work')}
             >
-              Reviews
-            </button>
-            <button 
-              className={`nav-tab ${activeTab === 'about' ? 'active' : ''}`}
-              onClick={() => setActiveTab('about')}
-            >
-              About
-            </button>
-            <button 
-              className={`nav-tab ${activeTab === 'policies' ? 'active' : ''}`}
-              onClick={() => setActiveTab('policies')}
-            >
-              Shop Policies
+              Wood Work
             </button>
           </div>
           <div className="nav-search">
-            <SearchBar search={search} setSearch={setSearch} totalItems={products.length} />
+            <SearchBar search={search} setSearch={setSearch} totalItems={sectionProducts.length} />
           </div>
         </div>
       </div>
@@ -146,7 +150,7 @@ export default function ProductPage({ products }) {
               categoryCounts={categoryCounts}
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}
-              totalProducts={products.length}
+              totalProducts={sectionProducts.length}
             />
           </div>
         )}
@@ -154,7 +158,7 @@ export default function ProductPage({ products }) {
         {/* Product List Area */}
         <main className="product-list-area">
           <div className="content-header">
-            <h2 className="section-heading">All items</h2>
+            <h2 className="section-heading">{sectionLabel}</h2>
             <div className="filter-controls">
               <select 
                 className="filter-dropdown" 

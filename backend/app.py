@@ -1,29 +1,24 @@
 import os
-from pathlib import Path
 from flask import Flask, request
-from dotenv import load_dotenv
 
 from .routes import api
 from .db import init_db
-
-# Load environment variables from .env file
-env_path = Path(__file__).parent.parent / '.env'
-load_dotenv(dotenv_path=env_path)
+from .config import get_config
 
 
-def _get_allowed_origins():
-    configured = os.environ.get("CORS_ORIGINS", "*").strip()
+def _get_allowed_origins(configured_origins):
+    configured = (configured_origins or "*").strip()
     if configured == "*":
         return ["*"]
     return [origin.strip() for origin in configured.split(",") if origin.strip()]
 
 
-def create_app():
+def create_app(config_name=None):
     app = Flask(__name__)
-    allowed_origins = _get_allowed_origins()
-    
-    # Allow larger file uploads (16MB limit for base64 encoded images)
-    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+    config_class, resolved_config_name = get_config(config_name)
+    app.config.from_object(config_class)
+    app.config["ACTIVE_CONFIG"] = resolved_config_name
+    allowed_origins = _get_allowed_origins(app.config.get("CORS_ORIGINS", "*"))
     
     app.register_blueprint(api, url_prefix="/api")
 
@@ -67,6 +62,6 @@ app = create_app()
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
-        port=int(os.environ.get("PORT", "5000")),
-        debug=os.environ.get("FLASK_DEBUG", "false").lower() == "true",
+        port=int(app.config.get("PORT", os.environ.get("PORT", "5000"))),
+        debug=bool(app.config.get("DEBUG", False)),
     )

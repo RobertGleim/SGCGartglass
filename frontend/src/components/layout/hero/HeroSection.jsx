@@ -5,9 +5,9 @@ export default function HeroSection() {
     <section className="hero">
       <div className="hero-content">
         <p className="eyebrow">Art in motion</p>
-        <h1>Gallery-worthy art glass made to glow.</h1>
+        <h1>Gallery-worthy art made for your home.</h1>
         <p className="lead">
-          Curated pieces from the SGCG Art Glass, brought into a
+          Curated pieces from the SGCG Art, brought into a
           clean, modern gallery.
         </p>
         

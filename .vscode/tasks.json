@@ -4,7 +4,10 @@
 		{
 			"label": "Dev: frontend",
 			"type": "shell",
-			"command": "cd /d frontend && npm run dev",
+			"command": "npm run dev",
+			"options": {
+				"cwd": "${workspaceFolder}/frontend"
+			},
 			"isBackground": true,
 			"problemMatcher": [],
 			"group": "build"
@@ -13,15 +16,23 @@
 			"label": "Dev: backend",
 			"type": "shell",
 			"command": "C:/Users/rglei/OneDrive/Desktop/Sgcg/.venv/Scripts/python.exe -m backend.app",
+			"options": {
+				"env": {
+					"APP_ENV": "development",
+					"FLASK_DEBUG": "true"
+				}
+			},
 			"isBackground": true,
 			"problemMatcher": [],
 			"group": "build"
 		},
 		{
-			"label": "Dev: frontend",
-			"type": "shell",
-			"command": "cd /d frontend && npm run dev",
-			"isBackground": true,
+			"label": "Dev: fullstack",
+			"dependsOn": [
+				"Dev: frontend",
+				"Dev: backend"
+			],
+			"dependsOrder": "parallel",
 			"problemMatcher": [],
 			"group": "build"
 		}

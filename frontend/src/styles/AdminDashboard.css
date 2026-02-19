@@ -331,3 +331,65 @@
   color: #999;
 }
 
+/* Mobile-first Responsive Breakpoints */
+
+/* Small phones (375px+) */
+@media (min-width: 375px) {
+  .image-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Large phones (480px+) */
+@media (min-width: 480px) {
+  .multi-select-row {
+    gap: 0.65rem;
+  }
+
+  .upload-button {
+    padding: 0.8rem 1.3rem;
+  }
+
+  .image-gallery {
+    padding: 1.1rem;
+  }
+
+  .watermark-section {
+    padding: 1.1rem;
+  }
+
+  .search-input {
+    padding: 0.8rem 1.1rem;
+  }
+}
+
+/* Tablets (768px+) */
+@media (min-width: 768px) {
+  .image-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  .upload-button {
+    padding: 0.75rem 1.25rem;
+  }
+
+  .image-gallery {
+    padding: 1.25rem;
+  }
+
+  .watermark-section {
+    padding: 1.25rem;
+  }
+
+  .search-input {
+    padding: 0.85rem 1.15rem;
+  }
+}
+
+/* Desktop (1024px+) */
+@media (min-width: 1024px) {
+  .image-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

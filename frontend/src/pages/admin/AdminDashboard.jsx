@@ -1,10 +1,30 @@
 import { useState } from 'react'
+import AddEtsyListingForm from '../../components/forms/AddEtsyListingForm'
 import '../../styles/AdminDashboard.css'
 
-export default function AdminDashboard({ items, manualProducts, onAddItem, onAddManualProduct, onUpdateManualProduct, onDeleteManualProduct, onLogout }) {
-  const [listingValue, setListingValue] = useState('')
-  const [status, setStatus] = useState('')
+const toSearchableText = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((entry) => String(entry ?? '')).join(' ').toLowerCase()
+  }
+  if (value === null || value === undefined) {
+    return ''
+  }
+  return String(value).toLowerCase()
+}
+
+const toDisplayList = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((entry) => String(entry ?? '')).filter(Boolean).join(', ')
+  }
+  if (value === null || value === undefined) {
+    return ''
+  }
+  return String(value)
+}
+
+export default function AdminDashboard({ items = [], manualProducts = [], onAddItem, onAddManualProduct, onUpdateManualProduct, onDeleteManualProduct, onLogout }) {
   const [activeTab, setActiveTab] = useState('products')
+  const [status, setStatus] = useState('')
   const [manualProductSearch, setManualProductSearch] = useState('')
   const [showManualProductModal, setShowManualProductModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
@@ -133,26 +153,6 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
         images: remainingImages
       }
     })
-  }
-
-  const handleAddItemSubmit = async (event) => {
-    event.preventDefault()
-    if (!listingValue) {
-      setStatus('Enter an Etsy listing URL or ID.')
-      return
-    }
-    setStatus('Linking listing...')
-    try {
-      await onAddItem(listingValue)
-      setListingValue('')
-      setStatus('Listing linked successfully.')
-    } catch (error) {
-      if (error.message.includes('Unauthorized') || error.message.includes('401')) {
-        setStatus('Session expired. Please log out and log back in.')
-      } else {
-        setStatus('Unable to link listing. Check Etsy API settings.')
-      }
-    }
   }
 
   const handleManualProductSubmit = async (event) => {
@@ -340,33 +340,39 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
       <div className="dashboard-content">
         {activeTab === 'products' && (
           <div className="tab-panel">
-            <div className="panel-section">
-              <h3>Add Etsy Listing</h3>
-              <form className="inline-form" onSubmit={handleAddItemSubmit}>
-                <input
-                  type="text"
-                  value={listingValue}
-                  onChange={(event) => setListingValue(event.target.value)}
-                  placeholder="Paste Etsy listing URL or ID"
-                  required
-                />
-                <button className="button primary" type="submit">
-                  Link listing
-                </button>
-              </form>
-              {status && <p className="status-text">{status}</p>}
-            </div>
+            <AddEtsyListingForm onAddItem={onAddItem} />
 
             <div className="panel-section">
               <h3>Add Manual Product</h3>
               <p className="form-note">Add products that are not listed on Etsy</p>
-              <button 
-                className="button primary" 
-                type="button"
-                onClick={() => setShowManualProductModal(true)}
-              >
-                Add Product
-              </button>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <button 
+                  className="button primary" 
+                  type="button"
+                  onClick={() => {
+                    setManualProduct(prev => ({
+                      ...prev,
+                      category: ['Stained Glass']
+                    }))
+                    setShowManualProductModal(true)
+                  }}
+                >
+                  Add Stained Glass Product
+                </button>
+                <button 
+                  className="button primary" 
+                  type="button"
+                  onClick={() => {
+                    setManualProduct(prev => ({
+                      ...prev,
+                      category: ['Wood Work']
+                    }))
+                    setShowManualProductModal(true)
+                  }}
+                >
+                  Add Wood Work Product
+                </button>
+              </div>
             </div>
 
             <div className="panel-section">
@@ -418,14 +424,10 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
               {(() => {
                 const filteredProducts = manualProducts.filter((product) => {
                   const searchLower = manualProductSearch.toLowerCase()
-                  const name = product.name?.toLowerCase() || ''
-                  const description = product.description?.toLowerCase() || ''
-                  const category = Array.isArray(product.category) 
-                    ? product.category.join(' ').toLowerCase() 
-                    : (product.category?.toLowerCase() || '')
-                  const materials = Array.isArray(product.materials)
-                    ? product.materials.join(' ').toLowerCase()
-                    : (product.materials?.toLowerCase() || '')
+                  const name = toSearchableText(product.name)
+                  const description = toSearchableText(product.description)
+                  const category = toSearchableText(product.category)
+                  const materials = toSearchableText(product.materials)
                   
                   return (
                     name.includes(searchLower) ||
@@ -467,8 +469,8 @@ export default function AdminDashboard({ items, manualProducts, onAddItem, onAdd
                           </h4>
                           <p className="product-meta">
                             ${product.price} · Qty: {product.quantity}
-                            {product.category && ` · ${Array.isArray(product.category) ? product.category.join(', ') : product.category}`}
-                            {product.materials && ` · ${Array.isArray(product.materials) ? product.materials.join(', ') : product.materials}`}
+                            {toDisplayList(product.category) && ` · ${toDisplayList(product.category)}`}
+                            {toDisplayList(product.materials) && ` · ${toDisplayList(product.materials)}`}
                           </p>
                         </div>
                         <div className="product-actions">

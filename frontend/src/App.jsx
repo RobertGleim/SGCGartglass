@@ -22,7 +22,7 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import CustomerSignup from './pages/customer/CustomerSignup'
 import CustomerPortal from './pages/customer/CustomerPortal'
 
-const BRAND_NAME = 'SGCG Art Glass'
+const BRAND_NAME = 'SGCG Art'
 
 function App() {
   const route = useHashRoute()
@@ -34,6 +34,7 @@ function App() {
     customerToken,
     login: customerLogin,
     signup: customerSignup,
+    // eslint-disable-next-line no-unused-vars
     logout: customerLogout,
   } = useCustomerAuth()
 
@@ -95,6 +96,7 @@ function App() {
 
   const handleLogin = async (email, password) => {
     await loginWithCredentials(email, password)
+    window.location.hash = '#/admin'
   }
 
   const handleAddItem = async (value) => {

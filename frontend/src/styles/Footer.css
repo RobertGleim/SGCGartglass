@@ -1,8 +1,31 @@
+/* Mobile-first base styles (320px+) */
 .site-footer {
-    display: flex;
-    margin: auto;
+  display: flex;
+  flex-direction: column;
+  margin: auto;
   margin-top: auto;
-  padding: 2rem 6vw;
+  padding: 1.5rem 4vw;
   color: #6b7280;
   border-top: 1px solid rgba(31, 78, 161, 0.08);
+  font-size: 0.9rem;
+  text-align: center;
+  gap: 0.75rem;
+}
+
+/* Large phones (480px+) */
+@media (min-width: 480px) {
+  .site-footer {
+    font-size: 0.95rem;
+    padding: 1.75rem 5vw;
+  }
+}
+
+/* Tablets (768px+) */
+@media (min-width: 768px) {
+  .site-footer {
+    flex-direction: row;
+    text-align: left;
+    padding: 2rem 6vw;
+    font-size: 1rem;
+  }
 }
