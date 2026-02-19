@@ -1,6 +1,10 @@
 /* Admin Dashboard Styles */
 
-/* Multi-select label wrapper */
+/* ===== BASE FORM STRUCTURE STYLES ===== */
+/* These provide layout/structure only - theming is delegated to form-specific CSS files */
+/* stainedglass_form.css and woodwork_form.css apply themes via wrapper classes */
+
+/* Multi-select Base Styles */
 .multi-select-wrapper {
   display: flex;
   gap: 0.5rem;
@@ -15,31 +19,176 @@
   display: flex;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .multi-select-dropdown {
   flex: 1;
   padding: 0.5rem;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  width: 100%;
+}
+
+/* Custom Dropdown Styles */
+.custom-dropdown-container {
+  flex: 1;
+  position: relative;
+}
+
+.custom-dropdown-trigger {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #fff;
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.custom-dropdown-trigger:hover {
+  border-color: #999;
+}
+
+.custom-dropdown-trigger:focus {
+  outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+}
+
+.dropdown-arrow {
+  font-size: 0.7rem;
+  margin-left: 0.5rem;
+  flex-shrink: 0;
+}
+
+.custom-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.custom-dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  border-bottom: 1px solid #e0e0e0;
+  transition: background-color 0.2s ease;
+}
+
+.custom-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.custom-dropdown-item:hover {
+  background-color: #f5f5f5;
+}
+
+.dropdown-item-text {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+  color: #333;
+  transition: color 0.2s ease;
+}
+
+.dropdown-item-text:hover {
+  color: #2196F3;
+}
+
+.dropdown-item-delete {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.25rem 0.5rem;
+  flex-shrink: 0;
+  transition: color 0.2s ease;
+}
+
+.dropdown-item-delete:hover {
+  color: #d32f2f;
+}
+
+.multi-select-dropdown-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.multi-select-dropdown-container .multi-select-dropdown {
+  border: none;
+  border-radius: 0;
+  flex-shrink: 0;
+}
+
+.multi-select-dropdown-container .favorites-inline {
+  border-top: 1px solid #e0e0e0;
+  padding: 0.4rem;
+  background-color: #fafafa;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
 }
 
 .multi-select-add-btn {
   padding: 0.5rem 0.75rem;
-  background-color: #4CAF50;
-  color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.85rem;
   white-space: nowrap;
   transition: background-color 0.2s ease;
-}
-
-.multi-select-add-btn:hover {
-  background-color: #45a049;
+  font-weight: 500;
 }
 
 .multi-select-input {
   width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.input-button-row {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.input-button-row .multi-select-input {
+  flex: 1;
+  width: auto;
+}
+
+.input-button-row .multi-select-add-btn {
+  flex-shrink: 0;
 }
 
 .multi-select-tags {
@@ -49,51 +198,21 @@
   margin-top: 0.5rem;
 }
 
-/* Category tags */
-.category-tag {
-  background-color: #e3f2fd;
-  border: 1px solid #2196F3;
-  border-radius: 20px;
-  padding: 0.4rem 0.8rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: #1976D2;
-}
-
-.category-tag-remove {
-  background: none;
-  border: none;
-  color: #1976D2;
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 0;
-  line-height: 1;
-  transition: opacity 0.2s ease;
-}
-
-.category-tag-remove:hover {
-  opacity: 0.7;
-}
-
-/* Material tags */
+/* Tag Base Styles */
+.category-tag,
 .material-tag {
-  background-color: #f3e5f5;
-  border: 1px solid #9c27b0;
   border-radius: 20px;
   padding: 0.4rem 0.8rem;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.9rem;
-  color: #6a1b9a;
 }
 
+.category-tag-remove,
 .material-tag-remove {
   background: none;
   border: none;
-  color: #6a1b9a;
   cursor: pointer;
   font-size: 1rem;
   padding: 0;
@@ -101,41 +220,12 @@
   transition: opacity 0.2s ease;
 }
 
+.category-tag-remove:hover,
 .material-tag-remove:hover {
   opacity: 0.7;
 }
 
-/* Admin Login Styles */
-
-.password-label-wrapper {
-  position: relative;
-}
-
-.password-input {
-  padding-right: 2.5em;
-}
-
-.password-toggle {
-  position: absolute;
-  right: 0.5em;
-  top: 2.7em;
-  cursor: pointer;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  transition: opacity 0.2s ease;
-}
-
-.password-toggle:hover {
-  opacity: 0.7;
-}
-
-.password-toggle svg {
-  width: 22px;
-  height: 22px;
-}
-
-/* Image Upload Section */
+/* Image Upload Base Styles */
 .image-upload-section {
   display: flex;
   flex-direction: column;
@@ -156,24 +246,15 @@
 .upload-button {
   display: inline-block;
   padding: 0.75rem 1.25rem;
-  background-color: #2196F3;
-  color: white;
-  border: 2px dashed transparent;
+  border: none;
   border-radius: 4px;
   cursor: pointer;
   font-weight: 500;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition: background-color 0.2s ease;
+  font-size: 1rem;
 }
 
-.upload-button:hover {
-  background-color: #1976D2;
-}
-
-.upload-button:active {
-  background-color: #1565C0;
-}
-
-/* Image Gallery */
+/* Image Gallery Base Styles */
 .image-gallery {
   display: flex;
   flex-direction: column;
@@ -252,19 +333,16 @@
   font-weight: 500;
 }
 
-/* Watermark Settings */
+/* Watermark Base Styles */
 .watermark-section {
-  padding: 1rem;
-  background-color: #f0f7ff;
-  border: 1px solid #2196F3;
   border-radius: 4px;
+  padding: 1rem;
   margin-bottom: 0.5rem;
 }
 
 .watermark-section h4 {
   margin: 0 0 0.75rem 0;
   font-size: 0.95rem;
-  color: #1976D2;
   font-weight: 600;
 }
 
@@ -303,6 +381,35 @@
   max-width: 300px;
 }
 
+/* ===== PASSWORD TOGGLE =====
+.password-label-wrapper {
+  position: relative;
+}
+
+.password-input {
+  padding-right: 2.5em;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.5em;
+  top: 2.7em;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.2s ease;
+}
+
+.password-toggle:hover {
+  opacity: 0.7;
+}
+
+.password-toggle svg {
+  width: 22px;
+  height: 22px;
+}
+
 /* Search Box Styles */
 .search-box-container {
   margin-bottom: 1rem;
@@ -331,65 +438,35 @@
   color: #999;
 }
 
+/* Favorites Inline Styles */
+.favorites-inline {
+  display: none;
+}
+
+/* Form Styles - All form styling delegated to form CSS files */
+/* Forms use classes: multi-select-dropdown, category-tag, material-tag, */
+/* watermark-section, upload-button, image-gallery, etc. */
+/* These are themed by stainedglass_form.css and woodwork_form.css */
+/* based on .product-form-stainedGlass and .product-form-woodwork wrapper classes */
+
 /* Mobile-first Responsive Breakpoints */
 
 /* Small phones (375px+) */
 @media (min-width: 375px) {
-  .image-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  /* Responsive adjustments */
 }
 
 /* Large phones (480px+) */
 @media (min-width: 480px) {
-  .multi-select-row {
-    gap: 0.65rem;
-  }
-
-  .upload-button {
-    padding: 0.8rem 1.3rem;
-  }
-
-  .image-gallery {
-    padding: 1.1rem;
-  }
-
-  .watermark-section {
-    padding: 1.1rem;
-  }
-
-  .search-input {
-    padding: 0.8rem 1.1rem;
-  }
+  /* Responsive adjustments */
 }
 
 /* Tablets (768px+) */
 @media (min-width: 768px) {
-  .image-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
-  }
-
-  .upload-button {
-    padding: 0.75rem 1.25rem;
-  }
-
-  .image-gallery {
-    padding: 1.25rem;
-  }
-
-  .watermark-section {
-    padding: 1.25rem;
-  }
-
-  .search-input {
-    padding: 0.85rem 1.15rem;
-  }
+  /* Responsive adjustments */
 }
 
 /* Desktop (1024px+) */
 @media (min-width: 1024px) {
-  .image-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
+  /* Responsive adjustments */
 }

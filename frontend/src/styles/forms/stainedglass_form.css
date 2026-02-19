@@ -692,3 +692,30 @@
 .product-form-stainedGlass .multi-select-add-btn:hover {
   background-color: #1976D2;
 }
+
+.product-form-stainedGlass .multi-select-dropdown {
+  background-color: white;
+  color: #1976D2;
+  border: 1px solid #90caf9;
+}
+
+.product-form-stainedGlass .multi-select-dropdown:hover {
+  border-color: #2196F3;
+}
+
+.product-form-stainedGlass .multi-select-dropdown:focus {
+  outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+}
+
+.product-form-stainedGlass .multi-select-input {
+  border: 1px solid #90caf9;
+  padding: 0.65rem;
+}
+
+.product-form-stainedGlass .multi-select-input:focus {
+  outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+}

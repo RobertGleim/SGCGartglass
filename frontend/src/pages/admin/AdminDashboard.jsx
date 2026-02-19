@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import AddEtsyListingForm from '../../components/forms/AddEtsyListingForm'
 import '../../styles/AdminDashboard.css'
 import '../../styles/forms/stainedglass_form.css'
@@ -32,8 +32,14 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
   const [showManualProductModal, setShowManualProductModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [productType, setProductType] = useState('stainedGlass') // 'stainedGlass' or 'woodwork'
-  const [favoriteCategories, setFavoriteCategories] = useState(['Vase', 'Bowl', 'Sculpture'])
-  const [favoriteMaterials, setFavoriteMaterials] = useState(['Hand-blown glass', 'Stained glass', 'Fused glass'])
+  const [favoriteCategories, setFavoriteCategories] = useState(() => {
+    const saved = localStorage.getItem('favoriteCategories')
+    return saved ? JSON.parse(saved) : []
+  })
+  const [favoriteMaterials, setFavoriteMaterials] = useState(() => {
+    const saved = localStorage.getItem('favoriteMaterials')
+    return saved ? JSON.parse(saved) : []
+  })
   const [manualProduct, setManualProduct] = useState({
     name: '',
     images: [],
@@ -47,11 +53,41 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
     quantity: '',
     is_featured: false
   })
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
+  const [showMaterialDropdown, setShowMaterialDropdown] = useState(false)
+  const categoryDropdownRef = useRef(null)
+  const materialDropdownRef = useRef(null)
   const [categoryInput, setCategoryInput] = useState('')
   const [materialInput, setMaterialInput] = useState('')
   const [imagePreviews, setImagePreviews] = useState([])
   const [enableWatermark, setEnableWatermark] = useState(true)
   const [watermarkText, setWatermarkText] = useState('SGCG ART GLASS')
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
+        setShowCategoryDropdown(false)
+      }
+      if (materialDropdownRef.current && !materialDropdownRef.current.contains(event.target)) {
+        setShowMaterialDropdown(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  // Save favorites to localStorage
+  useEffect(() => {
+    localStorage.setItem('favoriteCategories', JSON.stringify(favoriteCategories))
+  }, [favoriteCategories])
+
+  useEffect(() => {
+    localStorage.setItem('favoriteMaterials', JSON.stringify(favoriteMaterials))
+  }, [favoriteMaterials])
 
   const applyWatermark = (file, watermarkText, shouldApply) => {
     return new Promise((resolve) => {
@@ -682,56 +718,88 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                   <div className="multi-select-wrapper">
                     <div className="multi-select-inner">
                       <div className="multi-select-row">
-                        <select
-                          value=""
-                          onChange={(e) => {
-                            if (e.target.value && !manualProduct.category.includes(e.target.value)) {
-                              setManualProduct({...manualProduct, category: [...manualProduct.category, e.target.value]})
-                            }
-                          }}
-                          className="multi-select-dropdown"
-                        >
-                          <option value="">Select a favorite category...</option>
-                          {favoriteCategories.map((cat) => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (categoryInput.trim() && !manualProduct.category.includes(categoryInput.trim())) {
-                              setManualProduct({...manualProduct, category: [...manualProduct.category, categoryInput.trim()]})
-                              if (!favoriteCategories.includes(categoryInput.trim())) {
-                                setFavoriteCategories([...favoriteCategories, categoryInput.trim()])
+                        <div className="custom-dropdown-container" ref={categoryDropdownRef}>
+                          <button
+                            type="button"
+                            className="custom-dropdown-trigger"
+                            onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                          >
+                            Select a favorite category...
+                            <span className="dropdown-arrow">▼</span>
+                          </button>
+                          {showCategoryDropdown && favoriteCategories.length > 0 && (
+                            <div className="custom-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                              {favoriteCategories.map((cat) => (
+                                <div key={cat} className="custom-dropdown-item">
+                                  <button
+                                    type="button"
+                                    className="dropdown-item-text"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      if (!manualProduct.category.includes(cat)) {
+                                        setManualProduct({...manualProduct, category: [...manualProduct.category, cat]})
+                                      }
+                                      setShowCategoryDropdown(false)
+                                    }}
+                                  >
+                                    {cat}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="dropdown-item-delete"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setFavoriteCategories(favoriteCategories.filter(c => c !== cat))
+                                    }}
+                                    title="Remove from favorites"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="input-button-row">
+                          <input
+                            id="category-input"
+                            name="category-input"
+                            type="text"
+                            value={categoryInput}
+                            onChange={(e) => setCategoryInput(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                if (categoryInput.trim() && !manualProduct.category.includes(categoryInput.trim())) {
+                                  setManualProduct({...manualProduct, category: [...manualProduct.category, categoryInput.trim()]})
+                                  if (!favoriteCategories.includes(categoryInput.trim())) {
+                                    setFavoriteCategories([...favoriteCategories, categoryInput.trim()])
+                                  }
+                                  setCategoryInput('')
+                                }
                               }
-                              setCategoryInput('')
-                            }
-                          }}
-                          title="Add category"
-                          className="multi-select-add-btn"
-                        >
-                          + Add
-                        </button>
+                            }}
+                            placeholder="Type category to add"
+                            className="multi-select-input"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (categoryInput.trim() && !manualProduct.category.includes(categoryInput.trim())) {
+                                setManualProduct({...manualProduct, category: [...manualProduct.category, categoryInput.trim()]})
+                                if (!favoriteCategories.includes(categoryInput.trim())) {
+                                  setFavoriteCategories([...favoriteCategories, categoryInput.trim()])
+                                }
+                                setCategoryInput('')
+                              }
+                            }}
+                            title="Add category"
+                            className="multi-select-add-btn"
+                          >
+                            + Add
+                          </button>
+                        </div>
                       </div>
-                      <input
-                        type="text"
-                        value={categoryInput}
-                        onChange={(e) => setCategoryInput(e.target.value)}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            if (categoryInput.trim() && !manualProduct.category.includes(categoryInput.trim())) {
-                              setManualProduct({...manualProduct, category: [...manualProduct.category, categoryInput.trim()]})
-                              if (!favoriteCategories.includes(categoryInput.trim())) {
-                                setFavoriteCategories([...favoriteCategories, categoryInput.trim()])
-                              }
-                              setCategoryInput('')
-                            }
-                          }
-                        }}
-                        placeholder="Or type and press Enter"
-                        className="multi-select-input"
-                      />
                       {manualProduct.category.length > 0 && (
                         <div className="multi-select-tags">
                           {manualProduct.category.map((cat) => (
@@ -762,56 +830,88 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                   <div className="multi-select-wrapper">
                     <div className="multi-select-inner">
                       <div className="multi-select-row">
-                        <select
-                          value=""
-                          onChange={(e) => {
-                            if (e.target.value && !manualProduct.materials.includes(e.target.value)) {
-                              setManualProduct({...manualProduct, materials: [...manualProduct.materials, e.target.value]})
-                            }
-                          }}
-                          className="multi-select-dropdown"
-                        >
-                          <option value="">Select a favorite material...</option>
-                          {favoriteMaterials.map((mat) => (
-                            <option key={mat} value={mat}>{mat}</option>
-                          ))}
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (materialInput.trim() && !manualProduct.materials.includes(materialInput.trim())) {
-                              setManualProduct({...manualProduct, materials: [...manualProduct.materials, materialInput.trim()]})
-                              if (!favoriteMaterials.includes(materialInput.trim())) {
-                                setFavoriteMaterials([...favoriteMaterials, materialInput.trim()])
+                        <div className="custom-dropdown-container" ref={materialDropdownRef}>
+                          <button
+                            type="button"
+                            className="custom-dropdown-trigger"
+                            onClick={() => setShowMaterialDropdown(!showMaterialDropdown)}
+                          >
+                            Select a favorite material...
+                            <span className="dropdown-arrow">▼</span>
+                          </button>
+                          {showMaterialDropdown && favoriteMaterials.length > 0 && (
+                            <div className="custom-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                              {favoriteMaterials.map((mat) => (
+                                <div key={mat} className="custom-dropdown-item">
+                                  <button
+                                    type="button"
+                                    className="dropdown-item-text"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      if (!manualProduct.materials.includes(mat)) {
+                                        setManualProduct({...manualProduct, materials: [...manualProduct.materials, mat]})
+                                      }
+                                      setShowMaterialDropdown(false)
+                                    }}
+                                  >
+                                    {mat}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="dropdown-item-delete"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setFavoriteMaterials(favoriteMaterials.filter(m => m !== mat))
+                                    }}
+                                    title="Remove from favorites"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="input-button-row">
+                          <input
+                            id="material-input"
+                            name="material-input"
+                            type="text"
+                            value={materialInput}
+                            onChange={(e) => setMaterialInput(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                if (materialInput.trim() && !manualProduct.materials.includes(materialInput.trim())) {
+                                  setManualProduct({...manualProduct, materials: [...manualProduct.materials, materialInput.trim()]})
+                                  if (!favoriteMaterials.includes(materialInput.trim())) {
+                                    setFavoriteMaterials([...favoriteMaterials, materialInput.trim()])
+                                  }
+                                  setMaterialInput('')
+                                }
                               }
-                              setMaterialInput('')
-                            }
-                          }}
-                          title="Add material"
-                          className="multi-select-add-btn"
-                        >
-                          + Add
-                        </button>
+                            }}
+                            placeholder="Type material to add"
+                            className="multi-select-input"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (materialInput.trim() && !manualProduct.materials.includes(materialInput.trim())) {
+                                setManualProduct({...manualProduct, materials: [...manualProduct.materials, materialInput.trim()]})
+                                if (!favoriteMaterials.includes(materialInput.trim())) {
+                                  setFavoriteMaterials([...favoriteMaterials, materialInput.trim()])
+                                }
+                                setMaterialInput('')
+                              }
+                            }}
+                            title="Add material"
+                            className="multi-select-add-btn"
+                          >
+                            + Add
+                          </button>
+                        </div>
                       </div>
-                      <input
-                        type="text"
-                        value={materialInput}
-                        onChange={(e) => setMaterialInput(e.target.value)}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            if (materialInput.trim() && !manualProduct.materials.includes(materialInput.trim())) {
-                              setManualProduct({...manualProduct, materials: [...manualProduct.materials, materialInput.trim()]})
-                              if (!favoriteMaterials.includes(materialInput.trim())) {
-                                setFavoriteMaterials([...favoriteMaterials, materialInput.trim()])
-                              }
-                              setMaterialInput('')
-                            }
-                          }
-                        }}
-                        placeholder="Or type and press Enter"
-                        className="multi-select-input"
-                      />
                       {manualProduct.materials.length > 0 && (
                         <div className="multi-select-tags">
                           {manualProduct.materials.map((mat) => (
