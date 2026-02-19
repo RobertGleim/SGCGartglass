@@ -33,17 +33,60 @@ All forms have been organized into a centralized location for easy access and mo
 - **Used in**: `frontend/src/pages/admin/AdminDashboard.jsx`
 - **Purpose**: Add Etsy listings by URL or ID
 
-### 5. ManualProductForm
+### 5. ManualProductForm (DEPRECATED)
 - **Component**: `frontend/src/components/forms/ManualProductForm.jsx`
 - **CSS**: `frontend/src/styles/forms/ManualProductForm.css`
-- **Used in**: `frontend/src/pages/admin/AdminDashboard.jsx` (currently embedded, can be extracted)
-- **Purpose**: Add/edit manual products with:
+- **Used in**: `frontend/src/pages/admin/AdminDashboard.jsx` (legacy)
+- **Status**: ⚠️ **Deprecated** - Use StainedGlassForm or WoodworkForm instead
+- **Purpose**: Original unified product form (replaced by product-specific forms)
+
+### 6. StainedGlassForm ✨
+- **Component**: `frontend/src/components/forms/StainedGlassForm.jsx`
+- **CSS**: `frontend/src/styles/forms/stainedglass_form.css`
+- **Used in**: `frontend/src/pages/admin/AdminDashboard.jsx`
+- **Purpose**: Add/edit stained glass products with:
   - Product name, description
   - Image/video uploads with watermark support
   - Multi-select categories and materials
   - Dimensions (width, height, depth)
   - Price and quantity
   - Featured product toggle
+- **Theme**: Blue color scheme (#2196F3, #1976D2, #e3f2fd)
+- **CSS Scope**: All classes prefixed with `.stainedglass-`
+
+### 7. WoodworkForm ✨
+- **Component**: `frontend/src/components/forms/WoodworkForm.jsx`
+- **CSS**: `frontend/src/styles/forms/woodwork_form.css`
+- **Used in**: `frontend/src/pages/admin/AdminDashboard.jsx`
+- **Purpose**: Add/edit woodwork products with:
+  - Product name, description
+  - Image/video uploads with watermark support
+  - Multi-select categories and materials
+  - Dimensions (width, height, depth)
+  - Price and quantity
+  - Featured product toggle
+- **Theme**: Brown/wood color scheme (#8B4513, #A0522D, #FFF8DC, #DEB887)
+- **CSS Scope**: All classes prefixed with `.woodwork-`
+
+## 🎨 Product-Specific Forms
+
+**When to use StainedGlassForm vs WoodworkForm:**
+
+- **StainedGlassForm**: Use for all stained glass products
+  - Blue-themed UI for visual differentiation
+  - Optimized styling for glass product categories
+  - Independent customization from woodwork products
+
+- **WoodworkForm**: Use for all woodwork products
+  - Brown/wood-themed UI for visual differentiation
+  - Optimized styling for woodwork product categories
+  - Independent customization from stained glass products
+
+**Benefits of Separated Forms:**
+- ✅ **Independent Styling**: Customize each product type's form without affecting the other
+- ✅ **Visual Differentiation**: Color themes help identify product types at a glance
+- ✅ **No CSS Conflicts**: Class name prefixes ensure complete style isolation
+- ✅ **Scalable**: Easy to add product-specific features to one form without affecting others
 
 ## How to Modify Forms
 
@@ -63,7 +106,23 @@ All forms have been organized into a centralized location for easy access and mo
 ✅ **Easy to Find**: Clear naming convention  
 ✅ **Reusable**: Forms can be imported anywhere in the app  
 ✅ **Maintainable**: Each form has its own CSS file  
-✅ **Scalable**: Easy to add new forms following the same pattern
+✅ **Scalable**: Easy to add new forms following the same pattern  
+✅ **Mobile-First**: All forms use responsive design optimized for mobile devices
+
+## 📱 Mobile-First Responsive Design
+
+All forms implement mobile-first responsive design with industry-standard breakpoints:
+
+- **Base (320px)**: Small phones - foundation styles
+- **375px**: Modern smartphones - slight adjustments
+- **480px**: Large phones - improved spacing
+- **768px**: Tablets and desktop - full desktop layout
+
+### Responsive Features:
+- Flexible grid layouts that adapt to screen size
+- Touch-friendly button and input sizes on mobile
+- Progressive enhancement from mobile to desktop
+- Consistent spacing and padding across breakpoints
 
 ## Adding a New Form
 

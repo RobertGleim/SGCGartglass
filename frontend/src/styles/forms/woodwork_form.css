@@ -1,0 +1,694 @@
+/* Mobile-first Woodwork Form Styles (320px+) */
+
+/* Modal Overlay */
+.woodwork-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 10000;
+  padding: 0.5rem;
+  overflow-y: auto;
+}
+
+.woodwork-modal-content {
+  background-color: white;
+  border-radius: 8px;
+  max-width: 700px;
+  width: 100%;
+  max-height: none;
+  margin: 0.5rem auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.woodwork-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+}
+
+.woodwork-modal-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.woodwork-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.75rem;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.woodwork-modal-close:hover {
+  color: #333;
+}
+
+.woodwork-modal-form {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.woodwork-modal-form label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.woodwork-modal-form input[type="text"],
+.woodwork-modal-form input[type="number"],
+.woodwork-modal-form textarea {
+  width: 100%;
+  padding: 0.65rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.woodwork-modal-form input:focus,
+.woodwork-modal-form textarea:focus {
+  outline: none;
+  border-color: #8B4513;
+}
+
+.woodwork-modal-form textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.woodwork-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.woodwork-form-note {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 0;
+}
+
+/* Image Upload Section */
+.woodwork-image-upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.woodwork-image-upload-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.woodwork-upload-button {
+  display: inline-block;
+  padding: 0.75rem 1.25rem;
+  background-color: #8B4513;
+  color: white;
+  border: 2px dashed transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.woodwork-upload-button:hover {
+  background-color: #A0522D;
+}
+
+/* Watermark Settings */
+.woodwork-watermark-section {
+  padding: 1rem;
+  background-color: #FFF8DC;
+  border: 1px solid #8B4513;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.woodwork-watermark-section h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  color: #8B4513;
+  font-weight: 600;
+}
+
+.woodwork-watermark-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.woodwork-watermark-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-left: 0.5rem;
+  animation: woodworkSlideDown 0.3s ease;
+}
+
+@keyframes woodworkSlideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 200px;
+  }
+}
+
+.woodwork-watermark-input-group label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Image Gallery */
+.woodwork-image-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.woodwork-image-gallery h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.woodwork-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 0.75rem;
+}
+
+.woodwork-image-item {
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: #e0e0e0;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.woodwork-image-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.woodwork-remove-image-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 32px;
+  height: 32px;
+  background-color: #e53935;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  line-height: 1;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  opacity: 0;
+}
+
+.woodwork-image-item:hover .woodwork-remove-image-btn {
+  opacity: 1;
+}
+
+.woodwork-remove-image-btn:hover {
+  background-color: #c62828;
+  transform: scale(1.1);
+}
+
+.woodwork-media-badge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Multi-select Controls */
+.woodwork-multi-select-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.woodwork-multi-select-inner {
+  flex: 1;
+}
+
+.woodwork-multi-select-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.woodwork-multi-select-dropdown {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.woodwork-multi-select-add-btn {
+  padding: 0.5rem 0.75rem;
+  background-color: #8B4513;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+.woodwork-multi-select-add-btn:hover {
+  background-color: #A0522D;
+}
+
+.woodwork-multi-select-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.woodwork-multi-select-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Category Tags */
+.woodwork-category-tag {
+  background-color: #FFF8DC;
+  border: 1px solid #8B4513;
+  border-radius: 20px;
+  padding: 0.4rem 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #8B4513;
+}
+
+.woodwork-category-tag-remove {
+  background: none;
+  border: none;
+  color: #8B4513;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  line-height: 1;
+  transition: opacity 0.2s ease;
+}
+
+.woodwork-category-tag-remove:hover {
+  opacity: 0.7;
+}
+
+/* Material Tags */
+.woodwork-material-tag {
+  background-color: #DEB887;
+  border: 1px solid #8B4513;
+  border-radius: 20px;
+  padding: 0.4rem 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #654321;
+}
+
+.woodwork-material-tag-remove {
+  background: none;
+  border: none;
+  color: #654321;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  line-height: 1;
+  transition: opacity 0.2s ease;
+}
+
+.woodwork-material-tag-remove:hover {
+  opacity: 0.7;
+}
+
+/* Size Inputs */
+.woodwork-size-inputs {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.woodwork-size-inputs label {
+  flex: 1;
+  min-width: 130px;
+}
+
+/* Price and Quantity Inputs */
+.woodwork-price-quantity-inputs {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.woodwork-price-quantity-inputs label {
+  flex: 1;
+  min-width: 130px;
+}
+
+/* Checkbox Label */
+.woodwork-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.woodwork-checkbox-label input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
+}
+
+.woodwork-checkbox-label span {
+  font-weight: normal;
+  color: #333;
+}
+
+/* Modal Actions */
+.woodwork-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.woodwork-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.woodwork-button:hover {
+  background-color: #e0e0e0;
+}
+
+.woodwork-button.woodwork-primary {
+  background-color: #8B4513;
+  color: white;
+}
+
+.woodwork-button.woodwork-primary:hover {
+  background-color: #A0522D;
+}
+
+/* Responsive Breakpoints - Progressive Enhancement */
+
+/* Small phones (375px+) */
+@media (min-width: 375px) {
+  .woodwork-modal-header {
+    padding: 1.15rem;
+  }
+
+  .woodwork-modal-header h2 {
+    font-size: 1.3rem;
+  }
+
+  .woodwork-modal-form {
+    padding: 1.15rem;
+    gap: 1.1rem;
+  }
+
+  .woodwork-image-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .woodwork-upload-button {
+    padding: 0.8rem 1.3rem;
+  }
+}
+
+/* Large phones (480px+) */
+@media (min-width: 480px) {
+  .woodwork-modal-overlay {
+    padding: 1rem;
+    align-items: center;
+  }
+
+  .woodwork-modal-content {
+    margin: 1rem auto;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .woodwork-modal-header {
+    padding: 1.25rem;
+  }
+
+  .woodwork-modal-header h2 {
+    font-size: 1.4rem;
+  }
+
+  .woodwork-modal-form {
+    padding: 1.25rem;
+    gap: 1.15rem;
+  }
+
+  .woodwork-modal-form input[type="text"],
+  .woodwork-modal-form input[type="number"],
+  .woodwork-modal-form textarea {
+    padding: 0.7rem;
+  }
+
+  .woodwork-image-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .woodwork-size-inputs {
+    gap: 1.25rem;
+  }
+
+  .woodwork-price-quantity-inputs {
+    gap: 1.25rem;
+  }
+
+  .woodwork-modal-actions {
+    gap: 1rem;
+  }
+}
+
+/* Tablets (768px+) */
+@media (min-width: 768px) {
+  .woodwork-modal-header {
+    padding: 1.5rem;
+  }
+
+  .woodwork-modal-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .woodwork-modal-form {
+    padding: 1.5rem;
+    gap: 1.25rem;
+  }
+
+  .woodwork-modal-form input[type="text"],
+  .woodwork-modal-form input[type="number"],
+  .woodwork-modal-form textarea {
+    padding: 0.75rem;
+  }
+
+  .woodwork-image-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .woodwork-upload-button {
+    padding: 0.75rem 1.25rem;
+  }
+
+  .woodwork-watermark-section {
+    padding: 1.25rem;
+  }
+
+  .woodwork-image-gallery {
+    padding: 1.25rem;
+  }
+}
+/* ===================================================================
+   ADMIN DASHBOARD INTEGRATION - Woodwork Form Theme
+   =================================================================== */
+
+/* Apply brown/wood theme to generic AdminDashboard form classes */
+.product-form-woodwork .upload-button {
+  background-color: #8B4513;
+  color: white;
+  border: none;
+  padding: 0.7rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.product-form-woodwork .upload-button:hover {
+  background-color: #A0522D;
+}
+
+.product-form-woodwork .watermark-section {
+  background-color: #FFF8DC;
+  border: 1px solid #DEB887;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.product-form-woodwork .watermark-section h4 {
+  color: #654321;
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+}
+
+.product-form-woodwork input:focus,
+.product-form-woodwork textarea:focus,
+.product-form-woodwork select:focus {
+  outline: none;
+  border-color: #8B4513;
+  box-shadow: 0 0 0 2px rgba(139, 69, 19, 0.1);
+}
+
+.product-form-woodwork .category-tag {
+  background-color: #FFF8DC;
+  border: 1px solid #DEB887;
+  color: #654321;
+  padding: 0.4rem 0.7rem;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  margin: 0.25rem;
+}
+
+.product-form-woodwork .category-tag-remove {
+  background: none;
+  border: none;
+  color: #654321;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0;
+  line-height: 1;
+}
+
+.product-form-woodwork .material-tag {
+  background-color: #DEB887;
+  border: 1px solid #D2B48C;
+  color: #654321;
+  padding: 0.4rem 0.7rem;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  margin: 0.25rem;
+}
+
+.product-form-woodwork .material-tag-remove {
+  background: none;
+  border: none;
+  color: #654321;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0;
+  line-height: 1;
+}
+
+.product-form-woodwork .modal-header {
+  background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);
+  color: white;
+  border-bottom: none;
+}
+
+.product-form-woodwork .modal-header h2 {
+  color: white;
+}
+
+.product-form-woodwork .modal-close {
+  color: white;
+}
+
+.product-form-woodwork .modal-close:hover {
+  color: #FFF8DC;
+}
+
+.product-form-woodwork .button.primary {
+  background-color: #8B4513;
+  color: white;
+}
+
+.product-form-woodwork .button.primary:hover {
+  background-color: #A0522D;
+}
+
+.product-form-woodwork .multi-select-add-btn {
+  background-color: #8B4513;
+  color: white;
+}
+
+.product-form-woodwork .multi-select-add-btn:hover {
+  background-color: #A0522D;
+}

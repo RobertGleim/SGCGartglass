@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import AddEtsyListingForm from '../../components/forms/AddEtsyListingForm'
 import '../../styles/AdminDashboard.css'
+import '../../styles/forms/stainedglass_form.css'
+import '../../styles/forms/woodwork_form.css'
 
 const toSearchableText = (value) => {
   if (Array.isArray(value)) {
@@ -24,10 +26,12 @@ const toDisplayList = (value) => {
 
 export default function AdminDashboard({ items = [], manualProducts = [], onAddItem, onAddManualProduct, onUpdateManualProduct, onDeleteManualProduct, onLogout }) {
   const [activeTab, setActiveTab] = useState('products')
+  // eslint-disable-next-line no-unused-vars
   const [status, setStatus] = useState('')
   const [manualProductSearch, setManualProductSearch] = useState('')
   const [showManualProductModal, setShowManualProductModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
+  const [productType, setProductType] = useState('stainedGlass') // 'stainedGlass' or 'woodwork'
   const [favoriteCategories, setFavoriteCategories] = useState(['Vase', 'Bowl', 'Sculpture'])
   const [favoriteMaterials, setFavoriteMaterials] = useState(['Hand-blown glass', 'Stained glass', 'Fused glass'])
   const [manualProduct, setManualProduct] = useState({
@@ -350,6 +354,7 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                   className="button primary" 
                   type="button"
                   onClick={() => {
+                    setProductType('stainedGlass')
                     setManualProduct(prev => ({
                       ...prev,
                       category: ['Stained Glass']
@@ -363,6 +368,7 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                   className="button primary" 
                   type="button"
                   onClick={() => {
+                    setProductType('woodwork')
                     setManualProduct(prev => ({
                       ...prev,
                       category: ['Wood Work']
@@ -547,373 +553,375 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
         )}
       </div>
 
-      {showManualProductModal && (
-        <div className="modal-overlay" onClick={handleCloseModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{editingProduct ? 'Edit Product' : 'Add Manual Product'}</h2>
-              <button 
-                className="modal-close" 
-                onClick={handleCloseModal}
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-            <form className="modal-form" onSubmit={handleManualProductSubmit}>
-              <label>
-                Product Name *
-                <input
-                  type="text"
-                  value={manualProduct.name}
-                  onChange={(e) => setManualProduct({...manualProduct, name: e.target.value})}
-                  placeholder="Enter product name"
-                  required
-                />
-              </label>
+      <div className={`product-form-wrapper product-form-${productType}`}>
+        {showManualProductModal && (
+          <div className="modal-overlay" onClick={handleCloseModal}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>{editingProduct ? 'Edit Product' : `Add ${productType === 'stainedGlass' ? 'Stained Glass' : 'Woodwork'} Product`}</h2>
+                <button 
+                  className="modal-close" 
+                  onClick={handleCloseModal}
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+              <form className="modal-form" onSubmit={handleManualProductSubmit}>
+                <label>
+                  Product Name *
+                  <input
+                    type="text"
+                    value={manualProduct.name}
+                    onChange={(e) => setManualProduct({...manualProduct, name: e.target.value})}
+                    placeholder="Enter product name"
+                    required
+                  />
+                </label>
 
-              <div className="form-field">
-                <label>Images / Video</label>
-                <div className="image-upload-section">
-                  {/* Watermark Settings - At the top */}
-                  <div className="watermark-section">
-                    <h4>Watermark Settings</h4>
-                    <div className="watermark-controls">
-                      <label className="checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={enableWatermark}
-                          onChange={(e) => setEnableWatermark(e.target.checked)}
-                        />
-                        <span>Apply watermark to new images</span>
+                <div className="form-field">
+                  <label>Images / Video</label>
+                  <div className="image-upload-section">
+                    {/* Watermark Settings - At the top */}
+                    <div className="watermark-section">
+                      <h4>Watermark Settings</h4>
+                      <div className="watermark-controls">
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={enableWatermark}
+                            onChange={(e) => setEnableWatermark(e.target.checked)}
+                          />
+                          <span>Apply watermark to new images</span>
+                        </label>
+                        
+                        {enableWatermark && (
+                          <div className="watermark-input-group">
+                            <label>
+                              Watermark Text
+                              <input
+                                type="text"
+                                value={watermarkText}
+                                onChange={(e) => setWatermarkText(e.target.value)}
+                                placeholder="Enter watermark text"
+                              />
+                            </label>
+                            <span className="form-note">
+                              Watermark will appear diagonally across the image
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="image-upload-input">
+                      <input
+                        type="file"
+                        id="image-input"
+                        accept="image/*,video/*"
+                        multiple
+                        onChange={(e) => handleAddImages(e.target.files)}
+                        style={{ display: 'none' }}
+                      />
+                      <label htmlFor="image-input" className="upload-button">
+                        + Add Images/Video
                       </label>
-                      
-                      {enableWatermark && (
-                        <div className="watermark-input-group">
-                          <label>
-                            Watermark Text
-                            <input
-                              type="text"
-                              value={watermarkText}
-                              onChange={(e) => setWatermarkText(e.target.value)}
-                              placeholder="Enter watermark text"
-                            />
-                          </label>
-                          <span className="form-note">
-                            Watermark will appear diagonally across the image
-                          </span>
+                      <span className="form-note">Click to add multiple images or a video</span>
+                    </div>
+
+                    {imagePreviews.length > 0 && (
+                      <div className="image-gallery">
+                        <h4>Added Images ({imagePreviews.length})</h4>
+                        <div className="image-grid">
+                          {imagePreviews.map((preview) => (
+                            <div 
+                              key={preview.id} 
+                              className="image-item"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {preview.type === 'video' ? (
+                                <video src={preview.src} className="image-preview" />
+                              ) : (
+                                <img src={preview.src} alt="Preview" className="image-preview" />
+                              )}
+                              <button
+                                type="button"
+                                className="remove-image-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleRemoveImage(preview.id)
+                                }}
+                                title="Remove image"
+                              >
+                                ✕
+                              </button>
+                              {preview.type === 'video' && (
+                                <span className="media-badge">Video</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <label>
+                  Description *
+                  <textarea
+                    value={manualProduct.description}
+                    onChange={(e) => setManualProduct({...manualProduct, description: e.target.value})}
+                    placeholder="Enter product description"
+                    rows="4"
+                    required
+                  />
+                </label>
+
+                <label>
+                  Categories
+                  <div className="multi-select-wrapper">
+                    <div className="multi-select-inner">
+                      <div className="multi-select-row">
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value && !manualProduct.category.includes(e.target.value)) {
+                              setManualProduct({...manualProduct, category: [...manualProduct.category, e.target.value]})
+                            }
+                          }}
+                          className="multi-select-dropdown"
+                        >
+                          <option value="">Select a favorite category...</option>
+                          {favoriteCategories.map((cat) => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (categoryInput.trim() && !manualProduct.category.includes(categoryInput.trim())) {
+                              setManualProduct({...manualProduct, category: [...manualProduct.category, categoryInput.trim()]})
+                              if (!favoriteCategories.includes(categoryInput.trim())) {
+                                setFavoriteCategories([...favoriteCategories, categoryInput.trim()])
+                              }
+                              setCategoryInput('')
+                            }
+                          }}
+                          title="Add category"
+                          className="multi-select-add-btn"
+                        >
+                          + Add
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={categoryInput}
+                        onChange={(e) => setCategoryInput(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            if (categoryInput.trim() && !manualProduct.category.includes(categoryInput.trim())) {
+                              setManualProduct({...manualProduct, category: [...manualProduct.category, categoryInput.trim()]})
+                              if (!favoriteCategories.includes(categoryInput.trim())) {
+                                setFavoriteCategories([...favoriteCategories, categoryInput.trim()])
+                              }
+                              setCategoryInput('')
+                            }
+                          }
+                        }}
+                        placeholder="Or type and press Enter"
+                        className="multi-select-input"
+                      />
+                      {manualProduct.category.length > 0 && (
+                        <div className="multi-select-tags">
+                          {manualProduct.category.map((cat) => (
+                            <div
+                              key={cat}
+                              className="category-tag"
+                            >
+                              {cat}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setManualProduct({...manualProduct, category: manualProduct.category.filter(c => c !== cat)})
+                                }}
+                                className="category-tag-remove"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
                   </div>
+                </label>
 
-                  <div className="image-upload-input">
-                    <input
-                      type="file"
-                      id="image-input"
-                      accept="image/*,video/*"
-                      multiple
-                      onChange={(e) => handleAddImages(e.target.files)}
-                      style={{ display: 'none' }}
-                    />
-                    <label htmlFor="image-input" className="upload-button">
-                      + Add Images/Video
-                    </label>
-                    <span className="form-note">Click to add multiple images or a video</span>
-                  </div>
-
-                  {imagePreviews.length > 0 && (
-                    <div className="image-gallery">
-                      <h4>Added Images ({imagePreviews.length})</h4>
-                      <div className="image-grid">
-                        {imagePreviews.map((preview) => (
-                          <div 
-                            key={preview.id} 
-                            className="image-item"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {preview.type === 'video' ? (
-                              <video src={preview.src} className="image-preview" />
-                            ) : (
-                              <img src={preview.src} alt="Preview" className="image-preview" />
-                            )}
-                            <button
-                              type="button"
-                              className="remove-image-btn"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleRemoveImage(preview.id)
-                              }}
-                              title="Remove image"
-                            >
-                              ✕
-                            </button>
-                            {preview.type === 'video' && (
-                              <span className="media-badge">Video</span>
-                            )}
-                          </div>
-                        ))}
+                <label>
+                  Materials
+                  <div className="multi-select-wrapper">
+                    <div className="multi-select-inner">
+                      <div className="multi-select-row">
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value && !manualProduct.materials.includes(e.target.value)) {
+                              setManualProduct({...manualProduct, materials: [...manualProduct.materials, e.target.value]})
+                            }
+                          }}
+                          className="multi-select-dropdown"
+                        >
+                          <option value="">Select a favorite material...</option>
+                          {favoriteMaterials.map((mat) => (
+                            <option key={mat} value={mat}>{mat}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (materialInput.trim() && !manualProduct.materials.includes(materialInput.trim())) {
+                              setManualProduct({...manualProduct, materials: [...manualProduct.materials, materialInput.trim()]})
+                              if (!favoriteMaterials.includes(materialInput.trim())) {
+                                setFavoriteMaterials([...favoriteMaterials, materialInput.trim()])
+                              }
+                              setMaterialInput('')
+                            }
+                          }}
+                          title="Add material"
+                          className="multi-select-add-btn"
+                        >
+                          + Add
+                        </button>
                       </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <label>
-                Description *
-                <textarea
-                  value={manualProduct.description}
-                  onChange={(e) => setManualProduct({...manualProduct, description: e.target.value})}
-                  placeholder="Enter product description"
-                  rows="4"
-                  required
-                />
-              </label>
-
-              <label>
-                Categories
-                <div className="multi-select-wrapper">
-                  <div className="multi-select-inner">
-                    <div className="multi-select-row">
-                      <select
-                        value=""
-                        onChange={(e) => {
-                          if (e.target.value && !manualProduct.category.includes(e.target.value)) {
-                            setManualProduct({...manualProduct, category: [...manualProduct.category, e.target.value]})
+                      <input
+                        type="text"
+                        value={materialInput}
+                        onChange={(e) => setMaterialInput(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            if (materialInput.trim() && !manualProduct.materials.includes(materialInput.trim())) {
+                              setManualProduct({...manualProduct, materials: [...manualProduct.materials, materialInput.trim()]})
+                              if (!favoriteMaterials.includes(materialInput.trim())) {
+                                setFavoriteMaterials([...favoriteMaterials, materialInput.trim()])
+                              }
+                              setMaterialInput('')
+                            }
                           }
                         }}
-                        className="multi-select-dropdown"
-                      >
-                        <option value="">Select a favorite category...</option>
-                        {favoriteCategories.map((cat) => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (categoryInput.trim() && !manualProduct.category.includes(categoryInput.trim())) {
-                            setManualProduct({...manualProduct, category: [...manualProduct.category, categoryInput.trim()]})
-                            if (!favoriteCategories.includes(categoryInput.trim())) {
-                              setFavoriteCategories([...favoriteCategories, categoryInput.trim()])
-                            }
-                            setCategoryInput('')
-                          }
-                        }}
-                        title="Add category"
-                        className="multi-select-add-btn"
-                      >
-                        + Add
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      value={categoryInput}
-                      onChange={(e) => setCategoryInput(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          if (categoryInput.trim() && !manualProduct.category.includes(categoryInput.trim())) {
-                            setManualProduct({...manualProduct, category: [...manualProduct.category, categoryInput.trim()]})
-                            if (!favoriteCategories.includes(categoryInput.trim())) {
-                              setFavoriteCategories([...favoriteCategories, categoryInput.trim()])
-                            }
-                            setCategoryInput('')
-                          }
-                        }
-                      }}
-                      placeholder="Or type and press Enter"
-                      className="multi-select-input"
-                    />
-                    {manualProduct.category.length > 0 && (
-                      <div className="multi-select-tags">
-                        {manualProduct.category.map((cat) => (
-                          <div
-                            key={cat}
-                            className="category-tag"
-                          >
-                            {cat}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setManualProduct({...manualProduct, category: manualProduct.category.filter(c => c !== cat)})
-                              }}
-                              className="category-tag-remove"
+                        placeholder="Or type and press Enter"
+                        className="multi-select-input"
+                      />
+                      {manualProduct.materials.length > 0 && (
+                        <div className="multi-select-tags">
+                          {manualProduct.materials.map((mat) => (
+                            <div
+                              key={mat}
+                              className="material-tag"
                             >
-                              ✕
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </label>
-
-              <label>
-                Materials
-                <div className="multi-select-wrapper">
-                  <div className="multi-select-inner">
-                    <div className="multi-select-row">
-                      <select
-                        value=""
-                        onChange={(e) => {
-                          if (e.target.value && !manualProduct.materials.includes(e.target.value)) {
-                            setManualProduct({...manualProduct, materials: [...manualProduct.materials, e.target.value]})
-                          }
-                        }}
-                        className="multi-select-dropdown"
-                      >
-                        <option value="">Select a favorite material...</option>
-                        {favoriteMaterials.map((mat) => (
-                          <option key={mat} value={mat}>{mat}</option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (materialInput.trim() && !manualProduct.materials.includes(materialInput.trim())) {
-                            setManualProduct({...manualProduct, materials: [...manualProduct.materials, materialInput.trim()]})
-                            if (!favoriteMaterials.includes(materialInput.trim())) {
-                              setFavoriteMaterials([...favoriteMaterials, materialInput.trim()])
-                            }
-                            setMaterialInput('')
-                          }
-                        }}
-                        title="Add material"
-                        className="multi-select-add-btn"
-                      >
-                        + Add
-                      </button>
+                              {mat}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setManualProduct({...manualProduct, materials: manualProduct.materials.filter(m => m !== mat)})
+                                }}
+                                className="material-tag-remove"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <input
-                      type="text"
-                      value={materialInput}
-                      onChange={(e) => setMaterialInput(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          if (materialInput.trim() && !manualProduct.materials.includes(materialInput.trim())) {
-                            setManualProduct({...manualProduct, materials: [...manualProduct.materials, materialInput.trim()]})
-                            if (!favoriteMaterials.includes(materialInput.trim())) {
-                              setFavoriteMaterials([...favoriteMaterials, materialInput.trim()])
-                            }
-                            setMaterialInput('')
-                          }
-                        }
-                      }}
-                      placeholder="Or type and press Enter"
-                      className="multi-select-input"
-                    />
-                    {manualProduct.materials.length > 0 && (
-                      <div className="multi-select-tags">
-                        {manualProduct.materials.map((mat) => (
-                          <div
-                            key={mat}
-                            className="material-tag"
-                          >
-                            {mat}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setManualProduct({...manualProduct, materials: manualProduct.materials.filter(m => m !== mat)})
-                              }}
-                              className="material-tag-remove"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
+                </label>
+
+                <div className="size-inputs">
+                  <label>
+                    Width (inches)
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={manualProduct.width}
+                      onChange={(e) => setManualProduct({...manualProduct, width: e.target.value})}
+                      placeholder="0.00"
+                      style={{ width: '130px' }}
+                    />
+                  </label>
+                  <label>
+                    Height (inches)
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={manualProduct.height}
+                      onChange={(e) => setManualProduct({...manualProduct, height: e.target.value})}
+                      placeholder="0.00"
+                      style={{ width: '130px' }}
+                    />
+                  </label>
+                  <label>
+                    Depth (inches)
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={manualProduct.depth}
+                      onChange={(e) => setManualProduct({...manualProduct, depth: e.target.value})}
+                      placeholder="0.00"
+                      style={{ width: '130px' }}
+                    />
+                  </label>
                 </div>
-              </label>
 
-              <div className="size-inputs">
-                <label>
-                  Width (inches)
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={manualProduct.width}
-                    onChange={(e) => setManualProduct({...manualProduct, width: e.target.value})}
-                    placeholder="0.00"
-                    style={{ width: '130px' }}
-                  />
-                </label>
-                <label>
-                  Height (inches)
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={manualProduct.height}
-                    onChange={(e) => setManualProduct({...manualProduct, height: e.target.value})}
-                    placeholder="0.00"
-                    style={{ width: '130px' }}
-                  />
-                </label>
-                <label>
-                  Depth (inches)
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={manualProduct.depth}
-                    onChange={(e) => setManualProduct({...manualProduct, depth: e.target.value})}
-                    placeholder="0.00"
-                    style={{ width: '130px' }}
-                  />
-                </label>
-              </div>
+                <div className="price-quantity-inputs">
+                  <label>
+                    Price *
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={manualProduct.price}
+                      onChange={(e) => setManualProduct({...manualProduct, price: e.target.value})}
+                      placeholder="0.00"
+                      style={{ width: '130px' }}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Quantity *
+                    <input
+                      type="number"
+                      min="0"
+                      value={manualProduct.quantity}
+                      onChange={(e) => setManualProduct({...manualProduct, quantity: e.target.value})}
+                      placeholder="0"
+                      required
+                    />
+                  </label>
+                </div>
 
-              <div className="price-quantity-inputs">
-                <label>
-                  Price *
+                <label className="checkbox-label">
                   <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={manualProduct.price}
-                    onChange={(e) => setManualProduct({...manualProduct, price: e.target.value})}
-                    placeholder="0.00"
-                    style={{ width: '130px' }}
-                    required
+                    type="checkbox"
+                    checked={manualProduct.is_featured}
+                    onChange={(e) => setManualProduct({...manualProduct, is_featured: e.target.checked})}
                   />
+                  <span>Feature this product on the home page</span>
                 </label>
-                <label>
-                  Quantity *
-                  <input
-                    type="number"
-                    min="0"
-                    value={manualProduct.quantity}
-                    onChange={(e) => setManualProduct({...manualProduct, quantity: e.target.value})}
-                    placeholder="0"
-                    required
-                  />
-                </label>
-              </div>
 
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={manualProduct.is_featured}
-                  onChange={(e) => setManualProduct({...manualProduct, is_featured: e.target.checked})}
-                />
-                <span>Feature this product on the home page</span>
-              </label>
-
-              <div className="modal-actions">
-                <button type="button" className="button" onClick={handleCloseModal}>
-                  Cancel
-                </button>
-                <button type="submit" className="button primary">
-                  {editingProduct ? 'Update Product' : 'Add Listing'}
-                </button>
-              </div>
-            </form>
+                <div className="modal-actions">
+                  <button type="button" className="button" onClick={handleCloseModal}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="button primary">
+                    {editingProduct ? 'Update Product' : 'Add Listing'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
