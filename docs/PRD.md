@@ -22,7 +22,7 @@ SGCG Art Glass needs a branded web experience that mirrors the Etsy seller page 
 - Tech stack: Vite/React, Flask/Python, JavaScript, JWT auth.
 - Neutral, light theme with white and gray surfaces and a royal blue accent.
 - Environment variables stored in .env, excluded from version control.
-- Deployable on Vercel (frontend) and Render (backend).
+- Deployed on Hostinger (frontend + backend).
 - Prepared for GitHub Pages with configurable base path.
 - Hostinger will be used as the client share portal.
 

@@ -71,7 +71,7 @@ ETSY_API_KEY=lemw09rcpx51kqhml18rcc94
 ETSY_SHARED_SECRET=vi4vs6h5zv
 ETSY_ACCESS_TOKEN=
 
-CORS_ORIGINS=https://sgcgart.com,https://www.sgcgart.com,https://sgcgartglass.vercel.app
+CORS_ORIGINS=https://sgcgart.com,https://www.sgcgart.com
 FLASK_DEBUG=false
 ```
 

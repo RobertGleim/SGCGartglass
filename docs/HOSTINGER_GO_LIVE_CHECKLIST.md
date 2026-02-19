@@ -4,13 +4,13 @@ Use this checklist during launch day.
 
 ## 1) Deployment architecture
 
-- Frontend: Vercel (`https://sgcgartglass.vercel.app`) + Hostinger (`https://sgcgart.com`)
-- Backend API: Render (`https://sgcgartglass.onrender.com`)
+- Frontend: Hostinger (`https://sgcgart.com`)
+- Backend API: Hostinger
 - Database: Hostinger MySQL (`u159464737_sgcgdb`)
 
 ## 2) DNS setup (if using custom domain on Hostinger)
 
-- [ ] Point `sgcgart.com` to Hostinger or Vercel target.
+- [ ] Point `sgcgart.com` to Hostinger.
 - [ ] Configure `www.sgcgart.com` as desired.
 - [ ] Note: Render provides `sgcgartglass.onrender.com` subdomain automatically.
 
