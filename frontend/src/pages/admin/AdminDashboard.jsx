@@ -25,6 +25,9 @@ const toDisplayList = (value) => {
 }
 
 export default function AdminDashboard({ items = [], manualProducts = [], onAddItem, onAddManualProduct, onUpdateManualProduct, onDeleteManualProduct, onLogout }) {
+  const GLASS_CATEGORY_LABEL = 'Stained Glass'
+  const WOOD_CATEGORY_LABEL = 'Wood Work'
+
   const [activeTab, setActiveTab] = useState('products')
   // eslint-disable-next-line no-unused-vars
   const [status, setStatus] = useState('')
@@ -32,13 +35,39 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
   const [showManualProductModal, setShowManualProductModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [productType, setProductType] = useState('stainedGlass') // 'stainedGlass' or 'woodwork'
-  const [favoriteCategories, setFavoriteCategories] = useState(() => {
-    const saved = localStorage.getItem('favoriteCategories')
-    return saved ? JSON.parse(saved) : []
+  const [favoriteCategoriesByType, setFavoriteCategoriesByType] = useState(() => {
+    const savedByType = localStorage.getItem('favoriteCategoriesByType')
+    if (savedByType) {
+      const parsed = JSON.parse(savedByType)
+      return {
+        stainedGlass: Array.isArray(parsed?.stainedGlass) ? parsed.stainedGlass : [],
+        woodwork: Array.isArray(parsed?.woodwork) ? parsed.woodwork : []
+      }
+    }
+
+    const legacySaved = localStorage.getItem('favoriteCategories')
+    const legacyCategories = legacySaved ? JSON.parse(legacySaved) : []
+    return {
+      stainedGlass: legacyCategories,
+      woodwork: []
+    }
   })
-  const [favoriteMaterials, setFavoriteMaterials] = useState(() => {
-    const saved = localStorage.getItem('favoriteMaterials')
-    return saved ? JSON.parse(saved) : []
+  const [favoriteMaterialsByType, setFavoriteMaterialsByType] = useState(() => {
+    const savedByType = localStorage.getItem('favoriteMaterialsByType')
+    if (savedByType) {
+      const parsed = JSON.parse(savedByType)
+      return {
+        stainedGlass: Array.isArray(parsed?.stainedGlass) ? parsed.stainedGlass : [],
+        woodwork: Array.isArray(parsed?.woodwork) ? parsed.woodwork : []
+      }
+    }
+
+    const legacySaved = localStorage.getItem('favoriteMaterials')
+    const legacyMaterials = legacySaved ? JSON.parse(legacySaved) : []
+    return {
+      stainedGlass: legacyMaterials,
+      woodwork: []
+    }
   })
   const [manualProduct, setManualProduct] = useState({
     name: '',
@@ -63,9 +92,98 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
   const [enableWatermark, setEnableWatermark] = useState(true)
   const [watermarkText, setWatermarkText] = useState('SGCG ART GLASS')
 
-  // Close dropdowns when clicking outside
+  const activeFavoriteCategories = favoriteCategoriesByType[productType] || []
+  const activeFavoriteMaterials = favoriteMaterialsByType[productType] || []
+
+  const addFavoriteCategoryForActiveType = (value) => {
+    setFavoriteCategoriesByType((prev) => {
+      const currentValues = prev[productType] || []
+      if (currentValues.includes(value)) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        [productType]: [...currentValues, value]
+      }
+    })
+  }
+
+  const addFavoriteMaterialForActiveType = (value) => {
+    setFavoriteMaterialsByType((prev) => {
+      const currentValues = prev[productType] || []
+      if (currentValues.includes(value)) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        [productType]: [...currentValues, value]
+      }
+    })
+  }
+
+  const removeFavoriteCategoryForActiveType = (value) => {
+    setFavoriteCategoriesByType((prev) => ({
+      ...prev,
+      [productType]: (prev[productType] || []).filter((entry) => entry !== value)
+    }))
+  }
+
+  const removeFavoriteMaterialForActiveType = (value) => {
+    setFavoriteMaterialsByType((prev) => ({
+      ...prev,
+      [productType]: (prev[productType] || []).filter((entry) => entry !== value)
+    }))
+  }
+
+  const inferProductType = (product) => {
+    const categories = Array.isArray(product?.category)
+      ? product.category
+      : (product?.category ? [product.category] : [])
+
+    const hasWoodworkCategory = categories.some((entry) => {
+      const normalized = String(entry || '').toLowerCase().replace(/\s+/g, '')
+      return normalized.includes('woodwork') || normalized.includes('wood')
+    })
+
+    return hasWoodworkCategory ? 'woodwork' : 'stainedGlass'
+  }
+
+  const isGlassTypeCategory = (value) => {
+    const normalized = String(value || '').toLowerCase().replace(/\s+/g, '')
+    return normalized === 'stainedglass' || normalized === 'glass'
+  }
+
+  const isWoodTypeCategory = (value) => {
+    const normalized = String(value || '').toLowerCase().replace(/\s+/g, '')
+    return normalized === 'woodwork' || normalized === 'wood' || normalized === 'woodworking'
+  }
+
+  const removeTypeCategories = (categories = []) => {
+    return categories.filter((entry) => !isGlassTypeCategory(entry) && !isWoodTypeCategory(entry))
+  }
+
+  const setPrimaryTypeCategory = (type) => {
+    const label = type === 'woodwork' ? WOOD_CATEGORY_LABEL : GLASS_CATEGORY_LABEL
+    setManualProduct((prev) => ({
+      ...prev,
+      category: [label, ...removeTypeCategories(prev.category)]
+    }))
+  }
+
+  const visibleCategoryTags = removeTypeCategories(manualProduct.category)
+  const isGlassChecked = manualProduct.category.some((entry) => isGlassTypeCategory(entry))
+  const isWoodChecked = manualProduct.category.some((entry) => isWoodTypeCategory(entry))
+
+  const closeFavoriteDropdowns = () => {
+    setShowCategoryDropdown(false)
+    setShowMaterialDropdown(false)
+  }
+
+  // Close dropdowns when interacting outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
+    const handlePointerDownOutside = (event) => {
       if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
         setShowCategoryDropdown(false)
       }
@@ -74,20 +192,33 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
       }
     }
 
-    document.addEventListener('mousedown', handleClickOutside)
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        closeFavoriteDropdowns()
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDownOutside)
+    document.addEventListener('keydown', handleEscape)
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('pointerdown', handlePointerDownOutside)
+      document.removeEventListener('keydown', handleEscape)
     }
   }, [])
 
   // Save favorites to localStorage
   useEffect(() => {
-    localStorage.setItem('favoriteCategories', JSON.stringify(favoriteCategories))
-  }, [favoriteCategories])
+    localStorage.setItem('favoriteCategoriesByType', JSON.stringify(favoriteCategoriesByType))
+  }, [favoriteCategoriesByType])
 
   useEffect(() => {
-    localStorage.setItem('favoriteMaterials', JSON.stringify(favoriteMaterials))
-  }, [favoriteMaterials])
+    localStorage.setItem('favoriteMaterialsByType', JSON.stringify(favoriteMaterialsByType))
+  }, [favoriteMaterialsByType])
+
+  useEffect(() => {
+    localStorage.removeItem('favoriteCategories')
+    localStorage.removeItem('favoriteMaterials')
+  }, [])
 
   const applyWatermark = (file, watermarkText, shouldApply) => {
     return new Promise((resolve) => {
@@ -275,6 +406,14 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
   }
 
   const handleEditProduct = (product) => {
+    const inferredType = inferProductType(product)
+    const existingCategories = Array.isArray(product.category) ? product.category : (product.category ? [product.category] : [])
+    const normalizedCategories = [
+      inferredType === 'woodwork' ? WOOD_CATEGORY_LABEL : GLASS_CATEGORY_LABEL,
+      ...removeTypeCategories(existingCategories)
+    ]
+
+    setProductType(inferredType)
     setEditingProduct(product)
     const existingImages = (product.images || []).map((img, idx) => ({
       id: `existing-${idx}`,
@@ -287,7 +426,7 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
       name: product.name || '',
       images: product.images || [],
       description: product.description || '',
-      category: Array.isArray(product.category) ? product.category : (product.category ? [product.category] : []),
+      category: normalizedCategories,
       materials: Array.isArray(product.materials) ? product.materials : (product.materials ? [product.materials] : []),
       width: product.width?.toString() || '',
       height: product.height?.toString() || '',
@@ -391,10 +530,7 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                   type="button"
                   onClick={() => {
                     setProductType('stainedGlass')
-                    setManualProduct(prev => ({
-                      ...prev,
-                      category: ['Stained Glass']
-                    }))
+                    setPrimaryTypeCategory('stainedGlass')
                     setShowManualProductModal(true)
                   }}
                 >
@@ -405,10 +541,7 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                   type="button"
                   onClick={() => {
                     setProductType('woodwork')
-                    setManualProduct(prev => ({
-                      ...prev,
-                      category: ['Wood Work']
-                    }))
+                    setPrimaryTypeCategory('woodwork')
                     setShowManualProductModal(true)
                   }}
                 >
@@ -714,6 +847,42 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                 </label>
 
                 <label>
+                  Product Type
+                  <div className="multi-select-wrapper">
+                    <div className="multi-select-inner">
+                      <div className="multi-select-row">
+                        <label className="checkbox-label" style={{ marginBottom: 0 }}>
+                          <input
+                            type="checkbox"
+                            checked={isGlassChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setProductType('stainedGlass')
+                                setPrimaryTypeCategory('stainedGlass')
+                              }
+                            }}
+                          />
+                          <span>Glass</span>
+                        </label>
+                        <label className="checkbox-label" style={{ marginBottom: 0 }}>
+                          <input
+                            type="checkbox"
+                            checked={isWoodChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setProductType('woodwork')
+                                setPrimaryTypeCategory('woodwork')
+                              }
+                            }}
+                          />
+                          <span>Wood</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+
+                <label>
                   Categories
                   <div className="multi-select-wrapper">
                     <div className="multi-select-inner">
@@ -722,14 +891,17 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                           <button
                             type="button"
                             className="custom-dropdown-trigger"
-                            onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                            onClick={() => {
+                              setShowMaterialDropdown(false)
+                              setShowCategoryDropdown((prev) => !prev)
+                            }}
                           >
                             Select a favorite category...
                             <span className="dropdown-arrow">▼</span>
                           </button>
-                          {showCategoryDropdown && favoriteCategories.length > 0 && (
+                          {showCategoryDropdown && activeFavoriteCategories.length > 0 && (
                             <div className="custom-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                              {favoriteCategories.map((cat) => (
+                              {activeFavoriteCategories.map((cat) => (
                                 <div key={cat} className="custom-dropdown-item">
                                   <button
                                     type="button"
@@ -739,7 +911,7 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                                       if (!manualProduct.category.includes(cat)) {
                                         setManualProduct({...manualProduct, category: [...manualProduct.category, cat]})
                                       }
-                                      setShowCategoryDropdown(false)
+                                      closeFavoriteDropdowns()
                                     }}
                                   >
                                     {cat}
@@ -749,7 +921,7 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                                     className="dropdown-item-delete"
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      setFavoriteCategories(favoriteCategories.filter(c => c !== cat))
+                                      removeFavoriteCategoryForActiveType(cat)
                                     }}
                                     title="Remove from favorites"
                                   >
@@ -772,8 +944,8 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                                 e.preventDefault()
                                 if (categoryInput.trim() && !manualProduct.category.includes(categoryInput.trim())) {
                                   setManualProduct({...manualProduct, category: [...manualProduct.category, categoryInput.trim()]})
-                                  if (!favoriteCategories.includes(categoryInput.trim())) {
-                                    setFavoriteCategories([...favoriteCategories, categoryInput.trim()])
+                                  if (!activeFavoriteCategories.includes(categoryInput.trim())) {
+                                    addFavoriteCategoryForActiveType(categoryInput.trim())
                                   }
                                   setCategoryInput('')
                                 }
@@ -787,8 +959,8 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                             onClick={() => {
                               if (categoryInput.trim() && !manualProduct.category.includes(categoryInput.trim())) {
                                 setManualProduct({...manualProduct, category: [...manualProduct.category, categoryInput.trim()]})
-                                if (!favoriteCategories.includes(categoryInput.trim())) {
-                                  setFavoriteCategories([...favoriteCategories, categoryInput.trim()])
+                                if (!activeFavoriteCategories.includes(categoryInput.trim())) {
+                                  addFavoriteCategoryForActiveType(categoryInput.trim())
                                 }
                                 setCategoryInput('')
                               }
@@ -800,9 +972,9 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                           </button>
                         </div>
                       </div>
-                      {manualProduct.category.length > 0 && (
+                      {visibleCategoryTags.length > 0 && (
                         <div className="multi-select-tags">
-                          {manualProduct.category.map((cat) => (
+                          {visibleCategoryTags.map((cat) => (
                             <div
                               key={cat}
                               className="category-tag"
@@ -834,14 +1006,17 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                           <button
                             type="button"
                             className="custom-dropdown-trigger"
-                            onClick={() => setShowMaterialDropdown(!showMaterialDropdown)}
+                            onClick={() => {
+                              setShowCategoryDropdown(false)
+                              setShowMaterialDropdown((prev) => !prev)
+                            }}
                           >
                             Select a favorite material...
                             <span className="dropdown-arrow">▼</span>
                           </button>
-                          {showMaterialDropdown && favoriteMaterials.length > 0 && (
+                          {showMaterialDropdown && activeFavoriteMaterials.length > 0 && (
                             <div className="custom-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                              {favoriteMaterials.map((mat) => (
+                              {activeFavoriteMaterials.map((mat) => (
                                 <div key={mat} className="custom-dropdown-item">
                                   <button
                                     type="button"
@@ -851,7 +1026,7 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                                       if (!manualProduct.materials.includes(mat)) {
                                         setManualProduct({...manualProduct, materials: [...manualProduct.materials, mat]})
                                       }
-                                      setShowMaterialDropdown(false)
+                                      closeFavoriteDropdowns()
                                     }}
                                   >
                                     {mat}
@@ -861,7 +1036,7 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                                     className="dropdown-item-delete"
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      setFavoriteMaterials(favoriteMaterials.filter(m => m !== mat))
+                                      removeFavoriteMaterialForActiveType(mat)
                                     }}
                                     title="Remove from favorites"
                                   >
@@ -884,8 +1059,8 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                                 e.preventDefault()
                                 if (materialInput.trim() && !manualProduct.materials.includes(materialInput.trim())) {
                                   setManualProduct({...manualProduct, materials: [...manualProduct.materials, materialInput.trim()]})
-                                  if (!favoriteMaterials.includes(materialInput.trim())) {
-                                    setFavoriteMaterials([...favoriteMaterials, materialInput.trim()])
+                                  if (!activeFavoriteMaterials.includes(materialInput.trim())) {
+                                    addFavoriteMaterialForActiveType(materialInput.trim())
                                   }
                                   setMaterialInput('')
                                 }
@@ -899,8 +1074,8 @@ export default function AdminDashboard({ items = [], manualProducts = [], onAddI
                             onClick={() => {
                               if (materialInput.trim() && !manualProduct.materials.includes(materialInput.trim())) {
                                 setManualProduct({...manualProduct, materials: [...manualProduct.materials, materialInput.trim()]})
-                                if (!favoriteMaterials.includes(materialInput.trim())) {
-                                  setFavoriteMaterials([...favoriteMaterials, materialInput.trim()])
+                                if (!activeFavoriteMaterials.includes(materialInput.trim())) {
+                                  addFavoriteMaterialForActiveType(materialInput.trim())
                                 }
                                 setMaterialInput('')
                               }

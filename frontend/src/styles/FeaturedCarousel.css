@@ -70,7 +70,13 @@
   display: flex;
   justify-content: center;
   margin-top: 0.75rem;
-  overflow-x: auto;
+  background: #f8f8fa;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(31, 78, 161, 0.07);
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e0e4ef;
+  overflow-x: visible;
+  max-height: none;
 }
 
 .thumbnail {
@@ -94,6 +100,7 @@
   height: 40px;
   object-fit: cover;
   border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(31, 78, 161, 0.08);
 }
 
 /* Responsive Breakpoints - Progressive Enhancement */
@@ -141,6 +148,13 @@
 
   .carousel-thumbnails {
     margin-top: 0.85rem;
+    background: #f8f8fa;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(31, 78, 161, 0.07);
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #e0e4ef;
+    overflow-x: visible;
+    max-height: none;
   }
 
   .thumbnail {
@@ -151,6 +165,7 @@
     width: 45px;
     height: 45px;
     border-radius: 7px;
+    box-shadow: 0 1px 4px rgba(31, 78, 161, 0.08);
   }
 }
 
@@ -175,6 +190,13 @@
 
   .carousel-thumbnails {
     margin-top: 1em;
+    background: #f8f8fa;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(31, 78, 161, 0.07);
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #e0e4ef;
+    overflow-x: visible;
+    max-height: none;
   }
 
   .thumbnail {
@@ -185,6 +207,7 @@
     width: 48px;
     height: 48px;
     border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(31, 78, 161, 0.08);
   }
 }
 

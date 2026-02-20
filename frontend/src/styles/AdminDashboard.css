@@ -86,6 +86,95 @@
   overflow-y: auto;
 }
 
+/* Theme-aware scrollbars for admin product form modals/dropdowns */
+.product-form-wrapper {
+  --form-scrollbar-thumb: #2196F3;
+  --form-scrollbar-track: rgba(33, 150, 243, 0.12);
+  --form-scrollbar-radius: 8px;
+}
+
+.product-form-woodwork {
+  --form-scrollbar-thumb: #8B4513;
+  --form-scrollbar-track: rgba(139, 69, 19, 0.14);
+}
+
+.product-form-wrapper .modal-overlay,
+.product-form-wrapper .modal-content,
+.product-form-wrapper .custom-dropdown-menu {
+  scrollbar-width: none;
+  scrollbar-color: transparent transparent;
+}
+
+.product-form-wrapper .modal-overlay:hover,
+.product-form-wrapper .modal-overlay:focus-within,
+.product-form-wrapper .modal-overlay:active,
+.product-form-wrapper .modal-content:hover,
+.product-form-wrapper .modal-content:focus-within,
+.product-form-wrapper .modal-content:active,
+.product-form-wrapper .custom-dropdown-menu:hover,
+.product-form-wrapper .custom-dropdown-menu:focus-within,
+.product-form-wrapper .custom-dropdown-menu:active {
+  scrollbar-width: thin;
+  scrollbar-color: var(--form-scrollbar-thumb) var(--form-scrollbar-track);
+}
+
+.product-form-wrapper .modal-overlay::-webkit-scrollbar,
+.product-form-wrapper .modal-content::-webkit-scrollbar,
+.product-form-wrapper .custom-dropdown-menu::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.product-form-wrapper .modal-overlay:hover::-webkit-scrollbar,
+.product-form-wrapper .modal-overlay:focus-within::-webkit-scrollbar,
+.product-form-wrapper .modal-overlay:active::-webkit-scrollbar,
+.product-form-wrapper .modal-content:hover::-webkit-scrollbar,
+.product-form-wrapper .modal-content:focus-within::-webkit-scrollbar,
+.product-form-wrapper .modal-content:active::-webkit-scrollbar,
+.product-form-wrapper .custom-dropdown-menu:hover::-webkit-scrollbar,
+.product-form-wrapper .custom-dropdown-menu:focus-within::-webkit-scrollbar,
+.product-form-wrapper .custom-dropdown-menu:active::-webkit-scrollbar {
+  width: 10px;
+}
+
+.product-form-wrapper .modal-overlay::-webkit-scrollbar-track,
+.product-form-wrapper .modal-content::-webkit-scrollbar-track,
+.product-form-wrapper .custom-dropdown-menu::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: var(--form-scrollbar-radius);
+}
+
+.product-form-wrapper .modal-overlay::-webkit-scrollbar-thumb,
+.product-form-wrapper .modal-content::-webkit-scrollbar-thumb,
+.product-form-wrapper .custom-dropdown-menu::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: var(--form-scrollbar-radius);
+}
+
+.product-form-wrapper .modal-overlay:hover::-webkit-scrollbar-track,
+.product-form-wrapper .modal-overlay:focus-within::-webkit-scrollbar-track,
+.product-form-wrapper .modal-overlay:active::-webkit-scrollbar-track,
+.product-form-wrapper .modal-content:hover::-webkit-scrollbar-track,
+.product-form-wrapper .modal-content:focus-within::-webkit-scrollbar-track,
+.product-form-wrapper .modal-content:active::-webkit-scrollbar-track,
+.product-form-wrapper .custom-dropdown-menu:hover::-webkit-scrollbar-track,
+.product-form-wrapper .custom-dropdown-menu:focus-within::-webkit-scrollbar-track,
+.product-form-wrapper .custom-dropdown-menu:active::-webkit-scrollbar-track {
+  background: var(--form-scrollbar-track);
+}
+
+.product-form-wrapper .modal-overlay:hover::-webkit-scrollbar-thumb,
+.product-form-wrapper .modal-overlay:focus-within::-webkit-scrollbar-thumb,
+.product-form-wrapper .modal-overlay:active::-webkit-scrollbar-thumb,
+.product-form-wrapper .modal-content:hover::-webkit-scrollbar-thumb,
+.product-form-wrapper .modal-content:focus-within::-webkit-scrollbar-thumb,
+.product-form-wrapper .modal-content:active::-webkit-scrollbar-thumb,
+.product-form-wrapper .custom-dropdown-menu:hover::-webkit-scrollbar-thumb,
+.product-form-wrapper .custom-dropdown-menu:focus-within::-webkit-scrollbar-thumb,
+.product-form-wrapper .custom-dropdown-menu:active::-webkit-scrollbar-thumb {
+  background: var(--form-scrollbar-thumb);
+}
+
 .custom-dropdown-item {
   display: flex;
   align-items: center;

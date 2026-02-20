@@ -951,6 +951,68 @@
   animation: modal-slide-up 0.3s ease-out;
 }
 
+/* Generic modal scrollbar behavior (hidden until interaction) */
+.modal-overlay,
+.modal-content {
+  scrollbar-width: none;
+  scrollbar-color: transparent transparent;
+}
+
+.modal-overlay:hover,
+.modal-overlay:focus-within,
+.modal-overlay:active,
+.modal-content:hover,
+.modal-content:focus-within,
+.modal-content:active {
+  scrollbar-width: thin;
+  scrollbar-color: #1f4ea1 rgba(31, 78, 161, 0.14);
+}
+
+.modal-overlay::-webkit-scrollbar,
+.modal-content::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.modal-overlay:hover::-webkit-scrollbar,
+.modal-overlay:focus-within::-webkit-scrollbar,
+.modal-overlay:active::-webkit-scrollbar,
+.modal-content:hover::-webkit-scrollbar,
+.modal-content:focus-within::-webkit-scrollbar,
+.modal-content:active::-webkit-scrollbar {
+  width: 10px;
+}
+
+.modal-overlay::-webkit-scrollbar-track,
+.modal-content::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 20px;
+}
+
+.modal-overlay::-webkit-scrollbar-thumb,
+.modal-content::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 20px;
+}
+
+.modal-overlay:hover::-webkit-scrollbar-track,
+.modal-overlay:focus-within::-webkit-scrollbar-track,
+.modal-overlay:active::-webkit-scrollbar-track,
+.modal-content:hover::-webkit-scrollbar-track,
+.modal-content:focus-within::-webkit-scrollbar-track,
+.modal-content:active::-webkit-scrollbar-track {
+  background: rgba(31, 78, 161, 0.14);
+}
+
+.modal-overlay:hover::-webkit-scrollbar-thumb,
+.modal-overlay:focus-within::-webkit-scrollbar-thumb,
+.modal-overlay:active::-webkit-scrollbar-thumb,
+.modal-content:hover::-webkit-scrollbar-thumb,
+.modal-content:focus-within::-webkit-scrollbar-thumb,
+.modal-content:active::-webkit-scrollbar-thumb {
+  background: #1f4ea1;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import '../../styles/forms/woodwork_form.css'
 
 export default function WoodworkForm({
@@ -15,8 +15,25 @@ export default function WoodworkForm({
   const [categoryInput, setCategoryInput] = useState('')
   const [materialInput, setMaterialInput] = useState('')
   const [imagePreviews, setImagePreviews] = useState([])
-  const [enableWatermark, setEnableWatermark] = useState(true)
-  const [watermarkText, setWatermarkText] = useState('SGCG ART GLASS')
+  // Persist watermark settings for Woodwork in localStorage
+  const WOODWORK_WATERMARK_KEY = 'woodwork_enable_watermark';
+  const WOODWORK_WATERMARK_TEXT_KEY = 'woodwork_watermark_text';
+
+  const [enableWatermark, setEnableWatermark] = useState(() => {
+    const stored = localStorage.getItem(WOODWORK_WATERMARK_KEY);
+    return stored === null ? true : stored === 'true';
+  });
+  const [watermarkText, setWatermarkText] = useState(() => {
+    return localStorage.getItem(WOODWORK_WATERMARK_TEXT_KEY) || 'SGCG ART GLASS';
+  });
+
+  // Persist changes to localStorage
+  useEffect(() => {
+    localStorage.setItem(WOODWORK_WATERMARK_KEY, enableWatermark);
+  }, [enableWatermark]);
+  useEffect(() => {
+    localStorage.setItem(WOODWORK_WATERMARK_TEXT_KEY, watermarkText);
+  }, [watermarkText]);
 
   const applyWatermark = (file, watermarkText, shouldApply) => {
     return new Promise((resolve) => {

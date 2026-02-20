@@ -26,6 +26,58 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
+/* Scrollbar styling (hidden until interaction) */
+.woodwork-modal-overlay,
+.woodwork-modal-content {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.woodwork-modal-overlay:hover,
+.woodwork-modal-overlay:focus-within,
+.woodwork-modal-overlay:active,
+.woodwork-modal-content:hover,
+.woodwork-modal-content:focus-within,
+.woodwork-modal-content:active {
+  scrollbar-color: #8B4513 rgba(139, 69, 19, 0.14);
+}
+
+.woodwork-modal-overlay::-webkit-scrollbar,
+.woodwork-modal-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.woodwork-modal-overlay::-webkit-scrollbar-track,
+.woodwork-modal-content::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 8px;
+}
+
+.woodwork-modal-overlay::-webkit-scrollbar-thumb,
+.woodwork-modal-content::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 8px;
+  border: 2px solid transparent;
+}
+
+.woodwork-modal-overlay:hover::-webkit-scrollbar-track,
+.woodwork-modal-overlay:focus-within::-webkit-scrollbar-track,
+.woodwork-modal-overlay:active::-webkit-scrollbar-track,
+.woodwork-modal-content:hover::-webkit-scrollbar-track,
+.woodwork-modal-content:focus-within::-webkit-scrollbar-track,
+.woodwork-modal-content:active::-webkit-scrollbar-track {
+  background: rgba(139, 69, 19, 0.14);
+}
+
+.woodwork-modal-overlay:hover::-webkit-scrollbar-thumb,
+.woodwork-modal-overlay:focus-within::-webkit-scrollbar-thumb,
+.woodwork-modal-overlay:active::-webkit-scrollbar-thumb,
+.woodwork-modal-content:hover::-webkit-scrollbar-thumb,
+.woodwork-modal-content:focus-within::-webkit-scrollbar-thumb,
+.woodwork-modal-content:active::-webkit-scrollbar-thumb {
+  background: #8B4513;
+}
+
 .woodwork-modal-header {
   display: flex;
   justify-content: space-between;
