@@ -16,13 +16,15 @@ export default function UnifiedLogin({ onAdminLogin, onCustomerLogin }) {
     try {
       // Try admin login first
       await onAdminLogin(email, password)
-      window.location.hash = '#/admin'
+      // Navigation handled by onAdminLogin (App.jsx handleLogin)
     } catch (adminError) {
       console.error('[UnifiedLogin] Admin login failed:', adminError.response?.data || adminError.message)
       // If admin login fails, try customer login
       try {
         await onCustomerLogin(email, password)
         window.location.hash = '#/account'
+        // Force re-render if hash was already #/account
+        window.dispatchEvent(new HashChangeEvent('hashchange'))
       } catch (customerError) {
         console.error('[UnifiedLogin] Customer login failed:', customerError.response?.data || customerError.message)
         const serverMsg = adminError.response?.data?.error
