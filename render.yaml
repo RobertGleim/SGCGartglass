@@ -11,7 +11,7 @@ services:
     env: static
     plan: free
     buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: dist
+    staticPublishPath: frontend/dist
     routes:
       - type: rewrite
         source: /api/*
