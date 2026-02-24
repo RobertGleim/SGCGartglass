@@ -39,6 +39,13 @@ export default function DesignerPage() {
   const floodCanvasRef = useRef(null);     // offscreen 2D canvas for flood-fill (image mode)
   const floodCtxRef = useRef(null);        // 2D context of the offscreen canvas
   const isFloodFillMode = useRef(false);   // true when using image-template flood fill
+  // Line preservation for image templates
+  const lineMaskRef = useRef(null);         // Uint8Array — 1 = line pixel, 0 = fillable
+  const initialImageRef = useRef(null);     // ImageData snapshot of clean artwork lines
+  // Region map: Int32Array where each pixel stores its region number (0 = line)
+  const regionMapRef = useRef(null);
+  // regionPixels: Map<regionId, number[]> — list of pixel indices per region
+  const regionPixelsRef = useRef(null);
   const [selectedObj, setSelectedObj] = useState(null);
   const [selectedColor, setSelectedColor] = useState('#c8a96e');
   // Ref so canvas event handlers (stale closures) always read the current color
@@ -48,6 +55,10 @@ export default function DesignerPage() {
   // Glass types
   const [glassTypes, setGlassTypes] = useState([]);
   const [activeGlassType, setActiveGlassType] = useState(null);
+  const activeGlassTypeRef = useRef(null);
+  useEffect(() => { activeGlassTypeRef.current = activeGlassType; }, [activeGlassType]);
+  // Preloaded texture images keyed by glass type id
+  const textureCacheRef = useRef(new Map());
 
   // History (undo/redo)
   const historyRef = useRef([]);
@@ -82,7 +93,20 @@ export default function DesignerPage() {
   useEffect(() => {
     if (step !== STEP.DESIGN) return;
     api.get('/glass-types')
-      .then(res => setGlassTypes(res.data?.items || res.data || []))
+      .then(res => {
+        const items = res.data?.items || res.data || [];
+        setGlassTypes(items);
+        // Preload texture images into cache
+        items.forEach(gt => {
+          if (gt.texture_url && !textureCacheRef.current.has(gt.id)) {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => textureCacheRef.current.set(gt.id, img);
+            img.onerror = () => {}; // silently skip
+            img.src = gt.texture_url;
+          }
+        });
+      })
       .catch(() => setGlassTypes([]));
   }, [step]);
 
@@ -103,65 +127,222 @@ export default function DesignerPage() {
     isFloodFillMode.current = false;
 
     // ── Flood-fill helpers (for image / PDF templates) ────────────
-    // Classic queue-based "bucket fill" that stops at dark outlines.
-    function floodFill(ctx, startX, startY, fillR, fillG, fillB) {
-      const w = ctx.canvas.width;
-      const h = ctx.canvas.height;
+    // Build a region map: connected components of non-line pixels.
+    // Returns { regionMap: Int32Array, regionPixels: Map<id, number[]> }
+    function buildRegionMap(mask, w, h) {
+      const regionMap = new Int32Array(w * h); // 0 = unassigned / line
+      const regionPixels = new Map();
+      let nextId = 1;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const pi = y * w + x;
+          if (regionMap[pi] !== 0 || (mask && mask[pi])) continue;
+          // BFS flood from this pixel
+          const id = nextId++;
+          const pixels = [];
+          const queue = [pi];
+          regionMap[pi] = id;
+          while (queue.length > 0) {
+            const cur = queue.pop();
+            pixels.push(cur);
+            const cx = cur % w;
+            const cy = (cur - cx) / w;
+            const neighbors = [];
+            if (cx > 0)     neighbors.push(cur - 1);
+            if (cx < w - 1) neighbors.push(cur + 1);
+            if (cy > 0)     neighbors.push(cur - w);
+            if (cy < h - 1) neighbors.push(cur + w);
+            for (const ni of neighbors) {
+              if (regionMap[ni] !== 0) continue;
+              if (mask && mask[ni]) continue;
+              regionMap[ni] = id;
+              queue.push(ni);
+            }
+          }
+          regionPixels.set(id, pixels);
+        }
+      }
+      return { regionMap, regionPixels };
+    }
+
+    // Fill all pixels belonging to a region with a flat colour
+    function fillRegion(ctx, regionId, fillR, fillG, fillB, w, h) {
+      const pixels = regionPixelsRef.current?.get(regionId);
+      if (!pixels || pixels.length === 0) return;
       const imageData = ctx.getImageData(0, 0, w, h);
       const data = imageData.data;
-
-      const sx = Math.round(startX);
-      const sy = Math.round(startY);
-      if (sx < 0 || sy < 0 || sx >= w || sy >= h) return;
-
-      const idx = (sy * w + sx) * 4;
-      const tR = data[idx], tG = data[idx + 1], tB = data[idx + 2], tA = data[idx + 3];
-
-      // Don't fill if clicking the same color
-      if (tR === fillR && tG === fillG && tB === fillB) return;
-
-      // Don't fill dark outlines (luminance < 60)
-      const tLum = 0.299 * tR + 0.587 * tG + 0.114 * tB;
-      if (tLum < 60 && tA > 200) return;
-
-      const tolerance = 50; // how different a colour must be to stop the fill
-
-      function matches(i) {
-        return (
-          Math.abs(data[i] - tR) <= tolerance &&
-          Math.abs(data[i + 1] - tG) <= tolerance &&
-          Math.abs(data[i + 2] - tB) <= tolerance &&
-          Math.abs(data[i + 3] - tA) <= tolerance
-        );
-      }
-
-      const stack = [[sx, sy]];
-      const visited = new Uint8Array(w * h);
-
-      while (stack.length > 0) {
-        const [cx, cy] = stack.pop();
-        const pi = cy * w + cx;
-        if (visited[pi]) continue;
+      for (const pi of pixels) {
         const ci = pi * 4;
-        if (!matches(ci)) continue;
-        visited[pi] = 1;
-        data[ci] = fillR;
+        data[ci]     = fillR;
         data[ci + 1] = fillG;
         data[ci + 2] = fillB;
         data[ci + 3] = 255;
-        if (cx > 0)     stack.push([cx - 1, cy]);
-        if (cx < w - 1) stack.push([cx + 1, cy]);
-        if (cy > 0)     stack.push([cx, cy - 1]);
-        if (cy < h - 1) stack.push([cx, cy + 1]);
       }
       ctx.putImageData(imageData, 0, 0);
+    }
+
+    // Apply a textured fill to a specific region
+    function fillRegionTextured(ctx, regionId, color, textureImg, w, h) {
+      const pixels = regionPixelsRef.current?.get(regionId);
+      if (!pixels || pixels.length === 0) return;
+      // 1. Build a mask canvas for this region
+      const maskCvs = document.createElement('canvas');
+      maskCvs.width = w; maskCvs.height = h;
+      const maskCtx = maskCvs.getContext('2d');
+      const maskImg = maskCtx.createImageData(w, h);
+      const mPx = maskImg.data;
+      for (const pi of pixels) {
+        const ci = pi * 4;
+        mPx[ci] = mPx[ci+1] = mPx[ci+2] = mPx[ci+3] = 255;
+      }
+      maskCtx.putImageData(maskImg, 0, 0);
+      // 2. Textured fill (grayscale texture so only detail transfers, not colour)
+      const gsTex = grayscaleTiledTexture(textureImg, w, h);
+      const texCvs = document.createElement('canvas');
+      texCvs.width = w; texCvs.height = h;
+      const texCtx = texCvs.getContext('2d');
+      texCtx.fillStyle = color;
+      texCtx.fillRect(0, 0, w, h);
+      texCtx.globalCompositeOperation = 'multiply';
+      texCtx.drawImage(gsTex, 0, 0);
+      texCtx.globalCompositeOperation = 'soft-light';
+      texCtx.globalAlpha = 0.45;
+      texCtx.drawImage(gsTex, 0, 0);
+      texCtx.globalAlpha = 1;
+      texCtx.globalCompositeOperation = 'destination-in';
+      texCtx.drawImage(maskCvs, 0, 0);
+      texCtx.globalCompositeOperation = 'source-over';
+      // 3. Draw the textured fill onto the main canvas
+      ctx.drawImage(texCvs, 0, 0);
+    }
+
+    // Restore line pixels from the original artwork after any fill operation
+    function restoreLines(ctx, w, h) {
+      const mask = lineMaskRef.current;
+      const orig = initialImageRef.current;
+      if (!mask || !orig) return;
+      const cur = ctx.getImageData(0, 0, w, h);
+      const px = cur.data;
+      const oPx = orig.data;
+      for (let i = 0; i < px.length; i += 4) {
+        if (mask[i / 4]) {
+          px[i]     = oPx[i];
+          px[i + 1] = oPx[i + 1];
+          px[i + 2] = oPx[i + 2];
+          px[i + 3] = oPx[i + 3];
+        }
+      }
+      ctx.putImageData(cur, 0, 0);
     }
 
     function hexToRgb(hex) {
       const n = parseInt(hex.replace('#', ''), 16);
       return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
     }
-    // ── End flood-fill helpers ────────────────────────────────────
+
+    // Convert a texture image to grayscale so it contributes only surface detail,
+    // not its own colour.  Returns a canvas element usable as a pattern source.
+    function grayscaleTexture(img, size) {
+      const c = document.createElement('canvas');
+      c.width = size; c.height = size;
+      const g = c.getContext('2d');
+      g.drawImage(img, 0, 0, size, size);
+      const id = g.getImageData(0, 0, size, size);
+      const d = id.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const lum = Math.round(0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]);
+        d[i] = d[i+1] = d[i+2] = lum;
+      }
+      g.putImageData(id, 0, 0);
+      return c;
+    }
+
+    // Create a tiled grayscale texture canvas at arbitrary width/height
+    function grayscaleTiledTexture(img, w, h) {
+      // First make a small grayscale tile
+      const tileSize = img.naturalWidth || img.width || 120;
+      const gsTile = grayscaleTexture(img, tileSize);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const g = c.getContext('2d');
+      const pat = g.createPattern(gsTile, 'repeat');
+      g.fillStyle = pat;
+      g.fillRect(0, 0, w, h);
+      return c;
+    }
+
+    // ── Texture blending helpers ──────────────────────────────────
+    // Create a canvas tile that combines a flat color with a glass texture image.
+    // Texture is converted to grayscale first so it adds only surface detail.
+    function createTexturedTile(color, textureImg, tileSize = 120) {
+      const gsTex = grayscaleTexture(textureImg, tileSize);
+      const tile = document.createElement('canvas');
+      tile.width = tileSize;
+      tile.height = tileSize;
+      const tCtx = tile.getContext('2d');
+      // 1) Base: the chosen colour
+      tCtx.fillStyle = color;
+      tCtx.fillRect(0, 0, tileSize, tileSize);
+      // 2) Multiply: grayscale texture darkens the colour naturally
+      tCtx.globalCompositeOperation = 'multiply';
+      tCtx.drawImage(gsTex, 0, 0, tileSize, tileSize);
+      // 3) Soft-light pass at lower opacity for more depth
+      tCtx.globalCompositeOperation = 'soft-light';
+      tCtx.globalAlpha = 0.45;
+      tCtx.drawImage(gsTex, 0, 0, tileSize, tileSize);
+      tCtx.globalAlpha = 1;
+      tCtx.globalCompositeOperation = 'source-over';
+      return tile;
+    }
+
+    // After a flood-fill, overlay the glass texture on only the pixels that changed.
+    // Uses the same multiply + soft-light composite as SVG-mode tiles for consistency.
+    // (Kept for fillAll which does a bulk pixel rewrite)
+    function applyTextureOverFlood(ctx, beforeData, w, h, textureImg, fillColor) {
+      const afterData = ctx.getImageData(0, 0, w, h);
+      const bPx = beforeData.data;
+      const aPx = afterData.data;
+
+      // 1. Build a mask of the pixels that the flood-fill changed
+      const maskCvs = document.createElement('canvas');
+      maskCvs.width = w; maskCvs.height = h;
+      const maskCtx = maskCvs.getContext('2d');
+      const maskImg = maskCtx.createImageData(w, h);
+      const mPx = maskImg.data;
+      for (let i = 0; i < aPx.length; i += 4) {
+        if (bPx[i] !== aPx[i] || bPx[i+1] !== aPx[i+1] || bPx[i+2] !== aPx[i+2]) {
+          mPx[i] = mPx[i+1] = mPx[i+2] = mPx[i+3] = 255;
+        }
+      }
+      maskCtx.putImageData(maskImg, 0, 0);
+
+      // 2. Create textured fill at canvas size (same blend as createTexturedTile)
+      const texCvs = document.createElement('canvas');
+      texCvs.width = w; texCvs.height = h;
+      const texCtx = texCvs.getContext('2d');
+      texCtx.fillStyle = fillColor;
+      texCtx.fillRect(0, 0, w, h);
+      texCtx.globalCompositeOperation = 'multiply';
+      const pat = texCtx.createPattern(textureImg, 'repeat');
+      texCtx.fillStyle = pat;
+      texCtx.fillRect(0, 0, w, h);
+      texCtx.globalCompositeOperation = 'soft-light';
+      texCtx.globalAlpha = 0.45;
+      texCtx.fillStyle = pat;
+      texCtx.fillRect(0, 0, w, h);
+      texCtx.globalAlpha = 1;
+      texCtx.globalCompositeOperation = 'source-over';
+
+      // 3. Clip textured canvas to only the flood-filled region
+      texCtx.globalCompositeOperation = 'destination-in';
+      texCtx.drawImage(maskCvs, 0, 0);
+      texCtx.globalCompositeOperation = 'source-over';
+
+      // 4. Composite: restore pre-flood state, then draw the textured fill on top
+      ctx.putImageData(beforeData, 0, 0);
+      ctx.drawImage(texCvs, 0, 0);
+    }
+    // ── End helpers ───────────────────────────────────────────────
 
     (async () => {
       try {
@@ -212,26 +393,68 @@ export default function DesignerPage() {
 
           floodCtxRef.current = ctx;
 
+          // ── Build line mask: any pixel ≠ background is part of the artwork ──
+          const initSnap = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
+          const iData = initSnap.data;
+          // Background colour we painted: #f8f4ef → 248, 244, 239
+          const BG_R = 248, BG_G = 244, BG_B = 239;
+          const mask = new Uint8Array(CANVAS_W * CANVAS_H);
+          for (let i = 0; i < iData.length; i += 4) {
+            const dr = Math.abs(iData[i]     - BG_R);
+            const dg = Math.abs(iData[i + 1] - BG_G);
+            const db = Math.abs(iData[i + 2] - BG_B);
+            if (dr > 20 || dg > 20 || db > 20) {
+              mask[i / 4] = 1; // artwork / line pixel
+            }
+          }
+          lineMaskRef.current = mask;
+          // Deep-copy so the original pixel data is never mutated
+          const origCopy = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
+          initialImageRef.current = origCopy;
+
+          // ── Build numbered region map (connected components of non-line pixels) ──
+          const { regionMap, regionPixels } = buildRegionMap(mask, CANVAS_W, CANVAS_H);
+          regionMapRef.current = regionMap;
+          regionPixelsRef.current = regionPixels;
+
           // Save initial state for undo
           historyRef.current = [ctx.getImageData(0, 0, CANVAS_W, CANVAS_H)];
           historyIdxRef.current = 0;
 
-          // Click handler for flood fill
+          // Click handler — region-based fill (always fills entire section)
           const handleClick = (e) => {
             const rect = cvs.getBoundingClientRect();
             const scaleX = cvs.width / rect.width;
             const scaleY = cvs.height / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
-            const [r, g, b] = hexToRgb(selectedColorRef.current);
-            floodFill(ctx, x, y, r, g, b);
+            const x = Math.round((e.clientX - rect.left) * scaleX);
+            const y = Math.round((e.clientY - rect.top) * scaleY);
+            if (x < 0 || y < 0 || x >= CANVAS_W || y >= CANVAS_H) return;
+            const rMap = regionMapRef.current;
+            if (!rMap) return;
+            const regionId = rMap[y * CANVAS_W + x];
+            if (regionId === 0) return; // clicked a line pixel
+            const color = selectedColorRef.current;
+            const [r, g, b] = hexToRgb(color);
+            const gt = activeGlassTypeRef.current;
+            const texImg = gt ? textureCacheRef.current.get(gt.id) : null;
+            // Fill the entire region with flat colour first
+            fillRegion(ctx, regionId, r, g, b, CANVAS_W, CANVAS_H);
+            // Then overlay texture if a glass type is selected
+            if (texImg) {
+              fillRegionTextured(ctx, regionId, color, texImg, CANVAS_W, CANVAS_H);
+            }
+            // Restore line pixels so outlines always stay original
+            restoreLines(ctx, CANVAS_W, CANVAS_H);
             // Push undo state
             const snap = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
             const arr = historyRef.current.slice(0, historyIdxRef.current + 1);
             arr.push(snap);
             historyRef.current = arr;
             historyIdxRef.current = arr.length - 1;
-            setSelectedObj({ fill: selectedColorRef.current }); // show "last colored"
+            setSelectedObj({
+              fill: color,
+              glassType: gt?.name || null,
+            });
           };
           cvs.addEventListener('click', handleClick);
 
@@ -295,6 +518,28 @@ export default function DesignerPage() {
 
             const strokeW = Math.max(0.5, 1.5 / scaleF);
 
+            // Helper: detect if a fill colour is very dark (outline / leading)
+            function isOutlineFill(fill) {
+              if (!fill || fill === 'none' || fill === '' || fill === 'transparent') return true;
+              if (typeof fill !== 'string') return false;
+              let r, g, b;
+              if (fill.startsWith('#')) {
+                const hex = fill.replace('#', '');
+                const full = hex.length === 3
+                  ? hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2]
+                  : hex;
+                r = parseInt(full.substring(0, 2), 16);
+                g = parseInt(full.substring(2, 4), 16);
+                b = parseInt(full.substring(4, 6), 16);
+              } else if (fill === 'black') {
+                r = g = b = 0;
+              } else {
+                return false; // can't parse – treat as a section
+              }
+              const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+              return lum < 30; // very dark → outline
+            }
+
             // Recursively collect every leaf (non-group) object
             const collectLeaves = (obj) => {
               if (!obj) return [];
@@ -335,6 +580,10 @@ export default function DesignerPage() {
               // Remove child from group so Fabric doesn't try to manage it as a nested object
               if (child.group) { delete child.group; }
 
+              // Determine if this path is an outline / leading line (should stay black)
+              const origFill = child.fill;
+              const outline = isOutlineFill(origFill);
+
               child.set({
                 left:   finalLeft,
                 top:    finalTop,
@@ -344,15 +593,18 @@ export default function DesignerPage() {
                 originX: 'center',
                 originY: 'center',
                 flipX: false, flipY: false,
-                selectable: true,
-                evented: true,
+                // Outlines: locked & clicks pass through to glass section below
+                selectable: !outline,
+                evented:    !outline,
                 hasControls: false,
                 hasBorders: false,
-                hoverCursor: 'pointer',
+                hoverCursor: outline ? 'default' : 'pointer',
                 perPixelTargetFind: true,
                 objectCaching: false,
-                fill:   (child.fill   && child.fill   !== 'none') ? child.fill   : '#d4c5a9',
-                stroke: (child.stroke && child.stroke !== 'none') ? child.stroke : '#555',
+                fill:   outline
+                  ? (origFill && origFill !== 'none' ? origFill : 'transparent')
+                  : (origFill && origFill !== 'none' ? origFill : '#d4c5a9'),
+                stroke: '#000',      // strokes always black
                 strokeWidth:   strokeW,
                 strokeUniform: true,
               });
@@ -387,14 +639,26 @@ export default function DesignerPage() {
         pushHistory(canvas);
 
         // ── Coloring-book click-to-fill (SVG mode) ──────────────────
-        canvas.on('mouse:down', (e) => {
+        canvas.on('mouse:down', async (e) => {
           const hit = e.target;
           if (!hit || hit.selectable === false) return;
           const color = selectedColorRef.current;
-          hit.set('fill', color);
+          const gt = activeGlassTypeRef.current;
+          const texImg = gt ? textureCacheRef.current.get(gt.id) : null;
+          if (texImg) {
+            // Create a colour + texture tile and use it as a repeating pattern
+            const tile = createTexturedTile(color, texImg);
+            const { Pattern } = await import('fabric');
+            const pattern = new Pattern({ source: tile, repeat: 'repeat' });
+            hit.set('fill', pattern);
+          } else {
+            hit.set('fill', color);
+          }
+          hit._glassType = gt?.name || null;
+          hit._fillColor = color; // remember the base colour for display
           hit.dirty = true;
           canvas.requestRenderAll();
-          setSelectedObj(hit);
+          setSelectedObj({ fill: color, glassType: hit._glassType });
           pushHistory(canvas);
         });
       } catch (err) {
@@ -413,6 +677,10 @@ export default function DesignerPage() {
         fabricRef.current = null;
       }
       floodCtxRef.current = null;
+      lineMaskRef.current = null;
+      initialImageRef.current = null;
+      regionMapRef.current = null;
+      regionPixelsRef.current = null;
       isFloodFillMode.current = false;
       setSelectedObj(null);
     };
@@ -420,35 +688,87 @@ export default function DesignerPage() {
   }, [step, selectedTemplate]);
 
   // ── Apply glass type ──────────────────────────────────────────
-  // Sets the active color from a glass type; next canvas click will fill with it
+  // Select a glass type (texture); the color picker remains independent.
+  // Both glass type + color are applied together when clicking a section.
   const applyGlassType = useCallback((gt) => {
-    setActiveGlassType(gt);
-    const color = gt.color || gt.css_color || selectedColor;
-    selectedColorRef.current = color;   // update ref immediately (no render delay)
-    setSelectedColor(color);
-  }, [selectedColor]);
+    setActiveGlassType(prev => prev?.id === gt.id ? null : gt); // toggle
+  }, []);
 
   // ── Fill all pieces ───────────────────────────────────────────
-  const fillAll = useCallback(() => {
+  const fillAll = useCallback(async () => {
     if (isFloodFillMode.current) {
-      // In flood-fill mode: fill all non-outline (bright) pixels with current color
+      // Region-based fill all: fill every region with selected colour + texture
       const ctx = floodCtxRef.current;
       if (!ctx) return;
+      const regionPixels = regionPixelsRef.current;
+      if (!regionPixels) return;
       const w = ctx.canvas.width;
       const h = ctx.canvas.height;
+      const [fR, fG, fB] = [
+        parseInt(selectedColor.substring(1, 3), 16),
+        parseInt(selectedColor.substring(3, 5), 16),
+        parseInt(selectedColor.substring(5, 7), 16),
+      ];
+      // Flat-fill all regions at once
       const imageData = ctx.getImageData(0, 0, w, h);
       const data = imageData.data;
-      const hex = selectedColor.replace('#', '');
-      const fR = parseInt(hex.substring(0, 2), 16);
-      const fG = parseInt(hex.substring(2, 4), 16);
-      const fB = parseInt(hex.substring(4, 6), 16);
-      for (let i = 0; i < data.length; i += 4) {
-        const lum = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-        if (lum >= 60) { // not an outline
-          data[i] = fR; data[i+1] = fG; data[i+2] = fB; data[i+3] = 255;
+      for (const [, pixels] of regionPixels) {
+        for (const pi of pixels) {
+          const ci = pi * 4;
+          data[ci] = fR; data[ci+1] = fG; data[ci+2] = fB; data[ci+3] = 255;
         }
       }
       ctx.putImageData(imageData, 0, 0);
+      // Texture overlay if glass type selected
+      const gt = activeGlassType;
+      const texImg = gt ? textureCacheRef.current.get(gt.id) : null;
+      if (texImg) {
+        // Build a mask of ALL fillable pixels
+        const maskCvs = document.createElement('canvas');
+        maskCvs.width = w; maskCvs.height = h;
+        const maskCtx = maskCvs.getContext('2d');
+        const maskImg = maskCtx.createImageData(w, h);
+        const mPx = maskImg.data;
+        for (const [, pixels] of regionPixels) {
+          for (const pi of pixels) {
+            const ci = pi * 4;
+            mPx[ci] = mPx[ci+1] = mPx[ci+2] = mPx[ci+3] = 255;
+          }
+        }
+        maskCtx.putImageData(maskImg, 0, 0);
+        // Textured fill (grayscale texture)
+        const gsTex = grayscaleTiledTexture(texImg, w, h);
+        const texCvs = document.createElement('canvas');
+        texCvs.width = w; texCvs.height = h;
+        const texCtx = texCvs.getContext('2d');
+        texCtx.fillStyle = selectedColor;
+        texCtx.fillRect(0, 0, w, h);
+        texCtx.globalCompositeOperation = 'multiply';
+        texCtx.drawImage(gsTex, 0, 0);
+        texCtx.globalCompositeOperation = 'soft-light';
+        texCtx.globalAlpha = 0.45;
+        texCtx.drawImage(gsTex, 0, 0);
+        texCtx.globalAlpha = 1;
+        texCtx.globalCompositeOperation = 'destination-in';
+        texCtx.drawImage(maskCvs, 0, 0);
+        texCtx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(texCvs, 0, 0);
+      }
+      // Restore line pixels
+      const maskR = lineMaskRef.current;
+      const origR = initialImageRef.current;
+      if (maskR && origR) {
+        const cur = ctx.getImageData(0, 0, w, h);
+        const px = cur.data;
+        const oPx = origR.data;
+        for (let i = 0; i < px.length; i += 4) {
+          if (maskR[i / 4]) {
+            px[i] = oPx[i]; px[i+1] = oPx[i+1];
+            px[i+2] = oPx[i+2]; px[i+3] = oPx[i+3];
+          }
+        }
+        ctx.putImageData(cur, 0, 0);
+      }
       const snap = ctx.getImageData(0, 0, w, h);
       const arr = historyRef.current.slice(0, historyIdxRef.current + 1);
       arr.push(snap); historyRef.current = arr; historyIdxRef.current = arr.length - 1;
@@ -456,20 +776,43 @@ export default function DesignerPage() {
     }
     const canvas = fabricRef.current;
     if (!canvas) return;
+    const gt = activeGlassType;
+    const texImg = gt ? textureCacheRef.current.get(gt.id) : null;
+    let pattern = null;
+    if (texImg) {
+      // Build a colour + texture tile for the pattern (grayscale texture)
+      const gsTile = grayscaleTexture(texImg, 120);
+      const tile = document.createElement('canvas');
+      tile.width = 120; tile.height = 120;
+      const tCtx = tile.getContext('2d');
+      tCtx.fillStyle = selectedColor;
+      tCtx.fillRect(0, 0, 120, 120);
+      tCtx.globalCompositeOperation = 'multiply';
+      tCtx.drawImage(gsTile, 0, 0, 120, 120);
+      tCtx.globalCompositeOperation = 'soft-light';
+      tCtx.globalAlpha = 0.45;
+      tCtx.drawImage(gsTile, 0, 0, 120, 120);
+      tCtx.globalAlpha = 1;
+      tCtx.globalCompositeOperation = 'source-over';
+      const { Pattern } = await import('fabric');
+      pattern = new Pattern({ source: tile, repeat: 'repeat' });
+    }
     const applyFill = (obj) => {
       if (!obj) return;
       if (obj.type === 'group' || obj.type === 'Group') {
         obj.dirty = true;
         (obj._objects || []).forEach(applyFill);
       } else if (obj.selectable !== false) {
-        obj.set('fill', selectedColor);
+        obj.set('fill', pattern || selectedColor);
+        obj._fillColor = selectedColor;
+        obj._glassType = gt?.name || null;
         obj.dirty = true;
       }
     };
     canvas.getObjects().forEach(applyFill);
     canvas.requestRenderAll();
     pushHistory(canvas);
-  }, [selectedColor, pushHistory]);
+  }, [selectedColor, activeGlassType, pushHistory]);
 
   // ── Undo ──────────────────────────────────────────────────────
   const undo = useCallback(async () => {
@@ -501,6 +844,27 @@ export default function DesignerPage() {
     historyIdxRef.current += 1;
     await canvas.loadFromJSON(historyRef.current[historyIdxRef.current]);
     canvas.renderAll();
+  }, []);
+
+  // ── Reset (remove all colour & texture) ───────────────────────
+  const resetCanvas = useCallback(async () => {
+    if (historyRef.current.length === 0) return;
+    if (isFloodFillMode.current) {
+      const ctx = floodCtxRef.current;
+      if (!ctx) return;
+      // Restore the very first (clean) snapshot
+      ctx.putImageData(historyRef.current[0], 0, 0);
+    } else {
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+      // Restore the original uncoloured SVG state
+      await canvas.loadFromJSON(historyRef.current[0]);
+      canvas.renderAll();
+    }
+    // Reset history to only the clean state
+    historyRef.current = [historyRef.current[0]];
+    historyIdxRef.current = 0;
+    setSelectedObj(null);
   }, []);
 
   // ── Save project ──────────────────────────────────────────────
@@ -679,6 +1043,9 @@ export default function DesignerPage() {
         <button className={styles.toolBtn} onClick={fillAll} title="Fill all pieces with current color">
           Fill All
         </button>
+        <button className={styles.toolBtn} onClick={resetCanvas} title="Remove all colour and texture">
+          ↺ Reset
+        </button>
         <div className={styles.spacer} />
         {customerToken ? (
           <>
@@ -774,30 +1141,58 @@ export default function DesignerPage() {
               <h3>Last Colored</h3>
               <div className={styles.lastColoredRow}>
                 <div className={styles.colorPreview} style={{ background: selectedObj.fill }} />
-                <span className={styles.meta}>{selectedObj.fill}</span>
+                <div>
+                  <span className={styles.meta}>{selectedObj.fill}</span>
+                  {selectedObj.glassType && (
+                    <span className={styles.lastGlassLabel}>Glass: {selectedObj.glassType}</span>
+                  )}
+                </div>
               </div>
             </div>
           )}
 
-          {/* Glass Types */}
+          {/* Glass Types Picker */}
           {glassTypes.length > 0 && (
             <div className={styles.panelSection}>
-              <h3>Glass Types</h3>
-              <div className={styles.glassGrid}>
-                {glassTypes.map(g => (
-                  <div
-                    key={g.id}
-                    className={`${styles.glassChip} ${activeGlassType?.id === g.id ? styles.selectedChip : ''}`}
-                    onClick={() => applyGlassType(g)}
-                    title={g.name}
-                  >
-                    {g.texture_url
-                      ? <img src={g.texture_url} alt={g.name} />
-                      : <div className={styles.glassColorBlock} style={{ background: g.color || '#ccc' }} />
-                    }
-                    <span>{g.name}</span>
+              <h3 className={styles.paletteHeading}>🪟 Glass Type</h3>
+
+              {/* Active glass type indicator */}
+              {activeGlassType && (
+                <div className={styles.activeGlassRow}>
+                  {activeGlassType.texture_url
+                    ? <img src={activeGlassType.texture_url} alt={activeGlassType.name} className={styles.activeGlassThumb} />
+                    : <div className={styles.activeGlassThumb} style={{ background: '#ddd' }} />
+                  }
+                  <div className={styles.activeGlassInfo}>
+                    <strong>{activeGlassType.name}</strong>
+                    <span className={styles.meta}>{activeGlassType.description?.slice(0, 60)}…</span>
                   </div>
-                ))}
+                  <button
+                    className={styles.clearGlassBtn}
+                    onClick={() => setActiveGlassType(null)}
+                    title="Clear glass type selection"
+                  >✕</button>
+                </div>
+              )}
+
+              {/* Scrollable glass type grid */}
+              <div className={styles.glassScrollArea}>
+                <div className={styles.glassGrid}>
+                  {glassTypes.map(g => (
+                    <div
+                      key={g.id}
+                      className={`${styles.glassChip} ${activeGlassType?.id === g.id ? styles.selectedChip : ''}`}
+                      onClick={() => applyGlassType(g)}
+                      title={g.description || g.name}
+                    >
+                      {g.texture_url
+                        ? <img src={g.texture_url} alt={g.name} />
+                        : <div className={styles.glassColorBlock} style={{ background: g.color || '#ccc' }} />
+                      }
+                      <span>{g.name}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}

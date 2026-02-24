@@ -332,6 +332,13 @@
   border: 2px solid #c8a96e;
   flex-shrink: 0;
 }
+.lastGlassLabel {
+  display: block;
+  font-size: 0.72rem;
+  color: #8b5e25;
+  margin-top: 0.15rem;
+  font-style: italic;
+}
 .colorSwatch {
   width: 48px;
   height: 48px;
@@ -360,24 +367,78 @@
 }
 .applyBtn:hover { background: #b8945a; }
 
-/* Glass type grid */
+/* Glass type picker */
+.activeGlassRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  background: #fff8ef;
+  border: 1.5px solid #c8a96e;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+}
+.activeGlassThumb {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+  border: 1px solid #ddd;
+}
+.activeGlassInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.activeGlassInfo strong {
+  font-size: 0.82rem;
+  color: #2c1a0e;
+}
+.clearGlassBtn {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: #999;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  line-height: 1;
+}
+.clearGlassBtn:hover { color: #c0392b; }
+.glassScrollArea {
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
+}
+.glassScrollArea::-webkit-scrollbar { width: 5px; }
+.glassScrollArea::-webkit-scrollbar-thumb {
+  background: #c8a96e;
+  border-radius: 3px;
+}
 .glassGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
   margin-top: 0.25rem;
 }
 .glassChip {
   border: 1.5px solid #e0d5c5;
   border-radius: 6px;
-  padding: 0.4rem;
+  padding: 0.3rem;
   cursor: pointer;
   text-align: center;
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   color: #5d3a1a;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+  overflow: hidden;
 }
-.glassChip:hover { border-color: #c8a96e; }
+.glassChip:hover {
+  border-color: #c8a96e;
+  transform: scale(1.04);
+}
 .selectedChip {
   border-color: #c8a96e;
   box-shadow: 0 0 0 2px rgba(200,169,110,0.35);
@@ -385,17 +446,24 @@
 }
 .glassChip img {
   width: 100%;
-  height: 40px;
+  height: 48px;
   object-fit: cover;
   border-radius: 3px;
   display: block;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.2rem;
+}
+.glassChip span {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
 }
 .glassColorBlock {
   width: 100%;
-  height: 40px;
+  height: 48px;
   border-radius: 3px;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.2rem;
 }
 
 /* Modal */

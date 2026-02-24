@@ -5,3 +5,20 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn backend.wsgi:app
+
+  - type: web
+    name: sgcg-frontend
+    env: static
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://sgcg-backend.onrender.com/api/*
+      - type: rewrite
+        source: /uploads/*
+        destination: https://sgcg-backend.onrender.com/uploads/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
