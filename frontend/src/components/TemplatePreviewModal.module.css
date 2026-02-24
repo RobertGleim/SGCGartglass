@@ -1,0 +1,74 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(44,62,80,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modalContent {
+  background: var(--canvas);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(44,62,80,0.18);
+  padding: 2rem;
+  max-width: 600px;
+  width: 100%;
+  position: relative;
+}
+.closeBtn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: var(--secondary);
+  cursor: pointer;
+}
+.previewImageWrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+.previewImage {
+  width: 500px;
+  height: 500px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+.specs {
+  margin-bottom: 1.5rem;
+}
+.specRow {
+  margin-bottom: 0.5rem;
+  color: var(--primary);
+}
+.actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+.startBtn {
+  background: var(--accent);
+  color: var(--canvas);
+  border: none;
+  border-radius: 8px;
+  padding: 0.7em 1.5em;
+  font-size: 1.1em;
+  cursor: pointer;
+  font-weight: bold;
+}
+.cancelBtn {
+  background: var(--secondary);
+  color: var(--canvas);
+  border: none;
+  border-radius: 8px;
+  padding: 0.7em 1.5em;
+  font-size: 1.1em;
+  cursor: pointer;
+  font-weight: bold;
+}

@@ -35,6 +35,15 @@
 			"dependsOrder": "parallel",
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "Dev: backend",
+			"type": "shell",
+			"command": "C:/Users/rglei/OneDrive/Desktop/Sgcg/.venv/Scripts/python.exe -m backend.app",
+			"args": [],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
 		}
 	]
 }

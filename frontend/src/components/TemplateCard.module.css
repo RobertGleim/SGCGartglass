@@ -1,0 +1,58 @@
+.card {
+  background: var(--canvas);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(44,62,80,0.08);
+  overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+  outline: none;
+}
+.card:focus, .card:hover {
+  box-shadow: 0 4px 16px rgba(44,62,80,0.16);
+}
+.thumbnailWrapper {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f8fa;
+}
+.thumbnail {
+  width: 300px;
+  height: 300px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.categoryBadge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: var(--accent);
+  color: var(--canvas);
+  padding: 0.3em 0.7em;
+  border-radius: 6px;
+  font-size: 0.9em;
+  font-weight: bold;
+}
+.info {
+  padding: 1rem;
+}
+.name {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2em;
+  color: var(--primary);
+}
+.meta {
+  display: flex;
+  gap: 1.2em;
+  color: var(--secondary);
+  font-size: 0.95em;
+}
+.difficulty {
+  font-weight: bold;
+}
+.pieceCount {
+  color: var(--accent);
+}

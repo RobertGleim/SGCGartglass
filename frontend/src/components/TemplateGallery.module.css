@@ -1,0 +1,62 @@
+.galleryWrapper {
+  padding: 2rem 1rem;
+}
+.controls {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+.categoryDropdown {
+  min-width: 160px;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+}
+.searchBar {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 1.5rem;
+}
+@media (min-width: 600px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.skeletonGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+.skeletonCard {
+  height: 340px;
+  background: linear-gradient(90deg, #ecf0f1 40%, #d0d7de 60%, #ecf0f1 100%);
+  border-radius: 12px;
+  animation: pulse 1.2s infinite;
+}
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+.error {
+  color: var(--secondary);
+  font-weight: bold;
+  margin: 2rem 0;
+}
+.empty {
+  color: var(--primary);
+  margin: 2rem 0;
+}

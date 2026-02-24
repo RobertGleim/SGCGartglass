@@ -1,11 +1,18 @@
+
+# ...existing code...
+
+"""
+Legacy shop API: auth, customer, items, manual products, etc.
+Loaded as backend.routes.shop; api blueprint is re-exported from backend.routes.
+"""
 import json
 import os
 
 from flask import Blueprint, jsonify, request, g
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from .auth import create_token, require_auth, require_customer
-from .db import (
+from ..auth import create_token, require_auth, require_customer
+from ..db import (
     fetch_item,
     fetch_items,
     init_db,
@@ -35,7 +42,7 @@ from .db import (
     list_customer_reviews,
     create_customer_review,
 )
-from .etsy import extract_listing_id, fetch_listing
+from ..etsy import extract_listing_id, fetch_listing
 
 
 api = Blueprint("api", __name__)
@@ -51,6 +58,14 @@ def health():
             "admin_configured": bool(os.environ.get("ADMIN_EMAIL") and os.environ.get("ADMIN_PASSWORD_HASH")),
         }
     }
+
+# List all customers (for admin dashboard)
+from ..db import list_all_customers
+
+@api.get("/customers")
+def list_customers():
+    customers = list_all_customers()
+    return jsonify(customers), 200
 
 
 @api.post("/auth/login")
@@ -69,6 +84,17 @@ def login():
 
     token = create_token(email)
     return jsonify({"token": token})
+
+# Explicit OPTIONS handler for CORS preflight
+@api.route("/auth/login", methods=["OPTIONS"])
+def login_options():
+    from flask import make_response, request
+    response = make_response('', 200)
+    response.headers["Access-Control-Allow-Origin"] = request.headers.get("Origin", "*")
+    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
 
 
 @api.post("/customer/signup")
@@ -273,7 +299,10 @@ def customer_create_review():
 @api.get("/items")
 def list_items():
     init_db()
-    return jsonify(fetch_items())
+    items = fetch_items()
+    if items is None:
+        items = []
+    return jsonify(items), 200
 
 
 @api.get("/items/<int:item_id>")
@@ -339,7 +368,10 @@ def create_item():
 @api.get("/manual-products")
 def list_manual_products():
     init_db()
-    return jsonify(fetch_manual_products())
+    products = fetch_manual_products()
+    if products is None:
+        products = []
+    return jsonify(products), 200
 
 
 @api.get("/manual-products/<int:product_id>")
@@ -356,12 +388,6 @@ def get_manual_product(product_id):
 def create_manual_product_endpoint():
     init_db()
     payload = request.get_json(silent=True) or {}
-    
-    # Debug logging
-    import sys
-    print(f"Received payload: {payload}", file=sys.stderr)
-    
-    # Validate required fields
     if not payload.get("name") or not payload.get("name").strip():
         return jsonify({"error": "missing_name", "detail": "Product name is required"}), 400
     if not payload.get("description") or not payload.get("description").strip():
@@ -370,15 +396,11 @@ def create_manual_product_endpoint():
         return jsonify({"error": "missing_price", "detail": "Product price is required"}), 400
     if payload.get("quantity") is None or payload.get("quantity") == "":
         return jsonify({"error": "missing_quantity", "detail": "Product quantity is required"}), 400
-    
     try:
         product_id = create_manual_product(payload)
         product = fetch_manual_product(product_id)
         return jsonify(product), 201
     except Exception as exc:
-        print(f"Error creating product: {exc}", file=sys.stderr)
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": "creation_failed", "detail": str(exc)}), 500
 
 
@@ -389,15 +411,7 @@ def update_manual_product_endpoint(product_id):
     product = fetch_manual_product(product_id)
     if not product:
         return jsonify({"error": "not_found"}), 404
-    
     payload = request.get_json(silent=True) or {}
-    
-    # Debug logging
-    import sys
-    print(f"Update payload for product {product_id}: {payload}", file=sys.stderr)
-    print(f"Payload keys: {list(payload.keys())}", file=sys.stderr)
-    
-    # Validate required fields
     if not payload.get("name"):
         return jsonify({"error": "missing_name"}), 400
     if not payload.get("description"):
@@ -406,15 +420,11 @@ def update_manual_product_endpoint(product_id):
         return jsonify({"error": "missing_price"}), 400
     if payload.get("quantity") is None:
         return jsonify({"error": "missing_quantity"}), 400
-    
     try:
         update_manual_product(product_id, payload)
         updated_product = fetch_manual_product(product_id)
         return jsonify(updated_product)
     except Exception as exc:
-        print(f"Error updating product: {exc}", file=sys.stderr)
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": "update_failed", "detail": str(exc)}), 500
 
 
@@ -425,7 +435,6 @@ def delete_manual_product_endpoint(product_id):
     product = fetch_manual_product(product_id)
     if not product:
         return jsonify({"error": "not_found"}), 404
-    
     try:
         delete_manual_product(product_id)
         return jsonify({"success": True, "message": "Product deleted"}), 200

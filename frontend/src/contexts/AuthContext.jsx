@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { login } from '../services/api'
+import { adminLogin } from '../services/api'
 import { AuthContext } from './AuthContext'
 
 export function AuthProvider({ children }) {
@@ -8,7 +8,7 @@ export function AuthProvider({ children }) {
   )
 
   const loginWithCredentials = useCallback(async (email, password) => {
-    const token = await login(email, password)
+    const token = await adminLogin(email, password)
     setAuthToken(token)
     window.localStorage.setItem('sgcg_token', token)
   }, [])

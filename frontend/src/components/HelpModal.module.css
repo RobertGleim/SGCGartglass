@@ -1,0 +1,94 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.5);
+  z-index: 410;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.18);
+  padding: 2rem 2.5rem;
+  min-width: 320px;
+  max-width: 90vw;
+  position: relative;
+  text-align: center;
+}
+.closeBtn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #888;
+  cursor: pointer;
+}
+.guide {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 1.2rem;
+}
+.guide img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid #eee;
+}
+.shortcuts {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+.shortcuts th, .shortcuts td {
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+.faqs {
+  margin-bottom: 1.2rem;
+}
+.faq {
+  margin-bottom: 0.5rem;
+}
+.faqBtn {
+  background: #eee;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+.faqA {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 0.7rem 1rem;
+  font-size: 0.95rem;
+  margin-top: 0.3rem;
+}
+.replayBtn {
+  background: #4169e1;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.7rem 1.2rem;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+.support {
+  display: block;
+  margin-top: 1rem;
+  color: #4169e1;
+  text-decoration: underline;
+  font-size: 1rem;
+}

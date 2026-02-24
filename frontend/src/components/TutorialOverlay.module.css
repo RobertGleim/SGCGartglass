@@ -1,0 +1,44 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.7);
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tutorialBox {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.18);
+  padding: 2rem 2.5rem;
+  min-width: 320px;
+  max-width: 90vw;
+  position: relative;
+  text-align: center;
+  animation: fadeIn 0.3s;
+}
+.progress {
+  font-size: 1rem;
+  color: #888;
+  margin-bottom: 0.7rem;
+}
+.actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1.2rem;
+}
+.spotlight {
+  box-shadow: 0 0 0 4px #ffe066, 0 0 32px 12px #ffe066;
+  position: relative;
+  z-index: 401;
+  transition: box-shadow 0.3s;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

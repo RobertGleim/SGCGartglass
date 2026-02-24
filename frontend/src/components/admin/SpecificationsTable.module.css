@@ -1,0 +1,40 @@
+.tableBox {
+  margin-top: 2rem;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 1.2rem;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+}
+.table th, .table td {
+  padding: 0.7rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+.swatch {
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 2px solid #ddd;
+}
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.actions button {
+  background: #4169e1;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.actions button:hover {
+  background: #274b9f;
+}

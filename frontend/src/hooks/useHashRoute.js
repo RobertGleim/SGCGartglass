@@ -18,6 +18,15 @@ const getRoute = () => {
     }
     return { path: '/account', params: {} }
   }
+  if (parts[0] === 'my-projects') {
+    return { path: '/my-projects', params: {} }
+  }
+  if (parts[0] === 'my-work-orders') {
+    return { path: '/my-work-orders', params: {} }
+  }
+  if (parts[0] === 'designer') {
+    return { path: '/designer', params: {} }
+  }
   return { path: '/', params: {} }
 }
 

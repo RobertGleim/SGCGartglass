@@ -178,7 +178,7 @@ export default function CustomerPortal({ manualProducts }) {
       const product = manualProductMap.get(String(productId))
       return product ? product.name : `Manual product #${productId}`
     }
-    return `Etsy item ${productId}`
+    // return `Etsy item ${productId}`
   }
 
   return (
@@ -249,7 +249,7 @@ export default function CustomerPortal({ manualProducts }) {
         <div className="portal-card">
           <h3>Order history</h3>
           {orders.length === 0 ? (
-            <p className="portal-muted">No orders yet. Your Etsy or manual orders will appear here.</p>
+            <p className="portal-muted">No orders yet. Your manual orders will appear here.</p>
           ) : (
             <div className="portal-list">
               {orders.map((order) => (
@@ -337,7 +337,7 @@ export default function CustomerPortal({ manualProducts }) {
                 }
               >
                 <option value="manual">Manual products</option>
-                <option value="etsy">Etsy items</option>
+                {/* <option value="etsy">Etsy items</option> */}
               </select>
               <input
                 type="text"

@@ -1,169 +1,86 @@
-import { request } from '../utils/request'
+export const fetchCustomers = () => api.get('/customers');
+export const updateManualProduct = (id, product) => api.put(`/manual-products/${id}`, product);
+export const fetchManualProducts = () => api.get('/manual-products');
+export const fetchItems = () => api.get('/items');
+export const deleteManualProduct = (id) => api.delete(`/manual-products/${id}`);
+export const createManualProduct = (product) => api.post('/manual-products', product);
+export const createItem = (item) => api.post('/items', item);
+// Customer profile/address/favorites/cart/orders/reviews APIs
+export const fetchCustomerProfile = () => api.get('/customer/profile');
+export const fetchCustomerAddresses = () => api.get('/customer/addresses');
+export const addCustomerAddress = (address) => api.post('/customer/addresses', address);
+export const fetchCustomerFavorites = () => api.get('/customer/favorites');
+export const removeCustomerFavorite = (id) => api.delete(`/customer/favorites/${id}`);
+export const fetchCustomerCart = () => api.get('/customer/cart');
+export const updateCustomerCartItem = (itemId, data) => api.put(`/customer/cart/${itemId}`, data);
+export const removeCustomerCartItem = (itemId) => api.delete(`/customer/cart/${itemId}`);
+export const fetchCustomerOrders = () => api.get('/customer/orders');
+export const fetchCustomerOrderItems = (orderId) => api.get(`/customer/orders/${orderId}/items`);
+export const fetchCustomerReviews = () => api.get('/customer/reviews');
+export const createCustomerReview = (review) => api.post('/customer/reviews', review);
+export const customerLogin = async (email, password) => {
+  const res = await api.post('/auth/customer/login', { email, password });
+  return res.data.token;
+};
 
-export const fetchItems = () => request('/api/items')
-
-export const fetchItemById = (id) => request(`/api/items/${id}`)
-
-export const login = async (email, password) => {
-  const payload = await request('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  })
-  return payload.token
-}
-
-export const createItem = async (token, listingValue) =>
-  request('/api/items', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      etsy_listing_id: listingValue,
-      etsy_url: listingValue,
-    }),
-  })
-
-export const fetchManualProducts = () => request('/api/manual-products')
-
-export const fetchManualProductById = (id) => request(`/api/manual-products/${id}`)
-
-export const createManualProduct = async (token, productData) => {
-  console.log('createManualProduct called with:', {
-    token: token?.substring(0, 20) + '...',
-    productData,
-  })
-  return request('/api/manual-products', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(productData),
-  })
-}
-
-export const updateManualProduct = async (token, id, productData) => {
-  console.log('updateManualProduct called with:', {
-    token: token ? `${token.substring(0, 20)}...` : 'NO TOKEN',
-    id,
-    productData
-  })
-  return request(`/api/manual-products/${id}`, {
-    method: 'PUT',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(productData),
-  })
-}
-
-export const deleteManualProduct = async (token, id) => {
-  console.log('deleteManualProduct called with id:', id)
-  return request(`/api/manual-products/${id}`, {
-    method: 'DELETE',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  })
-}
+export const adminLogin = async (email, password) => {
+  const res = await api.post('/auth/login', { email, password });
+  return res.data.token;
+};
 
 export const customerSignup = async (payload) => {
-  const response = await request('/api/customer/signup', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
-  return response.token
-}
+  console.log('customerSignup: function called', payload)
+  try {
+    const res = await api.post('/customer/signup', payload)
+    console.log('customerSignup: response', res)
+    return res.data.token
+  } catch (err) {
+    console.error('customerSignup: error', err)
+    return undefined
+  }
+};
+import axios from 'axios';
+import { getAuthToken } from '../utils/auth';
 
-export const customerLogin = async (email, password) => {
-  const response = await request('/api/customer/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  })
-  return response.token
-}
+console.log('api.js: VITE_API_BASE_URL =', import.meta.env.VITE_API_BASE_URL)
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  withCredentials: true,
+});
 
-export const fetchCustomerProfile = (token) =>
-  request('/api/customer/me', {
-    headers: { Authorization: `Bearer ${token}` },
-  })
+api.interceptors.request.use(
+  (config) => {
+    const token = getAuthToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-export const fetchCustomerAddresses = (token) =>
-  request('/api/customer/addresses', {
-    headers: { Authorization: `Bearer ${token}` },
-  })
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const message = error.response?.data?.error || error.message;
+    if (window && window.toast) {
+      window.toast.error(message);
+    } else {
+      alert(message);
+    }
+    return Promise.reject(error);
+  }
+);
 
-export const addCustomerAddress = (token, payload) =>
-  request('/api/customer/addresses', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify(payload),
-  })
+export const getTemplates = (filters) => api.get('/templates', { params: filters });
+export const getTemplate = (id) => api.get(`/templates/${id}`);
+export const saveProject = (data) => api.post('/projects/save', data);
+export const submitWorkOrder = (data) => api.post('/work-orders/submit', data);
+export const getMyProjects = () => api.get('/projects');
+export const getMyWorkOrders = () => api.get('/work-orders');
+export const getAdminTemplates = () => api.get('/admin/templates');
+export const getAdminGlassTypes = () => api.get('/admin/glass-types');
+export const getAdminWorkOrders = () => api.get('/admin/work-orders');
+export const updateWorkOrderStatus = (id, status, notes) => api.put(`/admin/work-orders/${id}/status`, { new_status: status, notes });
 
-export const fetchCustomerFavorites = (token) =>
-  request('/api/customer/favorites', {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-
-export const addCustomerFavorite = (token, payload) =>
-  request('/api/customer/favorites', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify(payload),
-  })
-
-export const removeCustomerFavorite = (token, favoriteId) =>
-  request(`/api/customer/favorites/${favoriteId}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  })
-
-export const fetchCustomerCart = (token) =>
-  request('/api/customer/cart', {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-
-export const addCustomerCartItem = (token, payload) =>
-  request('/api/customer/cart/items', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify(payload),
-  })
-
-export const updateCustomerCartItem = (token, itemId, payload) =>
-  request(`/api/customer/cart/items/${itemId}`, {
-    method: 'PUT',
-    headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify(payload),
-  })
-
-export const removeCustomerCartItem = (token, itemId) =>
-  request(`/api/customer/cart/items/${itemId}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  })
-
-export const fetchCustomerOrders = (token) =>
-  request('/api/customer/orders', {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-
-export const fetchCustomerOrderItems = (token, orderId) =>
-  request(`/api/customer/orders/${orderId}/items`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-
-export const fetchCustomerReviews = (token) =>
-  request('/api/customer/reviews', {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-
-export const fetchProductReviews = (productType, productId) =>
-  request(`/api/reviews?product_type=${productType}&product_id=${productId}`)
-
-export const createCustomerReview = (token, payload) =>
-  request('/api/customer/reviews', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify(payload),
-  })
+export default api;

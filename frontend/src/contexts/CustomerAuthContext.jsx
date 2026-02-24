@@ -20,6 +20,7 @@ export function CustomerAuthProvider({ children }) {
   }, [])
 
   const signupWithCredentials = useCallback(async (payload) => {
+    console.log('CustomerAuthContext: signupWithCredentials called', payload)
     const token = await customerSignup(payload)
     setCustomerToken(token)
     window.localStorage.setItem('sgcg_customer_token', token)

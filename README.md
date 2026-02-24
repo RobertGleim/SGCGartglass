@@ -1,44 +1,151 @@
-# SGCG Art Glass MVP
+# SGCG Designer
 
-A lightweight React + Flask MVP that mirrors the Etsy seller experience with a home page, product spotlight, and admin listing sync.
+Stained glass template design and work order submission — full-stack web app for interactive design (SVG templates, flat colors + textures) and work order workflow. No customer downloads; designs are submitted as work orders only.
 
-**Live site:** https://sgcgart.com
+## Tech stack
 
-## Project layout
-- frontend: Vite + React client
-- backend: Flask API with JWT auth and Etsy listing sync
+| Layer     | Stack |
+|----------|--------|
+| Frontend | React 18+, Vite, CSS Modules, HTML5 Canvas, Fabric.js |
+| Backend  | Python 3.11+, Flask 3.0+, SQLAlchemy, PyMySQL |
+| Database | MySQL 8.0+ |
+| Hosting  | Hostinger (frontend) + Render (backend) |
 
-## Local setup
-1. Copy .env.example to .env and fill in values.
-2. Install frontend dependencies:
-   - cd frontend
-   - npm install
-   - npm run dev
-3. Install backend dependencies:
-   - python -m venv .venv
-   - .venv\Scripts\activate
-   - pip install -r requirements.txt
-   - python -m backend.app
+## Project structure
 
-## Etsy sync
-- Admin uses email/password from .env to get a JWT.
-- Paste an Etsy listing URL or ID in the admin page.
-- Backend pulls image, description, and price using Etsy API credentials.
+```
+Sgcg/
+├── backend/                 # Flask API
+│   ├── app.py
+│   ├── config.py
+│   ├── models/
+│   ├── routes/
+│   ├── services/
+│   ├── utils/
+│   ├── requirements.txt
+│   ├── .env.example
+│   └── .gitignore
+├── frontend/                # React app (Vite)
+│   ├── public/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── services/
+│   │   ├── hooks/
+│   │   ├── utils/
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   ├── package.json
+│   └── .gitignore
+├── database/
+│   └── schema.sql           # MySQL schema (templates, work_orders, etc.)
+└── README.md
+```
 
-## Environment profiles
-- Production dependencies are listed under "Production" in requirements.txt.
-- Development and test dependencies are listed under "Development" and "Testing" in requirements.txt.
+## Setup instructions
 
-## Deployment notes
-- **Hostinger:** Use [docs/HOSTINGER_DEPLOYMENT.md](docs/HOSTINGER_DEPLOYMENT.md) for complete frontend + backend setup.
-- **GitHub Pages:** Set VITE_BASE_PATH before building if the site is served from a subpath (not used for production).
+### Prerequisites
 
-## Branding
-- Replace frontend/public/brand-logo.svg with your uploaded logo for accurate styling.
+- **Node.js** 18+ and npm
+- **Python** 3.11+
+- **MySQL** 8.0+ (local or remote, e.g. Hostinger `u159464737_sgcgdb`)
 
-## Hostinger quick start
-1. Copy `.env.example` to `.env` and set production values.
-2. Build frontend: `cd frontend && npm install && npm run build`.
-3. Upload `frontend/dist` to Hostinger `public_html`.
-4. Deploy backend on Hostinger VPS with Gunicorn (`backend.wsgi:app`).
-5. Set `VITE_API_BASE_URL` to your backend API domain before building.
+### 1. Clone and enter project
+
+```bash
+git clone <repo-url>
+cd Sgcg
+```
+
+### 2. Backend
+
+```bash
+cd backend
+python -m venv .venv
+# Windows:
+.venv\Scripts\activate
+# macOS/Linux:
+# source .venv/bin/activate
+
+pip install -r requirements.txt
+cp .env.example .env
+# Edit .env: set SECRET_KEY, DATABASE_URL, CORS_ORIGINS, and mail vars (see below)
+```
+
+**Required in `.env`:**
+
+- `SECRET_KEY` — random string for sessions (e.g. `openssl rand -hex 32`)
+- `DATABASE_URL` — `mysql+pymysql://USER:PASSWORD@HOST:PORT/DATABASE`
+- `CORS_ORIGINS` — allowed frontend origins, e.g. `http://localhost:5173`
+- For work order emails: `MAIL_*` and `ADMIN_EMAIL`
+
+Run the API (development):
+
+```bash
+# From backend/ with .venv active
+flask run
+# Or: python -m flask run
+# API typically at http://127.0.0.1:5000
+```
+
+Production (e.g. Render): use Gunicorn with `gunicorn -w 4 -b 0.0.0.0:$PORT "backend.app:create_app()"` (adjust module path to your app factory).
+
+### 3. Frontend
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+# Set VITE_API_BASE_URL=http://127.0.0.1:5000 (or your backend URL) for dev
+npm run dev
+```
+
+App runs at `http://localhost:5173` (or the port Vite prints).
+
+**Main dependencies:**
+
+- **react** / **react-dom** — UI
+- **react-router-dom** — routing (Designer, My Projects, Work Orders)
+- **axios** — API calls to Flask
+- **fabric** — canvas drawing and SVG manipulation for template regions
+- **react-color** — color picker for glass colors
+- **vite** — build tool and dev server
+
+### 4. Database
+
+1. Create the database (if not exists): e.g. `u159464737_sgcgdb` on your MySQL server.
+2. Apply the schema:
+
+```bash
+mysql -u USER -p -h HOST u159464737_sgcgdb < database/schema.sql
+```
+
+Or run `database/schema.sql` in your MySQL client. Schema includes: `templates`, `template_regions`, `glass_types`, `user_projects`, `work_orders`, `work_order_status_history`.
+
+## Environment summary
+
+| Variable         | Where   | Purpose |
+|------------------|---------|--------|
+| `SECRET_KEY`     | Backend | Flask session/CSRF secret |
+| `DATABASE_URL`   | Backend | MySQL connection string |
+| `CORS_ORIGINS`   | Backend | Allowed frontend origins |
+| `MAIL_*`         | Backend | SMTP for work order notifications |
+| `ADMIN_EMAIL`    | Backend | Recipient of new work order emails |
+| `VITE_API_BASE_URL` | Frontend | API base URL (build-time for Vite) |
+
+## Key behaviors
+
+- **Guests** can open the designer and use templates; they see “Sign in to save” and cannot save or submit.
+- **Registered users** can save projects (auto-save ~60s + manual save) and submit work orders.
+- **Work orders** are the only output; no design downloads.
+- **Admin** receives an email when a new work order is submitted and can manage status (e.g. review → quote).
+
+## Code standards
+
+- No placeholders or `// TODO` in committed code; error handling and validation in place.
+- PropTypes (React) and type hints (Python) where applicable.
+- Production: no `console.log` in frontend; use env vars for all secrets and config.
+
+## License and branding
+
+See repo and docs for license. Replace `frontend/public/brand-logo.svg` with your logo as needed.

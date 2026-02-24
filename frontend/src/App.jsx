@@ -21,6 +21,14 @@ import UnifiedLogin from './pages/auth/UnifiedLogin'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import CustomerSignup from './pages/customer/CustomerSignup'
 import CustomerPortal from './pages/customer/CustomerPortal'
+import { Routes, Route, Navigate } from 'react-router-dom';
+import Layout from './components/Layout';
+import DesignerPage from './pages/DesignerPage';
+import MyProjectsPage from './pages/MyProjectsPage';
+import MyWorkOrdersPage from './pages/MyWorkOrdersPage';
+import AdminTemplatesPage from './pages/admin/AdminTemplatesPage';
+import AdminGlassTypesPage from './pages/admin/AdminGlassTypesPage';
+import AdminWorkOrdersPage from './pages/admin/AdminWorkOrdersPage';
 
 const BRAND_NAME = 'SGCG Art'
 
@@ -43,7 +51,7 @@ function App() {
     fetchItems()
       .then((data) => {
         if (isActive) {
-          setItems(data)
+            setItems(Array.isArray(data) ? data : [])
         }
       })
       .finally(() => {
@@ -55,7 +63,7 @@ function App() {
     fetchManualProducts()
       .then((data) => {
         if (isActive) {
-          setManualProducts(data)
+            setManualProducts(Array.isArray(data) ? data : [])
         }
       })
       .catch((error) => {
@@ -207,6 +215,32 @@ function App() {
             <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
           ) : (
             <CustomerPortal manualProducts={manualProducts} />
+          )}
+        </main>
+      )}
+
+      {route.path === '/designer' && (
+        <main>
+          <DesignerPage />
+        </main>
+      )}
+
+      {route.path === '/my-projects' && (
+        <main>
+          {!customerToken ? (
+            <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
+          ) : (
+            <MyProjectsPage />
+          )}
+        </main>
+      )}
+
+      {route.path === '/my-work-orders' && (
+        <main>
+          {!customerToken ? (
+            <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
+          ) : (
+            <MyWorkOrdersPage />
           )}
         </main>
       )}

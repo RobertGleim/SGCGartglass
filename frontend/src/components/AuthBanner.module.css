@@ -1,0 +1,13 @@
+.banner {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  background: #ffe9b3;
+  color: #7a4c00;
+  font-size: 1.1rem;
+  font-weight: 500;
+  padding: 0.7rem 1.2rem;
+  text-align: center;
+  z-index: 100;
+  border-bottom: 2px solid #ffd700;
+}

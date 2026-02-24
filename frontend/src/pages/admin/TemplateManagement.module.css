@@ -1,0 +1,120 @@
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+.topBar {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  align-items: center;
+}
+.addBtn {
+  background: #4169e1;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.7rem 1.2rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.bulkBtn {
+  background: #eee;
+  color: #333;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.search {
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+}
+.table th, .table td {
+  padding: 0.7rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+.thumb {
+  width: 30px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+.thumbPlaceholder {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, #e8d5b7 0%, #c8a96e 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #fff;
+  border-radius: 4px;
+}
+.pagination {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 1rem;
+}
+.pagination button {
+  background: #4169e1;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.pagination button:disabled {
+  background: #aaa;
+  cursor: not-allowed;
+}
+.deleteBtn {
+  background: #d9534f;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.deleteBtn:hover {
+  background: #c9302c;
+}
+.deactivateBtn {
+  background: #f0ad4e;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  margin-left: 0.25rem;
+}
+.deactivateBtn:hover {
+  background: #d9960a;
+}
+.activateBtn {
+  background: #5cb85c;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  margin-left: 0.25rem;
+}
+.activateBtn:hover {
+  background: #449d44;
+}

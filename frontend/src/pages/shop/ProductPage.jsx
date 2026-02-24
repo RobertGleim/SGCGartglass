@@ -210,6 +210,13 @@ export default function ProductPage({ products }) {
             >
               Wood Work
             </button>
+            <a
+              className="nav-tab"
+              href="/#/designer"
+              style={{ textDecoration: 'none' }}
+            >
+              Designer
+            </a>
           </div>
           <div className="nav-search">
             <SearchBar search={search} setSearch={setSearch} totalItems={sectionProducts.length} />

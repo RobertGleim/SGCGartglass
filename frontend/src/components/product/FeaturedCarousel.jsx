@@ -19,7 +19,7 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
   if (items.length === 0) {
     return (
       <div className="empty-state">
-        No Etsy items linked yet. Add listings from the admin page.
+        {/* No Etsy items linked yet. Add listings from the admin page. */}
       </div>
     )
   }
@@ -80,7 +80,7 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
                   <div className="card-body">
                     <h3>{item.title || 'Untitled piece'}</h3>
                     <p className="card-description">
-                      {item.description || 'Details will appear after Etsy sync.'}
+                      {item.description}
                     </p>
                     <div className="card-meta">
                       <span className="price">

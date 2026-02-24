@@ -11,6 +11,34 @@ load_dotenv(dotenv_path=env_path)
 load_dotenv(dotenv_path=env_local_path, override=True)
 
 
+def _sqlalchemy_database_uri():
+    """Build SQLAlchemy URI from DATABASE_URL or DB_* environment variables."""
+    url = os.environ.get('DATABASE_URL')
+    if url:
+        return url
+    host = os.environ.get('DB_HOST', 'localhost')
+    port = os.environ.get('DB_PORT', '3306')
+    user = os.environ.get('DB_USER', '')
+    password = os.environ.get('DB_PASSWORD', '')
+    database = os.environ.get('DB_NAME', '')
+    db_path = os.environ.get('DB_PATH')
+    # Use SQLite if DB_PATH is set and user/database are empty
+    if db_path and not user and not database:
+        # Resolve relative paths against the project root
+        db_path_obj = Path(db_path)
+        if not db_path_obj.is_absolute():
+            db_path_obj = root_path / db_path_obj
+        # Ensure the directory exists
+        db_path_obj.parent.mkdir(parents=True, exist_ok=True)
+        return f"sqlite:///{db_path_obj}"
+    if not all((user, database)):
+        # Default to SQLite in the backend directory for development
+        _backend_dir = Path(__file__).parent
+        default_db = _backend_dir / 'designer.db'
+        return f"sqlite:///{default_db}"
+    return f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
+
+
 class BaseConfig:
     PORT = int(os.environ.get('PORT', '5000'))
     SECRET_KEY = os.environ.get('SECRET_KEY') or os.environ.get('JWT_SECRET', 'dev-secret')
@@ -18,6 +46,17 @@ class BaseConfig:
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
     DEBUG = False
     TESTING = False
+
+    # SQLAlchemy (Designer: templates, glass_types, user_projects, work_orders)
+    SQLALCHEMY_DATABASE_URI = _sqlalchemy_database_uri()
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+    }
+
+    # Uploads (glass type textures: uploads/textures/)
+    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER') or str(root_path / 'uploads')
 
 
 class DevelopmentConfig(BaseConfig):

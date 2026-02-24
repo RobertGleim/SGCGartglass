@@ -19,22 +19,6 @@ export default function AddEtsyListingForm({ onAddItem }) {
     }
   }
 
-  return (
-    <div className="panel-section">
-      <h3>Add Etsy Listing</h3>
-      <form className="inline-form" onSubmit={handleSubmit}>
-        <input
-          type="text"
-          value={listingValue}
-          onChange={(event) => setListingValue(event.target.value)}
-          placeholder="Paste Etsy listing URL or ID"
-          required
-        />
-        <button className="button primary" type="submit">
-          Link listing
-        </button>
-      </form>
-      {status && <p className="status-text">{status}</p>}
-    </div>
-  )
+     // Etsy listing form temporarily disabled
+     return null;
 }

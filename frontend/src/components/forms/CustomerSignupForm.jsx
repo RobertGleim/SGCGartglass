@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import '../../styles/forms/CustomerSignupForm.css'
 
@@ -12,15 +13,15 @@ export default function CustomerSignupForm({ onSignup }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const updateField = (key, value) => {
-    setForm((prev) => ({ ...prev, [key]: value }))
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setForm((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = async (event) => {
-    event.preventDefault()
+  const handleSubmit = async (e) => {
+    e.preventDefault()
     setError('')
     setLoading(true)
-
     try {
       await onSignup(form)
       window.location.hash = '#/account'
@@ -34,68 +35,51 @@ export default function CustomerSignupForm({ onSignup }) {
   return (
     <div className="customer-auth-page">
       <h2>Create your account</h2>
-      <p>Track orders, save favorites, and leave verified reviews.</p>
-
-      {error && <div className="customer-auth-error">{error}</div>}
-
       <form className="customer-auth-form" onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="customer-first-name">First name</label>
-          <input
-            id="customer-first-name"
-            type="text"
-            value={form.first_name}
-            onChange={(event) => updateField('first_name', event.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="customer-last-name">Last name</label>
-          <input
-            id="customer-last-name"
-            type="text"
-            value={form.last_name}
-            onChange={(event) => updateField('last_name', event.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="customer-signup-email">Email</label>
-          <input
-            id="customer-signup-email"
-            type="email"
-            autoComplete="email"
-            value={form.email}
-            onChange={(event) => updateField('email', event.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="customer-phone">Phone (optional)</label>
-          <input
-            id="customer-phone"
-            type="tel"
-            autoComplete="tel"
-            value={form.phone}
-            onChange={(event) => updateField('phone', event.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor="customer-signup-password">Password</label>
-          <input
-            id="customer-signup-password"
-            type="password"
-            autoComplete="new-password"
-            value={form.password}
-            onChange={(event) => updateField('password', event.target.value)}
-            required
-          />
-        </div>
+        <input
+          name="first_name"
+          type="text"
+          placeholder="First name"
+          value={form.first_name}
+          onChange={handleChange}
+          required
+        />
+        <input
+          name="last_name"
+          type="text"
+          placeholder="Last name"
+          value={form.last_name}
+          onChange={handleChange}
+          required
+        />
+        <input
+          name="email"
+          type="email"
+          placeholder="Email"
+          value={form.email}
+          onChange={handleChange}
+          required
+        />
+        <input
+          name="phone"
+          type="tel"
+          placeholder="Phone (optional)"
+          value={form.phone}
+          onChange={handleChange}
+        />
+        <input
+          name="password"
+          type="password"
+          placeholder="Password"
+          value={form.password}
+          onChange={handleChange}
+          required
+        />
         <button type="submit" disabled={loading}>
           {loading ? 'Creating...' : 'Create account'}
         </button>
+        {error && <div className="customer-auth-error">{error}</div>}
       </form>
-
       <div className="customer-auth-footer">
         Already have an account? <a href="#/account/login">Sign in</a>
       </div>

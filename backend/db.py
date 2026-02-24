@@ -1,3 +1,10 @@
+def list_all_customers():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM customers ORDER BY created_at DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
 import os
 import sqlite3
 from datetime import datetime

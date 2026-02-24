@@ -18,10 +18,14 @@ export default function Header({ brandName, authToken, customerToken }) {
       <nav className={`nav-links${menuOpen ? ' open' : ''}`}>
         <a href="#/">Home</a>
         <a href="#/product">Product</a>
+        <a href="#/designer">Designer</a>
         {authToken ? (
           <a href="#/admin">Admin</a>
         ) : customerToken ? (
-          <a href="#/account">Account</a>
+          <>
+            <a href="#/my-projects">My Projects</a>
+            <a href="#/account">Account</a>
+          </>
         ) : (
           <a href="#/account/login">Sign In</a>
         )}
