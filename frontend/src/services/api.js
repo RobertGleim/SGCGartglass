@@ -62,12 +62,9 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Log the error for debugging but do NOT alert — let calling code handle it
     const message = error.response?.data?.error || error.message;
-    if (window && window.toast) {
-      window.toast.error(message);
-    } else {
-      alert(message);
-    }
+    console.error('[API error]', error.response?.status, message);
     return Promise.reject(error);
   }
 );

@@ -12,11 +12,11 @@ export function getUser() {
 }
 
 export function getAuthToken() {
-  return localStorage.getItem('auth_token') || '';
+  return localStorage.getItem('sgcg_token') || '';
 }
 
 export function logout() {
-  localStorage.removeItem('auth_token');
+  localStorage.removeItem('sgcg_token');
   localStorage.removeItem('user');
   window.location.href = '/';
 }

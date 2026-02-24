@@ -101,8 +101,13 @@
 .product-form-wrapper .modal-overlay,
 .product-form-wrapper .modal-content,
 .product-form-wrapper .custom-dropdown-menu {
-  scrollbar-width: none;
-  scrollbar-color: transparent transparent;
+  -ms-overflow-style: none;
+}
+
+.product-form-wrapper .modal-overlay::-webkit-scrollbar,
+.product-form-wrapper .modal-content::-webkit-scrollbar,
+.product-form-wrapper .custom-dropdown-menu::-webkit-scrollbar {
+  display: none;
 }
 
 .product-form-wrapper .modal-overlay:hover,
@@ -114,8 +119,10 @@
 .product-form-wrapper .custom-dropdown-menu:hover,
 .product-form-wrapper .custom-dropdown-menu:focus-within,
 .product-form-wrapper .custom-dropdown-menu:active {
-  scrollbar-width: thin;
-  scrollbar-color: var(--form-scrollbar-thumb) var(--form-scrollbar-track);
+  @supports (scrollbar-width: thin) {
+    scrollbar-width: thin;
+    scrollbar-color: var(--form-scrollbar-thumb) var(--form-scrollbar-track);
+  }
 }
 
 .product-form-wrapper .modal-overlay::-webkit-scrollbar,

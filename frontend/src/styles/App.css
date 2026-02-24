@@ -847,6 +847,7 @@
 .checkbox-label span {
   font-weight: 600;
   color: #2f3b52;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -931,6 +932,7 @@
   right: 0;
   bottom: 0;
   background: rgba(31, 46, 77, 0.5);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -954,18 +956,7 @@
 /* Generic modal scrollbar behavior (hidden until interaction) */
 .modal-overlay,
 .modal-content {
-  scrollbar-width: none;
-  scrollbar-color: transparent transparent;
-}
-
-.modal-overlay:hover,
-.modal-overlay:focus-within,
-.modal-overlay:active,
-.modal-content:hover,
-.modal-content:focus-within,
-.modal-content:active {
-  scrollbar-width: thin;
-  scrollbar-color: #1f4ea1 rgba(31, 78, 161, 0.14);
+  -ms-overflow-style: none;
 }
 
 .modal-overlay::-webkit-scrollbar,

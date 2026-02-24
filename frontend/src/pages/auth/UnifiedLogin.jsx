@@ -18,12 +18,19 @@ export default function UnifiedLogin({ onAdminLogin, onCustomerLogin }) {
       await onAdminLogin(email, password)
       window.location.hash = '#/admin'
     } catch (adminError) {
+      console.error('[UnifiedLogin] Admin login failed:', adminError.response?.data || adminError.message)
       // If admin login fails, try customer login
       try {
         await onCustomerLogin(email, password)
         window.location.hash = '#/account'
       } catch (customerError) {
-        setError('Invalid email or password. Please try again.')
+        console.error('[UnifiedLogin] Customer login failed:', customerError.response?.data || customerError.message)
+        const serverMsg = adminError.response?.data?.error
+        if (serverMsg === 'admin_not_configured') {
+          setError('Admin account is not configured on the server. Check ADMIN_EMAIL and ADMIN_PASSWORD_HASH environment variables.')
+        } else {
+          setError('Invalid email or password. Please try again.')
+        }
       }
     } finally {
       setLoading(false)
