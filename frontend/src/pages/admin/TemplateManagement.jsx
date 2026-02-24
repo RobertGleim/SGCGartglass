@@ -20,7 +20,7 @@ export default function TemplateManagement() {
       setLoading(true);
       try {
         const res = await api.get('/admin/templates');
-        setTemplates(res.data?.items || res.data || []);
+        setTemplates(res?.items || res || []);
       } catch {
         window.toast && window.toast('Failed to load templates', { type: 'error' });
       } finally {
@@ -146,7 +146,7 @@ export default function TemplateManagement() {
               setTemplates(prev => prev.map(t => t.id === editTemplate.id ? { ...t, ...updated } : t));
             } else {
               // New template added — refetch
-              api.get('/admin/templates').then(res => setTemplates(res.data?.items || res.data || []));
+              api.get('/admin/templates').then(res => setTemplates(res?.items || res || []));
             }
           }}
         />

@@ -24,7 +24,7 @@ export default function MyProjects() {
       setLoading(true);
       try {
         const res = await api.get('/projects');
-        setProjects(res.data);
+        setProjects(res);
       } catch {
         setError('Failed to load projects');
       } finally {

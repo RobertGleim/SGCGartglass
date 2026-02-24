@@ -52,7 +52,7 @@ async function uploadImageFile(fileOrBlob, fileName = 'upload.png') {
   const res = await api.post('/admin/templates/upload-image', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
-  return res.data.image_url;
+  return res.image_url;
 }
 
 export default function TemplateFormModal({ open, onClose, template, onSuccess, onDelete }) {
@@ -198,7 +198,7 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
 
       if (template) {
         const res = await api.put(`/admin/templates/${template.id}`, payload);
-        onSuccess && onSuccess(res.data || payload);
+        onSuccess && onSuccess(res || payload);
       } else {
         await api.post('/admin/templates', payload);
         onSuccess && onSuccess(null);

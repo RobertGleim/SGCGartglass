@@ -17,7 +17,7 @@ export default function WorkOrderDashboard() {
       setLoading(true);
       try {
         const res = await api.get('/admin/work-orders');
-        setOrders(res.data);
+        setOrders(res);
       } catch {
         window.toast && window.toast('Failed to load work orders', { type: 'error' });
       } finally {

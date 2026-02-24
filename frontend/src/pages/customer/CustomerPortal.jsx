@@ -64,26 +64,27 @@ export default function CustomerPortal({ manualProducts }) {
       try {
         const [profileData, addressData, favoriteData, cartData, orderData, reviewData] =
           await Promise.all([
-            fetchCustomerProfile(customerToken),
-            fetchCustomerAddresses(customerToken),
-            fetchCustomerFavorites(customerToken),
-            fetchCustomerCart(customerToken),
-            fetchCustomerOrders(customerToken),
-            fetchCustomerReviews(customerToken),
+            fetchCustomerProfile(),
+            fetchCustomerAddresses(),
+            fetchCustomerFavorites(),
+            fetchCustomerCart(),
+            fetchCustomerOrders(),
+            fetchCustomerReviews(),
           ])
 
         if (!isActive) return
         setProfile(profileData)
-        setAddresses(addressData)
-        setFavorites(favoriteData)
-        setCartItems(cartData)
-        setOrders(orderData)
-        setReviews(reviewData)
+        setAddresses(Array.isArray(addressData) ? addressData : [])
+        setFavorites(Array.isArray(favoriteData) ? favoriteData : [])
+        setCartItems(Array.isArray(cartData) ? cartData : [])
+        setOrders(Array.isArray(orderData) ? orderData : [])
+        setReviews(Array.isArray(reviewData) ? reviewData : [])
 
+        const ordersArr = Array.isArray(orderData) ? orderData : []
         const itemsByOrder = {}
         await Promise.all(
-          orderData.map(async (order) => {
-            const items = await fetchCustomerOrderItems(customerToken, order.id)
+          ordersArr.map(async (order) => {
+            const items = await fetchCustomerOrderItems(order.id)
             itemsByOrder[order.id] = items
           })
         )
@@ -105,7 +106,7 @@ export default function CustomerPortal({ manualProducts }) {
     event.preventDefault()
     setStatus('')
     try {
-      const response = await addCustomerAddress(customerToken, addressForm)
+      const response = await addCustomerAddress(addressForm)
       setAddresses((prev) => [
         {
           id: response.id,
@@ -128,19 +129,19 @@ export default function CustomerPortal({ manualProducts }) {
   }
 
   const handleRemoveFavorite = async (favoriteId) => {
-    await removeCustomerFavorite(customerToken, favoriteId)
+    await removeCustomerFavorite(favoriteId)
     setFavorites((prev) => prev.filter((item) => item.id !== favoriteId))
   }
 
   const handleUpdateCartQuantity = async (itemId, quantity) => {
-    await updateCustomerCartItem(customerToken, itemId, { quantity })
+    await updateCustomerCartItem(itemId, { quantity })
     setCartItems((prev) =>
       prev.map((item) => (item.id === itemId ? { ...item, quantity } : item))
     )
   }
 
   const handleRemoveCartItem = async (itemId) => {
-    await removeCustomerCartItem(customerToken, itemId)
+    await removeCustomerCartItem(itemId)
     setCartItems((prev) => prev.filter((item) => item.id !== itemId))
   }
 
@@ -152,7 +153,7 @@ export default function CustomerPortal({ manualProducts }) {
         ...reviewForm,
         rating: Number(reviewForm.rating),
       }
-      const response = await createCustomerReview(customerToken, payload)
+      const response = await createCustomerReview(payload)
       setReviews((prev) => [
         {
           id: response.id,

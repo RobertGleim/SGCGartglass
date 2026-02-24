@@ -109,7 +109,7 @@ function App() {
 
   const handleAddItem = async (value) => {
     try {
-      const created = await createItem(authToken, value)
+      const created = await createItem(value)
       setItems((prev) => [created, ...prev])
       return created
     } catch (error) {
@@ -177,18 +177,18 @@ function App() {
               manualProducts={manualProducts}
               onAddItem={handleAddItem}
               onAddManualProduct={async (productData) => {
-                const created = await createManualProduct(authToken, productData)
+                const created = await createManualProduct(productData)
                 setManualProducts((prev) => [created, ...prev])
                 return created
               }}
               onUpdateManualProduct={async (id, productData) => {
                 console.log('Update product called with authToken:', authToken ? `${authToken.substring(0, 20)}...` : 'NO TOKEN')
-                const updated = await updateManualProduct(authToken, id, productData)
+                const updated = await updateManualProduct(id, productData)
                 setManualProducts((prev) => prev.map(p => p.id === id ? updated : p))
                 return updated
               }}
               onDeleteManualProduct={async (id) => {
-                await deleteManualProduct(authToken, id)
+                await deleteManualProduct(id)
                 setManualProducts((prev) => prev.filter(p => p.id !== id))
               }}
               onLogout={logout}

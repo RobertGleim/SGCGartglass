@@ -23,7 +23,7 @@ export default function useWorkOrderSubmit({ filledRegions, totalRegions, canvas
     try {
       const res = await api.post('/api/work-orders/submit', formData);
       setLoading(false);
-      return res.data;
+      return res;
     } catch {
       setError('Submission failed');
       setLoading(false);

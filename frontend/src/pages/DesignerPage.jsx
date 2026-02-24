@@ -80,8 +80,8 @@ export default function DesignerPage() {
     setTemplatesLoading(true);
     getTemplates()
       .then(res => {
-        const items = res.data?.items || res.data || [];
-        setTemplates(items);
+        const items = res?.items || res || [];
+        setTemplates(Array.isArray(items) ? items : []);
         const cats = [...new Set(items.map(t => t.category).filter(Boolean))];
         setCategories(cats);
       })
@@ -94,7 +94,7 @@ export default function DesignerPage() {
     if (step !== STEP.DESIGN) return;
     api.get('/glass-types')
       .then(res => {
-        const items = res.data?.items || res.data || [];
+        const items = res?.items || res || [];
         setGlassTypes(items);
         // Preload texture images into cache
         items.forEach(gt => {
@@ -889,7 +889,7 @@ export default function DesignerPage() {
         preview_url: previewUrl,
         name: selectedTemplate?.name || 'My Design',
       });
-      const newId = res.data?.project?.id || res.data?.id;
+      const newId = res?.project?.id || res?.id;
       if (newId) setProjectId(newId);
       alert('Project saved!');
     } catch {

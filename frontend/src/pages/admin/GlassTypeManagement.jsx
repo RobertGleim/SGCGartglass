@@ -15,7 +15,7 @@ export default function GlassTypeManagement() {
       setLoading(true);
       try {
         const res = await api.get('/admin/glass-types');
-        setGlassTypes(res.data?.items || res.data || []);
+        setGlassTypes(res?.items || res || []);
       } catch {
         window.toast && window.toast('Failed to load glass types', { type: 'error' });
       } finally {

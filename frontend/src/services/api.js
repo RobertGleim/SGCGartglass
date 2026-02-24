@@ -20,12 +20,12 @@ export const fetchCustomerReviews = () => api.get('/customer/reviews');
 export const createCustomerReview = (review) => api.post('/customer/reviews', review);
 export const customerLogin = async (email, password) => {
   const res = await api.post('/auth/customer/login', { email, password });
-  return res.data.token;
+  return res.token;
 };
 
 export const adminLogin = async (email, password) => {
   const res = await api.post('/auth/login', { email, password });
-  return res.data.token;
+  return res.token;
 };
 
 export const customerSignup = async (payload) => {
@@ -33,7 +33,7 @@ export const customerSignup = async (payload) => {
   try {
     const res = await api.post('/customer/signup', payload)
     console.log('customerSignup: response', res)
-    return res.data.token
+    return res.token
   } catch (err) {
     console.error('customerSignup: error', err)
     return undefined
@@ -60,7 +60,7 @@ api.interceptors.request.use(
 );
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => response.data,
   (error) => {
     // Log the error for debugging but do NOT alert — let calling code handle it
     const message = error.response?.data?.error || error.message;

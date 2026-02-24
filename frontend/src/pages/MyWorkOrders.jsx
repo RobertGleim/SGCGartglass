@@ -21,7 +21,7 @@ export default function MyWorkOrders() {
       setLoading(true);
       try {
         const res = await api.get('/work-orders');
-        setOrders(res.data);
+        setOrders(res);
       } catch {
         setError('Failed to load work orders');
       } finally {

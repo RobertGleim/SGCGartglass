@@ -29,9 +29,9 @@ export default function TemplateGallery() {
     setTimeout(() => setLoading(true), 0);
     getTemplates({ category: selectedCategory !== 'All' ? selectedCategory : undefined, search, page })
       .then(res => {
-        setTemplates(page === 1 ? res.data.templates : [...templates, ...res.data.templates]);
-        setHasMore(res.data.templates.length > 0);
-        setCategories(['All', ...new Set(res.data.templates.map(t => t.category))]);
+        setTemplates(page === 1 ? res.templates : [...templates, ...res.templates]);
+        setHasMore(res.templates.length > 0);
+        setCategories(['All', ...new Set(res.templates.map(t => t.category))]);
         setError(null);
       })
       .catch(err => {

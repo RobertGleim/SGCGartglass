@@ -15,9 +15,9 @@ export default function WorkOrderDetail({ match }) {
       setLoading(true);
       try {
         const res = await api.get(`/api/admin/work-orders/${match.params.id}`);
-        setOrder(res.data);
-        setStatus(res.data.status);
-        setNotes(res.data.internalNotes || '');
+        setOrder(res);
+        setStatus(res.status);
+        setNotes(res.internalNotes || '');
       } catch {
         window.toast && window.toast('Failed to load work order', { type: 'error' });
       } finally {

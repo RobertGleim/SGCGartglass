@@ -35,7 +35,7 @@ export default function useProjectSave({ templateId, filledRegions, initialProje
         projectId,
         ...data,
       });
-      setProjectId(res.data.projectId);
+      setProjectId(res.projectId);
       setLastSaved(new Date());
       lastSavedData.current = JSON.stringify(data);
       if (manual) window.toast && window.toast('Project saved!', { type: 'success' });

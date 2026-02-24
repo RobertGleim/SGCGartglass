@@ -52,7 +52,7 @@ export default function AdminDashboard({
   useEffect(() => {
     if (activeTab === "customers") {
       fetchCustomers()
-        .then((res) => setCustomers(res.data))
+        .then((res) => setCustomers(res))
         .catch(() => setCustomers([]));
     }
   }, [activeTab]);
