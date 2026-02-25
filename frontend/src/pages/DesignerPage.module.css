@@ -142,14 +142,15 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: #2c1a0e;
-  color: #fff;
+  background: rgba(250, 250, 252, 0.95);
+  color: #1f2f4d;
+  border-bottom: 1px solid rgba(31, 78, 161, 0.1);
   flex-wrap: wrap;
 }
 .templateName {
   font-weight: 600;
   font-size: 0.95rem;
-  color: #e8d5b7;
+  color: #1f2f4d;
   margin-right: 0.5rem;
   max-width: 200px;
   overflow: hidden;
@@ -158,22 +159,22 @@
 }
 .toolBtn {
   padding: 0.4rem 0.8rem;
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(31, 78, 161, 0.08);
+  border: 1px solid rgba(31, 78, 161, 0.25);
   border-radius: 4px;
-  color: #fff;
+  color: #1f2f4d;
   cursor: pointer;
   font-size: 0.85rem;
   transition: background 0.15s;
   white-space: nowrap;
 }
-.toolBtn:hover { background: rgba(255,255,255,0.22); }
-.save { background: #2e7d32; border-color: #388e3c; }
-.save:hover { background: #1b5e20; }
-.submit { background: #1565c0; border-color: #1976d2; }
-.submit:hover { background: #0d47a1; }
-.loginPrompt { background: #7b3f00; border-color: #a05a2c; }
-.loginPrompt:hover { background: #5a2d00; }
+.toolBtn:hover { background: rgba(31, 78, 161, 0.16); }
+.save { background: #1f4ea1; border-color: #1f4ea1; color: #fff; }
+.save:hover { background: #173d7d; }
+.submit { background: #2f6ecf; border-color: #2f6ecf; color: #fff; }
+.submit:hover { background: #2558a7; }
+.loginPrompt { background: #edf3ff; border-color: #b7caef; color: #1f2f4d; }
+.loginPrompt:hover { background: #dce8ff; }
 .spacer { flex: 1; }
 
 /* Work area */
