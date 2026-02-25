@@ -29,6 +29,7 @@ import MyWorkOrdersPage from './pages/MyWorkOrdersPage';
 import AdminTemplatesPage from './pages/admin/AdminTemplatesPage';
 import AdminGlassTypesPage from './pages/admin/AdminGlassTypesPage';
 import AdminWorkOrdersPage from './pages/admin/AdminWorkOrdersPage';
+import DiagnosticsPage from './pages/DiagnosticsPage';
 
 const BRAND_NAME = 'SGCG Art'
 
@@ -247,6 +248,12 @@ function App() {
           ) : (
             <MyWorkOrdersPage />
           )}
+        </main>
+      )}
+
+      {route.path === '/diagnostics' && (
+        <main>
+          <DiagnosticsPage />
         </main>
       )}
 

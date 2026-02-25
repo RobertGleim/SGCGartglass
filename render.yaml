@@ -10,7 +10,7 @@ services:
     name: sgcg-frontend
     env: static
     plan: free
-    buildCommand: cd frontend && npm install && npm run build
+    buildCommand: cd frontend && npm install && VITE_API_BASE_URL=/api npm run build
     staticPublishPath: dist
     routes:
       - type: rewrite

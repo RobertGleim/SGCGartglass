@@ -60,9 +60,10 @@ export const customerSignup = async (payload) => {
 import axios from 'axios';
 import { getAuthToken } from '../utils/auth';
 
-console.log('api.js: VITE_API_BASE_URL =', import.meta.env.VITE_API_BASE_URL)
+const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+console.log('[API] Using base URL:', baseURL);
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL,
   withCredentials: true,
 });
 
@@ -70,7 +71,16 @@ api.interceptors.request.use(
   (config) => {
     const token = getAuthToken();
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      if (token.startsWith('<!')) {
+        console.error('[API] WARNING: Got HTML as token, not JWT. Response was likely an error page.');
+        // Try to extract from localStorage instead
+        const fallbackToken = localStorage.getItem('sgcg_token');
+        if (fallbackToken && !fallbackToken.startsWith('<!')) {
+          config.headers.Authorization = `Bearer ${fallbackToken}`;
+        }
+      } else {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
@@ -80,7 +90,14 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    // Log the error for debugging but do NOT alert — let calling code handle it
+    // Check if error response is HTML (404 or misconfigured routing)
+    if (error.response?.data && typeof error.response.data === 'string' && error.response.data.startsWith('<!')) {
+      console.error('[API] Server returned HTML instead of JSON. Likely API routing misconfiguration.');
+      console.error('[API] Request URL:', error.config?.url);
+      console.error('[API] Request method:', error.config?.method);
+      console.error('[API] Status:', error.response?.status);
+    }
+    
     const message = error.response?.data?.error || error.message;
     console.error('[API error]', error.response?.status, message);
     return Promise.reject(error);
