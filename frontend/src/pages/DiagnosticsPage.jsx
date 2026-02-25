@@ -60,9 +60,10 @@ export default function DiagnosticsPage() {
       // Test 5: Try to fetch glass types (requires auth)
       try {
         const glassTypes = await api.get('/admin/glass-types');
+        const items = Array.isArray(glassTypes) ? glassTypes : (glassTypes?.items || []);
         newResults.push({
           name: 'Fetch Glass Types (auth required)',
-          value: `${glassTypes.length} types fetched`,
+          value: `${items.length} types fetched`,
           status: 'ok',
         });
       } catch (err) {

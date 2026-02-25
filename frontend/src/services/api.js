@@ -1,7 +1,17 @@
-export const fetchCustomers = () => api.get('/customers');
+const toArrayResponse = (res) => {
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res?.items)) return res.items;
+  if (Array.isArray(res?.data)) return res.data;
+  if (Array.isArray(res?.results)) return res.results;
+  if (Array.isArray(res?.customers)) return res.customers;
+  if (Array.isArray(res?.products)) return res.products;
+  return [];
+};
+
+export const fetchCustomers = async () => toArrayResponse(await api.get('/customers'));
 export const updateManualProduct = (id, product) => api.put(`/manual-products/${id}`, product);
-export const fetchManualProducts = () => api.get('/manual-products');
-export const fetchItems = () => api.get('/items');
+export const fetchManualProducts = async () => toArrayResponse(await api.get('/manual-products'));
+export const fetchItems = async () => toArrayResponse(await api.get('/items'));
 export const deleteManualProduct = (id) => api.delete(`/manual-products/${id}`);
 export const createManualProduct = (product) => api.post('/manual-products', product);
 export const createItem = (item) => api.post('/items', item);
@@ -64,7 +74,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 console.log('[API] Using base URL:', baseURL);
 const api = axios.create({
   baseURL,
-  withCredentials: true,
+  withCredentials: false,
 });
 
 api.interceptors.request.use(

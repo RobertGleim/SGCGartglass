@@ -25,12 +25,13 @@ def create_app(config_name=None):
 
     # CORS: allow frontend (Vite/Hostinger) to call API
     allowed_origins = _get_allowed_origins(app.config.get("CORS_ORIGINS", "*"))
+    supports_credentials = allowed_origins != ["*"]
     CORS(
         app,
         origins=allowed_origins,
         allow_headers=["Content-Type", "Authorization"],
         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        supports_credentials=True,
+        supports_credentials=supports_credentials,
     )
 
     # SQLAlchemy

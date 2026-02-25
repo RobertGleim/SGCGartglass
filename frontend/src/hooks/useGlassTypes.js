@@ -9,10 +9,11 @@ export default function useGlassTypes() {
   async function fetchGlassTypes() {
     setLoading(true);
     try {
-      const res = await api.get('/api/glass-types');
+      const res = await api.get('/glass-types');
       const items = Array.isArray(res) ? res : (res?.items || []);
-      setGlassTypes(items.filter((g) => g.active));
-      if (items.length > 0) setCurrentGlassType(items[0]);
+      const activeItems = items.filter((g) => (g.is_active ?? g.active) !== false);
+      setGlassTypes(activeItems);
+      if (activeItems.length > 0) setCurrentGlassType(activeItems[0]);
     } catch (err) {
       // Handle error (toast, etc.)
       setGlassTypes([]);
