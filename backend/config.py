@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
 
@@ -15,7 +16,24 @@ def _sqlalchemy_database_uri():
     """Build SQLAlchemy URI from DATABASE_URL or DB_* environment variables."""
     url = os.environ.get('DATABASE_URL')
     if url:
-        return url
+        normalized = url.strip()
+        if normalized.startswith('mysql://'):
+            normalized = normalized.replace('mysql://', 'mysql+pymysql://', 1)
+
+        # If credentials contain unescaped '@', keep host as the final segment and
+        # URL-encode the entire credential portion to avoid parser confusion.
+        if normalized.startswith('mysql+pymysql://') and normalized.count('@') > 1:
+            scheme_end = normalized.find('://') + 3
+            last_at = normalized.rfind('@')
+            creds = normalized[scheme_end:last_at]
+            if ':' in creds:
+                raw_user, raw_password = creds.split(':', 1)
+                safe_creds = f"{quote_plus(raw_user)}:{quote_plus(raw_password)}"
+            else:
+                safe_creds = quote_plus(creds)
+            normalized = f"{normalized[:scheme_end]}{safe_creds}{normalized[last_at:]}"
+
+        return normalized
     host = os.environ.get('DB_HOST', 'localhost')
     port = os.environ.get('DB_PORT', '3306')
     user = os.environ.get('DB_USER', '')
@@ -36,7 +54,16 @@ def _sqlalchemy_database_uri():
         _backend_dir = Path(__file__).parent
         default_db = _backend_dir / 'designer.db'
         return f"sqlite:///{default_db}"
-    return f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
+
+    # Render/Hostinger safety: avoid accidental credentials leaking into host
+    # e.g. host like "&9@srv1224.hstgr.io" should become "srv1224.hstgr.io"
+    if '@' in host:
+        host = host.rsplit('@', 1)[-1]
+
+    safe_user = quote_plus(user)
+    safe_password = quote_plus(password)
+    safe_database = quote_plus(database)
+    return f"mysql+pymysql://{safe_user}:{safe_password}@{host}:{port}/{safe_database}"
 
 
 class BaseConfig:
