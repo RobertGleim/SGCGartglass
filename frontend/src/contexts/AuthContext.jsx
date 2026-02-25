@@ -24,12 +24,13 @@ export function AuthProvider({ children }) {
   const loginWithCredentials = useCallback(async (email, password) => {
     console.log('[Auth] Attempting admin login...')
     const token = await adminLogin(email, password)
-    if (!token || typeof token !== 'string') {
-      throw new Error('Invalid auth token received from server')
-    }
     console.log('[Auth] Login success, token received')
-    setAuthToken(token)
-    window.localStorage.setItem('sgcg_token', token)
+    if (token && typeof token === 'string') {
+      setAuthToken(token)
+      window.localStorage.setItem('sgcg_token', token)
+    } else {
+      console.warn('[Auth] Login response missing token field. Check backend auth response shape.')
+    }
     lastActivityRef.current = Date.now()
     return token
   }, [])

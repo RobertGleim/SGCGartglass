@@ -18,14 +18,32 @@ export const fetchCustomerOrders = () => api.get('/customer/orders');
 export const fetchCustomerOrderItems = (orderId) => api.get(`/customer/orders/${orderId}/items`);
 export const fetchCustomerReviews = () => api.get('/customer/reviews');
 export const createCustomerReview = (review) => api.post('/customer/reviews', review);
+const extractAuthToken = (payload) => {
+  if (!payload) return '';
+  if (typeof payload === 'string') return payload;
+  return (
+    payload.token
+    || payload.access_token
+    || payload.accessToken
+    || payload.jwt
+    || payload.jwt_token
+    || payload.authToken
+    || payload?.data?.token
+    || payload?.data?.access_token
+    || payload?.data?.accessToken
+    || payload?.data?.jwt
+    || ''
+  );
+};
+
 export const customerLogin = async (email, password) => {
   const res = await api.post('/auth/customer/login', { email, password });
-  return res?.token || res?.access_token || res?.jwt || '';
+  return extractAuthToken(res);
 };
 
 export const adminLogin = async (email, password) => {
   const res = await api.post('/auth/login', { email, password });
-  return res?.token || res?.access_token || res?.jwt || '';
+  return extractAuthToken(res);
 };
 
 export const customerSignup = async (payload) => {

@@ -104,7 +104,8 @@ function App() {
 
   const handleLogin = async (email, password) => {
     const token = await loginWithCredentials(email, password)
-    if (!token) {
+    const persisted = window.localStorage.getItem('sgcg_token') || ''
+    if (!token && !persisted) {
       throw new Error('Login failed: no token returned')
     }
     // Use full hash navigation so hosted builds reliably switch views immediately
