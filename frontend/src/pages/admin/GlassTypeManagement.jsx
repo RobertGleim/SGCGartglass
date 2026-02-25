@@ -2,40 +2,60 @@ import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import GlassTypeFormModal from '../../components/admin/GlassTypeFormModal';
 import styles from './GlassTypeManagement.module.css';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 export default function GlassTypeManagement() {
   const [glassTypes, setGlassTypes] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editType, setEditType] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [savingOrder, setSavingOrder] = useState(false);
+
+  const fetchGlassTypes = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/admin/glass-types');
+      const items = res?.items || res || [];
+      setGlassTypes(Array.isArray(items) ? items : []);
+    } catch {
+      window.toast && window.toast('Failed to load glass types', { type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchGlassTypes() {
-      setLoading(true);
-      try {
-        const res = await api.get('/admin/glass-types');
-        setGlassTypes(res?.items || res || []);
-      } catch {
-        window.toast && window.toast('Failed to load glass types', { type: 'error' });
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchGlassTypes();
   }, []);
 
-  // Drag-to-reorder
-  const handleDragEnd = async (result) => {
-    if (!result.destination) return;
-    const reordered = Array.from(glassTypes);
-    const [removed] = reordered.splice(result.source.index, 1);
-    reordered.splice(result.destination.index, 0, removed);
+  const persistOrder = async (items) => {
+    setSavingOrder(true);
+    try {
+      const payload = items.map((g, index) => ({ id: g.id, display_order: index }));
+      const res = await api.put('/admin/glass-types/reorder', { items: payload });
+      const updated = res?.items || [];
+      if (Array.isArray(updated) && updated.length > 0) {
+        setGlassTypes(updated);
+      } else {
+        setGlassTypes(items.map((g, index) => ({ ...g, display_order: index })));
+      }
+      window.toast && window.toast('Order updated', { type: 'success' });
+    } catch {
+      window.toast && window.toast('Failed to save order', { type: 'error' });
+      await fetchGlassTypes();
+    } finally {
+      setSavingOrder(false);
+    }
+  };
+
+  const moveGlassType = async (index, direction) => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= glassTypes.length) return;
+
+    const reordered = [...glassTypes];
+    const [item] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, item);
     setGlassTypes(reordered);
-    // Update display_order
-    const order = reordered.map((g, i) => ({ id: g.id, display_order: i }));
-    await api.put('/admin/glass-types/reorder', { order });
-    window.toast && window.toast('Order updated', { type: 'success' });
+    await persistOrder(reordered);
   };
 
   // Toggle active/inactive
@@ -50,56 +70,77 @@ export default function GlassTypeManagement() {
   return (
     <div className={styles.page}>
       <h1>Glass Type Management</h1>
+      <p className={styles.helpText}>Use ↑ and ↓ to set display order. Top items appear first in Designer mode.</p>
       <button className={styles.addBtn} onClick={() => { setEditType(null); setShowModal(true); }}>Add New Glass Type</button>
       {loading ? <div>Loading...</div> : (
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable droppableId="glassTypes">
-            {(provided) => (
-              <table className={styles.table} ref={provided.innerRef} {...provided.droppableProps}>
-                <thead>
-                  <tr>
-                    <th>Texture</th>
-                    <th>Name</th>
-                    <th>Description</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {glassTypes.map((g, idx) => (
-                    <Draggable key={g.id} draggableId={g.id.toString()} index={idx}>
-                      {(provided) => (
-                        <tr ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
-                          <td><img src={g.texture_url || g.textureUrl} alt={g.name} className={styles.texture} /></td>
-                          <td>{g.name}</td>
-                          <td>{g.description}</td>
-                          <td>
-                            <label className={styles.switch}>
-                              <input type="checkbox" checked={g.is_active ?? g.active} onChange={() => toggleActive(g.id)} />
-                              <span className={styles.slider}></span>
-                            </label>
-                          </td>
-                          <td>
-                            <button onClick={() => { setEditType(g); setShowModal(true); }}>Edit</button>
-                            <button onClick={() => api.delete(`/admin/glass-types/${g.id}`).then(() => window.toast && window.toast('Deleted', { type: 'success' }))}>Delete</button>
-                          </td>
-                        </tr>
-                      )}
-                    </Draggable>
-                  ))}
-                  {provided.placeholder}
-                </tbody>
-              </table>
-            )}
-          </Droppable>
-        </DragDropContext>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Texture</th>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {glassTypes.map((g, idx) => (
+              <tr key={g.id}>
+                <td>
+                  <div className={styles.orderCell}>
+                    <button
+                      className={styles.orderBtn}
+                      onClick={() => moveGlassType(idx, 'up')}
+                      disabled={idx === 0 || savingOrder}
+                      title="Move up"
+                    >↑</button>
+                    <button
+                      className={styles.orderBtn}
+                      onClick={() => moveGlassType(idx, 'down')}
+                      disabled={idx === glassTypes.length - 1 || savingOrder}
+                      title="Move down"
+                    >↓</button>
+                    <span className={styles.orderIndex}>{idx + 1}</span>
+                  </div>
+                </td>
+                <td><img src={g.texture_url || g.textureUrl} alt={g.name} className={styles.texture} /></td>
+                <td>{g.name}</td>
+                <td>{g.description}</td>
+                <td>
+                  <label className={styles.switch}>
+                    <input type="checkbox" checked={g.is_active ?? g.active} onChange={() => toggleActive(g.id)} />
+                    <span className={styles.slider}></span>
+                  </label>
+                </td>
+                <td>
+                  <button onClick={() => { setEditType(g); setShowModal(true); }}>Edit</button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.delete(`/admin/glass-types/${g.id}`);
+                        window.toast && window.toast('Deleted', { type: 'success' });
+                        await fetchGlassTypes();
+                      } catch {
+                        window.toast && window.toast('Failed to delete', { type: 'error' });
+                      }
+                    }}
+                  >Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
       {showModal && (
         <GlassTypeFormModal
           open={showModal}
           onClose={() => setShowModal(false)}
           glassType={editType}
-          onSuccess={() => { setShowModal(false); window.location.reload(); }}
+          onSuccess={async () => {
+            setShowModal(false);
+            await fetchGlassTypes();
+          }}
         />
       )}
     </div>

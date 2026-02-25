@@ -74,6 +74,26 @@ def create_app(config_name=None):
         templates_dir = Path(app.root_path) / "uploads" / "templates"
         return send_from_directory(str(templates_dir), filename)
 
+    # Test route to verify backend is running updated code
+    @app.route("/api/test-backend")
+    def test_backend():
+        return jsonify({"status": "Backend updated", "timestamp": "2026-02-25-v2"})
+
+    # Serve any other uploaded file at /uploads/<filename>
+    @app.route("/uploads/<path:filename>")
+    def send_upload(filename):
+        from pathlib import Path
+        from flask import send_from_directory
+        import os
+        upload_folder = app.config.get("UPLOAD_FOLDER") or str(Path(app.root_path) / "uploads")
+        full_path = os.path.join(upload_folder, filename)
+        print(f"[DEBUG] Uploads route - filename: {filename}")
+        print(f"[DEBUG] upload_folder: {upload_folder}")
+        print(f"[DEBUG] full_path: {full_path}")
+        print(f"[DEBUG] file exists: {os.path.exists(full_path)}")
+        print(f"[DEBUG] app.root_path: {app.root_path}")
+        return send_from_directory(str(upload_folder), filename)
+
     # Projects API (user project save/load)
     try:
         from .routes.projects import projects_bp

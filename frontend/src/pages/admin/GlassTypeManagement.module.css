@@ -3,6 +3,11 @@
   margin: 0 auto;
   padding: 2rem 1rem;
 }
+.helpText {
+  margin: 0.25rem 0 1rem;
+  color: #4d4d4d;
+  font-size: 0.92rem;
+}
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -68,4 +73,33 @@
 }
 .switch input:checked + .slider:before {
   transform: translateX(20px);
+}
+
+.orderCell {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.orderBtn {
+  border: 1px solid #cfcfcf;
+  background: #fff;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  line-height: 1;
+  font-size: 0.95rem;
+}
+
+.orderBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.orderIndex {
+  display: inline-block;
+  min-width: 1.5rem;
+  text-align: center;
+  font-weight: 600;
 }

@@ -55,8 +55,8 @@ class BaseConfig:
         'pool_recycle': 300,
     }
 
-    # Uploads (glass type textures: uploads/textures/)
-    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER') or str(root_path / 'uploads')
+    # Uploads (glass type textures: backend/uploads/)
+    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER') or str(Path(__file__).parent / 'uploads')
 
 
 class DevelopmentConfig(BaseConfig):

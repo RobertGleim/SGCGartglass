@@ -57,6 +57,8 @@ export default function DesignerPage() {
   const [activeGlassType, setActiveGlassType] = useState(null);
   const activeGlassTypeRef = useRef(null);
   useEffect(() => { activeGlassTypeRef.current = activeGlassType; }, [activeGlassType]);
+  const colorToolBoxRef = useRef(null);
+  const [syncedToolBoxHeight, setSyncedToolBoxHeight] = useState(null);
   // Preloaded texture images keyed by glass type id
   const textureCacheRef = useRef(new Map());
 
@@ -99,16 +101,49 @@ export default function DesignerPage() {
         // Preload texture images into cache
         items.forEach(gt => {
           if (gt.texture_url && !textureCacheRef.current.has(gt.id)) {
+            // Handle relative URLs by prepending backend URL
+            const textureUrl = gt.texture_url.startsWith('http')
+              ? gt.texture_url
+              : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${gt.texture_url}`;
+            
             const img = new Image();
             img.crossOrigin = 'anonymous';
-            img.onload = () => textureCacheRef.current.set(gt.id, img);
-            img.onerror = () => {}; // silently skip
-            img.src = gt.texture_url;
+            img.onload = () => {
+              textureCacheRef.current.set(gt.id, img);
+              console.log('[DesignerPage] Loaded glass texture:', gt.name, textureUrl);
+            };
+            img.onerror = () => console.error('[DesignerPage] Failed to load glass texture:', gt.name, textureUrl);
+            img.src = textureUrl;
           }
         });
       })
       .catch(() => setGlassTypes([]));
   }, [step]);
+
+  useEffect(() => {
+    if (step !== STEP.DESIGN) return;
+    const target = colorToolBoxRef.current;
+    if (!target) return;
+
+    const syncHeight = () => {
+      if (!target) return;
+      setSyncedToolBoxHeight(target.offsetHeight || null);
+    };
+
+    syncHeight();
+
+    let observer;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => syncHeight());
+      observer.observe(target);
+    }
+    window.addEventListener('resize', syncHeight);
+
+    return () => {
+      if (observer) observer.disconnect();
+      window.removeEventListener('resize', syncHeight);
+    };
+  }, [step, selectedObj, glassTypes.length, activeGlassType]);
 
   // ── Push canvas state to history ─────────────────────────────
   const pushHistory = useCallback((canvas) => {
@@ -183,6 +218,122 @@ export default function DesignerPage() {
         data[ci + 2] = fillB;
         data[ci + 3] = 255;
       }
+      ctx.putImageData(imageData, 0, 0);
+    }
+
+    // Fill one region with a bevel edge that follows that region's boundary
+    // (used in flood-fill mode for Beveled glass types)
+    function fillRegionBeveled(ctx, regionId, color, w, h) {
+      const pixels = regionPixelsRef.current?.get(regionId);
+      if (!pixels || pixels.length === 0) return;
+
+      const [baseR, baseG, baseB] = hexToRgb(color);
+      const regionMap = regionMapRef.current;
+      if (!regionMap) return;
+
+      let minX = w, minY = h, maxX = 0, maxY = 0;
+      for (const pi of pixels) {
+        const x = pi % w;
+        const y = (pi - x) / w;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+
+      const bboxW = Math.max(1, maxX - minX);
+      const bboxH = Math.max(1, maxY - minY);
+      const bevelDepth = Math.max(3, Math.min(14, Math.round(Math.min(bboxW, bboxH) * 0.12)));
+
+      const dist = new Int16Array(w * h);
+      dist.fill(-1);
+      const queue = [];
+
+      for (const pi of pixels) {
+        const x = pi % w;
+        const y = (pi - x) / w;
+        let edge = false;
+        if (x === 0 || x === w - 1 || y === 0 || y === h - 1) {
+          edge = true;
+        } else {
+          const left = pi - 1;
+          const right = pi + 1;
+          const up = pi - w;
+          const down = pi + w;
+          if (regionMap[left] !== regionId || regionMap[right] !== regionId || regionMap[up] !== regionId || regionMap[down] !== regionId) {
+            edge = true;
+          }
+        }
+        if (edge) {
+          dist[pi] = 0;
+          queue.push(pi);
+        }
+      }
+
+      for (let q = 0; q < queue.length; q += 1) {
+        const cur = queue[q];
+        const curDist = dist[cur];
+        if (curDist >= bevelDepth) continue;
+        const cx = cur % w;
+        const cy = (cur - cx) / w;
+        if (cx > 0) {
+          const ni = cur - 1;
+          if (regionMap[ni] === regionId && dist[ni] === -1) {
+            dist[ni] = curDist + 1;
+            queue.push(ni);
+          }
+        }
+        if (cx < w - 1) {
+          const ni = cur + 1;
+          if (regionMap[ni] === regionId && dist[ni] === -1) {
+            dist[ni] = curDist + 1;
+            queue.push(ni);
+          }
+        }
+        if (cy > 0) {
+          const ni = cur - w;
+          if (regionMap[ni] === regionId && dist[ni] === -1) {
+            dist[ni] = curDist + 1;
+            queue.push(ni);
+          }
+        }
+        if (cy < h - 1) {
+          const ni = cur + w;
+          if (regionMap[ni] === regionId && dist[ni] === -1) {
+            dist[ni] = curDist + 1;
+            queue.push(ni);
+          }
+        }
+      }
+
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const data = imageData.data;
+
+      for (const pi of pixels) {
+        const x = pi % w;
+        const y = (pi - x) / w;
+        const ci = pi * 4;
+
+        let r = baseR;
+        let g = baseG;
+        let b = baseB;
+
+        const d = dist[pi];
+        if (d >= 0 && d <= bevelDepth) {
+          const edgeStrength = 1 - (d / (bevelDepth + 1));
+          const falloff = edgeStrength * edgeStrength;
+          const edgeShadow = Math.round(90 * falloff);
+          r = Math.max(0, Math.min(255, baseR - edgeShadow));
+          g = Math.max(0, Math.min(255, baseG - edgeShadow));
+          b = Math.max(0, Math.min(255, baseB - edgeShadow));
+        }
+
+        data[ci] = r;
+        data[ci + 1] = g;
+        data[ci + 2] = b;
+        data[ci + 3] = 255;
+      }
+
       ctx.putImageData(imageData, 0, 0);
     }
 
@@ -279,7 +430,11 @@ export default function DesignerPage() {
     // ── Texture blending helpers ──────────────────────────────────
     // Create a canvas tile that combines a flat color with a glass texture image.
     // Texture is converted to grayscale first so it adds only surface detail.
-    function createTexturedTile(color, textureImg, tileSize = 120) {
+    function createTexturedTile(color, textureImg, tileSize = 120, isBeveled = false) {
+      if (isBeveled) {
+        // For beveled glass, return null - we'll use a different rendering approach
+        return null;
+      }
       const gsTex = grayscaleTexture(textureImg, tileSize);
       const tile = document.createElement('canvas');
       tile.width = tileSize;
@@ -298,6 +453,41 @@ export default function DesignerPage() {
       tCtx.globalAlpha = 1;
       tCtx.globalCompositeOperation = 'source-over';
       return tile;
+    }
+
+    // Apply beveled effect using inner strokes that only affect edges
+    async function applyBeveledEffect(fabricObj, color) {
+      // Parse color to RGB
+      const hexColor = color.replace('#', '');
+      const r = parseInt(hexColor.substr(0, 2), 16);
+      const g = parseInt(hexColor.substr(2, 2), 16);
+      const b = parseInt(hexColor.substr(4, 2), 16);
+      
+      // Create lighter and darker versions for bevel effect
+      const lighter = `rgba(${Math.min(255, r + 80)}, ${Math.min(255, g + 80)}, ${Math.min(255, b + 80)}, 0.8)`;
+      const darker = `rgba(${Math.max(0, r - 70)}, ${Math.max(0, g - 70)}, ${Math.max(0, b - 70)}, 0.7)`;
+      
+      // Get object size for proportional bevel width
+      const bounds = fabricObj.getBoundingRect();
+      const avgSize = (bounds.width + bounds.height) / 2;
+      const strokeWidth = Math.max(4, avgSize * 0.08); // 8% of average dimension
+      
+      // Set base fill color (no shadow or effects on interior)
+      fabricObj.set({
+        fill: color,
+        stroke: lighter,  // Light stroke on edges
+        strokeWidth: strokeWidth,
+        strokeLineJoin: 'round',
+        strokeLineCap: 'round',
+        paintFirst: 'fill', // Fill first, then stroke on top
+        shadow: null // Remove any shadow
+      });
+      
+      // Store bevel data
+      fabricObj._hasBevel = true;
+      fabricObj._bevelColor = color;
+      
+      return fabricObj;
     }
 
     // After a flood-fill, overlay the glass texture on only the pixels that changed.
@@ -442,10 +632,15 @@ export default function DesignerPage() {
             const [r, g, b] = hexToRgb(color);
             const gt = activeGlassTypeRef.current;
             const texImg = gt ? textureCacheRef.current.get(gt.id) : null;
+            const isBeveled = !!(gt && (gt.name || '').toLowerCase().includes('bevel'));
             // Fill the entire region with flat colour first
-            fillRegion(ctx, regionId, r, g, b, CANVAS_W, CANVAS_H);
-            // Then overlay texture if a glass type is selected
-            if (texImg) {
+            if (isBeveled) {
+              fillRegionBeveled(ctx, regionId, color, CANVAS_W, CANVAS_H);
+            } else {
+              fillRegion(ctx, regionId, r, g, b, CANVAS_W, CANVAS_H);
+            }
+            // Then overlay texture if a non-beveled glass type is selected
+            if (texImg && !isBeveled) {
               fillRegionTextured(ctx, regionId, color, texImg, CANVAS_W, CANVAS_H);
             }
             // Restore line pixels so outlines always stay original
@@ -659,7 +854,14 @@ export default function DesignerPage() {
           const color = selectedColorRef.current;
           const gt = activeGlassTypeRef.current;
           const texImg = gt ? textureCacheRef.current.get(gt.id) : null;
-          if (texImg) {
+          
+          // Check if this is beveled glass (by name)
+          const isBeveled = gt && (gt.name || '').toLowerCase().includes('bevel');
+          
+          if (isBeveled) {
+            // Apply beveled edge effect that follows shape boundaries
+            await applyBeveledEffect(hit, color);
+          } else if (texImg) {
             // Create a colour + texture tile and use it as a repeating pattern
             const tile = createTexturedTile(color, texImg);
             const { Pattern } = await import('fabric');
@@ -737,7 +939,12 @@ export default function DesignerPage() {
       // Texture overlay if glass type selected
       const gt = activeGlassType;
       const texImg = gt ? textureCacheRef.current.get(gt.id) : null;
-      if (texImg) {
+      const isBeveled = !!(gt && (gt.name || '').toLowerCase().includes('bevel'));
+      if (isBeveled) {
+        for (const [regionId] of regionPixels) {
+          fillRegionBeveled(ctx, regionId, selectedColor, w, h);
+        }
+      } else if (texImg) {
         // Build a mask of ALL fillable pixels
         const maskCvs = document.createElement('canvas');
         maskCvs.width = w; maskCvs.height = h;
@@ -793,8 +1000,15 @@ export default function DesignerPage() {
     if (!canvas) return;
     const gt = activeGlassType;
     const texImg = gt ? textureCacheRef.current.get(gt.id) : null;
+    
+    // Check if this is beveled glass
+    const isBeveled = gt && (gt.name || '').toLowerCase().includes('bevel');
+    
     let pattern = null;
-    if (texImg) {
+    if (isBeveled) {
+      // Don't create pattern for beveled glass - will apply border effect instead
+      pattern = null;
+    } else if (texImg) {
       // Build a colour + texture tile for the pattern (grayscale texture)
       const gsTile = grayscaleTexture(texImg, 120);
       const tile = document.createElement('canvas');
@@ -812,19 +1026,32 @@ export default function DesignerPage() {
       const { Pattern } = await import('fabric');
       pattern = new Pattern({ source: tile, repeat: 'repeat' });
     }
-    const applyFill = (obj) => {
+    
+    // Apply fill to all objects
+    const applyPromises = [];
+    const applyFill = async (obj) => {
       if (!obj) return;
       if (obj.type === 'group' || obj.type === 'Group') {
         obj.dirty = true;
-        (obj._objects || []).forEach(applyFill);
+        for (const child of (obj._objects || [])) {
+          await applyFill(child);
+        }
       } else if (obj.selectable !== false) {
-        obj.set('fill', pattern || selectedColor);
+        if (isBeveled) {
+          await applyBeveledEffect(obj, selectedColor);
+        } else {
+          obj.set('fill', pattern || selectedColor);
+        }
         obj._fillColor = selectedColor;
         obj._glassType = gt?.name || null;
         obj.dirty = true;
       }
     };
-    canvas.getObjects().forEach(applyFill);
+    
+    for (const obj of canvas.getObjects()) {
+      await applyFill(obj);
+    }
+    
     canvas.requestRenderAll();
     pushHistory(canvas);
   }, [selectedColor, activeGlassType, pushHistory]);
@@ -1009,10 +1236,24 @@ export default function DesignerPage() {
                       setStep(STEP.DESIGN);
                     }}
                   >
-                    {(t.thumbnail_url || t.image_url)
-                      ? <img src={t.thumbnail_url || t.image_url} alt={t.name} className={styles.thumb} />
-                      : <div className={styles.thumbPlaceholder}><span>✦</span></div>
-                    }
+                    {(t.thumbnail_url || t.image_url) ? (
+                      <img 
+                        src={
+                          (t.thumbnail_url || t.image_url).startsWith('http')
+                            ? (t.thumbnail_url || t.image_url)
+                            : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${t.thumbnail_url || t.image_url}`
+                        }
+                        alt={t.name} 
+                        className={styles.thumb}
+                        onError={(e) => {
+                          console.error('[DesignerPage] Failed to load thumbnail for', t.name, ':', t.thumbnail_url || t.image_url);
+                          e.target.style.display = 'none';
+                          e.target.parentElement.innerHTML = '<div class="' + styles.thumbPlaceholder + '"><span>✦</span></div>';
+                        }}
+                      />
+                    ) : (
+                      <div className={styles.thumbPlaceholder}><span>✦</span></div>
+                    )}
                     <div className={styles.cardInfo}>
                       <h3>{t.name}</h3>
                       {t.category && <span className={styles.badge}>{t.category}</span>}
@@ -1109,50 +1350,129 @@ export default function DesignerPage() {
         {/* Side Panel */}
         <div className={styles.sidePanel}>
 
+          <div className={styles.toolsRow}>
             {/* ── Color Palette (primary tool) ─────────────────── */}
-          <div className={styles.panelSection}>
-            <h3 className={styles.paletteHeading}>🎨 Pick a Color</h3>
+            <div ref={colorToolBoxRef} className={`${styles.panelSection} ${styles.toolBox} ${styles.colorToolBox}`}>
+              <h3 className={styles.paletteHeading}>🎨 Pick a Color</h3>
 
-            {/* Active color indicator */}
-            <div className={styles.activeColorRow}>
-              <div
-                className={styles.activeColorSwatch}
-                style={{ background: selectedColor }}
-                title="Current active color"
-              />
-              <span className={styles.activeColorLabel}>Active color — click any section to fill</span>
-            </div>
-
-            {/* Quick palette grid */}
-            <div className={styles.paletteGrid}>
-              {QUICK_COLORS.map(c => (
+              {/* Active color indicator */}
+              <div className={styles.activeColorRow}>
                 <div
-                  key={c}
-                  className={`${styles.paletteCell} ${selectedColor === c ? styles.paletteCellActive : ''}`}
-                  style={{ background: c }}
-                  onClick={() => {
-                    selectedColorRef.current = c;
-                    setSelectedColor(c);
-                  }}
-                  title={c}
+                  className={styles.activeColorSwatch}
+                  style={{ background: selectedColor }}
+                  title="Current active color"
                 />
-              ))}
+                <span className={styles.activeColorLabel}>Active color — click any section to fill</span>
+              </div>
+
+              {/* Quick palette grid */}
+              <div className={styles.paletteGrid}>
+                {QUICK_COLORS.map(c => (
+                  <div
+                    key={c}
+                    className={`${styles.paletteCell} ${selectedColor === c ? styles.paletteCellActive : ''}`}
+                    style={{ background: c }}
+                    onClick={() => {
+                      selectedColorRef.current = c;
+                      setSelectedColor(c);
+                    }}
+                    title={c}
+                  />
+                ))}
+              </div>
+
+              {/* Custom color picker — native input, no library warnings */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
+                <input
+                  type="color"
+                  value={selectedColor}
+                  onChange={e => {
+                    selectedColorRef.current = e.target.value;
+                    setSelectedColor(e.target.value);
+                  }}
+                  style={{ width: 36, height: 36, border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
+                  title="Custom color"
+                />
+                <span style={{ fontSize: '0.78rem', color: '#5d3a1a' }}>Custom color</span>
+              </div>
+
+              <p className={styles.designerDisclaimer}>
+                Please note: Glass textures and colors may vary. Some colors are not available in certain textures. If there is any issue with your selected color or texture, we will contact you to confirm alternatives.
+              </p>
             </div>
 
-            {/* Custom color picker — native input, no library warnings */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
-              <input
-                type="color"
-                value={selectedColor}
-                onChange={e => {
-                  selectedColorRef.current = e.target.value;
-                  setSelectedColor(e.target.value);
-                }}
-                style={{ width: 36, height: 36, border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
-                title="Custom color"
-              />
-              <span style={{ fontSize: '0.78rem', color: '#5d3a1a' }}>Custom color</span>
-            </div>
+            {/* Glass Types Picker */}
+            {glassTypes.length > 0 && (
+              <div
+                className={`${styles.panelSection} ${styles.toolBox} ${styles.glassToolBox}`}
+                style={syncedToolBoxHeight ? { height: `${syncedToolBoxHeight}px` } : undefined}
+              >
+                <h3 className={styles.paletteHeading}>🪟 Glass Type</h3>
+
+                {/* Active glass type indicator */}
+                {activeGlassType && (
+                  <div className={styles.activeGlassRow}>
+                    {activeGlassType.texture_url ? (
+                      <img
+                        src={
+                          activeGlassType.texture_url.startsWith('http')
+                            ? activeGlassType.texture_url
+                            : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${activeGlassType.texture_url}`
+                        }
+                        alt={activeGlassType.name}
+                        className={styles.activeGlassThumb}
+                      />
+                    ) : (
+                      <div className={styles.activeGlassThumb} style={{ background: '#ddd' }} />
+                    )}
+                    <div className={styles.activeGlassInfo}>
+                      <strong>{activeGlassType.name}</strong>
+                      <span className={styles.meta}>{activeGlassType.description?.slice(0, 60)}…</span>
+                    </div>
+                    <button
+                      className={styles.clearGlassBtn}
+                      onClick={() => setActiveGlassType(null)}
+                      title="Clear glass type selection"
+                    >✕</button>
+                  </div>
+                )}
+
+                {/* Scrollable glass type grid */}
+                <div className={styles.glassScrollArea}>
+                  <div className={styles.glassGrid}>
+                    {glassTypes.map(g => (
+                      <div
+                        key={g.id}
+                        className={`${styles.glassChip} ${activeGlassType?.id === g.id ? styles.selectedChip : ''}`}
+                        onClick={() => applyGlassType(g)}
+                        title={g.description || g.name}
+                      >
+                        {g.texture_url ? (
+                          <img
+                            src={
+                              g.texture_url.startsWith('http')
+                                ? g.texture_url
+                                : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${g.texture_url}`
+                            }
+                            alt={g.name}
+                            onError={(e) => {
+                              const attemptedUrl = g.texture_url.startsWith('http')
+                                ? g.texture_url
+                                : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${g.texture_url}`;
+                              console.error('[DesignerPage] Failed to load glass texture thumbnail:', g.name, 'Original URL:', g.texture_url, 'Attempted URL:', attemptedUrl);
+                              e.target.parentElement.innerHTML = '<div class="' + styles.glassColorBlock + '" style="background: #ddd"></div><span>' + g.name + '</span>';
+                            }}
+                          />
+                        ) : (
+                          <div className={styles.glassColorBlock} style={{ background: g.color || '#ccc' }} />
+                        )}
+                        <span>{g.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Last colored piece indicator */}
@@ -1166,52 +1486,6 @@ export default function DesignerPage() {
                   {selectedObj.glassType && (
                     <span className={styles.lastGlassLabel}>Glass: {selectedObj.glassType}</span>
                   )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Glass Types Picker */}
-          {glassTypes.length > 0 && (
-            <div className={styles.panelSection}>
-              <h3 className={styles.paletteHeading}>🪟 Glass Type</h3>
-
-              {/* Active glass type indicator */}
-              {activeGlassType && (
-                <div className={styles.activeGlassRow}>
-                  {activeGlassType.texture_url
-                    ? <img src={activeGlassType.texture_url} alt={activeGlassType.name} className={styles.activeGlassThumb} />
-                    : <div className={styles.activeGlassThumb} style={{ background: '#ddd' }} />
-                  }
-                  <div className={styles.activeGlassInfo}>
-                    <strong>{activeGlassType.name}</strong>
-                    <span className={styles.meta}>{activeGlassType.description?.slice(0, 60)}…</span>
-                  </div>
-                  <button
-                    className={styles.clearGlassBtn}
-                    onClick={() => setActiveGlassType(null)}
-                    title="Clear glass type selection"
-                  >✕</button>
-                </div>
-              )}
-
-              {/* Scrollable glass type grid */}
-              <div className={styles.glassScrollArea}>
-                <div className={styles.glassGrid}>
-                  {glassTypes.map(g => (
-                    <div
-                      key={g.id}
-                      className={`${styles.glassChip} ${activeGlassType?.id === g.id ? styles.selectedChip : ''}`}
-                      onClick={() => applyGlassType(g)}
-                      title={g.description || g.name}
-                    >
-                      {g.texture_url
-                        ? <img src={g.texture_url} alt={g.name} />
-                        : <div className={styles.glassColorBlock} style={{ background: g.color || '#ccc' }} />
-                      }
-                      <span>{g.name}</span>
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>
