@@ -14,6 +14,7 @@ Flask-CORS==4.0.0
 # ORM and MySQL driver for templates, projects, work orders
 Flask-SQLAlchemy==3.1.1
 PyMySQL==1.1.0
+psycopg2-binary==2.9.9
 
 # --- Configuration & mail ---
 # Load SECRET_KEY, DATABASE_URL, etc. from .env (never commit .env)
