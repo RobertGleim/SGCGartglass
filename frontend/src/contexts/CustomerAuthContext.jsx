@@ -1,5 +1,8 @@
-import { createContext, useCallback, useMemo, useState } from 'react'
+import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { customerLogin, customerSignup } from '../services/api'
+
+const INACTIVITY_TIMEOUT = 60 * 60 * 1000 // 1 hour in milliseconds
+const CHECK_INTERVAL = 60 * 1000 // Check every minute
 
 export const CustomerAuthContext = createContext({
   customerToken: '',
@@ -12,11 +15,23 @@ export function CustomerAuthProvider({ children }) {
   const [customerToken, setCustomerToken] = useState(
     () => window.localStorage.getItem('sgcg_customer_token') || ''
   )
+  const lastActivityRef = useRef(Date.now())
+  const checkIntervalRef = useRef(null)
+
+  const logout = useCallback(() => {
+    setCustomerToken('')
+    window.localStorage.removeItem('sgcg_customer_token')
+    // Redirect to sign-in page
+    if (window.location.hash.includes('/account')) {
+      window.location.hash = '#/account/login'
+    }
+  }, [])
 
   const loginWithCredentials = useCallback(async (email, password) => {
     const token = await customerLogin(email, password)
     setCustomerToken(token)
     window.localStorage.setItem('sgcg_customer_token', token)
+    lastActivityRef.current = Date.now()
   }, [])
 
   const signupWithCredentials = useCallback(async (payload) => {
@@ -24,12 +39,59 @@ export function CustomerAuthProvider({ children }) {
     const token = await customerSignup(payload)
     setCustomerToken(token)
     window.localStorage.setItem('sgcg_customer_token', token)
+    lastActivityRef.current = Date.now()
   }, [])
 
-  const logout = useCallback(() => {
-    setCustomerToken('')
-    window.localStorage.removeItem('sgcg_customer_token')
-  }, [])
+  // Update last activity time on user interaction
+  const updateActivity = useCallback(() => {
+    if (customerToken) {
+      lastActivityRef.current = Date.now()
+    }
+  }, [customerToken])
+
+  // Set up activity listeners and inactivity checker
+  useEffect(() => {
+    if (!customerToken) {
+      // Clear interval if not authenticated
+      if (checkIntervalRef.current) {
+        clearInterval(checkIntervalRef.current)
+        checkIntervalRef.current = null
+      }
+      return
+    }
+
+    // Reset activity timestamp when customer logs in
+    lastActivityRef.current = Date.now()
+
+    // Activity event listeners
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
+    
+    events.forEach(event => {
+      document.addEventListener(event, updateActivity, { passive: true })
+    })
+
+    // Check for inactivity periodically
+    checkIntervalRef.current = setInterval(() => {
+      const now = Date.now()
+      const timeSinceLastActivity = now - lastActivityRef.current
+
+      if (timeSinceLastActivity >= INACTIVITY_TIMEOUT) {
+        console.log('[CustomerAuth] Auto-logout due to inactivity')
+        logout()
+      }
+    }, CHECK_INTERVAL)
+
+    // Cleanup
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, updateActivity)
+      })
+      if (checkIntervalRef.current) {
+        clearInterval(checkIntervalRef.current)
+        checkIntervalRef.current = null
+      }
+    }
+  }, [customerToken, updateActivity, logout])
 
   const value = useMemo(
     () => ({

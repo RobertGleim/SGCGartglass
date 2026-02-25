@@ -123,6 +123,11 @@ export default function DesignerPage() {
   useEffect(() => {
     if (step !== STEP.DESIGN || !canvasRef.current || !selectedTemplate) return;
 
+    console.log('[DesignerPage] Initializing canvas with template:', selectedTemplate);
+    console.log('[DesignerPage] Template type:', selectedTemplate.template_type);
+    console.log('[DesignerPage] Has svg_content:', !!selectedTemplate.svg_content);
+    console.log('[DesignerPage] Has image_url:', !!selectedTemplate.image_url);
+
     let destroyed = false;
     isFloodFillMode.current = false;
 
@@ -466,9 +471,11 @@ export default function DesignerPage() {
         // ============================================================
         //  SVG TEMPLATE  →  Fabric.js with ungrouped paths
         // ============================================================
+        console.log('[DesignerPage] Loading Fabric.js for SVG template');
         const fabric = await import('fabric');
         const { Canvas, loadSVGFromString, util, Rect } = fabric;
 
+        console.log('[DesignerPage] Creating Fabric canvas');
         const canvas = new Canvas(canvasRef.current, {
           width: CANVAS_W,
           height: CANVAS_H,
@@ -480,6 +487,7 @@ export default function DesignerPage() {
         fabricRef.current = canvas;
 
         if (selectedTemplate.svg_content) {
+          console.log('[DesignerPage] Parsing SVG content...');
           // Parse SVG string into Fabric objects
           let rawObjects = [];
           let svgOptions = {};
@@ -487,8 +495,9 @@ export default function DesignerPage() {
             const result = await loadSVGFromString(selectedTemplate.svg_content);
             rawObjects = (result.objects || []).filter(Boolean);
             svgOptions = result.options || {};
+            console.log('[DesignerPage] SVG parsed successfully:', rawObjects.length, 'objects');
           } catch (e) {
-            console.warn('SVG parse error:', e);
+            console.error('[DesignerPage] SVG parse error:', e);
           }
 
           if (rawObjects.length === 0) {
@@ -611,8 +620,10 @@ export default function DesignerPage() {
               child.setCoords();
               canvas.add(child);
             });
+            console.log('[DesignerPage] Added', leaves.length, 'objects to canvas');
           }
         } else {
+          console.log('[DesignerPage] No svg_content, creating demo rectangles');
           // Demo: colorful placeholder rectangles
           const demoColors = ['#c8a96e','#a0c8e0','#e8d5b7','#90ee90','#ffb6c1','#f4e04d','#dda0dd'];
           const cols = 4; const rows = 3;
@@ -633,9 +644,12 @@ export default function DesignerPage() {
               canvas.add(rect);
             }
           }
+          console.log('[DesignerPage] Added demo rectangles');
         }
 
+        console.log('[DesignerPage] Rendering canvas...');
         canvas.renderAll();
+        console.log('[DesignerPage] Canvas rendered');
         pushHistory(canvas);
 
         // ── Coloring-book click-to-fill (SVG mode) ──────────────────
@@ -662,7 +676,8 @@ export default function DesignerPage() {
           pushHistory(canvas);
         });
       } catch (err) {
-        console.error('Fabric init error:', err);
+        console.error('[DesignerPage] Canvas initialization error:', err);
+        console.error('[DesignerPage] Error stack:', err.stack);
       }
     })();
 
@@ -980,10 +995,15 @@ export default function DesignerPage() {
                     className={styles.templateCard}
                     onClick={async () => {
                       // Fetch full template (with svg_content / image_url) before entering designer
+                      console.log('[DesignerPage] Template clicked:', t.id, t.name);
                       try {
                         const full = await api.get(`/templates/${t.id}`);
-                        setSelectedTemplate(full.data);
-                      } catch {
+                        console.log('[DesignerPage] Full template fetched:', full);
+                        // API response interceptor already extracts .data, so full IS the data
+                        setSelectedTemplate(full);
+                      } catch (err) {
+                        console.error('[DesignerPage] Template fetch failed:', err);
+                        console.log('[DesignerPage] Using gallery data as fallback');
                         setSelectedTemplate(t); // fallback to gallery data
                       }
                       setStep(STEP.DESIGN);

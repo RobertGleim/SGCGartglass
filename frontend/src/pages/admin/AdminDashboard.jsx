@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import AddEtsyListingForm from "../../components/forms/AddEtsyListingForm";
+// import AddEtsyListingForm from "../../components/forms/AddEtsyListingForm";
 import { fetchCustomers } from "../../services/api.js";
 import TemplateManagement from "./TemplateManagement";
 import GlassTypeManagement from "./GlassTypeManagement";
@@ -698,6 +698,8 @@ export default function AdminDashboard({
               </div>
             </div>
 
+            {/* Linked Products Section - Etsy integration disabled */}
+            {/*
             <div className="panel-section">
               <h3>Linked Products ({items.length})</h3>
               {items.length === 0 ? (
@@ -723,21 +725,12 @@ export default function AdminDashboard({
                             `${item.price_amount} ${item.price_currency || ""}`}
                         </p>
                       </div>
-                      {/*
-                      <a
-                        className="text-link"
-                        href={item.etsy_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        View on Etsy
-                      </a>
-                      */}
                     </div>
                   ))}
                 </div>
               )}
             </div>
+            */}
 
             <div className="panel-section">
               <h3>Manual Products ({manualProducts.length})</h3>
