@@ -24,10 +24,14 @@ export function AuthProvider({ children }) {
   const loginWithCredentials = useCallback(async (email, password) => {
     console.log('[Auth] Attempting admin login...')
     const token = await adminLogin(email, password)
+    if (!token || typeof token !== 'string') {
+      throw new Error('Invalid auth token received from server')
+    }
     console.log('[Auth] Login success, token received')
     setAuthToken(token)
     window.localStorage.setItem('sgcg_token', token)
     lastActivityRef.current = Date.now()
+    return token
   }, [])
 
   // Update last activity time on user interaction

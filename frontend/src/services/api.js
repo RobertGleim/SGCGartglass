@@ -20,12 +20,12 @@ export const fetchCustomerReviews = () => api.get('/customer/reviews');
 export const createCustomerReview = (review) => api.post('/customer/reviews', review);
 export const customerLogin = async (email, password) => {
   const res = await api.post('/auth/customer/login', { email, password });
-  return res.token;
+  return res?.token || res?.access_token || res?.jwt || '';
 };
 
 export const adminLogin = async (email, password) => {
   const res = await api.post('/auth/login', { email, password });
-  return res.token;
+  return res?.token || res?.access_token || res?.jwt || '';
 };
 
 export const customerSignup = async (payload) => {

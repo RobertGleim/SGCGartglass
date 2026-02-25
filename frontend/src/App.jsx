@@ -103,10 +103,12 @@ function App() {
   }, [allProducts])
 
   const handleLogin = async (email, password) => {
-    await loginWithCredentials(email, password)
-    window.location.hash = '#/admin'
-    // Force useHashRoute to re-evaluate (hash may already be #/admin)
-    window.dispatchEvent(new HashChangeEvent('hashchange'))
+    const token = await loginWithCredentials(email, password)
+    if (!token) {
+      throw new Error('Login failed: no token returned')
+    }
+    // Use full hash navigation so hosted builds reliably switch views immediately
+    window.location.assign('/#/admin')
   }
 
   const handleAddItem = async (value) => {
