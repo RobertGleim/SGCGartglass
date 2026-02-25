@@ -19,6 +19,10 @@ def _sqlalchemy_database_uri():
         normalized = url.strip()
         if normalized.startswith('mysql://'):
             normalized = normalized.replace('mysql://', 'mysql+pymysql://', 1)
+        if normalized.startswith('postgres://'):
+            normalized = normalized.replace('postgres://', 'postgresql+psycopg://', 1)
+        elif normalized.startswith('postgresql://') and not normalized.startswith('postgresql+psycopg://'):
+            normalized = normalized.replace('postgresql://', 'postgresql+psycopg://', 1)
 
         # If credentials contain unescaped '@', keep host as the final segment and
         # URL-encode the entire credential portion to avoid parser confusion.
