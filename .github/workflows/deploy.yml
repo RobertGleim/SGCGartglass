@@ -89,6 +89,8 @@ jobs:
           fi
 
       - name: Deploy to Hostinger via SSH (rsync)
+        id: ssh_deploy
+        continue-on-error: true
         env:
           HOSTINGER_REMOTE_PATH: ${{ secrets.HOSTINGER_REMOTE_PATH }}
           HOSTINGER_SSH_HOST: ${{ secrets.HOSTINGER_SSH_HOST }}
@@ -113,12 +115,36 @@ jobs:
           if [ -n "$HOSTINGER_SSH_PRIVATE_KEY" ]; then
             umask 077
             printf '%s\n' "$HOSTINGER_SSH_PRIVATE_KEY" > .hostinger_key
-            RSYNC_RSH="ssh -i .hostinger_key -p $PORT -o StrictHostKeyChecking=no"
+            RSYNC_RSH="ssh -i .hostinger_key -p $PORT -o StrictHostKeyChecking=no -o ConnectTimeout=15"
             rsync -avzr --delete --omit-dir-times --no-perms --no-owner --no-group -e "$RSYNC_RSH" dist/ "$USERNAME@$HOST:$HOSTINGER_REMOTE_PATH"
           else
-            RSYNC_RSH="ssh -p $PORT -o StrictHostKeyChecking=no"
+            RSYNC_RSH="ssh -p $PORT -o StrictHostKeyChecking=no -o ConnectTimeout=15"
             sshpass -p "$PASSWORD" rsync -avzr --delete --omit-dir-times --no-perms --no-owner --no-group -e "$RSYNC_RSH" dist/ "$USERNAME@$HOST:$HOSTINGER_REMOTE_PATH"
           fi
+
+      - name: Fallback - Deploy via FTP (lftp)
+        if: steps.ssh_deploy.outcome == 'failure'
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          HOSTINGER_REMOTE_PATH: ${{ secrets.HOSTINGER_REMOTE_PATH }}
+        run: |
+          sudo apt-get install -y lftp
+          HOST="${FTP_HOST}"
+          HOST="${HOST#ftp://}"
+          HOST="${HOST#ftps://}"
+          echo "SSH deploy failed, falling back to FTP..."
+          lftp -e "
+            set ssl:verify-certificate no;
+            set ftp:ssl-allow yes;
+            set ftp:ssl-force no;
+            set net:timeout 30;
+            set net:max-retries 3;
+            open -u $FTP_USERNAME,$FTP_PASSWORD $HOST;
+            mirror --reverse --delete --verbose --parallel=4 dist/ $HOSTINGER_REMOTE_PATH;
+            bye
+          "
 
       - name: Frontend smoke test
         env:
