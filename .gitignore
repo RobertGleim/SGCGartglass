@@ -12,6 +12,7 @@ backend/data.db
 # Env
 .env
 .env.*
+!frontend/.env.production
 
 # Logs
 npm-debug.log*
