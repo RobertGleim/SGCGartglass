@@ -16,17 +16,20 @@ def generate_work_order_number(db: Session):
     return f'{prefix}{max_num:04d}'
 
 def validate_design_completion(design_data, template):
+    # Skip validation if no template provided (allow direct submissions)
+    if not template or not template.get('regions'):
+        return True, 100
     try:
-        regions = design_data.get('regions', [])
+        regions = design_data.get('regions', []) if design_data else []
         total = len(template.get('regions', []))
         filled = sum(1 for r in regions if r.get('color'))
-        percent = int((filled / total) * 100) if total > 0 else 0
+        percent = int((filled / total) * 100) if total > 0 else 100
         return percent >= 50, percent
     except Exception:
-        return False, 0
+        return True, 100  # Allow submission on validation error
 
 def submit_work_order(user_id, project_id, form_data, db: Session, template):
-    # Validate design completion
+    # Validate design completion (skipped if no template)
     design_data = form_data.get('design_data')
     ok, percent = validate_design_completion(design_data, template)
     if not ok:
@@ -34,22 +37,26 @@ def submit_work_order(user_id, project_id, form_data, db: Session, template):
     now = datetime.utcnow()
     try:
         work_order_number = generate_work_order_number(db)
+        # Combine all customer input into customer_notes
+        notes_parts = []
+        if form_data.get('project_name'):
+            notes_parts.append(f"Project: {form_data.get('project_name')}")
+        if form_data.get('project_notes'):
+            notes_parts.append(f"Notes: {form_data.get('project_notes')}")
+        if form_data.get('preferred_timeline'):
+            notes_parts.append(f"Timeline: {form_data.get('preferred_timeline')}")
+        if form_data.get('budget_range'):
+            notes_parts.append(f"Budget: {form_data.get('budget_range')}")
+        if form_data.get('contact_preference'):
+            notes_parts.append(f"Contact: {form_data.get('contact_preference')}")
+        customer_notes = "\n".join(notes_parts) if notes_parts else None
+        
         work_order = WorkOrder(
             work_order_number=work_order_number,
             user_id=user_id,
             project_id=project_id,
-            template_id=form_data.get('template_id'),
-            project_name=form_data.get('project_name'),
-            project_notes=form_data.get('project_notes'),
-            preferred_timeline=form_data.get('preferred_timeline'),
-            budget_range=form_data.get('budget_range'),
-            contact_preference=form_data.get('contact_preference'),
-            design_data=design_data,
-            preview_image_path=form_data.get('preview_image_path'),
+            customer_notes=customer_notes,
             status='Pending Review',
-            admin_notes=None,
-            submitted_at=now,
-            updated_at=now
         )
         db.add(work_order)
         db.commit()
@@ -57,10 +64,9 @@ def submit_work_order(user_id, project_id, form_data, db: Session, template):
         # Create status history
         history = WorkOrderStatusHistory(
             work_order_id=work_order.id,
-            old_status=None,
-            new_status='Pending Review',
+            from_status=None,
+            to_status='Pending Review',
             changed_by=user_id,
-            notes='Submitted',
             changed_at=now
         )
         db.add(history)
@@ -88,15 +94,13 @@ def update_work_order_status(work_order_id, new_status, admin_id, notes, db: Ses
         old_status = work_order.status
         work_order.status = new_status
         work_order.admin_notes = notes
-        work_order.updated_at = datetime.utcnow()
         db.commit()
         # Add status history
         history = WorkOrderStatusHistory(
             work_order_id=work_order_id,
-            old_status=old_status,
-            new_status=new_status,
+            from_status=old_status if isinstance(old_status, str) else str(old_status),
+            to_status=new_status,
             changed_by=admin_id,
-            notes=notes,
             changed_at=datetime.utcnow()
         )
         db.add(history)

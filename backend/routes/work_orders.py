@@ -57,10 +57,15 @@ def submit_work_order_route():
     user_id = g.user_id
     data = request.get_json()
     project_id = data.get('project_id')
-    project = UserProject.query.filter_by(id=project_id, user_id=user_id).first()
-    if not project:
-        return jsonify({'error': 'Project not found or not owned by user.'}), 404
-    template = {}  # TODO: Load template by project.template_id
+    
+    # If project_id is provided, verify ownership
+    project = None
+    if project_id:
+        project = UserProject.query.filter_by(id=project_id, user_id=user_id).first()
+        if not project:
+            return jsonify({'error': 'Project not found or not owned by user.'}), 404
+    
+    template = {}  # Empty template to skip validation if no project
     work_order, err = submit_work_order(user_id, project_id, data, db.session, template)
     if err:
         return jsonify({'error': err}), 400
@@ -72,7 +77,7 @@ def submit_work_order_route():
 @login_required
 def list_user_work_orders():
     user_id = g.user_id
-    orders = WorkOrder.query.filter_by(user_id=user_id).order_by(WorkOrder.submitted_at.desc()).all()
+    orders = WorkOrder.query.filter_by(user_id=user_id).order_by(WorkOrder.created_at.desc()).all()
     return jsonify({'work_orders': [o.to_dict() for o in orders]}), 200
 
 @work_orders_bp.route('/api/work-orders/<int:order_id>', methods=['GET'])
@@ -87,7 +92,7 @@ def get_work_order(order_id):
 @admin_work_orders_bp.route('/api/admin/work-orders', methods=['GET'])
 @admin_required
 def admin_list_work_orders():
-    orders = WorkOrder.query.order_by(WorkOrder.submitted_at.desc()).all()
+    orders = WorkOrder.query.order_by(WorkOrder.created_at.desc()).all()
     return jsonify({'work_orders': [o.to_dict() for o in orders]}), 200
 
 @admin_work_orders_bp.route('/api/admin/work-orders/<int:order_id>/status', methods=['PUT'])
