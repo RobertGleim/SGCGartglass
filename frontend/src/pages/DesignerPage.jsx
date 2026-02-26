@@ -25,6 +25,24 @@ const QUICK_COLORS = [
   '#ffffff', '#cccccc', '#888888', '#222222',
 ];
 
+const getApiOrigin = () => {
+  const configuredBase = import.meta.env.VITE_API_BASE_URL || '/api';
+  if (/^https?:\/\//i.test(configuredBase)) {
+    return configuredBase.replace(/\/api\/?$/, '');
+  }
+  return window.location.hostname === 'localhost'
+    ? `${window.location.protocol}//localhost:5000`
+    : window.location.origin;
+};
+
+const resolveBackendAssetUrl = (value, fallbackFolder = '') => {
+  if (!value) return '';
+  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+  if (value.startsWith('/')) return `${getApiOrigin()}${value}`;
+  if (fallbackFolder) return `${getApiOrigin()}${fallbackFolder}/${value}`;
+  return `${getApiOrigin()}/${value}`;
+};
+
 export default function DesignerPage() {
   const [step, setStep] = useState(STEP.GALLERY);
   const [templates, setTemplates] = useState([]);
@@ -101,10 +119,7 @@ export default function DesignerPage() {
         // Preload texture images into cache
         items.forEach(gt => {
           if (gt.texture_url && !textureCacheRef.current.has(gt.id)) {
-            // Handle relative URLs by prepending backend URL
-            const textureUrl = gt.texture_url.startsWith('http')
-              ? gt.texture_url
-              : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${gt.texture_url}`;
+            const textureUrl = resolveBackendAssetUrl(gt.texture_url, '/uploads/textures');
             
             const img = new Image();
             img.crossOrigin = 'anonymous';
@@ -551,12 +566,7 @@ export default function DesignerPage() {
         if (templateType === 'image' && selectedTemplate.image_url) {
           isFloodFillMode.current = true;
 
-          const origin = window.location.hostname === 'localhost'
-            ? `${window.location.protocol}//localhost:5000`
-            : window.location.origin;
-          const src = selectedTemplate.image_url.startsWith('http')
-            ? selectedTemplate.image_url
-            : `${origin}${selectedTemplate.image_url}`;
+          const src = resolveBackendAssetUrl(selectedTemplate.image_url, '/uploads/templates');
 
           // Load the image
           const imgEl = await new Promise((resolve, reject) => {
@@ -1415,9 +1425,7 @@ export default function DesignerPage() {
                     {activeGlassType.texture_url ? (
                       <img
                         src={
-                          activeGlassType.texture_url.startsWith('http')
-                            ? activeGlassType.texture_url
-                            : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${activeGlassType.texture_url}`
+                          resolveBackendAssetUrl(activeGlassType.texture_url, '/uploads/textures')
                         }
                         alt={activeGlassType.name}
                         className={styles.activeGlassThumb}
@@ -1450,15 +1458,13 @@ export default function DesignerPage() {
                         {g.texture_url ? (
                           <img
                             src={
-                              g.texture_url.startsWith('http')
-                                ? g.texture_url
-                                : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${g.texture_url}`
+                              resolveBackendAssetUrl(g.texture_url, '/uploads/textures')
                             }
                             alt={g.name}
                             onError={(e) => {
                               const attemptedUrl = g.texture_url.startsWith('http')
                                 ? g.texture_url
-                                : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${g.texture_url}`;
+                                : resolveBackendAssetUrl(g.texture_url, '/uploads/textures');
                               console.error('[DesignerPage] Failed to load glass texture thumbnail:', g.name, 'Original URL:', g.texture_url, 'Attempted URL:', attemptedUrl);
                               e.target.parentElement.innerHTML = '<div class="' + styles.glassColorBlock + '" style="background: #ddd"></div><span>' + g.name + '</span>';
                             }}

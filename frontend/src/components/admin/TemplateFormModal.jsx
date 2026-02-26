@@ -3,11 +3,15 @@ import * as pdfjsLib from 'pdfjs-dist';
 import api from '../../services/api';
 import styles from './TemplateFormModal.module.css';
 
-// Use bundled worker for pdfjs
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString();
+const getApiOrigin = () => {
+  const configuredBase = import.meta.env.VITE_API_BASE_URL || '/api';
+  if (/^https?:\/\//i.test(configuredBase)) {
+    return configuredBase.replace(/\/api\/?$/, '');
+  }
+  return window.location.hostname === 'localhost'
+    ? `${window.location.protocol}//localhost:5000`
+    : window.location.origin;
+};
 
 const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 const ACCEPTED_TYPES = '.svg,.pdf,.jpg,.jpeg,.png';
@@ -25,7 +29,7 @@ function countSVGPaths(svgText) {
 /** Render first page of a PDF to a PNG Blob via canvas */
 async function pdfToBlob(file) {
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
   const page = await pdf.getPage(1);
   const viewport = page.getViewport({ scale: 2 });
   const canvas = document.createElement('canvas');
@@ -139,11 +143,7 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
       setUploadProgress('Uploading to server…');
       const imageUrl = await uploadImageFile(uploadFile, uploadFile.name);
 
-      // Build absolute URL for preview (backend runs on port 5000 in dev)
-      const origin = window.location.hostname === 'localhost'
-        ? `${window.location.protocol}//localhost:5000`
-        : window.location.origin;
-      setPreviewUrl(`${origin}${imageUrl}`);
+      setPreviewUrl(`${getApiOrigin()}${imageUrl}`);
       setFileType('image');
       setForm(f => ({
         ...f,
