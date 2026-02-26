@@ -15,6 +15,15 @@ const getApiOrigin = () => {
     : window.location.origin;
 };
 
+// Resolve relative URLs to full backend URL
+const resolveImageUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url;
+  }
+  return getApiOrigin() + url;
+};
+
 const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 const ACCEPTED_TYPES = '.svg,.pdf,.jpg,.jpeg,.png';
 
@@ -80,7 +89,7 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
     piece_count: template?.piece_count ?? 0,
   });
   const [fileType, setFileType] = useState(null); // 'svg' | 'image' | null (null = not yet chosen)
-  const [previewUrl, setPreviewUrl] = useState(template?.thumbnail_url || template?.image_url || '');
+  const [previewUrl, setPreviewUrl] = useState(resolveImageUrl(template?.thumbnail_url || template?.image_url || ''));
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [error, setError] = useState('');
