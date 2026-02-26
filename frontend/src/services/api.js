@@ -16,7 +16,7 @@ export const deleteManualProduct = (id) => api.delete(`/manual-products/${id}`);
 export const createManualProduct = (product) => api.post('/manual-products', product);
 export const createItem = (item) => api.post('/items', item);
 // Customer profile/address/favorites/cart/orders/reviews APIs
-export const fetchCustomerProfile = () => api.get('/customer/profile');
+export const fetchCustomerProfile = () => api.get('/customer/me');
 export const fetchCustomerAddresses = () => api.get('/customer/addresses');
 export const addCustomerAddress = (address) => api.post('/customer/addresses', address);
 export const fetchCustomerFavorites = () => api.get('/customer/favorites');

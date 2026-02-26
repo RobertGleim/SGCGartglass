@@ -42,9 +42,12 @@ export function getUser() {
 }
 
 export function getAuthToken() {
-  const token = localStorage.getItem('sgcg_token') || '';
-  // Don't return corrupted tokens
-  return isValidToken(token) ? token : '';
+  // Check admin token first, then customer token
+  const adminToken = localStorage.getItem('sgcg_token') || '';
+  if (isValidToken(adminToken)) return adminToken;
+  
+  const customerToken = localStorage.getItem('sgcg_customer_token') || '';
+  return isValidToken(customerToken) ? customerToken : '';
 }
 
 export function logout() {
