@@ -117,6 +117,8 @@ api.interceptors.response.use(
 export const getTemplates = (filters) => api.get('/templates', { params: filters });
 export const getTemplate = (id) => api.get(`/templates/${id}`);
 export const saveProject = (data) => api.post('/projects/save', data);
+export const getProject = (id) => api.get(`/projects/${id}`);
+export const deleteProject = (id) => api.delete(`/projects/${id}`);
 export const submitWorkOrder = (data) => api.post('/work-orders/submit', data);
 export const getMyProjects = () => api.get('/projects');
 export const getMyWorkOrders = () => api.get('/work-orders');

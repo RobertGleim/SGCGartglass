@@ -1,9 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import api, { getTemplates, saveProject, submitWorkOrder } from '../services/api';
+import api, { getTemplates, saveProject, submitWorkOrder, getProject, getTemplate } from '../services/api';
 import useCustomerAuth from '../hooks/useCustomerAuth';
 import styles from './DesignerPage.module.css';
 
 const STEP = { GALLERY: 'gallery', DESIGN: 'design' };
+
+// Parse URL query params from hash router (?project=123&submit=true)
+const getQueryParams = () => {
+  const hash = window.location.hash || '';
+  const queryIdx = hash.indexOf('?');
+  if (queryIdx === -1) return {};
+  return Object.fromEntries(new URLSearchParams(hash.slice(queryIdx + 1)));
+};
 
 // Color palette for click-to-fill coloring book experience
 const QUICK_COLORS = [
@@ -108,6 +116,90 @@ export default function DesignerPage() {
       .catch(() => setTemplates([]))
       .finally(() => setTemplatesLoading(false));
   }, []);
+
+  // ── Load existing project from URL params ───────────────────
+  const [loadingProject, setLoadingProject] = useState(false);
+  const [autoSubmit, setAutoSubmit] = useState(false);
+  
+  useEffect(() => {
+    const params = getQueryParams();
+    const projectIdParam = params.project;
+    const submitFlag = params.submit === 'true';
+    
+    if (!projectIdParam) return;
+    
+    setLoadingProject(true);
+    getProject(projectIdParam)
+      .then(async (res) => {
+        const project = res?.project || res;
+        if (!project) return;
+        
+        // Set project ID
+        setProjectId(project.id);
+        
+        // Load the template if available
+        if (project.template_id) {
+          try {
+            const templateRes = await getTemplate(project.template_id);
+            const template = templateRes?.template || templateRes;
+            if (template) {
+              setSelectedTemplate(template);
+              setStep(STEP.DESIGN);
+            }
+          } catch (err) {
+            console.error('[DesignerPage] Failed to load project template:', err);
+          }
+        }
+        
+        // Store design data to apply after canvas is ready
+        if (project.design_data && Object.keys(project.design_data).length > 0) {
+          // Apply design data after a short delay to ensure canvas is ready
+          setTimeout(() => {
+            applyDesignData(project.design_data);
+          }, 500);
+        }
+        
+        // Auto-open submit modal if requested
+        if (submitFlag) {
+          setAutoSubmit(true);
+        }
+      })
+      .catch(err => {
+        console.error('[DesignerPage] Failed to load project:', err);
+      })
+      .finally(() => setLoadingProject(false));
+  }, []); // Only run once on mount
+  
+  // Apply design data to canvas
+  const applyDesignData = (designData) => {
+    if (!designData || typeof designData !== 'object') return;
+    
+    // For SVG templates with Fabric.js
+    if (fabricRef.current) {
+      fabricRef.current.getObjects().forEach(obj => {
+        const regionId = obj.id || obj.regionId;
+        if (regionId && designData[regionId]) {
+          const regionData = designData[regionId];
+          if (regionData.color) {
+            obj.set('fill', regionData.color);
+          }
+        }
+      });
+      fabricRef.current.renderAll();
+    }
+    
+    // For image-based templates, we'd need to re-color regions
+    // This is handled by the regionMapRef and flood-fill coloring
+    console.log('[DesignerPage] Applied design data:', Object.keys(designData).length, 'regions');
+  };
+  
+  // Auto-submit when project is loaded with submit flag
+  useEffect(() => {
+    if (autoSubmit && step === STEP.DESIGN && !loadingProject) {
+      setSubmitModal(true);
+      setAutoSubmit(false);
+    }
+  }, [autoSubmit, step, loadingProject]);
 
   // ── Load glass types when entering design step ───────────────
   useEffect(() => {

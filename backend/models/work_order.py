@@ -73,7 +73,7 @@ class WorkOrder(db.Model):
             return False, "work_order_number must match WO-YYYY-#### (e.g. WO-2025-0001)"
         return True, ""
 
-    def to_dict(self, include_history=False, include_admin_notes=False):
+    def to_dict(self, include_history=False, include_admin_notes=False, include_project_data=False):
         out = {
             "id": self.id,
             "work_order_number": self.work_order_number,
@@ -89,6 +89,22 @@ class WorkOrder(db.Model):
             out["admin_notes"] = self.admin_notes
         if include_history and self.status_history:
             out["status_history"] = [h.to_dict() for h in self.status_history]
+        # Include project design data for admin views
+        if include_project_data and self.project:
+            out["project"] = {
+                "id": self.project.id,
+                "name": self.project.name,
+                "design_data": self.project.design_data if isinstance(self.project.design_data, dict) else {},
+                "template_id": self.project.template_id,
+            }
+            # Include template info if available
+            if self.project.template:
+                out["template"] = {
+                    "id": self.project.template.id,
+                    "name": self.project.template.name,
+                    "thumbnail_url": self.project.template.thumbnail_url,
+                    "svg_url": self.project.template.svg_url if hasattr(self.project.template, 'svg_url') else None,
+                }
         return out
 
 

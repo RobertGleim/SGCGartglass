@@ -4,16 +4,27 @@ from backend.services.project_service import (
     save_project, get_user_projects, get_project_by_id, delete_project, calculate_completion_percentage
 )
 from backend.models import db
+from backend.auth import decode_token
 from datetime import datetime
+import jwt
 
 projects_bp = Blueprint('projects', __name__)
 
-# Placeholder for authentication decorator
+# Authentication decorator that parses JWT and sets g.user_id
 def login_required(f):
     def wrapper(*args, **kwargs):
-        # Assume g.user_id is set by real auth middleware
-        if not hasattr(g, 'user_id') or not g.user_id:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
             return jsonify({'error': 'Authentication required'}), 401
+        token = auth_header.split(" ", 1)[1].strip()
+        try:
+            payload = decode_token(token)
+            # Set user_id from customer_id (for customers) or sub (for admin)
+            g.user_id = payload.get("customer_id") or payload.get("sub")
+            g.is_admin = payload.get("role") != "customer"
+            g.auth_payload = payload
+        except jwt.PyJWTError:
+            return jsonify({'error': 'Invalid or expired token'}), 401
         return f(*args, **kwargs)
     wrapper.__name__ = f.__name__
     return wrapper

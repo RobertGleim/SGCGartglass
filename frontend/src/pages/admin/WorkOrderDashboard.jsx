@@ -3,6 +3,14 @@ import api from '../../services/api';
 import styles from './WorkOrderDashboard.module.css';
 
 const STATUS_OPTIONS = ['pending', 'review', 'quote', 'production', 'completed', 'cancelled'];
+const STATUS_LABELS = {
+  pending: 'Pending Review',
+  review: 'Under Review',
+  quote: 'Quote Sent',
+  production: 'In Production',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
 
 const toArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -25,6 +33,7 @@ const normalizeStatus = (status) => {
 };
 
 const extractProjectName = (order) => {
+  if (order?.project?.name) return order.project.name;
   if (order?.project) return order.project;
   const notes = order?.customer_notes || '';
   const projectLine = notes
@@ -40,28 +49,61 @@ export default function WorkOrderDashboard() {
   const [customerSearch, setCustomerSearch] = useState('');
   const [sort, setSort] = useState('date');
   const [loading, setLoading] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [updating, setUpdating] = useState(false);
+
+  const fetchOrders = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/admin/work-orders');
+      const normalized = toArray(res).map((order) => ({
+        ...order,
+        status_key: normalizeStatus(order?.status),
+        date: order?.date || order?.created_at || order?.updated_at || null,
+        customer: order?.customer || `Customer #${order?.user_id ?? '-'}`,
+        projectName: extractProjectName(order),
+        designData: order?.project?.design_data || {},
+        templateThumbnail: order?.template?.thumbnail_url || '',
+        templateName: order?.template?.name || 'Custom Design',
+      }));
+      setOrders(normalized);
+    } catch {
+      window.toast && window.toast('Failed to load work orders', { type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchOrders() {
-      setLoading(true);
-      try {
-        const res = await api.get('/admin/work-orders');
-        const normalized = toArray(res).map((order) => ({
-          ...order,
-          status_key: normalizeStatus(order?.status),
-          date: order?.date || order?.created_at || order?.updated_at || null,
-          customer: order?.customer || `Customer #${order?.user_id ?? '-'}`,
-          project: extractProjectName(order),
-        }));
-        setOrders(normalized);
-      } catch {
-        window.toast && window.toast('Failed to load work orders', { type: 'error' });
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchOrders();
   }, []);
+
+  // Handle status change
+  const handleStatusChange = async (orderId, newStatus) => {
+    setUpdating(true);
+    try {
+      await api.put(`/admin/work-orders/${orderId}/status`, { new_status: STATUS_LABELS[newStatus] || newStatus });
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: STATUS_LABELS[newStatus], status_key: newStatus } : o));
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(prev => ({ ...prev, status: STATUS_LABELS[newStatus], status_key: newStatus }));
+      }
+      window.toast && window.toast('Status updated', { type: 'success' });
+    } catch (err) {
+      console.error('[WorkOrderDashboard] Status update error:', err);
+      window.toast && window.toast('Failed to update status', { type: 'error' });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // Open preview modal
+  const openPreview = (order, e) => {
+    if (e) e.stopPropagation();
+    setSelectedOrder(order);
+  };
+
+  // Close preview modal
+  const closePreview = () => setSelectedOrder(null);
 
   // Summary counts
   const summary = {
@@ -86,19 +128,41 @@ export default function WorkOrderDashboard() {
     return 0;
   });
 
+  // Render design colors from design_data
+  const renderDesignColors = (designData) => {
+    if (!designData || typeof designData !== 'object') return <span>No design data</span>;
+    const entries = Object.entries(designData);
+    if (entries.length === 0) return <span>No colors assigned</span>;
+    return (
+      <div className={styles.colorGrid}>
+        {entries.slice(0, 12).map(([regionId, data]) => (
+          <div key={regionId} className={styles.colorSwatch}>
+            <div 
+              className={styles.swatchColor} 
+              style={{ backgroundColor: data?.color || '#ccc' }}
+              title={`Region: ${regionId}`}
+            />
+            <span className={styles.swatchLabel}>{regionId}</span>
+          </div>
+        ))}
+        {entries.length > 12 && <span>+{entries.length - 12} more</span>}
+      </div>
+    );
+  };
+
   return (
     <div className={styles.page}>
       <h1>Work Order Dashboard</h1>
       <div className={styles.summary}>
-        <div className={styles.card}>Pending Review: {summary.pending}</div>
-        <div className={styles.card}>Under Review: {summary.review}</div>
-        <div className={styles.card}>Quote Sent: {summary.quote}</div>
-        <div className={styles.card}>In Production: {summary.production}</div>
+        <div className={styles.card} onClick={() => setStatusFilter('pending')}>Pending Review: {summary.pending}</div>
+        <div className={styles.card} onClick={() => setStatusFilter('review')}>Under Review: {summary.review}</div>
+        <div className={styles.card} onClick={() => setStatusFilter('quote')}>Quote Sent: {summary.quote}</div>
+        <div className={styles.card} onClick={() => setStatusFilter('production')}>In Production: {summary.production}</div>
       </div>
       <div className={styles.filters}>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="all">All Statuses</option>
-          {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>)}
+          {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{STATUS_LABELS[opt] || opt}</option>)}
         </select>
         <input type="date" value={dateRange.from} onChange={e => setDateRange(r => ({ ...r, from: e.target.value }))} />
         <input type="date" value={dateRange.to} onChange={e => setDateRange(r => ({ ...r, to: e.target.value }))} />
@@ -108,11 +172,13 @@ export default function WorkOrderDashboard() {
           <option value="status">Status</option>
           <option value="customer">Customer</option>
         </select>
+        <button onClick={fetchOrders} disabled={loading}>Refresh</button>
       </div>
       {loading ? <div>Loading...</div> : (
         <table className={styles.table}>
           <thead>
             <tr>
+              <th>Preview</th>
               <th>Order #</th>
               <th>Customer</th>
               <th>Project</th>
@@ -123,19 +189,89 @@ export default function WorkOrderDashboard() {
           </thead>
           <tbody>
             {filtered.map(o => (
-              <tr key={o.id} onClick={() => { window.location.hash = `#/admin/work-orders/${o.id}`; }} style={{ cursor: 'pointer' }}>
-                <td>{o.id}</td>
+              <tr key={o.id}>
+                <td>
+                  <div className={styles.thumbCell} onClick={(e) => openPreview(o, e)} title="Click to view full design">
+                    {o.templateThumbnail ? (
+                      <img src={o.templateThumbnail} alt="Template" className={styles.thumbImg} />
+                    ) : (
+                      <div className={styles.thumbPlaceholder}>No Image</div>
+                    )}
+                  </div>
+                </td>
+                <td>{o.work_order_number || o.id}</td>
                 <td>{o.customer || '-'}</td>
-                <td>{o.project || '-'}</td>
-                <td>{o.status || '-'}</td>
+                <td>{o.projectName || '-'}</td>
+                <td>
+                  <select 
+                    value={o.status_key} 
+                    onChange={(e) => handleStatusChange(o.id, e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    disabled={updating}
+                    className={styles.statusSelect}
+                  >
+                    {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{STATUS_LABELS[opt] || opt}</option>)}
+                  </select>
+                </td>
                 <td>{o.date ? new Date(o.date).toLocaleString() : '-'}</td>
                 <td>
-                  <button onClick={e => { e.stopPropagation(); window.location.hash = `#/admin/work-orders/${o.id}`; }}>View</button>
+                  <button onClick={(e) => openPreview(o, e)}>View</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      )}
+
+      {/* Preview Modal */}
+      {selectedOrder && (
+        <div className={styles.modalOverlay} onClick={closePreview}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <button className={styles.closeBtn} onClick={closePreview}>&times;</button>
+            <h2>Work Order: {selectedOrder.work_order_number || `#${selectedOrder.id}`}</h2>
+            
+            <div className={styles.modalGrid}>
+              <div className={styles.modalSection}>
+                <h3>Customer Info</h3>
+                <p><strong>Customer:</strong> {selectedOrder.customer}</p>
+                <p><strong>Submitted:</strong> {selectedOrder.date ? new Date(selectedOrder.date).toLocaleString() : '-'}</p>
+              </div>
+              
+              <div className={styles.modalSection}>
+                <h3>Project Details</h3>
+                <p><strong>Project:</strong> {selectedOrder.projectName}</p>
+                <p><strong>Template:</strong> {selectedOrder.templateName}</p>
+                <p><strong>Notes:</strong> {selectedOrder.customer_notes || '—'}</p>
+              </div>
+            </div>
+
+            <div className={styles.modalSection}>
+              <h3>Template Preview</h3>
+              {selectedOrder.templateThumbnail ? (
+                <img src={selectedOrder.templateThumbnail} alt="Template" className={styles.previewImg} />
+              ) : (
+                <div className={styles.noPreview}>No template image available</div>
+              )}
+            </div>
+
+            <div className={styles.modalSection}>
+              <h3>Design Colors</h3>
+              {renderDesignColors(selectedOrder.designData)}
+            </div>
+
+            <div className={styles.modalSection}>
+              <h3>Update Status</h3>
+              <select 
+                value={selectedOrder.status_key} 
+                onChange={(e) => handleStatusChange(selectedOrder.id, e.target.value)}
+                disabled={updating}
+                className={styles.statusSelectLarge}
+              >
+                {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{STATUS_LABELS[opt] || opt}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
