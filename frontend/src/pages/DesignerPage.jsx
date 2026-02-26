@@ -1229,9 +1229,9 @@ export default function DesignerPage() {
       const res = await saveProject({
         project_id: projectId || undefined,
         template_id: selectedTemplate?.id || null,
-        canvas_data: canvasData,
+        design_data: canvasData,
         preview_url: previewUrl,
-        name: selectedTemplate?.name || 'My Design',
+        project_name: selectedTemplate?.name || 'My Design',
       });
       const newId = res?.project?.id || res?.id;
       if (newId) setProjectId(newId);
@@ -1263,9 +1263,9 @@ export default function DesignerPage() {
       if (!ensuredProjectId) {
         const saveRes = await saveProject({
           template_id: selectedTemplate?.id || null,
-          canvas_data: canvasData,
+          design_data: canvasData,
           preview_url: previewUrl,
-          name: submitForm?.project_name || selectedTemplate?.name || 'My Design',
+          project_name: submitForm?.project_name || selectedTemplate?.name || 'My Design',
         });
         ensuredProjectId = saveRes?.project?.id || saveRes?.id || null;
         if (ensuredProjectId) setProjectId(ensuredProjectId);

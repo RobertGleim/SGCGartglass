@@ -97,7 +97,7 @@ export default function MyProjects() {
     try {
       const res = await api.post('/projects/save', {
         template_id: project.template_id,
-        name: `${project.name} (Copy)`,
+        project_name: `${project.name} (Copy)`,
         design_data: project.design_data,
       });
       const newProject = res?.project || res;

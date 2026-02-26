@@ -18,10 +18,9 @@ export default function useProjectSave({ templateId, filledRegions, initialProje
     }));
     const completionPercentage = regions.length && templateId ? Math.round((regions.length / 100) * 100) : 0;
     return {
-      templateId,
-      projectName,
-      regions,
-      completionPercentage,
+      template_id: templateId,
+      project_name: projectName,
+      design_data: { regions, completionPercentage },
     };
   }
 
@@ -31,8 +30,8 @@ export default function useProjectSave({ templateId, filledRegions, initialProje
     setError(null);
     const data = collectDesignData();
     try {
-      const res = await api.post('/api/projects/save', {
-        projectId,
+      const res = await api.post('/projects/save', {
+        project_id: projectId,
         ...data,
       });
       setProjectId(res.projectId);
