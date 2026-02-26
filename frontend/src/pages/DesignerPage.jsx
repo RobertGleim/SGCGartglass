@@ -96,6 +96,9 @@ export default function DesignerPage() {
   // Section label positions for numbered overlays: [{ id, num, cx, cy }]
   const [sectionLabels, setSectionLabels] = useState([]);
 
+  // Border/frame region IDs (flood-fill mode) — not colorable
+  const borderRegionsRef = useRef(new Set());
+
   // History (undo/redo)
   const historyRef = useRef([]);
   const historyIdxRef = useRef(-1);
@@ -727,50 +730,97 @@ export default function DesignerPage() {
           regionMapRef.current = regionMap;
           regionPixelsRef.current = regionPixels;
 
+          // ── Detect border regions that touch the canvas edges ──
+          const borderRegions = new Set();
+          for (const [regionId, pixels] of regionPixels) {
+            for (const pi of pixels) {
+              const px = pi % CANVAS_W;
+              const py = Math.floor(pi / CANVAS_W);
+              if (px <= 1 || py <= 1 || px >= CANVAS_W - 2 || py >= CANVAS_H - 2) {
+                borderRegions.add(regionId);
+                break;
+              }
+            }
+          }
+          borderRegionsRef.current = borderRegions;
+
           // Save initial state for undo
           historyRef.current = [ctx.getImageData(0, 0, CANVAS_W, CANVAS_H)];
           historyIdxRef.current = 0;
 
           // ── Draw numbered labels on each region ──
           {
-            const labels = [];
+            // --- Pass 1: collect all region info ---
+            const raw = [];
             let num = 0;
             for (const [regionId, pixels] of regionPixels) {
-              if (pixels.length < 20) continue; // skip invisible micro-regions
+              if (pixels.length < 20) continue;
+              // Skip border/frame regions
+              if (borderRegions.has(regionId)) continue;
               num++;
-              // Compute centroid of region
               let sumX = 0, sumY = 0;
+              let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
               for (const pi of pixels) {
-                sumX += pi % CANVAS_W;
-                sumY += Math.floor(pi / CANVAS_W);
+                const px = pi % CANVAS_W;
+                const py = Math.floor(pi / CANVAS_W);
+                sumX += px; sumY += py;
+                if (px < minX) minX = px;
+                if (py < minY) minY = py;
+                if (px > maxX) maxX = px;
+                if (py > maxY) maxY = py;
               }
               const cxPx = sumX / pixels.length;
               const cyPx = sumY / pixels.length;
-              // Deduplicate based on actual section center
+              raw.push({
+                id: regionId, num, cx: cxPx, cy: cyPx,
+                left: minX, top: minY, right: maxX, bottom: maxY,
+                area: pixels.length,
+                w: maxX - minX, h: maxY - minY,
+                canvasW: CANVAS_W, canvasH: CANVAS_H,
+              });
+            }
+
+            // --- Pass 2: remove background/container regions ---
+            const filtered = raw.filter((s) => {
+              let contained = 0;
+              for (const other of raw) {
+                if (other === s) continue;
+                if (other.cx > s.left && other.cx < s.right &&
+                    other.cy > s.top && other.cy < s.bottom) {
+                  contained++;
+                  if (contained >= 2) return false;
+                }
+              }
+              return true;
+            });
+
+            // --- Pass 3: deduplicate & build final labels ---
+            const labels = [];
+            for (const s of filtered) {
               const tooClose = labels.some(l => {
                 const lx = l.anchorX ?? l.cx;
                 const ly = l.anchorY ?? l.cy;
-                return Math.abs(lx - cxPx) < 15 && Math.abs(ly - cyPx) < 15;
+                return Math.abs(lx - s.cx) < 15 && Math.abs(ly - s.cy) < 15;
               });
               if (tooClose) continue;
 
-              const isSmall = pixels.length < 400;
+              const isSmall = s.area < 400;
               if (isSmall) {
-                const dx = cxPx - CANVAS_W / 2;
-                const dy = cyPx - CANVAS_H / 2;
+                const dx = s.cx - CANVAS_W / 2;
+                const dy = s.cy - CANVAS_H / 2;
                 const dist = Math.sqrt(dx * dx + dy * dy) || 1;
                 const offsetDist = 35;
-                let labelX = cxPx + (dx / dist) * offsetDist;
-                let labelY = cyPx + (dy / dist) * offsetDist;
+                let labelX = s.cx + (dx / dist) * offsetDist;
+                let labelY = s.cy + (dy / dist) * offsetDist;
                 labelX = Math.max(15, Math.min(CANVAS_W - 15, labelX));
                 labelY = Math.max(15, Math.min(CANVAS_H - 15, labelY));
                 labels.push({
-                  id: regionId, num, cx: labelX, cy: labelY,
-                  anchorX: cxPx, anchorY: cyPx, small: true,
+                  id: s.id, num: s.num, cx: labelX, cy: labelY,
+                  anchorX: s.cx, anchorY: s.cy, small: true,
                   canvasW: CANVAS_W, canvasH: CANVAS_H,
                 });
               } else {
-                labels.push({ id: regionId, num, cx: cxPx, cy: cyPx, canvasW: CANVAS_W, canvasH: CANVAS_H });
+                labels.push({ id: s.id, num: s.num, cx: s.cx, cy: s.cy, canvasW: CANVAS_W, canvasH: CANVAS_H });
               }
             }
             setSectionLabels(labels);
@@ -788,6 +838,8 @@ export default function DesignerPage() {
             if (!rMap) return;
             const regionId = rMap[y * CANVAS_W + x];
             if (regionId === 0) return; // clicked a line pixel
+            // Block coloring of border/frame regions
+            if (borderRegionsRef.current && borderRegionsRef.current.has(regionId)) return;
             const color = selectedColorRef.current;
             const [r, g, b] = hexToRgb(color);
             const gt = activeGlassTypeRef.current;
@@ -1012,53 +1064,105 @@ export default function DesignerPage() {
         console.log('[DesignerPage] Rendering canvas...');
         canvas.renderAll();
         console.log('[DesignerPage] Canvas rendered');
+
+        // ── Detect border/frame sections and lock them ──
+        // Border sections touch the canvas edges — they form the frame.
+        // They should always stay white and not be colorable.
+        const EDGE_MARGIN = 8;
+        canvas.getObjects().forEach((obj) => {
+          if (!obj.selectable) return;
+          const b = obj.getBoundingRect();
+          const touchesLeft   = b.left < EDGE_MARGIN;
+          const touchesTop    = b.top < EDGE_MARGIN;
+          const touchesRight  = b.left + b.width > CANVAS_W - EDGE_MARGIN;
+          const touchesBottom = b.top + b.height > CANVAS_H - EDGE_MARGIN;
+          const edgesTouched  = [touchesLeft, touchesTop, touchesRight, touchesBottom].filter(Boolean).length;
+          if (edgesTouched >= 1) {
+            obj.set({
+              selectable: false,
+              evented: false,
+              hoverCursor: 'default',
+              fill: 'white',
+            });
+            obj._isBorder = true;
+          }
+        });
+        canvas.renderAll();
+
         pushHistory(canvas);
 
         // ── Compute numbered section labels for SVG paths ──
         {
-          const labels = [];
+          // --- Pass 1: collect all section info ---
+          const raw = [];
           let num = 0;
           canvas.getObjects().forEach((obj) => {
-            if (!obj.selectable) return; // skip outlines
+            if (!obj.selectable) return;
             num++;
             obj._sectionNumber = num;
             const bounds = obj.getBoundingRect();
-            if (bounds.width < 3 || bounds.height < 3) return; // skip invisible micro-sections
+            if (bounds.width < 3 || bounds.height < 3) return;
             const cx = bounds.left + bounds.width / 2;
             const cy = bounds.top + bounds.height / 2;
-            // Deduplicate based on actual section center
+            raw.push({
+              id: obj.id || String(canvas.getObjects().indexOf(obj)),
+              num, cx, cy,
+              left: bounds.left, top: bounds.top,
+              right: bounds.left + bounds.width,
+              bottom: bounds.top + bounds.height,
+              area: bounds.width * bounds.height,
+              w: bounds.width, h: bounds.height,
+              canvasW: CANVAS_W, canvasH: CANVAS_H,
+            });
+          });
+
+          // --- Pass 2: remove background/container sections ---
+          // A section whose bbox contains 2+ other sections' centroids is a background path
+          const filtered = raw.filter((s) => {
+            let contained = 0;
+            for (const other of raw) {
+              if (other === s) continue;
+              if (other.cx > s.left && other.cx < s.right &&
+                  other.cy > s.top && other.cy < s.bottom) {
+                contained++;
+                if (contained >= 2) return false;
+              }
+            }
+            return true;
+          });
+
+          // --- Pass 3: deduplicate close centroids & build final labels ---
+          const labels = [];
+          for (const s of filtered) {
             const tooClose = labels.some(l => {
               const lx = l.anchorX ?? l.cx;
               const ly = l.anchorY ?? l.cy;
-              return Math.abs(lx - cx) < 15 && Math.abs(ly - cy) < 15;
+              return Math.abs(lx - s.cx) < 15 && Math.abs(ly - s.cy) < 15;
             });
-            if (tooClose) return;
+            if (tooClose) continue;
 
-            const isSmall = Math.min(bounds.width, bounds.height) < 30;
+            const isSmall = Math.min(s.w, s.h) < 30;
             if (isSmall) {
-              // Offset label away from canvas center so it sits outside the section
-              const dx = cx - CANVAS_W / 2;
-              const dy = cy - CANVAS_H / 2;
+              const dx = s.cx - CANVAS_W / 2;
+              const dy = s.cy - CANVAS_H / 2;
               const dist = Math.sqrt(dx * dx + dy * dy) || 1;
               const offsetDist = 35;
-              let labelX = cx + (dx / dist) * offsetDist;
-              let labelY = cy + (dy / dist) * offsetDist;
+              let labelX = s.cx + (dx / dist) * offsetDist;
+              let labelY = s.cy + (dy / dist) * offsetDist;
               labelX = Math.max(15, Math.min(CANVAS_W - 15, labelX));
               labelY = Math.max(15, Math.min(CANVAS_H - 15, labelY));
               labels.push({
-                id: obj.id || String(canvas.getObjects().indexOf(obj)),
-                num, cx: labelX, cy: labelY,
-                anchorX: cx, anchorY: cy, small: true,
+                id: s.id, num: s.num, cx: labelX, cy: labelY,
+                anchorX: s.cx, anchorY: s.cy, small: true,
                 canvasW: CANVAS_W, canvasH: CANVAS_H,
               });
             } else {
               labels.push({
-                id: obj.id || String(canvas.getObjects().indexOf(obj)),
-                num, cx, cy,
+                id: s.id, num: s.num, cx: s.cx, cy: s.cy,
                 canvasW: CANVAS_W, canvasH: CANVAS_H,
               });
             }
-          });
+          }
           setSectionLabels(labels);
         }
 

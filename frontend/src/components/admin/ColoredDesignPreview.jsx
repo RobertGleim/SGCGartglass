@@ -72,8 +72,20 @@ export default function ColoredDesignPreview({ designData, template }) {
     svg.setAttribute('height', '100%');
     svg.style.maxWidth = '100%';
 
+    // Get viewBox dimensions for border detection
+    const vbAttr = svg.getAttribute('viewBox');
+    let svgW = 0, svgH = 0;
+    if (vbAttr) {
+      const parts = vbAttr.split(/[\\s,]+/).map(Number);
+      svgW = parts[2] || 0;
+      svgH = parts[3] || 0;
+    }
+
     // Apply colours from sections map and mark fillable sections
     const paths = svg.querySelectorAll('path, polygon, rect, circle, ellipse');
+    // First pass: collect bboxes by rendering into a temp container for measurement
+    // We'll use a simpler heuristic: mark paths with data attributes, then detect
+    // borders in the useEffect where getBBox() is available.
     let sectionNum = 0;
     paths.forEach((el, idx) => {
       const regionId = el.getAttribute('id') || el.getAttribute('data-id') || String(idx);
@@ -113,89 +125,114 @@ export default function ColoredDesignPreview({ designData, template }) {
       const containerRect = container.getBoundingClientRect();
       const centers = [];
       const labeled = svgEl.querySelectorAll('[data-section-num]');
-      const placed = []; // track placed label positions for dedup
 
       // Get SVG viewBox for boundary clamping
       const vb = svgEl.viewBox?.baseVal;
       const svgW = vb?.width || svgEl.width?.baseVal?.value || 400;
       const svgH = vb?.height || svgEl.height?.baseVal?.value || 400;
 
+      // --- Pass 1: collect all section info with bounding boxes ---
+      const raw = [];
+      const EDGE_MARGIN = 5;
       labeled.forEach((el) => {
         const id = el.getAttribute('data-section-id');
         const num = el.getAttribute('data-section-num');
-        // Skip sections that have a color fill (filled sections hide numbers)
         const sectionData = sections[id];
         if (sectionData?.color) return;
         try {
           const bbox = el.getBBox();
-          if (bbox.width < 3 || bbox.height < 3) return; // skip invisible micro-sections
+          if (bbox.width < 3 || bbox.height < 3) return;
+          // Skip border/frame sections that touch SVG viewBox edges
+          const touchesEdge = bbox.x < EDGE_MARGIN || bbox.y < EDGE_MARGIN ||
+            (bbox.x + bbox.width > svgW - EDGE_MARGIN) ||
+            (bbox.y + bbox.height > svgH - EDGE_MARGIN);
+          if (touchesEdge) return;
+          raw.push({
+            el, id, num,
+            cx: bbox.x + bbox.width / 2,
+            cy: bbox.y + bbox.height / 2,
+            left: bbox.x, top: bbox.y,
+            right: bbox.x + bbox.width,
+            bottom: bbox.y + bbox.height,
+            w: bbox.width, h: bbox.height,
+            area: bbox.width * bbox.height,
+          });
+        } catch { /* getBBox can fail */ }
+      });
 
-          const cx = bbox.x + bbox.width / 2;
-          const cy = bbox.y + bbox.height / 2;
-
-          // Deduplicate based on section center
-          const tooClose = placed.some(p => Math.abs(p.x - cx) < 12 && Math.abs(p.y - cy) < 12);
-          if (tooClose) return;
-          placed.push({ x: cx, y: cy });
-
-          const isSmall = Math.min(bbox.width, bbox.height) < 25;
-          let labelX = cx;
-          let labelY = cy;
-
-          if (isSmall) {
-            // Offset label away from SVG center
-            const dx = cx - svgW / 2;
-            const dy = cy - svgH / 2;
-            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-            const offsetDist = 30;
-            labelX = cx + (dx / dist) * offsetDist;
-            labelY = cy + (dy / dist) * offsetDist;
-            labelX = Math.max(10, Math.min(svgW - 10, labelX));
-            labelY = Math.max(10, Math.min(svgH - 10, labelY));
-
-            // Draw leader line from section center to label
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', cx);
-            line.setAttribute('y1', cy);
-            line.setAttribute('x2', labelX);
-            line.setAttribute('y2', labelY);
-            line.setAttribute('stroke', '#444');
-            line.setAttribute('stroke-width', '0.8');
-            line.setAttribute('class', 'cdp-lbl-line');
-            line.style.pointerEvents = 'none';
-            svgEl.appendChild(line);
+      // --- Pass 2: remove background/container sections ---
+      const filtered = raw.filter((s) => {
+        let contained = 0;
+        for (const other of raw) {
+          if (other === s) continue;
+          if (other.cx > s.left && other.cx < s.right &&
+              other.cy > s.top && other.cy < s.bottom) {
+            contained++;
+            if (contained >= 2) return false;
           }
+        }
+        return true;
+      });
 
-          const fontSize = isSmall
-            ? Math.max(7, Math.min(svgW, svgH) * 0.02)
-            : Math.max(8, Math.min(bbox.width, bbox.height) * 0.18);
+      // --- Pass 3: deduplicate close centroids & draw labels ---
+      const placed = [];
+      filtered.forEach((s) => {
+        const tooClose = placed.some(p => Math.abs(p.x - s.cx) < 12 && Math.abs(p.y - s.cy) < 12);
+        if (tooClose) return;
+        placed.push({ x: s.cx, y: s.cy });
 
-          // Simple black number text
-          const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          text.setAttribute('x', labelX);
-          text.setAttribute('y', labelY);
-          text.setAttribute('text-anchor', 'middle');
-          text.setAttribute('dominant-baseline', 'central');
-          text.setAttribute('font-size', fontSize);
-          text.setAttribute('font-weight', '700');
-          text.setAttribute('font-family', 'Arial, sans-serif');
-          text.setAttribute('fill', '#222');
-          text.setAttribute('class', 'cdp-lbl-txt');
-          text.style.pointerEvents = 'none';
-          text.textContent = num;
-          svgEl.appendChild(text);
+        const isSmall = Math.min(s.w, s.h) < 25;
+        let labelX = s.cx;
+        let labelY = s.cy;
+
+        if (isSmall) {
+          const dx = s.cx - svgW / 2;
+          const dy = s.cy - svgH / 2;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const offsetDist = 30;
+          labelX = s.cx + (dx / dist) * offsetDist;
+          labelY = s.cy + (dy / dist) * offsetDist;
+          labelX = Math.max(10, Math.min(svgW - 10, labelX));
+          labelY = Math.max(10, Math.min(svgH - 10, labelY));
+
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', s.cx);
+          line.setAttribute('y1', s.cy);
+          line.setAttribute('x2', labelX);
+          line.setAttribute('y2', labelY);
+          line.setAttribute('stroke', '#444');
+          line.setAttribute('stroke-width', '0.8');
+          line.setAttribute('class', 'cdp-lbl-line');
+          line.style.pointerEvents = 'none';
+          svgEl.appendChild(line);
+        }
+
+        const fontSize = isSmall
+          ? Math.max(7, Math.min(svgW, svgH) * 0.02)
+          : Math.max(8, Math.min(s.w, s.h) * 0.18);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', labelX);
+        text.setAttribute('y', labelY);
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('dominant-baseline', 'central');
+        text.setAttribute('font-size', fontSize);
+        text.setAttribute('font-weight', '700');
+        text.setAttribute('font-family', 'Arial, sans-serif');
+        text.setAttribute('fill', '#222');
+        text.setAttribute('class', 'cdp-lbl-txt');
+        text.style.pointerEvents = 'none';
+        text.textContent = s.num;
+        svgEl.appendChild(text);
 
           // Track for popover positioning
-          const elRect = el.getBoundingClientRect();
+          const elRect = s.el.getBoundingClientRect();
           centers.push({
-            id,
-            num: parseInt(num, 10),
+            id: s.id,
+            num: parseInt(s.num, 10),
             cx: elRect.left + elRect.width / 2 - containerRect.left,
             cy: elRect.top + elRect.height / 2 - containerRect.top,
           });
-        } catch {
-          // getBBox can fail for hidden elements
-        }
       });
 
       setSectionCenters(centers);
