@@ -3,6 +3,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 import api from '../../services/api';
 import styles from './TemplateFormModal.module.css';
 
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+
 const getApiOrigin = () => {
   const configuredBase = import.meta.env.VITE_API_BASE_URL || '/api';
   if (/^https?:\/\//i.test(configuredBase)) {
@@ -29,7 +31,14 @@ function countSVGPaths(svgText) {
 /** Render first page of a PDF to a PNG Blob via canvas */
 async function pdfToBlob(file) {
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
+  let pdf;
+  try {
+    pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
+  } catch (error) {
+    console.warn('[TemplateFormModal] PDF worker setup failed, retrying without worker...', error);
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+    pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
+  }
   const page = await pdf.getPage(1);
   const viewport = page.getViewport({ scale: 2 });
   const canvas = document.createElement('canvas');

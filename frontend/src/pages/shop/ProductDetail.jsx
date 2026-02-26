@@ -95,9 +95,9 @@ export default function ProductDetail({ product }) {
         <div className="product-info-section">
           {/* Shop info */}
           <div className="shop-info">
-            <a href="/shop" className="shop-link">SGCG Art Glass</a>
+            <a href="/#/product" className="shop-link">SGCG Art Glass</a>
             <span className="separator">•</span>
-            <a href="/shop/reviews" className="reviews-link">Excellent (2.8k reviews)</a>
+            <a href="/#/product" className="reviews-link">Excellent (2.8k reviews)</a>
           </div>
 
           {/* Title */}

@@ -21,7 +21,6 @@ import UnifiedLogin from './pages/auth/UnifiedLogin'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import CustomerSignup from './pages/customer/CustomerSignup'
 import CustomerPortal from './pages/customer/CustomerPortal'
-import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import DesignerPage from './pages/DesignerPage';
 import MyProjectsPage from './pages/MyProjectsPage';
