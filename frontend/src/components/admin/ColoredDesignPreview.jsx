@@ -345,7 +345,7 @@ export default function ColoredDesignPreview({ designData, template }) {
             <div className={styles.sectionGrid}>
               {sectionEntries.map(([id, data], idx) => (
                 <div key={id} className={styles.sectionItem}>
-                  <span className={styles.sectionNumber}>{idx + 1}</span>
+                  <span className={styles.sectionNumber}>{data.sectionNum || idx + 1}</span>
                   <div className={styles.sectionSwatch} style={{ backgroundColor: data.color || '#ccc' }} />
                   <div className={styles.sectionInfo}>
                     <span className={styles.sectionColorName}>{getColorName(data.color)}</span>
@@ -382,7 +382,7 @@ export default function ColoredDesignPreview({ designData, template }) {
           onClick={(e) => e.stopPropagation()}
         >
           <button className={styles.popoverClose} onClick={() => { setPopover(null); setHighlightedSection(null); }}>&times;</button>
-          <div className={styles.popoverHeader}>Section #{popover.sectionId}</div>
+          <div className={styles.popoverHeader}>Section #{sections[popover.sectionId]?.sectionNum || popover.sectionId}</div>
           <div className={styles.popoverBody}>
             <div className={styles.popoverSwatch} style={{ backgroundColor: popover.color || '#ccc' }} />
             <div className={styles.popoverDetails}>
@@ -403,7 +403,8 @@ export default function ColoredDesignPreview({ designData, template }) {
           <div className={styles.sectionGrid}>
             {sectionEntries.map(([id, data]) => {
               const center = sectionCenters.find(c => c.id === id);
-              const displayNum = center?.num || id;
+              // Use the designer's saved sectionNum first, then label center num, then raw id
+              const displayNum = data.sectionNum || center?.num || id;
               return (
                 <div
                   key={id}
@@ -423,6 +424,8 @@ export default function ColoredDesignPreview({ designData, template }) {
                     // Scroll the SVG preview into view
                     svgContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                   }}
+                  onMouseEnter={() => setHighlightedSection(id)}
+                  onMouseLeave={() => setHighlightedSection(null)}
                 >
                   <span className={styles.sectionNumber}>{displayNum}</span>
                   <div className={styles.sectionSwatch} style={{ backgroundColor: data.color || '#ccc' }} />
