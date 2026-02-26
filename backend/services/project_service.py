@@ -11,25 +11,22 @@ def save_project(user_id, data, db: Session):
         return None, 'Missing design_data.'
     if not data.get('template_id'):
         return None, 'Missing template_id.'
-    project_name = data.get('project_name') or f"Untitled Design - {now.strftime('%Y-%m-%d')}"
-    is_submitted = bool(data.get('is_submitted', False))
+    project_name = data.get('project_name') or data.get('name') or f"Untitled Design - {now.strftime('%Y-%m-%d')}"
     try:
         if project_id:
             project = db.query(UserProject).filter_by(id=project_id, user_id=user_id).first()
             if not project:
                 return None, 'Project not found or not owned by user.'
             project.template_id = data['template_id']
-            project.project_name = project_name
+            project.name = project_name
             project.design_data = data['design_data']
-            project.is_submitted = is_submitted
             project.updated_at = now
         else:
             project = UserProject(
                 user_id=user_id,
                 template_id=data['template_id'],
-                project_name=project_name,
+                name=project_name,
                 design_data=data['design_data'],
-                is_submitted=is_submitted,
                 created_at=now,
                 updated_at=now
             )
