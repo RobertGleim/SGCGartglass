@@ -39,31 +39,7 @@
   font-size: 1rem;
 }
 
-/* Numbered labels overlaid on SVG sections */
-.sectionLabel {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: rgba(65, 105, 225, 0.9);
-  color: white;
-  font-size: 0.7rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border: 2px solid white;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-  z-index: 10;
-  transition: transform 0.15s, background 0.15s;
-  pointer-events: auto;
-}
-.sectionLabel:hover {
-  transform: translate(-50%, -50%) scale(1.25);
-  background: rgba(65, 105, 225, 1);
-}
+/* Section labels are now injected as SVG elements — no div overlay needed */
 
 /* Popover */
 .popover {

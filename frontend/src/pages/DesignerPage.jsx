@@ -91,6 +91,9 @@ export default function DesignerPage() {
   // Track per-section fills: { [regionId]: { color, glassType, glassTypeId } }
   const sectionFillsRef = useRef({});
 
+  // Section label positions for numbered overlays: [{ id, num, cx, cy }]
+  const [sectionLabels, setSectionLabels] = useState([]);
+
   // History (undo/redo)
   const historyRef = useRef([]);
   const historyIdxRef = useRef(-1);
@@ -726,6 +729,26 @@ export default function DesignerPage() {
           historyRef.current = [ctx.getImageData(0, 0, CANVAS_W, CANVAS_H)];
           historyIdxRef.current = 0;
 
+          // ── Draw numbered labels on each region ──
+          {
+            const labels = [];
+            let num = 0;
+            for (const [regionId, pixels] of regionPixels) {
+              if (pixels.length < 80) continue; // skip tiny regions
+              num++;
+              // Compute centroid of region
+              let sumX = 0, sumY = 0;
+              for (const pi of pixels) {
+                sumX += pi % CANVAS_W;
+                sumY += Math.floor(pi / CANVAS_W);
+              }
+              const cxPx = sumX / pixels.length;
+              const cyPx = sumY / pixels.length;
+              labels.push({ id: regionId, num, cx: cxPx, cy: cyPx, canvasW: CANVAS_W, canvasH: CANVAS_H });
+            }
+            setSectionLabels(labels);
+          }
+
           // Click handler — region-based fill (always fills entire section)
           const handleClick = (e) => {
             const rect = cvs.getBoundingClientRect();
@@ -962,6 +985,28 @@ export default function DesignerPage() {
         canvas.renderAll();
         console.log('[DesignerPage] Canvas rendered');
         pushHistory(canvas);
+
+        // ── Compute numbered section labels for SVG paths ──
+        {
+          const labels = [];
+          let num = 0;
+          canvas.getObjects().forEach((obj) => {
+            if (!obj.selectable) return; // skip outlines
+            num++;
+            obj._sectionNumber = num;
+            const bounds = obj.getBoundingRect();
+            if (bounds.width < 8 || bounds.height < 8) return;
+            labels.push({
+              id: obj.id || String(canvas.getObjects().indexOf(obj)),
+              num,
+              cx: bounds.left + bounds.width / 2,
+              cy: bounds.top + bounds.height / 2,
+              canvasW: CANVAS_W,
+              canvasH: CANVAS_H,
+            });
+          });
+          setSectionLabels(labels);
+        }
 
         // ── Coloring-book click-to-fill (SVG mode) ──────────────────
         canvas.on('mouse:down', async (e) => {
@@ -1489,6 +1534,26 @@ export default function DesignerPage() {
         {/* Canvas */}
         <div className={styles.canvasWrapper}>
           <canvas ref={canvasRef} />
+          {/* ── Numbered section labels overlay ── */}
+          {sectionLabels.length > 0 && (
+            <div className={styles.sectionLabelsOverlay}>
+              {sectionLabels.map((lbl) => {
+                // Convert canvas pixel coords to percentage positions
+                const leftPct = (lbl.cx / lbl.canvasW) * 100;
+                const topPct = (lbl.cy / lbl.canvasH) * 100;
+                return (
+                  <div
+                    key={lbl.id}
+                    className={styles.sectionBadge}
+                    style={{ left: `${leftPct}%`, top: `${topPct}%` }}
+                    title={`Section ${lbl.num}`}
+                  >
+                    {lbl.num}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {selectedTemplate?.template_type === 'image' ? (
             <div className={styles.hint}>Pick a color, then click any white section to fill it in</div>
           ) : (

@@ -40,6 +40,25 @@ export default function ColoredDesignPreview({ designData, template }) {
   const isFloodFill = !!designData?.floodFill;
   const hasSvg = template?.svg_content && template?.template_type === 'svg';
 
+  // Helper: detect if a fill colour is very dark (outline / leading)
+  const isOutlineFill = (fill) => {
+    if (!fill || fill === 'none' || fill === '' || fill === 'transparent') return true;
+    if (typeof fill !== 'string') return false;
+    let r, g, b;
+    if (fill.startsWith('#')) {
+      const hex = fill.replace('#', '');
+      const full = hex.length === 3 ? hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2] : hex;
+      r = parseInt(full.substring(0, 2), 16);
+      g = parseInt(full.substring(2, 4), 16);
+      b = parseInt(full.substring(4, 6), 16);
+    } else if (fill === 'black') {
+      r = g = b = 0;
+    } else {
+      return false;
+    }
+    return (0.299 * r + 0.587 * g + 0.114 * b) < 30;
+  };
+
   // Parse and colour the SVG
   const coloredSvgHtml = useMemo(() => {
     if (!hasSvg) return '';
@@ -53,8 +72,9 @@ export default function ColoredDesignPreview({ designData, template }) {
     svg.setAttribute('height', '100%');
     svg.style.maxWidth = '100%';
 
-    // Apply colours from sections map
+    // Apply colours from sections map and mark fillable sections
     const paths = svg.querySelectorAll('path, polygon, rect, circle, ellipse');
+    let sectionNum = 0;
     paths.forEach((el, idx) => {
       const regionId = el.getAttribute('id') || el.getAttribute('data-id') || String(idx);
       const sectionData = sections[regionId];
@@ -62,40 +82,85 @@ export default function ColoredDesignPreview({ designData, template }) {
         el.setAttribute('fill', sectionData.color);
         el.setAttribute('fill-opacity', '1');
       }
-      // Add data attribute so we can match clicks
       el.setAttribute('data-section-id', regionId);
-      // Make clickable
-      el.style.cursor = 'pointer';
+
+      // Detect fillable sections (not outlines)
+      const origFill = el.getAttribute('fill');
+      const isFillable = !isOutlineFill(origFill);
+      if (isFillable) {
+        sectionNum++;
+        el.setAttribute('data-section-num', String(sectionNum));
+        el.style.cursor = 'pointer';
+      }
     });
 
     return svg.outerHTML;
   }, [hasSvg, template?.svg_content, sections]);
 
-  // Compute section label positions after SVG renders
+  // Inject numbered labels directly into the SVG after render
   useEffect(() => {
     if (!hasSvg || !svgContainerRef.current) return;
 
-    // Wait for browser to render
-    requestAnimationFrame(() => {
+    const frame = requestAnimationFrame(() => {
       const container = svgContainerRef.current;
       if (!container) return;
       const svgEl = container.querySelector('svg');
       if (!svgEl) return;
 
+      // Remove previously injected labels
+      svgEl.querySelectorAll('.cdp-lbl-bg, .cdp-lbl-txt').forEach(n => n.remove());
+
       const containerRect = container.getBoundingClientRect();
       const centers = [];
+      const labeled = svgEl.querySelectorAll('[data-section-num]');
 
-      const paths = svgEl.querySelectorAll('[data-section-id]');
-      paths.forEach((el) => {
+      labeled.forEach((el) => {
         const id = el.getAttribute('data-section-id');
-        if (!sections[id]) return; // only label coloured sections
+        const num = el.getAttribute('data-section-num');
         try {
-          const bbox = el.getBoundingClientRect();
-          const cx = bbox.left + bbox.width / 2 - containerRect.left;
-          const cy = bbox.top + bbox.height / 2 - containerRect.top;
-          // Skip tiny regions (outlines/lines)
-          if (bbox.width < 8 || bbox.height < 8) return;
-          centers.push({ id, cx, cy });
+          const bbox = el.getBBox();
+          if (bbox.width < 10 || bbox.height < 10) return;
+
+          const cx = bbox.x + bbox.width / 2;
+          const cy = bbox.y + bbox.height / 2;
+          const r = Math.max(7, Math.min(bbox.width, bbox.height) * 0.14);
+          const fontSize = r * 1.3;
+
+          // Background circle
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('cx', cx);
+          circle.setAttribute('cy', cy);
+          circle.setAttribute('r', r);
+          circle.setAttribute('fill', 'rgba(65,105,225,0.85)');
+          circle.setAttribute('stroke', 'white');
+          circle.setAttribute('stroke-width', '1');
+          circle.setAttribute('class', 'cdp-lbl-bg');
+          circle.style.pointerEvents = 'none';
+          svgEl.appendChild(circle);
+
+          // Number text
+          const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          text.setAttribute('x', cx);
+          text.setAttribute('y', cy);
+          text.setAttribute('text-anchor', 'middle');
+          text.setAttribute('dominant-baseline', 'central');
+          text.setAttribute('font-size', fontSize);
+          text.setAttribute('font-weight', '700');
+          text.setAttribute('font-family', 'Arial, sans-serif');
+          text.setAttribute('fill', 'white');
+          text.setAttribute('class', 'cdp-lbl-txt');
+          text.style.pointerEvents = 'none';
+          text.textContent = num;
+          svgEl.appendChild(text);
+
+          // Track for popover positioning
+          const elRect = el.getBoundingClientRect();
+          centers.push({
+            id,
+            num: parseInt(num, 10),
+            cx: elRect.left + elRect.width / 2 - containerRect.left,
+            cy: elRect.top + elRect.height / 2 - containerRect.top,
+          });
         } catch {
           // getBBox can fail for hidden elements
         }
@@ -103,7 +168,9 @@ export default function ColoredDesignPreview({ designData, template }) {
 
       setSectionCenters(centers);
     });
-  }, [coloredSvgHtml, sections, hasSvg]);
+
+    return () => cancelAnimationFrame(frame);
+  }, [coloredSvgHtml, hasSvg]);
 
   // Handle click on SVG section
   const handleSvgClick = (e) => {
@@ -118,21 +185,6 @@ export default function ColoredDesignPreview({ designData, template }) {
       sectionId,
       x: e.clientX - containerRect.left,
       y: e.clientY - containerRect.top,
-      color: data.color,
-      glassType: data.glassType,
-      glassTypeId: data.glassTypeId,
-    });
-  };
-
-  // Handle label click
-  const handleLabelClick = (center, e) => {
-    e.stopPropagation();
-    const data = sections[center.id];
-    if (!data) return;
-    setPopover({
-      sectionId: center.id,
-      x: center.cx,
-      y: center.cy,
       color: data.color,
       glassType: data.glassType,
       glassTypeId: data.glassTypeId,
@@ -185,19 +237,6 @@ export default function ColoredDesignPreview({ designData, template }) {
         dangerouslySetInnerHTML={{ __html: coloredSvgHtml }}
       />
 
-      {/* Numbered labels overlaid on sections */}
-      {sectionCenters.map((center, idx) => (
-        <div
-          key={center.id}
-          className={styles.sectionLabel}
-          style={{ left: center.cx, top: center.cy }}
-          onClick={(e) => handleLabelClick(center, e)}
-          title={`Section ${idx + 1}: Click for details`}
-        >
-          {idx + 1}
-        </div>
-      ))}
-
       {/* Popover */}
       {popover && (
         <div
@@ -228,33 +267,36 @@ export default function ColoredDesignPreview({ designData, template }) {
         <div className={styles.sectionList}>
           <h4 className={styles.sectionListTitle}>All Sections</h4>
           <div className={styles.sectionGrid}>
-            {sectionEntries.map(([id, data], idx) => (
-              <div
-                key={id}
-                className={`${styles.sectionItem} ${popover?.sectionId === id ? styles.sectionItemActive : ''}`}
-                onClick={() => {
-                  const center = sectionCenters.find(c => c.id === id);
-                  if (center) {
-                    setPopover({
-                      sectionId: id,
-                      x: center.cx,
-                      y: center.cy,
-                      color: data.color,
-                      glassType: data.glassType,
-                      glassTypeId: data.glassTypeId,
-                    });
-                  }
-                }}
-              >
-                <span className={styles.sectionNumber}>{idx + 1}</span>
-                <div className={styles.sectionSwatch} style={{ backgroundColor: data.color || '#ccc' }} />
-                <div className={styles.sectionInfo}>
-                  <span className={styles.sectionColorName}>{getColorName(data.color)}</span>
-                  <span className={styles.sectionHex}>{data.color || '—'}</span>
-                  <span className={styles.sectionGlass}>{data.glassType || 'No glass type'}</span>
+            {sectionEntries.map(([id, data]) => {
+              const center = sectionCenters.find(c => c.id === id);
+              const displayNum = center?.num || id;
+              return (
+                <div
+                  key={id}
+                  className={`${styles.sectionItem} ${popover?.sectionId === id ? styles.sectionItemActive : ''}`}
+                  onClick={() => {
+                    if (center) {
+                      setPopover({
+                        sectionId: id,
+                        x: center.cx,
+                        y: center.cy,
+                        color: data.color,
+                        glassType: data.glassType,
+                        glassTypeId: data.glassTypeId,
+                      });
+                    }
+                  }}
+                >
+                  <span className={styles.sectionNumber}>{displayNum}</span>
+                  <div className={styles.sectionSwatch} style={{ backgroundColor: data.color || '#ccc' }} />
+                  <div className={styles.sectionInfo}>
+                    <span className={styles.sectionColorName}>{getColorName(data.color)}</span>
+                    <span className={styles.sectionHex}>{data.color || '—'}</span>
+                    <span className={styles.sectionGlass}>{data.glassType || 'No glass type'}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

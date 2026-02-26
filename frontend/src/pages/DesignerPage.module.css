@@ -200,6 +200,40 @@
   max-width: 100%;
   cursor: crosshair;
 }
+
+/* ── Section number labels overlay ── */
+.sectionLabelsOverlay {
+  position: absolute;
+  /* Match the canvas position exactly: center-aligned with the same offset as the canvas */
+  top: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  /* Canvas is 700x500 with 2px border — overlay covers the inner area */
+  width: 700px;
+  max-width: calc(100% - 3rem);
+  aspect-ratio: 700 / 500;
+  /* Offset for the canvas border */
+  margin-top: 2px;
+  pointer-events: none;
+}
+.sectionBadge {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(65, 105, 225, 0.8);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  pointer-events: none;
+  z-index: 5;
+}
 .hint {
   position: absolute;
   bottom: 1rem;
