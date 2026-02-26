@@ -68,7 +68,10 @@ export const customerSignup = async (payload) => {
   }
 };
 import axios from 'axios';
-import { getAuthToken } from '../utils/auth';
+import { getAuthToken, isValidToken, cleanupCorruptedTokens } from '../utils/auth';
+
+// Clean up any corrupted tokens on module load
+cleanupCorruptedTokens();
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 console.log('[API] Using base URL:', baseURL);
@@ -80,17 +83,8 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = getAuthToken();
-    if (token) {
-      if (token.startsWith('<!')) {
-        console.error('[API] WARNING: Got HTML as token, not JWT. Response was likely an error page.');
-        // Try to extract from localStorage instead
-        const fallbackToken = localStorage.getItem('sgcg_token');
-        if (fallbackToken && !fallbackToken.startsWith('<!')) {
-          config.headers.Authorization = `Bearer ${fallbackToken}`;
-        }
-      } else {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+    if (token && isValidToken(token)) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },

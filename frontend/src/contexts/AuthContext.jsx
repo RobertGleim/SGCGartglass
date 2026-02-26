@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { adminLogin } from '../services/api'
 import { AuthContext } from './AuthContext'
+import { isValidToken, cleanupCorruptedTokens } from '../utils/auth'
 
 const INACTIVITY_TIMEOUT = 60 * 60 * 1000 // 1 hour in milliseconds
 const CHECK_INTERVAL = 60 * 1000 // Check every minute
 
+// Clean up any corrupted tokens on module load
+cleanupCorruptedTokens();
+
 export function AuthProvider({ children }) {
-  const [authToken, setAuthToken] = useState(
-    () => window.localStorage.getItem('sgcg_token') || ''
-  )
+  const [authToken, setAuthToken] = useState(() => {
+    const token = window.localStorage.getItem('sgcg_token') || '';
+    return isValidToken(token) ? token : '';
+  })
   const lastActivityRef = useRef(Date.now())
   const checkIntervalRef = useRef(null)
 
@@ -24,12 +29,14 @@ export function AuthProvider({ children }) {
   const loginWithCredentials = useCallback(async (email, password) => {
     console.log('[Auth] Attempting admin login...')
     const token = await adminLogin(email, password)
-    console.log('[Auth] Login success, token received')
-    if (token && typeof token === 'string') {
+    console.log('[Auth] Login response received')
+    if (isValidToken(token)) {
       setAuthToken(token)
       window.localStorage.setItem('sgcg_token', token)
+      console.log('[Auth] Valid token stored')
     } else {
-      console.warn('[Auth] Login response missing token field. Check backend auth response shape.')
+      console.warn('[Auth] Login response missing valid token. Got:', typeof token, token?.substring?.(0, 50))
+      throw new Error('Invalid authentication response from server')
     }
     lastActivityRef.current = Date.now()
     return token

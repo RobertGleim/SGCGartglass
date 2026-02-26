@@ -1,8 +1,12 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { customerLogin, customerSignup } from '../services/api'
+import { isValidToken, cleanupCorruptedTokens } from '../utils/auth'
 
 const INACTIVITY_TIMEOUT = 60 * 60 * 1000 // 1 hour in milliseconds
 const CHECK_INTERVAL = 60 * 1000 // Check every minute
+
+// Clean up any corrupted tokens on module load
+cleanupCorruptedTokens();
 
 export const CustomerAuthContext = createContext({
   customerToken: '',
@@ -12,9 +16,10 @@ export const CustomerAuthContext = createContext({
 })
 
 export function CustomerAuthProvider({ children }) {
-  const [customerToken, setCustomerToken] = useState(
-    () => window.localStorage.getItem('sgcg_customer_token') || ''
-  )
+  const [customerToken, setCustomerToken] = useState(() => {
+    const token = window.localStorage.getItem('sgcg_customer_token') || '';
+    return isValidToken(token) ? token : '';
+  })
   const lastActivityRef = useRef(Date.now())
   const checkIntervalRef = useRef(null)
 
@@ -29,17 +34,27 @@ export function CustomerAuthProvider({ children }) {
 
   const loginWithCredentials = useCallback(async (email, password) => {
     const token = await customerLogin(email, password)
-    setCustomerToken(token)
-    window.localStorage.setItem('sgcg_customer_token', token)
-    lastActivityRef.current = Date.now()
+    if (isValidToken(token)) {
+      setCustomerToken(token)
+      window.localStorage.setItem('sgcg_customer_token', token)
+      lastActivityRef.current = Date.now()
+    } else {
+      console.warn('[CustomerAuth] Login response missing valid token')
+      throw new Error('Invalid authentication response from server')
+    }
   }, [])
 
   const signupWithCredentials = useCallback(async (payload) => {
     console.log('CustomerAuthContext: signupWithCredentials called', payload)
     const token = await customerSignup(payload)
-    setCustomerToken(token)
-    window.localStorage.setItem('sgcg_customer_token', token)
-    lastActivityRef.current = Date.now()
+    if (isValidToken(token)) {
+      setCustomerToken(token)
+      window.localStorage.setItem('sgcg_customer_token', token)
+      lastActivityRef.current = Date.now()
+    } else {
+      console.warn('[CustomerAuth] Signup response missing valid token')
+      throw new Error('Invalid authentication response from server')
+    }
   }, [])
 
   // Update last activity time on user interaction
