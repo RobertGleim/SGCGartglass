@@ -102,8 +102,14 @@ api.interceptors.response.use(
       console.error('[API] Status:', error.response?.status);
     }
     
-    const message = error.response?.data?.error || error.message;
-    console.error('[API error]', error.response?.status, message);
+    // Don't log 401s for auth endpoints (expected during unified login flow)
+    const isAuthEndpoint = error.config?.url?.includes('/auth/login');
+    const is401 = error.response?.status === 401;
+    
+    if (!isAuthEndpoint || !is401) {
+      const message = error.response?.data?.error || error.message;
+      console.error('[API error]', error.response?.status, message);
+    }
     return Promise.reject(error);
   }
 );

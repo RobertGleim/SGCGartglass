@@ -27,15 +27,12 @@ export function AuthProvider({ children }) {
   }, [])
 
   const loginWithCredentials = useCallback(async (email, password) => {
-    console.log('[Auth] Attempting admin login...')
     const token = await adminLogin(email, password)
-    console.log('[Auth] Login response received')
     if (isValidToken(token)) {
       setAuthToken(token)
       window.localStorage.setItem('sgcg_token', token)
-      console.log('[Auth] Valid token stored')
+      console.log('[Auth] Admin login successful')
     } else {
-      console.warn('[Auth] Login response missing valid token. Got:', typeof token, token?.substring?.(0, 50))
       throw new Error('Invalid authentication response from server')
     }
     lastActivityRef.current = Date.now()

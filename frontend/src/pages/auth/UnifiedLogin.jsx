@@ -14,19 +14,20 @@ export default function UnifiedLogin({ onAdminLogin, onCustomerLogin }) {
     setLoading(true)
 
     try {
-      // Try admin login first
+      // Try admin login first (silently - no error log if it fails)
       await onAdminLogin(email, password)
       // Navigation handled by onAdminLogin (App.jsx handleLogin)
     } catch (adminError) {
-      console.error('[UnifiedLogin] Admin login failed:', adminError.response?.data || adminError.message)
-      // If admin login fails, try customer login
+      // Admin login failed - this is expected for customer accounts, try customer login
       try {
         await onCustomerLogin(email, password)
+        console.log('[UnifiedLogin] Customer login successful')
         window.location.hash = '#/account'
         // Force re-render if hash was already #/account
         window.dispatchEvent(new HashChangeEvent('hashchange'))
       } catch (customerError) {
-        console.error('[UnifiedLogin] Customer login failed:', customerError.response?.data || customerError.message)
+        // Both logins failed - now show error
+        console.error('[UnifiedLogin] Login failed:', customerError.response?.data?.error || customerError.message)
         const serverMsg = adminError.response?.data?.error
         if (serverMsg === 'admin_not_configured') {
           setError('Admin account is not configured on the server. Check ADMIN_EMAIL and ADMIN_PASSWORD_HASH environment variables.')
