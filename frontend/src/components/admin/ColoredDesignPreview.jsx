@@ -34,6 +34,7 @@ export default function ColoredDesignPreview({ designData, template }) {
   const svgContainerRef = useRef(null);
   const [popover, setPopover] = useState(null); // { sectionId, x, y, color, glassType }
   const [sectionCenters, setSectionCenters] = useState([]); // [{ id, cx, cy }]
+  const [highlightedSection, setHighlightedSection] = useState(null);
 
   const sections = designData?.sections || {};
   const previewUrl = designData?.preview_url || designData?.dataUrl || '';
@@ -241,15 +242,61 @@ export default function ColoredDesignPreview({ designData, template }) {
     return () => cancelAnimationFrame(frame);
   }, [coloredSvgHtml, hasSvg]);
 
+  // Highlight the selected section in the SVG
+  useEffect(() => {
+    if (!svgContainerRef.current) return;
+    const svgEl = svgContainerRef.current.querySelector('svg');
+    if (!svgEl) return;
+    // Remove previous highlights
+    svgEl.querySelectorAll('.cdp-highlight').forEach(el => el.remove());
+    if (!highlightedSection) return;
+
+    const target = svgEl.querySelector(`[data-section-id="${highlightedSection}"]`);
+    if (!target) return;
+    try {
+      const bbox = target.getBBox();
+      // Draw a pulsing highlight rectangle around the section
+      const pad = 4;
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', bbox.x - pad);
+      rect.setAttribute('y', bbox.y - pad);
+      rect.setAttribute('width', bbox.width + pad * 2);
+      rect.setAttribute('height', bbox.height + pad * 2);
+      rect.setAttribute('rx', '3');
+      rect.setAttribute('fill', 'rgba(65, 105, 225, 0.15)');
+      rect.setAttribute('stroke', '#4169e1');
+      rect.setAttribute('stroke-width', '2');
+      rect.setAttribute('class', 'cdp-highlight');
+      rect.style.pointerEvents = 'none';
+      // Pulse animation via inline style
+      rect.style.animation = 'cdp-pulse 1.2s ease-in-out infinite';
+      svgEl.appendChild(rect);
+
+      // Inject keyframes if not already present
+      if (!document.getElementById('cdp-pulse-keyframes')) {
+        const styleSheet = document.createElement('style');
+        styleSheet.id = 'cdp-pulse-keyframes';
+        styleSheet.textContent = `
+          @keyframes cdp-pulse {
+            0%, 100% { opacity: 1; stroke-width: 2; }
+            50% { opacity: 0.4; stroke-width: 3; }
+          }
+        `;
+        document.head.appendChild(styleSheet);
+      }
+    } catch { /* getBBox can fail */ }
+  }, [highlightedSection, coloredSvgHtml]);
+
   // Handle click on SVG section
   const handleSvgClick = (e) => {
     const el = e.target.closest('[data-section-id]');
-    if (!el) { setPopover(null); return; }
+    if (!el) { setPopover(null); setHighlightedSection(null); return; }
     const sectionId = el.getAttribute('data-section-id');
     const data = sections[sectionId];
-    if (!data) { setPopover(null); return; }
+    if (!data) { setPopover(null); setHighlightedSection(null); return; }
 
     const containerRect = svgContainerRef.current.getBoundingClientRect();
+    setHighlightedSection(sectionId);
     setPopover({
       sectionId,
       x: e.clientX - containerRect.left,
@@ -316,7 +363,7 @@ export default function ColoredDesignPreview({ designData, template }) {
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button className={styles.popoverClose} onClick={() => setPopover(null)}>&times;</button>
+          <button className={styles.popoverClose} onClick={() => { setPopover(null); setHighlightedSection(null); }}>&times;</button>
           <div className={styles.popoverHeader}>Section #{popover.sectionId}</div>
           <div className={styles.popoverBody}>
             <div className={styles.popoverSwatch} style={{ backgroundColor: popover.color || '#ccc' }} />
@@ -342,8 +389,9 @@ export default function ColoredDesignPreview({ designData, template }) {
               return (
                 <div
                   key={id}
-                  className={`${styles.sectionItem} ${popover?.sectionId === id ? styles.sectionItemActive : ''}`}
+                  className={`${styles.sectionItem} ${highlightedSection === id ? styles.sectionItemActive : ''}`}
                   onClick={() => {
+                    setHighlightedSection(id);
                     if (center) {
                       setPopover({
                         sectionId: id,
@@ -354,6 +402,8 @@ export default function ColoredDesignPreview({ designData, template }) {
                         glassTypeId: data.glassTypeId,
                       });
                     }
+                    // Scroll the SVG preview into view
+                    svgContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                   }}
                 >
                   <span className={styles.sectionNumber}>{displayNum}</span>
