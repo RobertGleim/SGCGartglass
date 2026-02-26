@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - master
     paths:
       - 'frontend/**'
       - 'backend/**'
@@ -41,6 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -61,23 +63,97 @@ jobs:
         env:
           VITE_API_BASE_URL: https://sgcgartglass.onrender.com/api
 
+      - name: Validate Hostinger SSH secrets
+        env:
+          HOSTINGER_REMOTE_PATH: ${{ secrets.HOSTINGER_REMOTE_PATH }}
+          HOSTINGER_SSH_HOST: ${{ secrets.HOSTINGER_SSH_HOST }}
+          HOSTINGER_SSH_USER: ${{ secrets.HOSTINGER_SSH_USER }}
+          HOSTINGER_SSH_PORT: ${{ secrets.HOSTINGER_SSH_PORT }}
+          HOSTINGER_SSH_PRIVATE_KEY: ${{ secrets.HOSTINGER_SSH_PRIVATE_KEY }}
+          HOSTINGER_SSH_PASSWORD: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          test -n "$HOSTINGER_REMOTE_PATH" || (echo "Missing secret: HOSTINGER_REMOTE_PATH" && exit 1)
+          HOST="${HOSTINGER_SSH_HOST:-$FTP_HOST}"
+          USERNAME="${HOSTINGER_SSH_USER:-$FTP_USERNAME}"
+          PORT="${HOSTINGER_SSH_PORT:-22}"
+          PASSWORD="${HOSTINGER_SSH_PASSWORD:-$FTP_PASSWORD}"
+
+          test -n "$HOST" || (echo "Missing host secret: HOSTINGER_SSH_HOST or FTP_HOST" && exit 1)
+          test -n "$USERNAME" || (echo "Missing username secret: HOSTINGER_SSH_USER or FTP_USERNAME" && exit 1)
+          if [ -z "$HOSTINGER_SSH_PRIVATE_KEY" ] && [ -z "$PASSWORD" ]; then
+            echo "Provide either HOSTINGER_SSH_PRIVATE_KEY or HOSTINGER_SSH_PASSWORD/FTP_PASSWORD"
+            exit 1
+          fi
+
       - name: Deploy to Hostinger via SSH (rsync)
-        uses: burnett01/rsync-deployments@7.0.2
-        with:
-          switches: -avzr --delete --omit-dir-times --no-perms --no-owner --no-group
-          path: dist/
-          remote_path: ${{ secrets.HOSTINGER_REMOTE_PATH }}
-          remote_host: ${{ secrets.HOSTINGER_SSH_HOST }}
-          remote_user: ${{ secrets.HOSTINGER_SSH_USER }}
-          remote_port: ${{ secrets.HOSTINGER_SSH_PORT }}
-          remote_key: ${{ secrets.HOSTINGER_SSH_PRIVATE_KEY }}
+        env:
+          HOSTINGER_REMOTE_PATH: ${{ secrets.HOSTINGER_REMOTE_PATH }}
+          HOSTINGER_SSH_HOST: ${{ secrets.HOSTINGER_SSH_HOST }}
+          HOSTINGER_SSH_USER: ${{ secrets.HOSTINGER_SSH_USER }}
+          HOSTINGER_SSH_PORT: ${{ secrets.HOSTINGER_SSH_PORT }}
+          HOSTINGER_SSH_PRIVATE_KEY: ${{ secrets.HOSTINGER_SSH_PRIVATE_KEY }}
+          HOSTINGER_SSH_PASSWORD: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rsync sshpass
+
+          HOST="${HOSTINGER_SSH_HOST:-$FTP_HOST}"
+          HOST="${HOST#ftp://}"
+          HOST="${HOST#ftps://}"
+          USERNAME="${HOSTINGER_SSH_USER:-$FTP_USERNAME}"
+          PORT="${HOSTINGER_SSH_PORT:-22}"
+          PASSWORD="${HOSTINGER_SSH_PASSWORD:-$FTP_PASSWORD}"
+
+          if [ -n "$HOSTINGER_SSH_PRIVATE_KEY" ]; then
+            umask 077
+            printf '%s\n' "$HOSTINGER_SSH_PRIVATE_KEY" > .hostinger_key
+            RSYNC_RSH="ssh -i .hostinger_key -p $PORT -o StrictHostKeyChecking=no"
+            rsync -avzr --delete --omit-dir-times --no-perms --no-owner --no-group -e "$RSYNC_RSH" dist/ "$USERNAME@$HOST:$HOSTINGER_REMOTE_PATH"
+          else
+            RSYNC_RSH="ssh -p $PORT -o StrictHostKeyChecking=no"
+            sshpass -p "$PASSWORD" rsync -avzr --delete --omit-dir-times --no-perms --no-owner --no-group -e "$RSYNC_RSH" dist/ "$USERNAME@$HOST:$HOSTINGER_REMOTE_PATH"
+          fi
+
+      - name: Frontend smoke test
+        env:
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+        run: |
+          TARGET_URL="${FRONTEND_URL:-https://sgcgart.com/}"
+          echo "Smoke testing $TARGET_URL"
+          curl --fail --silent --show-error "$TARGET_URL" >/dev/null
 
   deploy-backend-render:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.backend == 'true'
+    timeout-minutes: 20
 
     steps:
+      - name: Validate Render deploy hook secret
+        env:
+          RENDER_BACKEND_DEPLOY_HOOK_URL: ${{ secrets.RENDER_BACKEND_DEPLOY_HOOK_URL }}
+        run: |
+          test -n "$RENDER_BACKEND_DEPLOY_HOOK_URL" || (echo "Missing secret: RENDER_BACKEND_DEPLOY_HOOK_URL" && exit 1)
+
       - name: Trigger Render backend deploy hook
         run: |
           curl --fail --show-error --silent -X POST "${{ secrets.RENDER_BACKEND_DEPLOY_HOOK_URL }}"
+
+      - name: Wait for backend health
+        run: |
+          for i in {1..30}; do
+            if curl --fail --silent --show-error "https://sgcgartglass.onrender.com/api/health" >/dev/null; then
+              echo "Backend is healthy"
+              exit 0
+            fi
+            echo "Waiting for backend health... attempt $i/30"
+            sleep 10
+          done
+          echo "Backend health check failed"
+          exit 1

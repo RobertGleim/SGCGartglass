@@ -175,8 +175,15 @@ Set these GitHub repository secrets:
 - `HOSTINGER_SSH_PORT` — SSH port (usually `22`)
 - `HOSTINGER_SSH_USER` — SSH username
 - `HOSTINGER_SSH_PRIVATE_KEY` — private key content (PEM/OpenSSH)
+- `HOSTINGER_SSH_PASSWORD` — optional, if using password-based SSH instead of key
 - `HOSTINGER_REMOTE_PATH` — absolute path to your domain docroot (for example `/home/USER/domains/sgcgart.com/public_html/`)
 - `RENDER_BACKEND_DEPLOY_HOOK_URL` — Render deploy hook URL for your backend service
+- `FRONTEND_URL` — optional frontend URL for CI smoke-test (defaults to `https://sgcgart.com/`)
+
+Notes:
+
+- The workflow can fall back to existing `FTP_HOST` / `FTP_USERNAME` / `FTP_PASSWORD` secrets for host/user/password values during SSH deploy.
+- For Hostinger shared hosting with SSH enabled, password auth is supported if private key auth is not configured.
 
 Behavior:
 
@@ -184,3 +191,4 @@ Behavior:
 - Builds hashed assets into `dist/assets/`
 - Deploys with `rsync --delete` so the server always matches the latest commit
 - Triggers Render backend deployment automatically when backend files change
+- Performs post-deploy smoke checks for frontend and backend health
