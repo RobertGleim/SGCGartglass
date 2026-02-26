@@ -6,10 +6,31 @@ const STATUS_OPTIONS = ['pending', 'review', 'quote', 'production', 'completed',
 
 const toArray = (value) => {
   if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.work_orders)) return value.work_orders;
   if (Array.isArray(value?.items)) return value.items;
   if (Array.isArray(value?.data)) return value.data;
   if (Array.isArray(value?.results)) return value.results;
   return [];
+};
+
+const normalizeStatus = (status) => {
+  const s = String(status || '').trim().toLowerCase();
+  if (s === 'pending review') return 'pending';
+  if (s === 'under review') return 'review';
+  if (s === 'quote sent') return 'quote';
+  if (s === 'in production') return 'production';
+  if (s === 'completed') return 'completed';
+  if (s === 'cancelled' || s === 'canceled') return 'cancelled';
+  return s;
+};
+
+const extractProjectName = (order) => {
+  if (order?.project) return order.project;
+  const notes = order?.customer_notes || '';
+  const projectLine = notes
+    .split('\n')
+    .find((line) => line.toLowerCase().startsWith('project:'));
+  return projectLine ? projectLine.replace(/^project:\s*/i, '') : '-';
 };
 
 export default function WorkOrderDashboard() {
@@ -25,7 +46,14 @@ export default function WorkOrderDashboard() {
       setLoading(true);
       try {
         const res = await api.get('/admin/work-orders');
-        setOrders(toArray(res));
+        const normalized = toArray(res).map((order) => ({
+          ...order,
+          status_key: normalizeStatus(order?.status),
+          date: order?.date || order?.created_at || order?.updated_at || null,
+          customer: order?.customer || `Customer #${order?.user_id ?? '-'}`,
+          project: extractProjectName(order),
+        }));
+        setOrders(normalized);
       } catch {
         window.toast && window.toast('Failed to load work orders', { type: 'error' });
       } finally {
@@ -37,15 +65,15 @@ export default function WorkOrderDashboard() {
 
   // Summary counts
   const summary = {
-    pending: orders.filter(o => o.status === 'pending').length,
-    review: orders.filter(o => o.status === 'review').length,
-    quote: orders.filter(o => o.status === 'quote').length,
-    production: orders.filter(o => o.status === 'production').length,
+    pending: orders.filter(o => o.status_key === 'pending').length,
+    review: orders.filter(o => o.status_key === 'review').length,
+    quote: orders.filter(o => o.status_key === 'quote').length,
+    production: orders.filter(o => o.status_key === 'production').length,
   };
 
   // Filtering
   let filtered = orders;
-  if (statusFilter !== 'all') filtered = filtered.filter(o => o.status === statusFilter);
+  if (statusFilter !== 'all') filtered = filtered.filter(o => o.status_key === statusFilter);
   if (dateRange.from) filtered = filtered.filter(o => new Date(o.date) >= new Date(dateRange.from));
   if (dateRange.to) filtered = filtered.filter(o => new Date(o.date) <= new Date(dateRange.to));
   if (customerSearch) filtered = filtered.filter(o => String(o?.customer || '').toLowerCase().includes(customerSearch.toLowerCase()));

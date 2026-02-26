@@ -1155,28 +1155,47 @@ export default function DesignerPage() {
   const handleSubmit = useCallback(async () => {
     setSubmitting(true);
     try {
+      let canvasData;
       let previewUrl;
       if (isFloodFillMode.current) {
         const cvs = canvasRef.current;
         previewUrl = cvs ? cvs.toDataURL('image/png') : '';
+        canvasData = { floodFill: true, dataUrl: previewUrl };
       } else {
         const canvas = fabricRef.current;
+        canvasData = canvas ? canvas.toJSON() : {};
         previewUrl = canvas ? canvas.toDataURL({ format: 'png', quality: 0.8 }) : '';
       }
+
+      let ensuredProjectId = projectId || null;
+      if (!ensuredProjectId) {
+        const saveRes = await saveProject({
+          template_id: selectedTemplate?.id || null,
+          canvas_data: canvasData,
+          preview_url: previewUrl,
+          name: submitForm?.project_name || selectedTemplate?.name || 'My Design',
+        });
+        ensuredProjectId = saveRes?.project?.id || saveRes?.id || null;
+        if (ensuredProjectId) setProjectId(ensuredProjectId);
+      }
+
       await submitWorkOrder({
-        project_id: projectId || null,
+        project_id: ensuredProjectId,
+        template_id: selectedTemplate?.id || null,
+        canvas_data: canvasData,
         ...submitForm,
         preview_url: previewUrl,
       });
       setSubmitModal(false);
       alert('Work order submitted! We will contact you shortly.');
-      window.location.hash = '#/my-work-orders';
+      window.location.hash = `#/my-work-orders?status=pending&refresh=${Date.now()}`;
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
     } catch {
       alert('Submission failed. Please try again.');
     } finally {
       setSubmitting(false);
     }
-  }, [projectId, submitForm]);
+  }, [projectId, selectedTemplate, submitForm]);
 
   // ── Filtered templates ────────────────────────────────────────
   const filtered = categoryFilter

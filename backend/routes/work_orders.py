@@ -55,10 +55,25 @@ def admin_required(f):
 @login_required
 def submit_work_order_route():
     user_id = g.user_id
-    data = request.get_json()
+    data = request.get_json() or {}
     project_id = data.get('project_id')
-    
-    # If project_id is provided, verify ownership
+
+    # Auto-save project when none exists yet
+    if not project_id:
+        design_data = data.get('canvas_data') or data.get('design_data') or {}
+        if not isinstance(design_data, dict):
+            design_data = {}
+        auto_project = UserProject(
+            user_id=user_id,
+            template_id=data.get('template_id'),
+            name=data.get('project_name') or data.get('name') or 'My Design',
+            design_data=design_data,
+        )
+        db.session.add(auto_project)
+        db.session.commit()
+        project_id = auto_project.id
+
+    # Verify ownership for existing/newly-created project
     project = None
     if project_id:
         project = UserProject.query.filter_by(id=project_id, user_id=user_id).first()
@@ -71,7 +86,7 @@ def submit_work_order_route():
         return jsonify({'error': err}), 400
     # Send emails (replace with real emails)
     send_work_order_emails(work_order, 'customer@example.com', 'admin@example.com')
-    return jsonify({'work_order': work_order.to_dict()}), 201
+    return jsonify({'work_order': work_order.to_dict(), 'project_id': project_id}), 201
 
 @work_orders_bp.route('/api/work-orders', methods=['GET'])
 @login_required
