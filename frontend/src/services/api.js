@@ -47,7 +47,7 @@ const extractAuthToken = (payload) => {
 };
 
 export const customerLogin = async (email, password) => {
-  const res = await api.post('/auth/customer/login', { email, password });
+  const res = await api.post('/customer/login', { email, password });
   return extractAuthToken(res);
 };
 
