@@ -107,47 +107,79 @@ export default function ColoredDesignPreview({ designData, template }) {
       const svgEl = container.querySelector('svg');
       if (!svgEl) return;
 
-      // Remove previously injected labels
-      svgEl.querySelectorAll('.cdp-lbl-bg, .cdp-lbl-txt').forEach(n => n.remove());
+      // Remove previously injected labels and leader lines
+      svgEl.querySelectorAll('.cdp-lbl-txt, .cdp-lbl-line').forEach(n => n.remove());
 
       const containerRect = container.getBoundingClientRect();
       const centers = [];
       const labeled = svgEl.querySelectorAll('[data-section-num]');
+      const placed = []; // track placed label positions for dedup
+
+      // Get SVG viewBox for boundary clamping
+      const vb = svgEl.viewBox?.baseVal;
+      const svgW = vb?.width || svgEl.width?.baseVal?.value || 400;
+      const svgH = vb?.height || svgEl.height?.baseVal?.value || 400;
 
       labeled.forEach((el) => {
         const id = el.getAttribute('data-section-id');
         const num = el.getAttribute('data-section-num');
+        // Skip sections that have a color fill (filled sections hide numbers)
+        const sectionData = sections[id];
+        if (sectionData?.color) return;
         try {
           const bbox = el.getBBox();
-          if (bbox.width < 10 || bbox.height < 10) return;
+          if (bbox.width < 3 || bbox.height < 3) return; // skip invisible micro-sections
 
           const cx = bbox.x + bbox.width / 2;
           const cy = bbox.y + bbox.height / 2;
-          const r = Math.max(7, Math.min(bbox.width, bbox.height) * 0.14);
-          const fontSize = r * 1.3;
 
-          // Background circle
-          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-          circle.setAttribute('cx', cx);
-          circle.setAttribute('cy', cy);
-          circle.setAttribute('r', r);
-          circle.setAttribute('fill', 'rgba(65,105,225,0.85)');
-          circle.setAttribute('stroke', 'white');
-          circle.setAttribute('stroke-width', '1');
-          circle.setAttribute('class', 'cdp-lbl-bg');
-          circle.style.pointerEvents = 'none';
-          svgEl.appendChild(circle);
+          // Deduplicate based on section center
+          const tooClose = placed.some(p => Math.abs(p.x - cx) < 12 && Math.abs(p.y - cy) < 12);
+          if (tooClose) return;
+          placed.push({ x: cx, y: cy });
 
-          // Number text
+          const isSmall = Math.min(bbox.width, bbox.height) < 25;
+          let labelX = cx;
+          let labelY = cy;
+
+          if (isSmall) {
+            // Offset label away from SVG center
+            const dx = cx - svgW / 2;
+            const dy = cy - svgH / 2;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            const offsetDist = 30;
+            labelX = cx + (dx / dist) * offsetDist;
+            labelY = cy + (dy / dist) * offsetDist;
+            labelX = Math.max(10, Math.min(svgW - 10, labelX));
+            labelY = Math.max(10, Math.min(svgH - 10, labelY));
+
+            // Draw leader line from section center to label
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', cx);
+            line.setAttribute('y1', cy);
+            line.setAttribute('x2', labelX);
+            line.setAttribute('y2', labelY);
+            line.setAttribute('stroke', '#444');
+            line.setAttribute('stroke-width', '0.8');
+            line.setAttribute('class', 'cdp-lbl-line');
+            line.style.pointerEvents = 'none';
+            svgEl.appendChild(line);
+          }
+
+          const fontSize = isSmall
+            ? Math.max(7, Math.min(svgW, svgH) * 0.02)
+            : Math.max(8, Math.min(bbox.width, bbox.height) * 0.18);
+
+          // Simple black number text
           const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          text.setAttribute('x', cx);
-          text.setAttribute('y', cy);
+          text.setAttribute('x', labelX);
+          text.setAttribute('y', labelY);
           text.setAttribute('text-anchor', 'middle');
           text.setAttribute('dominant-baseline', 'central');
           text.setAttribute('font-size', fontSize);
           text.setAttribute('font-weight', '700');
           text.setAttribute('font-family', 'Arial, sans-serif');
-          text.setAttribute('fill', 'white');
+          text.setAttribute('fill', '#222');
           text.setAttribute('class', 'cdp-lbl-txt');
           text.style.pointerEvents = 'none';
           text.textContent = num;

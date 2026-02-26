@@ -90,6 +90,8 @@ export default function DesignerPage() {
 
   // Track per-section fills: { [regionId]: { color, glassType, glassTypeId } }
   const sectionFillsRef = useRef({});
+  // Counter to force re-render when sections are filled (hides labels)
+  const [fillVersion, setFillVersion] = useState(0);
 
   // Section label positions for numbered overlays: [{ id, num, cx, cy }]
   const [sectionLabels, setSectionLabels] = useState([]);
@@ -734,7 +736,7 @@ export default function DesignerPage() {
             const labels = [];
             let num = 0;
             for (const [regionId, pixels] of regionPixels) {
-              if (pixels.length < 80) continue; // skip tiny regions
+              if (pixels.length < 20) continue; // skip invisible micro-regions
               num++;
               // Compute centroid of region
               let sumX = 0, sumY = 0;
@@ -744,7 +746,32 @@ export default function DesignerPage() {
               }
               const cxPx = sumX / pixels.length;
               const cyPx = sumY / pixels.length;
-              labels.push({ id: regionId, num, cx: cxPx, cy: cyPx, canvasW: CANVAS_W, canvasH: CANVAS_H });
+              // Deduplicate based on actual section center
+              const tooClose = labels.some(l => {
+                const lx = l.anchorX ?? l.cx;
+                const ly = l.anchorY ?? l.cy;
+                return Math.abs(lx - cxPx) < 15 && Math.abs(ly - cyPx) < 15;
+              });
+              if (tooClose) continue;
+
+              const isSmall = pixels.length < 400;
+              if (isSmall) {
+                const dx = cxPx - CANVAS_W / 2;
+                const dy = cyPx - CANVAS_H / 2;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                const offsetDist = 35;
+                let labelX = cxPx + (dx / dist) * offsetDist;
+                let labelY = cyPx + (dy / dist) * offsetDist;
+                labelX = Math.max(15, Math.min(CANVAS_W - 15, labelX));
+                labelY = Math.max(15, Math.min(CANVAS_H - 15, labelY));
+                labels.push({
+                  id: regionId, num, cx: labelX, cy: labelY,
+                  anchorX: cxPx, anchorY: cyPx, small: true,
+                  canvasW: CANVAS_W, canvasH: CANVAS_H,
+                });
+              } else {
+                labels.push({ id: regionId, num, cx: cxPx, cy: cyPx, canvasW: CANVAS_W, canvasH: CANVAS_H });
+              }
             }
             setSectionLabels(labels);
           }
@@ -794,6 +821,7 @@ export default function DesignerPage() {
               glassType: gt?.name || null,
               glassTypeId: gt?.id || null,
             };
+            setFillVersion(v => v + 1);
           };
           cvs.addEventListener('click', handleClick);
 
@@ -995,15 +1023,41 @@ export default function DesignerPage() {
             num++;
             obj._sectionNumber = num;
             const bounds = obj.getBoundingRect();
-            if (bounds.width < 8 || bounds.height < 8) return;
-            labels.push({
-              id: obj.id || String(canvas.getObjects().indexOf(obj)),
-              num,
-              cx: bounds.left + bounds.width / 2,
-              cy: bounds.top + bounds.height / 2,
-              canvasW: CANVAS_W,
-              canvasH: CANVAS_H,
+            if (bounds.width < 3 || bounds.height < 3) return; // skip invisible micro-sections
+            const cx = bounds.left + bounds.width / 2;
+            const cy = bounds.top + bounds.height / 2;
+            // Deduplicate based on actual section center
+            const tooClose = labels.some(l => {
+              const lx = l.anchorX ?? l.cx;
+              const ly = l.anchorY ?? l.cy;
+              return Math.abs(lx - cx) < 15 && Math.abs(ly - cy) < 15;
             });
+            if (tooClose) return;
+
+            const isSmall = Math.min(bounds.width, bounds.height) < 30;
+            if (isSmall) {
+              // Offset label away from canvas center so it sits outside the section
+              const dx = cx - CANVAS_W / 2;
+              const dy = cy - CANVAS_H / 2;
+              const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+              const offsetDist = 35;
+              let labelX = cx + (dx / dist) * offsetDist;
+              let labelY = cy + (dy / dist) * offsetDist;
+              labelX = Math.max(15, Math.min(CANVAS_W - 15, labelX));
+              labelY = Math.max(15, Math.min(CANVAS_H - 15, labelY));
+              labels.push({
+                id: obj.id || String(canvas.getObjects().indexOf(obj)),
+                num, cx: labelX, cy: labelY,
+                anchorX: cx, anchorY: cy, small: true,
+                canvasW: CANVAS_W, canvasH: CANVAS_H,
+              });
+            } else {
+              labels.push({
+                id: obj.id || String(canvas.getObjects().indexOf(obj)),
+                num, cx, cy,
+                canvasW: CANVAS_W, canvasH: CANVAS_H,
+              });
+            }
           });
           setSectionLabels(labels);
         }
@@ -1043,6 +1097,7 @@ export default function DesignerPage() {
             glassType: gt?.name || null,
             glassTypeId: gt?.id || null,
           };
+          setFillVersion(v => v + 1);
           pushHistory(canvas);
         });
       } catch (err) {
@@ -1537,8 +1592,28 @@ export default function DesignerPage() {
           {/* ── Numbered section labels overlay ── */}
           {sectionLabels.length > 0 && (
             <div className={styles.sectionLabelsOverlay}>
-              {sectionLabels.map((lbl) => {
-                // Convert canvas pixel coords to percentage positions
+              {/* Leader lines for small sections */}
+              <svg
+                className={styles.leaderLineSvg}
+                viewBox={`0 0 ${sectionLabels[0]?.canvasW || 700} ${sectionLabels[0]?.canvasH || 500}`}
+              >
+                {sectionLabels
+                  .filter((lbl) => lbl.small && !sectionFillsRef.current[lbl.id])
+                  .map((lbl) => (
+                    <line
+                      key={`line-${lbl.id}`}
+                      x1={lbl.anchorX}
+                      y1={lbl.anchorY}
+                      x2={lbl.cx}
+                      y2={lbl.cy}
+                      stroke="#444"
+                      strokeWidth="1"
+                    />
+                  ))}
+              </svg>
+              {sectionLabels
+                .filter((lbl) => !sectionFillsRef.current[lbl.id])
+                .map((lbl) => {
                 const leftPct = (lbl.cx / lbl.canvasW) * 100;
                 const topPct = (lbl.cy / lbl.canvasH) * 100;
                 return (
