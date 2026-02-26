@@ -5,24 +5,48 @@ from backend.services.work_order_service import (
 from backend.models import db, WorkOrder
 from backend.models.project import UserProject
 from backend.utils.email import send_email
+from backend.auth import decode_token
 from datetime import datetime
+import jwt
 
 work_orders_bp = Blueprint('work_orders', __name__)
 admin_work_orders_bp = Blueprint('admin_work_orders', __name__)
 
-# Placeholder for authentication decorators
+# Authentication decorator that parses JWT and sets g.user_id
 def login_required(f):
     def wrapper(*args, **kwargs):
-        if not hasattr(g, 'user_id') or not g.user_id:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
             return jsonify({'error': 'Authentication required'}), 401
+        token = auth_header.split(" ", 1)[1].strip()
+        try:
+            payload = decode_token(token)
+            # Set user_id from customer_id or sub (email for admin)
+            g.user_id = payload.get("customer_id") or payload.get("sub")
+            g.is_admin = payload.get("role") != "customer"
+            g.auth_payload = payload
+        except jwt.PyJWTError:
+            return jsonify({'error': 'Invalid or expired token'}), 401
         return f(*args, **kwargs)
     wrapper.__name__ = f.__name__
     return wrapper
 
 def admin_required(f):
     def wrapper(*args, **kwargs):
-        if not hasattr(g, 'is_admin') or not g.is_admin:
-            return jsonify({'error': 'Admin authentication required'}), 403
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return jsonify({'error': 'Authentication required'}), 401
+        token = auth_header.split(" ", 1)[1].strip()
+        try:
+            payload = decode_token(token)
+            # Admin tokens don't have role=customer
+            if payload.get("role") == "customer":
+                return jsonify({'error': 'Admin authentication required'}), 403
+            g.user_id = payload.get("sub")
+            g.is_admin = True
+            g.auth_payload = payload
+        except jwt.PyJWTError:
+            return jsonify({'error': 'Invalid or expired token'}), 401
         return f(*args, **kwargs)
     wrapper.__name__ = f.__name__
     return wrapper
