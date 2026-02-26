@@ -84,9 +84,6 @@ export default function ColoredDesignPreview({ designData, template }) {
 
     // Apply colours from sections map and mark fillable sections
     const paths = svg.querySelectorAll('path, polygon, rect, circle, ellipse');
-    // First pass: collect bboxes by rendering into a temp container for measurement
-    // We'll use a simpler heuristic: mark paths with data attributes, then detect
-    // borders in the useEffect where getBBox() is available.
     let sectionNum = 0;
     paths.forEach((el, idx) => {
       const regionId = el.getAttribute('id') || el.getAttribute('data-id') || String(idx);
@@ -102,7 +99,9 @@ export default function ColoredDesignPreview({ designData, template }) {
       const isFillable = !isOutlineFill(origFill);
       if (isFillable) {
         sectionNum++;
-        el.setAttribute('data-section-num', String(sectionNum));
+        // Use the saved sectionNum from design data if available for consistency
+        const displayNum = sectionData?.sectionNum || sectionNum;
+        el.setAttribute('data-section-num', String(displayNum));
         el.style.cursor = 'pointer';
       }
     });
@@ -249,26 +248,43 @@ export default function ColoredDesignPreview({ designData, template }) {
     if (!svgEl) return;
     // Remove previous highlights
     svgEl.querySelectorAll('.cdp-highlight').forEach(el => el.remove());
+    // Reset previously highlighted paths
+    svgEl.querySelectorAll('[data-cdp-highlighted]').forEach(el => {
+      el.style.stroke = el.getAttribute('data-orig-stroke') || '';
+      el.style.strokeWidth = el.getAttribute('data-orig-stroke-width') || '';
+      el.style.filter = '';
+      el.removeAttribute('data-cdp-highlighted');
+      el.removeAttribute('data-orig-stroke');
+      el.removeAttribute('data-orig-stroke-width');
+    });
     if (!highlightedSection) return;
 
     const target = svgEl.querySelector(`[data-section-id="${highlightedSection}"]`);
     if (!target) return;
     try {
+      // Highlight the actual path/shape by changing its stroke
+      target.setAttribute('data-cdp-highlighted', 'true');
+      target.setAttribute('data-orig-stroke', target.style.stroke || target.getAttribute('stroke') || '');
+      target.setAttribute('data-orig-stroke-width', target.style.strokeWidth || target.getAttribute('stroke-width') || '');
+      target.style.stroke = '#4169e1';
+      target.style.strokeWidth = '3';
+      target.style.filter = 'drop-shadow(0 0 4px rgba(65, 105, 225, 0.6))';
+
+      // Also add a semi-transparent fill overlay clone for extra visibility
       const bbox = target.getBBox();
-      // Draw a pulsing highlight rectangle around the section
-      const pad = 4;
+      const pad = 3;
       const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       rect.setAttribute('x', bbox.x - pad);
       rect.setAttribute('y', bbox.y - pad);
       rect.setAttribute('width', bbox.width + pad * 2);
       rect.setAttribute('height', bbox.height + pad * 2);
-      rect.setAttribute('rx', '3');
-      rect.setAttribute('fill', 'rgba(65, 105, 225, 0.15)');
+      rect.setAttribute('rx', '2');
+      rect.setAttribute('fill', 'none');
       rect.setAttribute('stroke', '#4169e1');
       rect.setAttribute('stroke-width', '2');
+      rect.setAttribute('stroke-dasharray', '6 3');
       rect.setAttribute('class', 'cdp-highlight');
       rect.style.pointerEvents = 'none';
-      // Pulse animation via inline style
       rect.style.animation = 'cdp-pulse 1.2s ease-in-out infinite';
       svgEl.appendChild(rect);
 
@@ -278,8 +294,8 @@ export default function ColoredDesignPreview({ designData, template }) {
         styleSheet.id = 'cdp-pulse-keyframes';
         styleSheet.textContent = `
           @keyframes cdp-pulse {
-            0%, 100% { opacity: 1; stroke-width: 2; }
-            50% { opacity: 0.4; stroke-width: 3; }
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
           }
         `;
         document.head.appendChild(styleSheet);

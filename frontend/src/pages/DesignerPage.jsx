@@ -731,15 +731,30 @@ export default function DesignerPage() {
           regionPixelsRef.current = regionPixels;
 
           // ── Detect border regions that touch the canvas edges ──
+          // Only thin strips touching 2+ edges are frame. Large sections 
+          // that touch one edge are regular template sections.
           const borderRegions = new Set();
           for (const [regionId, pixels] of regionPixels) {
+            let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
             for (const pi of pixels) {
               const px = pi % CANVAS_W;
               const py = Math.floor(pi / CANVAS_W);
-              if (px <= 1 || py <= 1 || px >= CANVAS_W - 2 || py >= CANVAS_H - 2) {
-                borderRegions.add(regionId);
-                break;
-              }
+              if (px < minX) minX = px;
+              if (py < minY) minY = py;
+              if (px > maxX) maxX = px;
+              if (py > maxY) maxY = py;
+            }
+            const touchesLeft   = minX <= 2;
+            const touchesTop    = minY <= 2;
+            const touchesRight  = maxX >= CANVAS_W - 3;
+            const touchesBottom = maxY >= CANVAS_H - 3;
+            const edgesTouched = [touchesLeft, touchesTop, touchesRight, touchesBottom].filter(Boolean).length;
+            const bw = maxX - minX;
+            const bh = maxY - minY;
+            const thinThreshold = Math.min(CANVAS_W, CANVAS_H) * 0.15;
+            const isThinStrip = Math.min(bw, bh) < thinThreshold;
+            if (edgesTouched >= 2 && isThinStrip) {
+              borderRegions.add(regionId);
             }
           }
           borderRegionsRef.current = borderRegions;
@@ -868,10 +883,13 @@ export default function DesignerPage() {
               glassType: gt?.name || null,
             });
             // Track section fill for work order data
+            // Find section number from labels
+            const lbl = sectionLabels.find(l => l.id === regionId);
             sectionFillsRef.current[regionId] = {
               color,
               glassType: gt?.name || null,
               glassTypeId: gt?.id || null,
+              sectionNum: lbl?.num || null,
             };
             setFillVersion(v => v + 1);
           };
@@ -1066,8 +1084,8 @@ export default function DesignerPage() {
         console.log('[DesignerPage] Canvas rendered');
 
         // ── Detect border/frame sections and lock them ──
-        // Border sections touch the canvas edges — they form the frame.
-        // They should always stay white and not be colorable.
+        // Only thin strips touching 2+ canvas edges are frame pieces.
+        // Large background sections that touch edges are regular template sections.
         const EDGE_MARGIN = 8;
         canvas.getObjects().forEach((obj) => {
           if (!obj.selectable) return;
@@ -1077,7 +1095,10 @@ export default function DesignerPage() {
           const touchesRight  = b.left + b.width > CANVAS_W - EDGE_MARGIN;
           const touchesBottom = b.top + b.height > CANVAS_H - EDGE_MARGIN;
           const edgesTouched  = [touchesLeft, touchesTop, touchesRight, touchesBottom].filter(Boolean).length;
-          if (edgesTouched >= 1) {
+          // Must touch 2+ edges AND be a thin strip (one dimension < 15% of canvas)
+          const thinThreshold = Math.min(CANVAS_W, CANVAS_H) * 0.15;
+          const isThinStrip = Math.min(b.width, b.height) < thinThreshold;
+          if (edgesTouched >= 2 && isThinStrip) {
             obj.set({
               selectable: false,
               evented: false,
@@ -1200,6 +1221,7 @@ export default function DesignerPage() {
             color,
             glassType: gt?.name || null,
             glassTypeId: gt?.id || null,
+            sectionNum: hit._sectionNumber || null,
           };
           setFillVersion(v => v + 1);
           pushHistory(canvas);
