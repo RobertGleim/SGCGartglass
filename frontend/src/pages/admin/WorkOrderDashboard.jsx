@@ -4,6 +4,14 @@ import styles from './WorkOrderDashboard.module.css';
 
 const STATUS_OPTIONS = ['pending', 'review', 'quote', 'production', 'completed', 'cancelled'];
 
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
 export default function WorkOrderDashboard() {
   const [orders, setOrders] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -17,7 +25,7 @@ export default function WorkOrderDashboard() {
       setLoading(true);
       try {
         const res = await api.get('/admin/work-orders');
-        setOrders(res);
+        setOrders(toArray(res));
       } catch {
         window.toast && window.toast('Failed to load work orders', { type: 'error' });
       } finally {
@@ -40,13 +48,13 @@ export default function WorkOrderDashboard() {
   if (statusFilter !== 'all') filtered = filtered.filter(o => o.status === statusFilter);
   if (dateRange.from) filtered = filtered.filter(o => new Date(o.date) >= new Date(dateRange.from));
   if (dateRange.to) filtered = filtered.filter(o => new Date(o.date) <= new Date(dateRange.to));
-  if (customerSearch) filtered = filtered.filter(o => o.customer.toLowerCase().includes(customerSearch.toLowerCase()));
+  if (customerSearch) filtered = filtered.filter(o => String(o?.customer || '').toLowerCase().includes(customerSearch.toLowerCase()));
 
   // Sorting
   filtered = filtered.sort((a, b) => {
     if (sort === 'date') return new Date(b.date) - new Date(a.date);
-    if (sort === 'status') return a.status.localeCompare(b.status);
-    if (sort === 'customer') return a.customer.localeCompare(b.customer);
+    if (sort === 'status') return String(a?.status || '').localeCompare(String(b?.status || ''));
+    if (sort === 'customer') return String(a?.customer || '').localeCompare(String(b?.customer || ''));
     return 0;
   });
 
@@ -89,10 +97,10 @@ export default function WorkOrderDashboard() {
             {filtered.map(o => (
               <tr key={o.id} onClick={() => { window.location.hash = `#/admin/work-orders/${o.id}`; }} style={{ cursor: 'pointer' }}>
                 <td>{o.id}</td>
-                <td>{o.customer}</td>
-                <td>{o.project}</td>
-                <td>{o.status}</td>
-                <td>{new Date(o.date).toLocaleString()}</td>
+                <td>{o.customer || '-'}</td>
+                <td>{o.project || '-'}</td>
+                <td>{o.status || '-'}</td>
+                <td>{o.date ? new Date(o.date).toLocaleString() : '-'}</td>
                 <td>
                   <button onClick={e => { e.stopPropagation(); window.location.hash = `#/admin/work-orders/${o.id}`; }}>View</button>
                 </td>

@@ -4,11 +4,43 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'requirements.txt'
+      - 'render.yaml'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  changes:
     runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Detect changed areas
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/deploy.yml'
+            backend:
+              - 'backend/**'
+              - 'requirements.txt'
+              - 'render.yaml'
+              - '.github/workflows/deploy.yml'
+
+  build-and-deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
 
     steps:
       - name: Checkout code
@@ -27,17 +59,25 @@ jobs:
       - name: Build frontend
         run: cd frontend && npm run build
         env:
-          VITE_API_BASE_URL: https://sgcgartglass.onrender.com
+          VITE_API_BASE_URL: https://sgcgartglass.onrender.com/api
 
-      - name: Deploy to Hostinger via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: Deploy to Hostinger via SSH (rsync)
+        uses: burnett01/rsync-deployments@7.0.2
         with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftp
-          local-dir: ./dist/
-          server-dir: ./public_html/
-          log-level: verbose
-          timeout: 300000
+          switches: -avzr --delete --omit-dir-times --no-perms --no-owner --no-group
+          path: dist/
+          remote_path: ${{ secrets.HOSTINGER_REMOTE_PATH }}
+          remote_host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          remote_user: ${{ secrets.HOSTINGER_SSH_USER }}
+          remote_port: ${{ secrets.HOSTINGER_SSH_PORT }}
+          remote_key: ${{ secrets.HOSTINGER_SSH_PRIVATE_KEY }}
+
+  deploy-backend-render:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+
+    steps:
+      - name: Trigger Render backend deploy hook
+        run: |
+          curl --fail --show-error --silent -X POST "${{ secrets.RENDER_BACKEND_DEPLOY_HOOK_URL }}"

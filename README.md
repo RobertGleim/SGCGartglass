@@ -149,3 +149,23 @@ Or run `database/schema.sql` in your MySQL client. Schema includes: `templates`,
 ## License and branding
 
 See repo and docs for license. Replace `frontend/public/brand-logo.svg` with your logo as needed.
+
+## Auto-deploy on push (frontend + backend)
+
+The repo includes `.github/workflows/deploy.yml` to auto-deploy frontend and backend on pushes to `main` (only when relevant files change).
+
+Set these GitHub repository secrets:
+
+- `HOSTINGER_SSH_HOST` — SSH host (for example, your Hostinger SSH endpoint)
+- `HOSTINGER_SSH_PORT` — SSH port (usually `22`)
+- `HOSTINGER_SSH_USER` — SSH username
+- `HOSTINGER_SSH_PRIVATE_KEY` — private key content (PEM/OpenSSH)
+- `HOSTINGER_REMOTE_PATH` — absolute path to your domain docroot (for example `/home/USER/domains/sgcgart.com/public_html/`)
+- `RENDER_BACKEND_DEPLOY_HOOK_URL` — Render deploy hook URL for your backend service
+
+Behavior:
+
+- Runs `npm install` + `npm run build` in `frontend/`
+- Builds hashed assets into `dist/assets/`
+- Deploys with `rsync --delete` so the server always matches the latest commit
+- Triggers Render backend deployment automatically when backend files change

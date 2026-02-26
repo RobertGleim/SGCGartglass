@@ -6,6 +6,14 @@ import styles from './TemplateManagement.module.css';
 const PAGE_SIZE = 20;
 const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
 export default function TemplateManagement() {
   const [templates, setTemplates] = useState([]);
   const [page, setPage] = useState(1);
@@ -20,7 +28,7 @@ export default function TemplateManagement() {
       setLoading(true);
       try {
         const res = await api.get('/admin/templates');
-        setTemplates(res?.items || res || []);
+        setTemplates(toArray(res));
       } catch {
         window.toast && window.toast('Failed to load templates', { type: 'error' });
       } finally {
@@ -31,7 +39,7 @@ export default function TemplateManagement() {
   }, []);
 
   // Search
-  const filtered = templates.filter(t => t.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = templates.filter((t) => String(t?.name || '').toLowerCase().includes(search.toLowerCase()));
   // Pagination
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -146,7 +154,7 @@ export default function TemplateManagement() {
               setTemplates(prev => prev.map(t => t.id === editTemplate.id ? { ...t, ...updated } : t));
             } else {
               // New template added — refetch
-              api.get('/admin/templates').then(res => setTemplates(res?.items || res || []));
+              api.get('/admin/templates').then((res) => setTemplates(toArray(res)));
             }
           }}
         />
