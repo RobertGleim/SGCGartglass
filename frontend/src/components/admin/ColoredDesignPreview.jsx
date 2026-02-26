@@ -160,8 +160,10 @@ export default function ColoredDesignPreview({ designData, template }) {
         } catch { /* getBBox can fail */ }
       });
 
-      // --- Pass 2: remove background/container sections ---
+      // --- Pass 2: remove full-canvas background fills ---
+      const svgArea = svgW * svgH;
       const filtered = raw.filter((s) => {
+        if (s.area < svgArea * 0.6) return true;
         let contained = 0;
         for (const other of raw) {
           if (other === s) continue;

@@ -795,8 +795,10 @@ export default function DesignerPage() {
               });
             }
 
-            // --- Pass 2: remove background/container regions ---
+            // --- Pass 2: remove full-canvas background fills ---
+            const canvasArea = CANVAS_W * CANVAS_H;
             const filtered = raw.filter((s) => {
+              if (s.area < canvasArea * 0.6) return true;
               let contained = 0;
               for (const other of raw) {
                 if (other === s) continue;
@@ -1137,9 +1139,13 @@ export default function DesignerPage() {
             });
           });
 
-          // --- Pass 2: remove background/container sections ---
-          // A section whose bbox contains 2+ other sections' centroids is a background path
+          // --- Pass 2: remove full-canvas background fills ---
+          // Only remove sections covering >60% of the canvas that contain other sections.
+          // This preserves real template sections (cat body, etc.) while removing
+          // true all-encompassing backgrounds.
+          const canvasArea = CANVAS_W * CANVAS_H;
           const filtered = raw.filter((s) => {
+            if (s.area < canvasArea * 0.6) return true; // keep if not huge
             let contained = 0;
             for (const other of raw) {
               if (other === s) continue;
