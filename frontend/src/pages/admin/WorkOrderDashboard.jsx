@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
+import ColoredDesignPreview from '../../components/admin/ColoredDesignPreview';
 import styles from './WorkOrderDashboard.module.css';
 
 const STATUS_OPTIONS = ['pending', 'review', 'quote', 'production', 'completed', 'cancelled'];
@@ -63,6 +64,7 @@ export default function WorkOrderDashboard() {
         customer: order?.customer || `Customer #${order?.user_id ?? '-'}`,
         projectName: extractProjectName(order),
         designData: order?.project?.design_data || {},
+        templateData: order?.template || {},
         templateThumbnail: order?.template?.thumbnail_url || '',
         templateName: order?.template?.name || 'Custom Design',
       }));
@@ -93,6 +95,21 @@ export default function WorkOrderDashboard() {
       window.toast && window.toast('Failed to update status', { type: 'error' });
     } finally {
       setUpdating(false);
+    }
+  };
+
+  // Delete work order
+  const handleDelete = async (orderId, e) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this work order? This cannot be undone.')) return;
+    try {
+      await api.delete(`/admin/work-orders/${orderId}`);
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+      if (selectedOrder?.id === orderId) setSelectedOrder(null);
+      window.toast && window.toast('Work order deleted', { type: 'success' });
+    } catch (err) {
+      console.error('[WorkOrderDashboard] Delete error:', err);
+      window.toast && window.toast('Failed to delete work order', { type: 'error' });
     }
   };
 
@@ -127,28 +144,6 @@ export default function WorkOrderDashboard() {
     if (sort === 'customer') return String(a?.customer || '').localeCompare(String(b?.customer || ''));
     return 0;
   });
-
-  // Render design colors from design_data
-  const renderDesignColors = (designData) => {
-    if (!designData || typeof designData !== 'object') return <span>No design data</span>;
-    const entries = Object.entries(designData);
-    if (entries.length === 0) return <span>No colors assigned</span>;
-    return (
-      <div className={styles.colorGrid}>
-        {entries.slice(0, 12).map(([regionId, data]) => (
-          <div key={regionId} className={styles.colorSwatch}>
-            <div 
-              className={styles.swatchColor} 
-              style={{ backgroundColor: data?.color || '#ccc' }}
-              title={`Region: ${regionId}`}
-            />
-            <span className={styles.swatchLabel}>{regionId}</span>
-          </div>
-        ))}
-        {entries.length > 12 && <span>+{entries.length - 12} more</span>}
-      </div>
-    );
-  };
 
   return (
     <div className={styles.page}>
@@ -192,7 +187,9 @@ export default function WorkOrderDashboard() {
               <tr key={o.id}>
                 <td>
                   <div className={styles.thumbCell} onClick={(e) => openPreview(o, e)} title="Click to view full design">
-                    {o.templateThumbnail ? (
+                    {(o.designData?.preview_url || o.designData?.dataUrl) ? (
+                      <img src={o.designData.preview_url || o.designData.dataUrl} alt="Design" className={styles.thumbImg} />
+                    ) : o.templateThumbnail ? (
                       <img src={o.templateThumbnail} alt="Template" className={styles.thumbImg} />
                     ) : (
                       <div className={styles.thumbPlaceholder}>No Image</div>
@@ -216,6 +213,7 @@ export default function WorkOrderDashboard() {
                 <td>{o.date ? new Date(o.date).toLocaleString() : '-'}</td>
                 <td>
                   <button onClick={(e) => openPreview(o, e)}>View</button>
+                  <button className={styles.deleteBtn} onClick={(e) => handleDelete(o.id, e)}>Delete</button>
                 </td>
               </tr>
             ))}
@@ -246,17 +244,11 @@ export default function WorkOrderDashboard() {
             </div>
 
             <div className={styles.modalSection}>
-              <h3>Template Preview</h3>
-              {selectedOrder.templateThumbnail ? (
-                <img src={selectedOrder.templateThumbnail} alt="Template" className={styles.previewImg} />
-              ) : (
-                <div className={styles.noPreview}>No template image available</div>
-              )}
-            </div>
-
-            <div className={styles.modalSection}>
-              <h3>Design Colors</h3>
-              {renderDesignColors(selectedOrder.designData)}
+              <h3>Design Preview</h3>
+              <ColoredDesignPreview
+                designData={selectedOrder.designData}
+                template={selectedOrder.templateData}
+              />
             </div>
 
             <div className={styles.modalSection}>
@@ -269,6 +261,16 @@ export default function WorkOrderDashboard() {
               >
                 {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{STATUS_LABELS[opt] || opt}</option>)}
               </select>
+            </div>
+
+            <div className={styles.modalSection}>
+              <h3>Danger Zone</h3>
+              <button
+                className={styles.deleteBtnLarge}
+                onClick={(e) => handleDelete(selectedOrder.id, e)}
+              >
+                Delete Work Order
+              </button>
             </div>
           </div>
         </div>

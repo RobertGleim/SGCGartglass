@@ -1,0 +1,213 @@
+.container {
+  position: relative;
+}
+
+/* SVG container */
+.svgContainer {
+  position: relative;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f8f4ef;
+  cursor: default;
+}
+.svgContainer svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Preview image (flood-fill mode) */
+.previewWrap {
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f8f4ef;
+}
+.previewImg {
+  display: block;
+  width: 100%;
+  max-height: 500px;
+  object-fit: contain;
+}
+.noPreview {
+  background: #f5f5f5;
+  padding: 3rem;
+  text-align: center;
+  border-radius: 12px;
+  color: #999;
+  font-size: 1rem;
+}
+
+/* Numbered labels overlaid on SVG sections */
+.sectionLabel {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(65, 105, 225, 0.9);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  z-index: 10;
+  transition: transform 0.15s, background 0.15s;
+  pointer-events: auto;
+}
+.sectionLabel:hover {
+  transform: translate(-50%, -50%) scale(1.25);
+  background: rgba(65, 105, 225, 1);
+}
+
+/* Popover */
+.popover {
+  position: absolute;
+  z-index: 100;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  padding: 0.75rem 1rem;
+  min-width: 170px;
+  max-width: 220px;
+  animation: fadeIn 0.15s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.popoverClose {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: #999;
+  line-height: 1;
+}
+.popoverClose:hover {
+  color: #333;
+}
+.popoverHeader {
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+  color: #4169e1;
+}
+.popoverBody {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+.popoverSwatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 2px solid #ddd;
+  flex-shrink: 0;
+}
+.popoverDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.popoverColorName {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #333;
+}
+.popoverHex {
+  font-size: 0.75rem;
+  color: #888;
+  font-family: monospace;
+}
+.popoverGlass {
+  font-size: 0.8rem;
+  color: #555;
+  margin-top: 0.15rem;
+}
+
+/* Section list (below the design preview) */
+.sectionList {
+  margin-top: 1rem;
+}
+.sectionListTitle {
+  font-size: 0.95rem;
+  color: #333;
+  margin-bottom: 0.5rem;
+  border-bottom: 2px solid #4169e1;
+  padding-bottom: 0.4rem;
+}
+.sectionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.5rem;
+}
+.sectionItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.sectionItem:hover {
+  background: #f0f4ff;
+  border-color: #4169e1;
+}
+.sectionItemActive {
+  background: #e8edff;
+  border-color: #4169e1;
+}
+.sectionNumber {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #4169e1;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.sectionSwatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 2px solid #ddd;
+  flex-shrink: 0;
+}
+.sectionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+.sectionColorName {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sectionHex {
+  font-size: 0.7rem;
+  color: #888;
+  font-family: monospace;
+}
+.sectionGlass {
+  font-size: 0.75rem;
+  color: #555;
+}

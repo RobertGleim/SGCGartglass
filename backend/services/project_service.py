@@ -61,7 +61,7 @@ def delete_project(project_id, user_id, db: Session):
         project = db.query(UserProject).filter_by(id=project_id, user_id=user_id).first()
         if not project:
             return False, 'Project not found or not owned by user.'
-        project.is_submitted = False  # Soft delete: mark as not submitted
+        db.delete(project)
         db.commit()
         return True, None
     except SQLAlchemyError as e:

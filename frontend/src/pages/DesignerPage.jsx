@@ -88,6 +88,9 @@ export default function DesignerPage() {
   // Preloaded texture images keyed by glass type id
   const textureCacheRef = useRef(new Map());
 
+  // Track per-section fills: { [regionId]: { color, glassType, glassTypeId } }
+  const sectionFillsRef = useRef({});
+
   // History (undo/redo)
   const historyRef = useRef([]);
   const historyIdxRef = useRef(-1);
@@ -173,6 +176,11 @@ export default function DesignerPage() {
   // Apply design data to canvas
   const applyDesignData = (designData) => {
     if (!designData || typeof designData !== 'object') return;
+    
+    // Restore section fills from saved data
+    if (designData.sections && typeof designData.sections === 'object') {
+      sectionFillsRef.current = { ...designData.sections };
+    }
     
     // For SVG templates with Fabric.js
     if (fabricRef.current) {
@@ -757,6 +765,12 @@ export default function DesignerPage() {
               fill: color,
               glassType: gt?.name || null,
             });
+            // Track section fill for work order data
+            sectionFillsRef.current[regionId] = {
+              color,
+              glassType: gt?.name || null,
+              glassTypeId: gt?.id || null,
+            };
           };
           cvs.addEventListener('click', handleClick);
 
@@ -977,6 +991,13 @@ export default function DesignerPage() {
           hit.dirty = true;
           canvas.requestRenderAll();
           setSelectedObj({ fill: color, glassType: hit._glassType });
+          // Track section fill for work order data
+          const sectionId = hit.id || hit.regionId || hit.__pathIndex || canvas.getObjects().indexOf(hit);
+          sectionFillsRef.current[sectionId] = {
+            color,
+            glassType: gt?.name || null,
+            glassTypeId: gt?.id || null,
+          };
           pushHistory(canvas);
         });
       } catch (err) {
@@ -1208,6 +1229,7 @@ export default function DesignerPage() {
     // Reset history to only the clean state
     historyRef.current = [historyRef.current[0]];
     historyIdxRef.current = 0;
+    sectionFillsRef.current = {};
     setSelectedObj(null);
   }, []);
 
@@ -1226,6 +1248,9 @@ export default function DesignerPage() {
         canvasData = canvas.toJSON();
         previewUrl = canvas.toDataURL({ format: 'png', quality: 0.8 });
       }
+      // Attach per-section color/glass assignments
+      canvasData.sections = { ...(sectionFillsRef.current || {}) };
+      canvasData.preview_url = previewUrl;
       const res = await saveProject({
         project_id: projectId || undefined,
         template_id: selectedTemplate?.id || null,
@@ -1258,6 +1283,9 @@ export default function DesignerPage() {
         canvasData = canvas ? canvas.toJSON() : {};
         previewUrl = canvas ? canvas.toDataURL({ format: 'png', quality: 0.8 }) : '';
       }
+      // Attach per-section color/glass assignments
+      canvasData.sections = { ...(sectionFillsRef.current || {}) };
+      canvasData.preview_url = previewUrl;
 
       let ensuredProjectId = projectId || null;
       if (!ensuredProjectId) {

@@ -104,6 +104,9 @@ class WorkOrder(db.Model):
                     "name": self.project.template.name,
                     "thumbnail_url": self.project.template.thumbnail_url,
                     "svg_url": self.project.template.svg_url if hasattr(self.project.template, 'svg_url') else None,
+                    "svg_content": self.project.template.svg_content if self.project.template.template_type == 'svg' else None,
+                    "template_type": self.project.template.template_type,
+                    "image_url": self.project.template.image_url,
                 }
         return out
 

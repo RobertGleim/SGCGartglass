@@ -121,3 +121,13 @@ def admin_update_work_order_status(order_id):
     if err:
         return jsonify({'error': err}), 400
     return jsonify({'work_order': work_order.to_dict()}), 200
+
+@admin_work_orders_bp.route('/api/admin/work-orders/<int:order_id>', methods=['DELETE'])
+@admin_required
+def admin_delete_work_order(order_id):
+    order = WorkOrder.query.get(order_id)
+    if not order:
+        return jsonify({'error': 'Work order not found.'}), 404
+    db.session.delete(order)
+    db.session.commit()
+    return jsonify({'message': 'Work order deleted.'}), 200
