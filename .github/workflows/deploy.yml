@@ -78,7 +78,7 @@ jobs:
           test -n "$HOSTINGER_REMOTE_PATH" || (echo "Missing secret: HOSTINGER_REMOTE_PATH" && exit 1)
           HOST="${HOSTINGER_SSH_HOST:-$FTP_HOST}"
           USERNAME="${HOSTINGER_SSH_USER:-$FTP_USERNAME}"
-          PORT="${HOSTINGER_SSH_PORT:-22}"
+          PORT="$(echo "${HOSTINGER_SSH_PORT:-65002}" | tr -d '[:space:]')"
           PASSWORD="${HOSTINGER_SSH_PASSWORD:-$FTP_PASSWORD}"
 
           test -n "$HOST" || (echo "Missing host secret: HOSTINGER_SSH_HOST or FTP_HOST" && exit 1)
@@ -107,7 +107,7 @@ jobs:
           HOST="${HOST#ftp://}"
           HOST="${HOST#ftps://}"
           USERNAME="${HOSTINGER_SSH_USER:-$FTP_USERNAME}"
-          PORT="${HOSTINGER_SSH_PORT:-22}"
+          PORT="$(echo "${HOSTINGER_SSH_PORT:-65002}" | tr -d '[:space:]')"
           PASSWORD="${HOSTINGER_SSH_PASSWORD:-$FTP_PASSWORD}"
 
           if [ -n "$HOSTINGER_SSH_PRIVATE_KEY" ]; then
