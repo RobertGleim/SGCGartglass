@@ -2,6 +2,26 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import styles from './MyWorkOrders.module.css';
 
+const toOrdersArray = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.work_orders)) return payload.work_orders;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
+
+const getProjectName = (order) => {
+  if (order?.projectName) return order.projectName;
+  if (order?.project_name) return order.project_name;
+  const notes = order?.customer_notes || '';
+  const projectLine = notes
+    .split('\n')
+    .find((line) => line.toLowerCase().startsWith('project:'));
+  return projectLine ? projectLine.replace(/^project:\s*/i, '') : 'Untitled Project';
+};
+
+const getOrderDate = (order) => order?.updated_at || order?.created_at || order?.modified;
+
 const STATUS_COLORS = {
   pending: '#ffb300',
   approved: '#4caf50',
@@ -21,7 +41,7 @@ export default function MyWorkOrders() {
       setLoading(true);
       try {
         const res = await api.get('/work-orders');
-        setOrders(res);
+        setOrders(toOrdersArray(res));
       } catch {
         setError('Failed to load work orders');
       } finally {
@@ -48,8 +68,8 @@ export default function MyWorkOrders() {
           {filtered.map(order => (
             <div key={order.id} className={styles.item} onClick={() => setSelected(order)}>
               <span className={styles.badge} style={{ background: STATUS_COLORS[order.status] || '#ccc' }}>{order.status}</span>
-              <span className={styles.name}>{order.projectName}</span>
-              <span className={styles.date}>{new Date(order.modified).toLocaleString()}</span>
+              <span className={styles.name}>{getProjectName(order)}</span>
+              <span className={styles.date}>{getOrderDate(order) ? new Date(getOrderDate(order)).toLocaleString() : '—'}</span>
             </div>
           ))}
         </div>
@@ -58,13 +78,13 @@ export default function MyWorkOrders() {
         <div className={styles.detailModal}>
           <div className={styles.detailBox}>
             <button className={styles.closeBtn} onClick={() => setSelected(null)} aria-label="Close">×</button>
-            <h2>{selected.projectName}</h2>
+            <h2>{getProjectName(selected)}</h2>
             <div>Status: <span className={styles.badge} style={{ background: STATUS_COLORS[selected.status] || '#ccc' }}>{selected.status}</span></div>
-            <div>Notes: {selected.notes}</div>
+            <div>Notes: {selected.customer_notes || selected.notes || '—'}</div>
             <div>Timeline: {selected.timeline}</div>
             <div>Budget: {selected.budget}</div>
             <div>Contact: {selected.contact}</div>
-            <img src={selected.previewUrl} alt="Preview" className={styles.preview} />
+            {selected.previewUrl && <img src={selected.previewUrl} alt="Preview" className={styles.preview} />}
           </div>
         </div>
       )}
