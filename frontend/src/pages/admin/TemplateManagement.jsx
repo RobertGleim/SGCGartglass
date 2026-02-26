@@ -6,6 +6,14 @@ import styles from './TemplateManagement.module.css';
 const PAGE_SIZE = 20;
 const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 
+// Resolve relative URLs to backend origin
+const BACKEND_ORIGIN = import.meta.env.VITE_API_BASE_URL?.replace(/\/api\/?$/, '') || '';
+const resolveImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+  return BACKEND_ORIGIN + url;
+};
+
 const toArray = (value) => {
   if (Array.isArray(value)) return value;
   if (Array.isArray(value?.items)) return value.items;
@@ -111,7 +119,7 @@ export default function TemplateManagement() {
                 <td><input type="checkbox" checked={selected.includes(t.id)} onChange={e => setSelected(e.target.checked ? [...selected, t.id] : selected.filter(id => id !== t.id))} /></td>
                 <td>
                   {(t.thumbnail_url || t.image_url) ? (
-                    <img src={t.thumbnail_url || t.image_url} alt={t.name} className={styles.thumb} />
+                    <img src={resolveImageUrl(t.thumbnail_url || t.image_url)} alt={t.name} className={styles.thumb} />
                   ) : t.svg_content ? (
                     <img src={`data:image/svg+xml;base64,${btoa(t.svg_content)}`} alt={t.name} className={styles.thumb} />
                   ) : (
