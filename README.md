@@ -133,6 +133,21 @@ Or run `database/schema.sql` in your MySQL client. Schema includes: `templates`,
 | `ADMIN_EMAIL`    | Backend | Recipient of new work order emails |
 | `VITE_API_BASE_URL` | Frontend | API base URL (build-time for Vite) |
 
+## Production database policy
+
+- The app now uses **PostgreSQL only** for all persisted data paths (customers, products, templates, glass types, work orders, etc.) in every environment.
+- The backend raises an error if `DATABASE_URL` is missing or not PostgreSQL.
+
+### One-step migration (SQLite -> PostgreSQL)
+
+Use `migrate_all_sqlite_to_postgres.py` to copy both legacy (`backend/data.db`) and designer (`backend/designer.db`) data into Postgres:
+
+```bash
+# Windows PowerShell
+$env:POSTGRES_URL="postgresql://USER:PASSWORD@HOST:5432/DB"
+c:/Users/rglei/OneDrive/Desktop/Sgcg/.venv/Scripts/python.exe migrate_all_sqlite_to_postgres.py
+```
+
 ## Key behaviors
 
 - **Guests** can open the designer and use templates; they see “Sign in to save” and cannot save or submit.
