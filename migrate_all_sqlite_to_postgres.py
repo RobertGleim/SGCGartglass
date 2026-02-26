@@ -79,16 +79,12 @@ def _copy_tables(source_url: str, target_engine, tables: list[str]) -> int:
             conn.execute(dst_table.delete())
             conn.execute(dst_table.insert(), payload)
 
+            # Reset sequence for id column if present
             if "id" in dst_table.c:
                 seq_name = f"{table_name}_id_seq"
-                conn.execute(
-                    text(
-                        "SELECT setval(:seq::regclass, COALESCE((SELECT MAX(id) FROM "
-                        + table_name
-                        + "), 1), true)"
-                    ),
-                    {"seq": seq_name},
-                )
+                # Use raw SQL string to avoid SQLAlchemy parameter parsing issues
+                reset_sql = f"SELECT setval('{seq_name}'::regclass, COALESCE((SELECT MAX(id) FROM {table_name}), 1), true)"
+                conn.execute(text(reset_sql))
 
         print(f"✅ {table_name}: inserted {len(payload)}")
         inserted += len(payload)
