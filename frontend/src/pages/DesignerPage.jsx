@@ -1216,6 +1216,7 @@ export default function DesignerPage() {
           setSelectedObj({ fill: color, glassType: hit._glassType });
           // Track section fill for work order data
           const sectionId = hit.id || hit.regionId || hit.__pathIndex || canvas.getObjects().indexOf(hit);
+          console.log('[DesignerPage] Section filled:', { sectionId, sectionNum: hit._sectionNumber, color });
           sectionFillsRef.current[sectionId] = {
             color,
             glassType: gt?.name || null,

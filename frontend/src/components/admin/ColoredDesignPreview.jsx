@@ -285,7 +285,13 @@ export default function ColoredDesignPreview({ designData, template }) {
     if (!highlightedSection) return;
 
     const target = svgEl.querySelector(`[data-section-id="${highlightedSection}"]`);
-    if (!target) return;
+    console.log('[ColoredDesignPreview] highlight section:', highlightedSection, 'found:', !!target);
+    if (!target) {
+      // Debug: list all data-section-id values
+      const allIds = [...svgEl.querySelectorAll('[data-section-id]')].map(el => el.getAttribute('data-section-id'));
+      console.log('[ColoredDesignPreview] available section IDs:', allIds.slice(0, 20));
+      return;
+    }
     try {
       // Highlight the actual path/shape by changing its stroke
       target.setAttribute('data-cdp-highlighted', 'true');
@@ -351,6 +357,27 @@ export default function ColoredDesignPreview({ designData, template }) {
   const sectionEntries = Object.entries(sections);
   const hasSections = sectionEntries.length > 0;
 
+  // Debug: log sections data to verify sectionNum is saved
+  useEffect(() => {
+    if (hasSections) {
+      console.log('[ColoredDesignPreview] sections keys:', Object.keys(sections));
+      console.log('[ColoredDesignPreview] sections data:', JSON.stringify(sections, null, 2));
+      console.log('[ColoredDesignPreview] sectionCenters:', sectionCenters);
+    }
+  }, [sections, hasSections, sectionCenters]);
+
+  // Build display number map: section key → display number
+  // Priority: saved sectionNum > center num > raw key
+  const sectionNumMap = useMemo(() => {
+    const map = {};
+    sectionEntries.forEach(([id, data], idx) => {
+      const center = sectionCenters.find(c => c.id === id);
+      // data.sectionNum is the authoritative number from the designer
+      map[id] = data.sectionNum || center?.num || (idx + 1);
+    });
+    return map;
+  }, [sectionEntries, sectionCenters]);
+
   // ----- Flood-fill / image-based template -----
   if (isFloodFill || !hasSvg) {
     return (
@@ -406,7 +433,7 @@ export default function ColoredDesignPreview({ designData, template }) {
         >
           <button className={styles.popoverClose} onClick={() => { setPopover(null); setHighlightedSection(null); }}>&times;</button>
           <div className={styles.popoverHeader}>
-            Section #{sections[popover.sectionId]?.sectionNum || sectionCenters.find(c => c.id === popover.sectionId)?.num || popover.sectionId}
+            Section #{sectionNumMap[popover.sectionId] || popover.sectionId}
           </div>
           <div className={styles.popoverBody}>
             <div className={styles.popoverSwatch} style={{ backgroundColor: popover.color || '#ccc' }} />
@@ -427,15 +454,14 @@ export default function ColoredDesignPreview({ designData, template }) {
           <h4 className={styles.sectionListTitle}>Section Details</h4>
           <div className={styles.sectionGrid}>
             {sectionEntries.map(([id, data]) => {
-              const center = sectionCenters.find(c => c.id === id);
-              // Use the designer's saved sectionNum first, then label center num, then raw id
-              const displayNum = data.sectionNum || center?.num || id;
+              const displayNum = sectionNumMap[id] || id;
               return (
                 <div
                   key={id}
                   className={`${styles.sectionItem} ${highlightedSection === id ? styles.sectionItemActive : ''}`}
                   onClick={() => {
                     setHighlightedSection(id);
+                    const center = sectionCenters.find(c => c.id === id);
                     if (center) {
                       setPopover({
                         sectionId: id,
