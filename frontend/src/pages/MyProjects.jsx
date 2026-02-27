@@ -89,7 +89,12 @@ export default function MyProjects() {
 
   // Handle submit - navigate to designer then submit
   const handleSubmit = (project) => {
-    window.location.hash = `#/designer?project=${project.id}&submit=true`;
+    if (project.work_order_id) {
+      // Already has a work order — open directly in revision mode
+      window.location.hash = `#/designer?workorder=${project.work_order_id}`;
+    } else {
+      window.location.hash = `#/designer?project=${project.id}&submit=true`;
+    }
   };
 
   // Handle duplicate
@@ -154,7 +159,9 @@ export default function MyProjects() {
                 <button onClick={() => handleDelete(project)} disabled={deleting === project.id}>
                   {deleting === project.id ? 'Deleting...' : 'Delete'}
                 </button>
-                <button onClick={() => handleSubmit(project)} className={styles.submitBtn}>Submit</button>
+                <button onClick={() => handleSubmit(project)} className={styles.submitBtn}>
+                  {project.work_order_id ? 'View Work Order' : 'Submit'}
+                </button>
               </div>
             </div>
           ))}

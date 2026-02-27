@@ -72,6 +72,16 @@ class UserProject(db.Model):
         }
         if include_design_data:
             out["design_data"] = self.design_data if isinstance(self.design_data, dict) else {}
+        # Include the most recent work order ID if one exists
+        try:
+            latest_wo = self.work_orders.order_by(None).order_by(
+                db.text("created_at DESC")
+            ).first()
+            if latest_wo:
+                out["work_order_id"] = latest_wo.id
+                out["work_order_status"] = latest_wo.status.value if hasattr(latest_wo.status, 'value') else str(latest_wo.status)
+        except Exception:
+            pass
         return out
 
 

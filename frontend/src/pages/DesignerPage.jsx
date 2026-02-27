@@ -166,6 +166,26 @@ export default function DesignerPage() {
         // Set project ID
         setProjectId(project.id);
         
+        // Auto-detect existing work order → switch to revision mode
+        if (project.work_order_id) {
+          setWorkOrderMode(true);
+          setWorkOrderId(project.work_order_id);
+          // Load full work order data to populate WO mode
+          const fetchWO = isAdmin ? getAdminWorkOrder : getWorkOrder;
+          const fetchRevisions = isAdmin ? getAdminWorkOrderRevisions : getWorkOrderRevisions;
+          try {
+            const woRes = await fetchWO(project.work_order_id);
+            const wo = woRes?.work_order || woRes;
+            if (wo) setWorkOrderData(wo);
+          } catch (err) {
+            console.error('[DesignerPage] Failed to load associated work order:', err);
+          }
+          try {
+            const revRes = await fetchRevisions(project.work_order_id);
+            setRevisions(revRes?.revisions || []);
+          } catch {}
+        }
+
         // Load the template if available
         if (project.template_id) {
           try {
@@ -180,12 +200,9 @@ export default function DesignerPage() {
           }
         }
         
-        // Store design data to apply after canvas is ready
+        // Store design data for canvas init to apply
         if (project.design_data && Object.keys(project.design_data).length > 0) {
-          // Apply design data after a short delay to ensure canvas is ready
-          setTimeout(() => {
-            applyDesignData(project.design_data);
-          }, 500);
+          woDesignDataRef.current = project.design_data;
         }
         
         // Auto-open submit modal if requested
@@ -310,10 +327,15 @@ export default function DesignerPage() {
   // Auto-submit when project is loaded with submit flag
   useEffect(() => {
     if (autoSubmit && step === STEP.DESIGN && !loadingProject) {
-      setSubmitModal(true);
+      // If already in work order mode, don't open the WO form — just show revision history
+      if (workOrderMode) {
+        setShowRevisionHistory(true);
+      } else {
+        setSubmitModal(true);
+      }
       setAutoSubmit(false);
     }
-  }, [autoSubmit, step, loadingProject]);
+  }, [autoSubmit, step, loadingProject, workOrderMode]);
 
   // ── Load glass types when entering design step ───────────────
   useEffect(() => {
