@@ -45,9 +45,7 @@ export default function ColoredDesignPreview({ designData, template, editable = 
   }, [designData?.sections]);
 
   const sections = workingSections || {};
-  const previewUrl = designData?.preview_url || designData?.dataUrl || '';
-  const isFloodFill = !!designData?.floodFill;
-  const hasSvg = template?.svg_content && template?.template_type === 'svg';
+  const hasSvg = !!template?.svg_content;
   const isEditingEnabled = editable && hasSvg && !locked;
   const showEditableSvgGuard = editable && !hasSvg;
 
@@ -435,32 +433,19 @@ export default function ColoredDesignPreview({ designData, template, editable = 
         <div className={styles.guardBox}>
           <h4 className={styles.guardTitle}>Editable revisions require an SVG template</h4>
           <p className={styles.guardText}>
-            This work order only has a raster/image preview, so admin editing is disabled to prevent mismatched section edits.
+            This work order does not include SVG data, so admin editing cannot be enabled.
           </p>
-          <p className={styles.guardText}>
-            Ask the customer to submit from an SVG template, then reopen this work order to edit colors here.
-          </p>
-          {previewUrl && (
-            <div className={styles.previewWrap}>
-              <img src={previewUrl} alt="Design preview" className={styles.previewImg} />
-            </div>
-          )}
+          <p className={styles.guardText}>No raster/image fallback is shown in admin edit mode.</p>
         </div>
       </div>
     );
   }
 
-  // ----- Flood-fill / image-based template -----
-  if (isFloodFill || !hasSvg) {
+  // ----- Non-SVG preview (non-editable contexts only) -----
+  if (!hasSvg) {
     return (
       <div className={styles.container}>
-        {previewUrl ? (
-          <div className={styles.previewWrap}>
-            <img src={previewUrl} alt="Design preview" className={styles.previewImg} />
-          </div>
-        ) : (
-          <div className={styles.noPreview}>No design preview available</div>
-        )}
+        <div className={styles.noPreview}>No SVG preview available</div>
         {hasSections && (
           <div className={styles.sectionList}>
             <h4 className={styles.sectionListTitle}>Section Details</h4>

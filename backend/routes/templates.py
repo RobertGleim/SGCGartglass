@@ -43,7 +43,10 @@ def list_templates():
         limit = max(1, min(limit, MAX_LIMIT))
         offset = max(0, offset)
 
-        q = Template.query.filter(Template.is_active.is_(True))
+        q = Template.query.filter(
+            Template.is_active.is_(True),
+            func.lower(Template.template_type) == 'svg',
+        )
         if category:
             q = q.filter(func.lower(Template.category) == func.lower(category))
         q = q.order_by(Template.updated_at.desc(), Template.id.desc())
@@ -73,6 +76,8 @@ def get_template(template_id):
         ).first()
         if not template:
             return jsonify({"error": "not_found", "detail": "Template not found"}), 404
+        if (template.template_type or '').lower() != 'svg' or not template.svg_content:
+            return jsonify({"error": "validation_error", "detail": "Only SVG templates are available in the designer."}), 400
         return jsonify(template.to_dict(include_regions=True, include_svg=True))
     except Exception as e:
         return jsonify({"error": "server_error", "detail": str(e)}), 500

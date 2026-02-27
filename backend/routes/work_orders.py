@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, g
 from backend.services.work_order_service import (
     submit_work_order, generate_work_order_number, send_work_order_emails, update_work_order_status, validate_design_completion
 )
-from backend.models import db, WorkOrder
+from backend.models import db, WorkOrder, Template
 from backend.models.project import UserProject
 from backend.utils.email import send_email
 from backend.auth import decode_token
@@ -62,9 +62,17 @@ def submit_work_order_route():
     # Auto-save project when none exists yet
     if not project_id:
         design_data = incoming_design if isinstance(incoming_design, dict) else {}
+        template_id = data.get('template_id')
+        if not template_id:
+            return jsonify({'error': 'template_id is required for work order submission.'}), 400
+        template = Template.query.filter_by(id=template_id, is_active=True).first()
+        if not template:
+            return jsonify({'error': 'Template not found.'}), 404
+        if (template.template_type or '').lower() != 'svg' or not template.svg_content:
+            return jsonify({'error': 'Work orders must use an SVG template.'}), 400
         auto_project = UserProject(
             user_id=user_id,
-            template_id=data.get('template_id'),
+            template_id=template_id,
             name=data.get('project_name') or data.get('name') or 'My Design',
             design_data=design_data,
         )
@@ -79,6 +87,10 @@ def submit_work_order_route():
         project = UserProject.query.filter_by(id=project_id, user_id=user_id).first()
         if not project:
             return jsonify({'error': 'Project not found or not owned by user.'}), 404
+        if not project.template:
+            return jsonify({'error': 'Project template is missing.'}), 400
+        if (project.template.template_type or '').lower() != 'svg' or not project.template.svg_content:
+            return jsonify({'error': 'Work orders must use an SVG template.'}), 400
         # Persist latest design data on submission so admin sees correct sections
         if isinstance(incoming_design, dict) and incoming_design:
             project.design_data = incoming_design

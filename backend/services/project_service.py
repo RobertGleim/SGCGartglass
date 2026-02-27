@@ -2,6 +2,7 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from backend.models.project import UserProject
+from backend.models.template import Template
 
 
 def save_project(user_id, data, db: Session):
@@ -11,6 +12,11 @@ def save_project(user_id, data, db: Session):
         return None, 'Missing design_data.'
     if not data.get('template_id'):
         return None, 'Missing template_id.'
+    template = db.query(Template).filter_by(id=data['template_id'], is_active=True).first()
+    if not template:
+        return None, 'Template not found.'
+    if (template.template_type or '').lower() != 'svg' or not template.svg_content:
+        return None, 'Only SVG templates are allowed for saved projects.'
     project_name = data.get('project_name') or data.get('name') or f"Untitled Design - {now.strftime('%Y-%m-%d')}"
     try:
         if project_id:
