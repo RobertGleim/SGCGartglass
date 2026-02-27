@@ -103,6 +103,9 @@ export default function DesignerPage() {
   // Border/frame region IDs (flood-fill mode) — not colorable
   const borderRegionsRef = useRef(new Set());
 
+  // Saved design data from work order (used as fallback when template image is missing)
+  const woDesignDataRef = useRef(null);
+
   // History (undo/redo)
   const historyRef = useRef([]);
   const historyIdxRef = useRef(-1);
@@ -240,6 +243,8 @@ export default function DesignerPage() {
         // Apply design data (from latest revision or project)
         const designData = wo.latest_revision?.design_data || wo.project?.design_data;
         if (designData && Object.keys(designData).length > 0) {
+          // Store in ref so canvas init can use dataUrl as fallback
+          woDesignDataRef.current = designData;
           setTimeout(() => applyDesignData(designData), 500);
         }
       })
@@ -278,9 +283,24 @@ export default function DesignerPage() {
       fabricRef.current.renderAll();
     }
     
-    // For image-based templates, we'd need to re-color regions
-    // This is handled by the regionMapRef and flood-fill coloring
-    console.log('[DesignerPage] Applied design data:', Object.keys(designData).length, 'regions');
+    // For image-based templates with saved dataUrl, redraw the canvas from the snapshot
+    if (isFloodFillMode.current && designData.dataUrl && canvasRef.current) {
+      const cvs = canvasRef.current;
+      const ctx = cvs.getContext('2d');
+      const img = new Image();
+      img.onload = () => {
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+        ctx.drawImage(img, 0, 0, cvs.width, cvs.height);
+        // Update history with restored state
+        const snap = ctx.getImageData(0, 0, cvs.width, cvs.height);
+        historyRef.current = [snap];
+        historyIdxRef.current = 0;
+        console.log('[DesignerPage] Restored flood-fill canvas from saved dataUrl');
+      };
+      img.src = designData.dataUrl;
+    }
+    
+    console.log('[DesignerPage] Applied design data:', Object.keys(designData).length, 'keys');
   };
   
   // Auto-submit when project is loaded with submit flag
@@ -750,14 +770,25 @@ export default function DesignerPage() {
 
           const src = resolveBackendAssetUrl(selectedTemplate.image_url, '/uploads/templates');
 
-          // Load the image
-          const imgEl = await new Promise((resolve, reject) => {
+          // Load the image (try template URL first, then fall back to saved dataUrl)
+          let imgEl = await new Promise((resolve, reject) => {
             const el = document.createElement('img');
             el.crossOrigin = 'anonymous';
             el.onload = () => resolve(el);
             el.onerror = reject;
             el.src = src;
           }).catch(() => null);
+
+          // Fallback: if template image failed, try to restore from saved dataUrl
+          if (!imgEl && woDesignDataRef.current?.dataUrl) {
+            console.log('[DesignerPage] Template image failed to load, using saved dataUrl fallback');
+            imgEl = await new Promise((resolve, reject) => {
+              const el = document.createElement('img');
+              el.onload = () => resolve(el);
+              el.onerror = reject;
+              el.src = woDesignDataRef.current.dataUrl;
+            }).catch(() => null);
+          }
           if (destroyed || !imgEl) return;
 
           // Set up the visible canvas for direct 2D drawing
