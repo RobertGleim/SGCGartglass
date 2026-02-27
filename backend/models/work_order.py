@@ -99,12 +99,13 @@ class WorkOrder(db.Model):
             }
             # Include template info if available
             if self.project.template:
+                template_svg = self.project.template.svg_content
                 out["template"] = {
                     "id": self.project.template.id,
                     "name": self.project.template.name,
                     "thumbnail_url": self.project.template.thumbnail_url,
                     "svg_url": self.project.template.svg_url if hasattr(self.project.template, 'svg_url') else None,
-                    "svg_content": self.project.template.svg_content if self.project.template.template_type == 'svg' else None,
+                    "svg_content": template_svg if template_svg and str(template_svg).strip() else None,
                     "template_type": self.project.template.template_type,
                     "image_url": self.project.template.image_url,
                 }
