@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
+import ImageTracer from 'imagetracerjs';
 import api from '../../services/api';
 import styles from './TemplateFormModal.module.css';
 
@@ -35,6 +36,62 @@ function countSVGPaths(svgText) {
   } catch {
     return 0;
   }
+}
+
+function ensureSvgPathIds(svgText) {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svgText, 'image/svg+xml');
+    const paths = doc.querySelectorAll('path');
+    let idx = 1;
+    paths.forEach((p) => {
+      if (!p.getAttribute('id')) {
+        p.setAttribute('id', `trace_path_${idx}`);
+      }
+      idx += 1;
+    });
+    return new XMLSerializer().serializeToString(doc.documentElement);
+  } catch {
+    return svgText;
+  }
+}
+
+async function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Failed to read image blob'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function rasterBlobToTracedSvg(blob) {
+  const dataUrl = await blobToDataUrl(blob);
+  const svgText = await new Promise((resolve, reject) => {
+    try {
+      ImageTracer.imageToSVG(
+        dataUrl,
+        (svg) => {
+          if (!svg || typeof svg !== 'string') {
+            reject(new Error('Image tracing did not produce SVG output'));
+            return;
+          }
+          resolve(svg);
+        },
+        {
+          numberofcolors: 24,
+          ltres: 1,
+          qtres: 1,
+          pathomit: 4,
+          colorsampling: 2,
+          rightangleenhance: true,
+        },
+      );
+    } catch (err) {
+      reject(err);
+    }
+  });
+  return ensureSvgPathIds(svgText);
 }
 
 /** Render first page of a PDF to a PNG Blob via canvas */
@@ -91,6 +148,7 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
   const [fileType, setFileType] = useState(null); // 'svg' | 'image' | null (null = not yet chosen)
   const [previewUrl, setPreviewUrl] = useState(resolveImageUrl(template?.thumbnail_url || template?.image_url || ''));
   const [uploading, setUploading] = useState(false);
+  const [convertingSvg, setConvertingSvg] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -143,31 +201,38 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
       return;
     }
 
-    // PDF or raster image — upload to server
+    // PDF or raster image — convert to SVG + upload image as thumbnail
     setUploading(true);
     try {
-      let uploadFile = file;
+      let uploadBlob = file;
+      let uploadFileName = file.name;
 
       if (isPDF) {
         setUploadProgress('Rendering PDF — page 1…');
         const blob = await pdfToBlob(file);
         const pngName = file.name.replace(/\.pdf$/i, '.png');
-        uploadFile = new File([blob], pngName, { type: 'image/png' });
+        uploadBlob = blob;
+        uploadFileName = pngName;
         setPreviewUrl(URL.createObjectURL(blob));
       } else {
         setPreviewUrl(URL.createObjectURL(file));
       }
 
+      setUploadProgress('Converting to editable SVG…');
+      const tracedSvg = await rasterBlobToTracedSvg(uploadBlob);
+      const pieceCount = countSVGPaths(tracedSvg);
+
       setUploadProgress('Uploading to server…');
-      const imageUrl = await uploadImageFile(uploadFile, uploadFile.name);
+      const imageUrl = await uploadImageFile(uploadBlob, uploadFileName);
 
       setPreviewUrl(`${getApiOrigin()}${imageUrl}`);
-      setFileType('image');
+      setFileType('svg');
       setForm(f => ({
         ...f,
         image_url: imageUrl,
-        svg_content: '',
-        template_type: 'image',
+        svg_content: tracedSvg,
+        piece_count: pieceCount,
+        template_type: 'svg',
       }));
       setUploadProgress('');
     } catch (err) {
@@ -181,6 +246,31 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
 
   const handleFileChange = (e) => processFile(e.target.files[0]);
   const handleDrop = (e) => { e.preventDefault(); processFile(e.dataTransfer.files[0]); };
+
+  const convertExistingImageToSvg = async () => {
+    if (!form.image_url) return;
+    setError('');
+    setConvertingSvg(true);
+    try {
+      const imgUrl = resolveImageUrl(form.image_url);
+      const res = await fetch(imgUrl);
+      if (!res.ok) throw new Error('Unable to read template image');
+      const blob = await res.blob();
+      const tracedSvg = await rasterBlobToTracedSvg(blob);
+      const pieceCount = countSVGPaths(tracedSvg);
+      setFileType('svg');
+      setForm((f) => ({
+        ...f,
+        svg_content: tracedSvg,
+        template_type: 'svg',
+        piece_count: pieceCount,
+      }));
+    } catch (err) {
+      setError(`SVG conversion failed: ${err?.message || 'Unknown error'}`);
+    } finally {
+      setConvertingSvg(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -231,7 +321,7 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
 
   const currentType = fileType || (template?.template_type ?? null);
   const hasContent = form.svg_content || form.image_url || template;
-  const canSubmit = form.name && form.category && form.dimensions && hasContent && !uploading && !loading;
+  const canSubmit = form.name && form.category && form.dimensions && hasContent && !uploading && !loading && !convertingSvg;
 
   return (
     <div className={styles.overlay}>
@@ -308,7 +398,7 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
             )}
             {currentType === 'image' && (
               <div className={`${styles.fileTypeBadge} ${styles.badgeImage}`}>
-                ✓ Image — displayed as a design guide for customers to trace
+                ✓ Raster source accepted — converted to editable SVG paths automatically
               </div>
             )}
           </div>
@@ -318,6 +408,17 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
             <div className={styles.previewWrap}>
               <img src={previewUrl} alt="Template preview" className={styles.thumb} />
             </div>
+          )}
+
+          {Boolean(form.image_url) && !Boolean(form.svg_content?.trim()) && (
+            <button
+              type="button"
+              className={styles.svgConvertBtn}
+              onClick={convertExistingImageToSvg}
+              disabled={convertingSvg || uploading || loading}
+            >
+              {convertingSvg ? 'Converting to SVG…' : 'Generate SVG'}
+            </button>
           )}
 
           {error && <div className={styles.error}>{error}</div>}

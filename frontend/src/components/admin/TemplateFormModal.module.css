@@ -55,6 +55,21 @@ input[type="text"], select, input[type="file"] {
   cursor: pointer;
   margin-top: 0.5rem;
 }
+
+.svgConvertBtn {
+  background: #fff;
+  color: #4169e1;
+  border: 1.5px solid #4169e1;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.svgConvertBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
 .submitBtn:disabled {
   background: #aaa;
   cursor: not-allowed;
