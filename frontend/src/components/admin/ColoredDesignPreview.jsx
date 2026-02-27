@@ -49,6 +49,100 @@ export default function ColoredDesignPreview({ designData, template, editable = 
   const isEditingEnabled = editable && hasSvg && !locked;
   const showEditableSvgGuard = editable && !hasSvg;
 
+  const downloadBlob = (blob, fileName) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const renderToRasterDataUrl = (mime = 'image/png', quality = 0.92) => new Promise((resolve, reject) => {
+    const svgEl = svgContainerRef.current?.querySelector('svg');
+    if (svgEl) {
+      const serialized = new XMLSerializer().serializeToString(svgEl);
+      const svgBlob = new Blob([serialized], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl = URL.createObjectURL(svgBlob);
+      const image = new Image();
+      image.onload = () => {
+        const vb = svgEl.viewBox?.baseVal;
+        const width = Math.max(1, Math.round(vb?.width || svgEl.clientWidth || 1000));
+        const height = Math.max(1, Math.round(vb?.height || svgEl.clientHeight || 1000));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(image, 0, 0, width, height);
+        URL.revokeObjectURL(svgUrl);
+        resolve(canvas.toDataURL(mime, quality));
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(svgUrl);
+        reject(new Error('Failed to render preview.'));
+      };
+      image.src = svgUrl;
+      return;
+    }
+    const fallback = designData?.preview_url || designData?.dataUrl;
+    if (fallback) {
+      resolve(fallback);
+    } else {
+      reject(new Error('No preview available for export.'));
+    }
+  });
+
+  const handleDownloadSvg = async () => {
+    const svgEl = svgContainerRef.current?.querySelector('svg');
+    if (!svgEl) return;
+    const serialized = new XMLSerializer().serializeToString(svgEl);
+    downloadBlob(new Blob([serialized], { type: 'image/svg+xml;charset=utf-8' }), 'design-final.svg');
+  };
+
+  const handleDownloadPng = async () => {
+    const dataUrl = await renderToRasterDataUrl('image/png');
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    downloadBlob(blob, 'design-final.png');
+  };
+
+  const handleDownloadJpeg = async () => {
+    const dataUrl = await renderToRasterDataUrl('image/jpeg', 0.94);
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    downloadBlob(blob, 'design-final.jpg');
+  };
+
+  const handleDownloadPdf = async () => {
+    const dataUrl = await renderToRasterDataUrl('image/png');
+    const [{ jsPDF }, image] = await Promise.all([
+      import('jspdf'),
+      new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Failed to prepare PDF image.'));
+        img.src = dataUrl;
+      }),
+    ]);
+    const pdf = new jsPDF({ orientation: image.width >= image.height ? 'landscape' : 'portrait', unit: 'pt', format: [image.width, image.height] });
+    pdf.addImage(dataUrl, 'PNG', 0, 0, image.width, image.height);
+    pdf.save('design-final.pdf');
+  };
+
+  const handlePrint = async () => {
+    const dataUrl = await renderToRasterDataUrl('image/png');
+    const w = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700');
+    if (!w) return;
+    w.document.write(`<html><head><title>Print Design</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;background:#fff;}img{max-width:100%;max-height:100vh;}</style></head><body><img src="${dataUrl}" alt="Final Design" /></body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 300);
+  };
+
   const persistSections = async (nextSections) => {
     if (!onDesignDataChange) return;
     setSavingDesign(true);
@@ -473,6 +567,15 @@ export default function ColoredDesignPreview({ designData, template, editable = 
     <div className={styles.container}>
       {editable && locked && (
         <div className={styles.lockedNotice}>Final revision is locked. Editing is disabled.</div>
+      )}
+      {editable && locked && (
+        <div className={styles.exportBar}>
+          <button className={styles.exportButton} onClick={handleDownloadSvg} disabled={!hasSvg}>Download SVG</button>
+          <button className={styles.exportButton} onClick={handleDownloadPng}>Download PNG</button>
+          <button className={styles.exportButton} onClick={handleDownloadJpeg}>Download JPEG</button>
+          <button className={styles.exportButton} onClick={handleDownloadPdf}>Download PDF</button>
+          <button className={styles.exportButton} onClick={handlePrint}>Send to Printer</button>
+        </div>
       )}
       {isEditingEnabled && (
         <div className={styles.editorBar}>

@@ -39,6 +39,29 @@
   font-weight: 600;
 }
 
+.exportBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.7rem;
+}
+
+.exportButton {
+  border: 1px solid #4169e1;
+  color: #4169e1;
+  background: #fff;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+
+.exportButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .editorTitle {
   font-size: 0.9rem;
   font-weight: 600;
