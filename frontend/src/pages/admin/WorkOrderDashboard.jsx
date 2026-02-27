@@ -4,16 +4,38 @@ import { getTemplate, updateAdminWorkOrderDesign } from '../../services/api';
 import ColoredDesignPreview from '../../components/admin/ColoredDesignPreview';
 import styles from './WorkOrderDashboard.module.css';
 
-const STATUS_OPTIONS = ['pending', 'review', 'revision_requested', 'revision_submitted', 'quote', 'production', 'completed', 'cancelled'];
+const STATUS_OPTIONS = ['pending', 'review', 'revision_requested', 'revision_submitted', 'quote', 'approved', 'production', 'completed', 'cancelled'];
 const STATUS_LABELS = {
   pending: 'Pending Review',
   review: 'Under Review',
   revision_requested: 'Revision Requested',
   revision_submitted: 'Revision Submitted',
   quote: 'Quote Sent',
+  approved: 'Approved',
   production: 'In Production',
   completed: 'Completed',
   cancelled: 'Cancelled',
+};
+
+// Row highlight + dropdown colors per status
+const STATUS_COLORS = {
+  pending:            { bg: '#fde8e8', border: '#e53935', text: '#b71c1c' },   // red — new
+  review:             { bg: '#fff3e0', border: '#fb8c00', text: '#e65100' },   // orange
+  revision_requested: { bg: '#fff9c4', border: '#fdd835', text: '#f57f17' },   // yellow — waiting on customer
+  revision_submitted: { bg: '#fff8e1', border: '#ffb300', text: '#ff8f00' },   // amber/gold
+  quote:              { bg: '#e3f2fd', border: '#1e88e5', text: '#0d47a1' },   // blue
+  approved:           { bg: '#e8f5e9', border: '#43a047', text: '#1b5e20' },   // green
+  production:         { bg: '#e0f2f1', border: '#00897b', text: '#004d40' },   // teal
+  completed:          { bg: '#e8f5e9', border: '#2e7d32', text: '#1b5e20' },   // dark green
+  cancelled:          { bg: '#f5f5f5', border: '#9e9e9e', text: '#616161' },   // gray
+};
+const getStatusStyle = (statusKey) => {
+  const c = STATUS_COLORS[statusKey] || STATUS_COLORS.pending;
+  return { backgroundColor: c.bg, borderLeft: `5px solid ${c.border}` };
+};
+const getSelectStyle = (statusKey) => {
+  const c = STATUS_COLORS[statusKey] || STATUS_COLORS.pending;
+  return { backgroundColor: c.bg, borderColor: c.border, color: c.text, fontWeight: 600 };
 };
 
 const toArray = (value) => {
@@ -32,6 +54,7 @@ const normalizeStatus = (status) => {
   if (s === 'quote sent') return 'quote';
   if (s === 'revision requested') return 'revision_requested';
   if (s === 'revision submitted') return 'revision_submitted';
+  if (s === 'approved') return 'approved';
   if (s === 'in production') return 'production';
   if (s === 'completed') return 'completed';
   if (s === 'cancelled' || s === 'canceled') return 'cancelled';
@@ -174,6 +197,7 @@ export default function WorkOrderDashboard() {
     revision_submitted: orders.filter(o => o.status_key === 'revision_submitted').length,
     revision_requested: orders.filter(o => o.status_key === 'revision_requested').length,
     quote: orders.filter(o => o.status_key === 'quote').length,
+    approved: orders.filter(o => o.status_key === 'approved').length,
     production: orders.filter(o => o.status_key === 'production').length,
   };
 
@@ -196,12 +220,13 @@ export default function WorkOrderDashboard() {
     <div className={styles.page}>
       <h1>Work Order Dashboard</h1>
       <div className={styles.summary}>
-        <div className={styles.card} onClick={() => setStatusFilter('pending')}>Pending Review: {summary.pending}</div>
-        <div className={styles.card} onClick={() => setStatusFilter('review')}>Under Review: {summary.review}</div>
-        <div className={styles.card} onClick={() => setStatusFilter('revision_submitted')}>Revisions In: {summary.revision_submitted}</div>
-        <div className={styles.card} onClick={() => setStatusFilter('revision_requested')}>Sent for Review: {summary.revision_requested}</div>
-        <div className={styles.card} onClick={() => setStatusFilter('quote')}>Quote Sent: {summary.quote}</div>
-        <div className={styles.card} onClick={() => setStatusFilter('production')}>In Production: {summary.production}</div>
+        <div className={styles.card} style={getStatusStyle('pending')} onClick={() => setStatusFilter('pending')}>Pending Review: {summary.pending}</div>
+        <div className={styles.card} style={getStatusStyle('review')} onClick={() => setStatusFilter('review')}>Under Review: {summary.review}</div>
+        <div className={styles.card} style={getStatusStyle('revision_submitted')} onClick={() => setStatusFilter('revision_submitted')}>Revisions In: {summary.revision_submitted}</div>
+        <div className={styles.card} style={getStatusStyle('revision_requested')} onClick={() => setStatusFilter('revision_requested')}>Sent for Review: {summary.revision_requested}</div>
+        <div className={styles.card} style={getStatusStyle('quote')} onClick={() => setStatusFilter('quote')}>Quote Sent: {summary.quote}</div>
+        <div className={styles.card} style={getStatusStyle('approved')} onClick={() => setStatusFilter('approved')}>Approved: {summary.approved}</div>
+        <div className={styles.card} style={getStatusStyle('production')} onClick={() => setStatusFilter('production')}>In Production: {summary.production}</div>
       </div>
       <div className={styles.filters}>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
@@ -233,7 +258,7 @@ export default function WorkOrderDashboard() {
           </thead>
           <tbody>
             {filtered.map(o => (
-              <tr key={o.id}>
+              <tr key={o.id} style={getStatusStyle(o.status_key)}>
                 <td>
                   <div className={styles.thumbCell} onClick={(e) => openPreview(o, e)} title="Click to view full design">
                     {(o.designData?.preview_url || o.designData?.dataUrl) ? (
@@ -255,8 +280,12 @@ export default function WorkOrderDashboard() {
                     onClick={(e) => e.stopPropagation()}
                     disabled={updating}
                     className={styles.statusSelect}
+                    style={getSelectStyle(o.status_key)}
                   >
-                    {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{STATUS_LABELS[opt] || opt}</option>)}
+                    {STATUS_OPTIONS.map(opt => {
+                      const c = STATUS_COLORS[opt] || {};
+                      return <option key={opt} value={opt} style={{ backgroundColor: c.bg, color: c.text }}>{STATUS_LABELS[opt] || opt}</option>;
+                    })}
                   </select>
                 </td>
                 <td>{o.date ? new Date(o.date).toLocaleString() : '-'}</td>
@@ -363,8 +392,12 @@ export default function WorkOrderDashboard() {
                 onChange={(e) => handleStatusChange(selectedOrder.id, e.target.value)}
                 disabled={updating}
                 className={styles.statusSelectLarge}
+                style={getSelectStyle(selectedOrder.status_key)}
               >
-                {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{STATUS_LABELS[opt] || opt}</option>)}
+                {STATUS_OPTIONS.map(opt => {
+                  const c = STATUS_COLORS[opt] || {};
+                  return <option key={opt} value={opt} style={{ backgroundColor: c.bg, color: c.text }}>{STATUS_LABELS[opt] || opt}</option>;
+                })}
               </select>
             </div>
 
