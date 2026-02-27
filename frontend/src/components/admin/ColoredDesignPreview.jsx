@@ -84,7 +84,6 @@ export default function ColoredDesignPreview({ designData, template }) {
 
     // Apply colours from sections map and mark fillable sections
     const paths = svg.querySelectorAll('path, polygon, rect, circle, ellipse');
-    let sectionNum = 0;
     paths.forEach((el, idx) => {
       const regionId = el.getAttribute('id') || el.getAttribute('data-id') || String(idx);
       const sectionData = sections[regionId];
@@ -94,14 +93,11 @@ export default function ColoredDesignPreview({ designData, template }) {
       }
       el.setAttribute('data-section-id', regionId);
 
-      // Detect fillable sections (not outlines)
+      // Mark fillable sections (not outlines) for the useEffect to number
       const origFill = el.getAttribute('fill');
       const isFillable = !isOutlineFill(origFill);
       if (isFillable) {
-        sectionNum++;
-        // Use the saved sectionNum from design data if available for consistency
-        const displayNum = sectionData?.sectionNum || sectionNum;
-        el.setAttribute('data-section-num', String(displayNum));
+        el.setAttribute('data-fillable', 'true');
         el.style.cursor = 'pointer';
       }
     });
@@ -124,31 +120,55 @@ export default function ColoredDesignPreview({ designData, template }) {
 
       const containerRect = container.getBoundingClientRect();
       const centers = [];
-      const labeled = svgEl.querySelectorAll('[data-section-num]');
 
       // Get SVG viewBox for boundary clamping
       const vb = svgEl.viewBox?.baseVal;
       const svgW = vb?.width || svgEl.width?.baseVal?.value || 400;
       const svgH = vb?.height || svgEl.height?.baseVal?.value || 400;
 
-      // --- Pass 1: collect all section info with bounding boxes ---
-      const raw = [];
+      // --- Step 1: assign section numbers matching the designer ---
+      // The designer numbers all non-border, non-outline selectable objects
+      // sequentially. We replicate that logic here using getBBox for border
+      // detection (sections touching 2+ SVG edges are borders).
       const EDGE_MARGIN = 5;
+      const fillableEls = svgEl.querySelectorAll('[data-fillable]');
+      let sectionNum = 0;
+      fillableEls.forEach((el) => {
+        try {
+          const bbox = el.getBBox();
+          if (bbox.width < 3 || bbox.height < 3) return;
+          // Border detection: skip sections touching 2+ SVG edges
+          const touchesLeft   = bbox.x < EDGE_MARGIN;
+          const touchesTop    = bbox.y < EDGE_MARGIN;
+          const touchesRight  = bbox.x + bbox.width > svgW - EDGE_MARGIN;
+          const touchesBottom = bbox.y + bbox.height > svgH - EDGE_MARGIN;
+          const edgesTouched = [touchesLeft, touchesTop, touchesRight, touchesBottom].filter(Boolean).length;
+          if (edgesTouched >= 2) {
+            el.setAttribute('data-border', 'true');
+            return;
+          }
+          sectionNum++;
+          // Use saved sectionNum from design data when available (authoritative)
+          const id = el.getAttribute('data-section-id');
+          const sectionData = sections[id];
+          const displayNum = sectionData?.sectionNum || sectionNum;
+          el.setAttribute('data-section-num', String(displayNum));
+        } catch { /* getBBox can fail */ }
+      });
+
+      // --- Step 2: collect all numbered sections ---
+      const raw = [];
+      const labeled = svgEl.querySelectorAll('[data-section-num]');
       labeled.forEach((el) => {
         const id = el.getAttribute('data-section-id');
         const num = el.getAttribute('data-section-num');
         const sectionData = sections[id];
-        if (sectionData?.color) return;
+        const isColored = !!sectionData?.color;
         try {
           const bbox = el.getBBox();
           if (bbox.width < 3 || bbox.height < 3) return;
-          // Skip border/frame sections that touch SVG viewBox edges
-          const touchesEdge = bbox.x < EDGE_MARGIN || bbox.y < EDGE_MARGIN ||
-            (bbox.x + bbox.width > svgW - EDGE_MARGIN) ||
-            (bbox.y + bbox.height > svgH - EDGE_MARGIN);
-          if (touchesEdge) return;
           raw.push({
-            el, id, num,
+            el, id, num, isColored,
             cx: bbox.x + bbox.width / 2,
             cy: bbox.y + bbox.height / 2,
             left: bbox.x, top: bbox.y,
@@ -160,7 +180,7 @@ export default function ColoredDesignPreview({ designData, template }) {
         } catch { /* getBBox can fail */ }
       });
 
-      // --- Pass 2: remove full-canvas background fills ---
+      // --- Step 3: remove full-canvas background fills ---
       const svgArea = svgW * svgH;
       const filtered = raw.filter((s) => {
         if (s.area < svgArea * 0.6) return true;
@@ -176,12 +196,24 @@ export default function ColoredDesignPreview({ designData, template }) {
         return true;
       });
 
-      // --- Pass 3: deduplicate close centroids & draw labels ---
+      // --- Step 4: deduplicate close centroids & draw labels ---
       const placed = [];
       filtered.forEach((s) => {
         const tooClose = placed.some(p => Math.abs(p.x - s.cx) < 12 && Math.abs(p.y - s.cy) < 12);
         if (tooClose) return;
         placed.push({ x: s.cx, y: s.cy });
+
+        // Always track center for highlight/popover (even colored sections)
+        const elRect = s.el.getBoundingClientRect();
+        centers.push({
+          id: s.id,
+          num: parseInt(s.num, 10),
+          cx: elRect.left + elRect.width / 2 - containerRect.left,
+          cy: elRect.top + elRect.height / 2 - containerRect.top,
+        });
+
+        // Skip drawing text labels on colored (filled) sections
+        if (s.isColored) return;
 
         const isSmall = Math.min(s.w, s.h) < 25;
         let labelX = s.cx;
@@ -226,15 +258,6 @@ export default function ColoredDesignPreview({ designData, template }) {
         text.style.pointerEvents = 'none';
         text.textContent = s.num;
         svgEl.appendChild(text);
-
-          // Track for popover positioning
-          const elRect = s.el.getBoundingClientRect();
-          centers.push({
-            id: s.id,
-            num: parseInt(s.num, 10),
-            cx: elRect.left + elRect.width / 2 - containerRect.left,
-            cy: elRect.top + elRect.height / 2 - containerRect.top,
-          });
       });
 
       setSectionCenters(centers);
@@ -382,7 +405,9 @@ export default function ColoredDesignPreview({ designData, template }) {
           onClick={(e) => e.stopPropagation()}
         >
           <button className={styles.popoverClose} onClick={() => { setPopover(null); setHighlightedSection(null); }}>&times;</button>
-          <div className={styles.popoverHeader}>Section #{sections[popover.sectionId]?.sectionNum || popover.sectionId}</div>
+          <div className={styles.popoverHeader}>
+            Section #{sections[popover.sectionId]?.sectionNum || sectionCenters.find(c => c.id === popover.sectionId)?.num || popover.sectionId}
+          </div>
           <div className={styles.popoverBody}>
             <div className={styles.popoverSwatch} style={{ backgroundColor: popover.color || '#ccc' }} />
             <div className={styles.popoverDetails}>
@@ -399,7 +424,7 @@ export default function ColoredDesignPreview({ designData, template }) {
       {/* Section list below SVG */}
       {hasSections && (
         <div className={styles.sectionList}>
-          <h4 className={styles.sectionListTitle}>All Sections</h4>
+          <h4 className={styles.sectionListTitle}>Section Details</h4>
           <div className={styles.sectionGrid}>
             {sectionEntries.map(([id, data]) => {
               const center = sectionCenters.find(c => c.id === id);
