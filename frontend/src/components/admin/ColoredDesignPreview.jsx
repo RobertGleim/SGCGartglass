@@ -131,6 +131,13 @@ export default function ColoredDesignPreview({ designData, template }) {
       // sequentially. We replicate that logic here using getBBox for border
       // detection (sections touching 2+ SVG edges are borders).
       const EDGE_MARGIN = 5;
+      const sectionIdByNum = {};
+      Object.entries(sections).forEach(([id, data]) => {
+        const num = Number(data?.sectionNum);
+        if (Number.isFinite(num) && num > 0 && !sectionIdByNum[num]) {
+          sectionIdByNum[num] = id;
+        }
+      });
       const fillableEls = svgEl.querySelectorAll('[data-fillable]');
       let sectionNum = 0;
       fillableEls.forEach((el) => {
@@ -148,10 +155,18 @@ export default function ColoredDesignPreview({ designData, template }) {
             return;
           }
           sectionNum++;
-          // Use saved sectionNum from design data when available (authoritative)
-          const id = el.getAttribute('data-section-id');
-          const sectionData = sections[id];
+          const fallbackId = el.getAttribute('data-section-id');
+          const canonicalId = `sec-${sectionNum}`;
+          const matchedId =
+            (fallbackId && sections[fallbackId] ? fallbackId : null) ||
+            (sections[canonicalId] ? canonicalId : null) ||
+            sectionIdByNum[sectionNum] ||
+            fallbackId ||
+            canonicalId;
+          const sectionData = sections[matchedId];
           const displayNum = sectionData?.sectionNum || sectionNum;
+          el.setAttribute('data-section-id', String(matchedId));
+          el.setAttribute('data-canonical-id', canonicalId);
           el.setAttribute('data-section-num', String(displayNum));
         } catch { /* getBBox can fail */ }
       });
@@ -162,13 +177,11 @@ export default function ColoredDesignPreview({ designData, template }) {
       labeled.forEach((el) => {
         const id = el.getAttribute('data-section-id');
         const num = el.getAttribute('data-section-num');
-        const sectionData = sections[id];
-        const isColored = !!sectionData?.color;
         try {
           const bbox = el.getBBox();
           if (bbox.width < 3 || bbox.height < 3) return;
           raw.push({
-            el, id, num, isColored,
+            el, id, num,
             cx: bbox.x + bbox.width / 2,
             cy: bbox.y + bbox.height / 2,
             left: bbox.x, top: bbox.y,
@@ -212,9 +225,6 @@ export default function ColoredDesignPreview({ designData, template }) {
           cy: elRect.top + elRect.height / 2 - containerRect.top,
         });
 
-        // Skip drawing text labels on colored (filled) sections
-        if (s.isColored) return;
-
         const isSmall = Math.min(s.w, s.h) < 25;
         let labelX = s.cx;
         let labelY = s.cy;
@@ -254,6 +264,9 @@ export default function ColoredDesignPreview({ designData, template }) {
         text.setAttribute('font-weight', '700');
         text.setAttribute('font-family', 'Arial, sans-serif');
         text.setAttribute('fill', '#222');
+        text.setAttribute('stroke', '#fff');
+        text.setAttribute('stroke-width', '1.4');
+        text.setAttribute('paint-order', 'stroke');
         text.setAttribute('class', 'cdp-lbl-txt');
         text.style.pointerEvents = 'none';
         text.textContent = s.num;
@@ -264,7 +277,7 @@ export default function ColoredDesignPreview({ designData, template }) {
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [coloredSvgHtml, hasSvg]);
+  }, [coloredSvgHtml, hasSvg, sections]);
 
   // Highlight the selected section in the SVG
   useEffect(() => {
@@ -372,11 +385,20 @@ export default function ColoredDesignPreview({ designData, template }) {
     const map = {};
     sectionEntries.forEach(([id, data], idx) => {
       const center = sectionCenters.find(c => c.id === id);
+      const numericId = Number(id);
       // data.sectionNum is the authoritative number from the designer
-      map[id] = data.sectionNum || center?.num || (idx + 1);
+      map[id] = data.sectionNum || center?.num || Number((id.match(/^sec-(\d+)$/) || [])[1]) || (Number.isFinite(numericId) ? numericId : null) || (idx + 1);
     });
     return map;
   }, [sectionEntries, sectionCenters]);
+
+  const resolveRenderableSectionId = (sectionId) => {
+    const displayNum = sectionNumMap[sectionId];
+    const byExact = sectionCenters.find(c => c.id === sectionId);
+    if (byExact) return byExact.id;
+    const byNum = sectionCenters.find(c => c.num === Number(displayNum));
+    return byNum?.id || sectionId;
+  };
 
   // ----- Flood-fill / image-based template -----
   if (isFloodFill || !hasSvg) {
@@ -455,16 +477,17 @@ export default function ColoredDesignPreview({ designData, template }) {
           <div className={styles.sectionGrid}>
             {sectionEntries.map(([id, data]) => {
               const displayNum = sectionNumMap[id] || id;
+              const renderableId = resolveRenderableSectionId(id);
               return (
                 <div
                   key={id}
-                  className={`${styles.sectionItem} ${highlightedSection === id ? styles.sectionItemActive : ''}`}
+                  className={`${styles.sectionItem} ${highlightedSection === renderableId ? styles.sectionItemActive : ''}`}
                   onClick={() => {
-                    setHighlightedSection(id);
-                    const center = sectionCenters.find(c => c.id === id);
+                    setHighlightedSection(renderableId);
+                    const center = sectionCenters.find(c => c.id === renderableId);
                     if (center) {
                       setPopover({
-                        sectionId: id,
+                        sectionId: renderableId,
                         x: center.cx,
                         y: center.cy,
                         color: data.color,
@@ -475,7 +498,7 @@ export default function ColoredDesignPreview({ designData, template }) {
                     // Scroll the SVG preview into view
                     svgContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                   }}
-                  onMouseEnter={() => setHighlightedSection(id)}
+                  onMouseEnter={() => setHighlightedSection(renderableId)}
                   onMouseLeave={() => setHighlightedSection(null)}
                 >
                   <span className={styles.sectionNumber}>{displayNum}</span>

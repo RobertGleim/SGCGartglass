@@ -1116,12 +1116,13 @@ export default function DesignerPage() {
             if (!obj.selectable) return;
             num++;
             obj._sectionNumber = num;
+            obj._sectionId = `sec-${num}`;
             const bounds = obj.getBoundingRect();
             if (bounds.width < 3 || bounds.height < 3) return;
             const cx = bounds.left + bounds.width / 2;
             const cy = bounds.top + bounds.height / 2;
             raw.push({
-              id: obj.id || String(canvas.getObjects().indexOf(obj)),
+              id: obj._sectionId,
               num, cx, cy,
               left: bounds.left, top: bounds.top,
               right: bounds.left + bounds.width,
@@ -1215,7 +1216,7 @@ export default function DesignerPage() {
           canvas.requestRenderAll();
           setSelectedObj({ fill: color, glassType: hit._glassType });
           // Track section fill for work order data
-          const sectionId = hit.id || hit.regionId || hit.__pathIndex || canvas.getObjects().indexOf(hit);
+          const sectionId = hit._sectionId || `sec-${hit._sectionNumber || canvas.getObjects().indexOf(hit) + 1}`;
           console.log('[DesignerPage] Section filled:', { sectionId, sectionNum: hit._sectionNumber, color });
           sectionFillsRef.current[sectionId] = {
             color,
