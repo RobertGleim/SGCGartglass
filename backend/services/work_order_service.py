@@ -11,10 +11,19 @@ STATUS_WORKFLOW = [
 
 
 def generate_work_order_number(db: Session):
+    from sqlalchemy import func
     year = datetime.utcnow().year
     prefix = f'WO-{year}-'
-    max_num = db.query(WorkOrder).filter(WorkOrder.work_order_number.like(f'{prefix}%')).count() + 1
-    return f'{prefix}{max_num:04d}'
+    # Use MAX on the string (zero-padded, so lexicographic order == numeric order)
+    # instead of COUNT which breaks if rows are deleted
+    max_wo = db.query(func.max(WorkOrder.work_order_number)).filter(
+        WorkOrder.work_order_number.like(f'{prefix}%')
+    ).scalar()
+    if max_wo:
+        max_num = int(max_wo.split('-')[-1])
+    else:
+        max_num = 0
+    return f'{prefix}{max_num + 1:04d}'
 
 def validate_design_completion(design_data, template):
     # Skip validation if no template provided (allow direct submissions)

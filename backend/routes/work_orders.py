@@ -91,6 +91,17 @@ def submit_work_order_route():
             data['design_data'] = project.design_data
     
     template = {}  # Empty template to skip validation if no project
+
+    # Prevent duplicate work orders for the same project
+    if project_id:
+        existing_wo = WorkOrder.query.filter_by(project_id=project_id).first()
+        if existing_wo:
+            return jsonify({
+                'error': 'A work order already exists for this project.',
+                'work_order': existing_wo.to_dict(),
+                'project_id': project_id,
+            }), 409
+
     work_order, err = submit_work_order(user_id, project_id, data, db.session, template)
     if err:
         return jsonify({'error': err}), 400
