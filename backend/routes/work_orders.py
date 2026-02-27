@@ -2,7 +2,8 @@ from flask import Blueprint, request, jsonify, g
 from backend.services.work_order_service import (
     submit_work_order, generate_work_order_number, send_work_order_emails, update_work_order_status, validate_design_completion
 )
-from backend.models import db, WorkOrder
+from backend.models import db, WorkOrder, WorkOrderStatusHistory
+from backend.models.revision import WorkOrderRevision
 from backend.models.project import UserProject
 from backend.utils.email import send_email
 from backend.auth import decode_token
@@ -102,7 +103,7 @@ def submit_work_order_route():
 def list_user_work_orders():
     user_id = g.user_id
     orders = WorkOrder.query.filter_by(user_id=user_id).order_by(WorkOrder.created_at.desc()).all()
-    return jsonify({'work_orders': [o.to_dict() for o in orders]}), 200
+    return jsonify({'work_orders': [o.to_dict(include_project_data=True) for o in orders]}), 200
 
 @work_orders_bp.route('/api/work-orders/<int:order_id>', methods=['GET'])
 @login_required
@@ -111,6 +112,106 @@ def get_work_order(order_id):
     order = WorkOrder.query.filter_by(id=order_id, user_id=user_id).first()
     if not order:
         return jsonify({'error': 'Work order not found or not owned by user.'}), 404
+    # Include project data & template so customer can open design in editor
+    return jsonify({'work_order': order.to_dict(include_project_data=True)}), 200
+
+
+# ── Customer revision endpoints ──────────────────────────────────────
+
+@work_orders_bp.route('/api/work-orders/<int:order_id>/revisions', methods=['GET'])
+@login_required
+def list_revisions(order_id):
+    """List all revisions for a work order (customer owns it)."""
+    user_id = g.user_id
+    order = WorkOrder.query.filter_by(id=order_id, user_id=user_id).first()
+    if not order:
+        return jsonify({'error': 'Work order not found.'}), 404
+    revisions = (
+        WorkOrderRevision.query
+        .filter_by(work_order_id=order_id)
+        .order_by(WorkOrderRevision.revision_number.asc())
+        .all()
+    )
+    return jsonify({'revisions': [r.to_dict() for r in revisions]}), 200
+
+
+@work_orders_bp.route('/api/work-orders/<int:order_id>/revisions', methods=['POST'])
+@login_required
+def create_customer_revision(order_id):
+    """Customer submits a new design revision."""
+    user_id = g.user_id
+    order = WorkOrder.query.filter_by(id=order_id, user_id=user_id).first()
+    if not order:
+        return jsonify({'error': 'Work order not found.'}), 404
+
+    data = request.get_json() or {}
+    design_data = data.get('design_data')
+    if not isinstance(design_data, dict):
+        return jsonify({'error': 'design_data must be a JSON object'}), 400
+
+    # Determine next revision number
+    max_rev = (
+        db.session.query(db.func.max(WorkOrderRevision.revision_number))
+        .filter_by(work_order_id=order_id)
+        .scalar()
+    ) or 0
+
+    revision = WorkOrderRevision(
+        work_order_id=order_id,
+        revision_number=max_rev + 1,
+        author_type='customer',
+        author_id=user_id,
+        design_data=design_data,
+        notes=data.get('notes'),
+    )
+    db.session.add(revision)
+
+    # Update the project's design_data to match latest revision
+    if order.project:
+        order.project.design_data = design_data
+    
+    # Update work order status
+    old_status = order.status
+    order.status = 'Revision Submitted'
+    
+    history = WorkOrderStatusHistory(
+        work_order_id=order_id,
+        from_status=old_status if isinstance(old_status, str) else str(old_status),
+        to_status='Revision Submitted',
+        changed_by=user_id,
+        changed_at=datetime.utcnow(),
+    )
+    db.session.add(history)
+    db.session.commit()
+
+    return jsonify({
+        'revision': revision.to_dict(),
+        'work_order': order.to_dict(include_project_data=True),
+    }), 201
+
+
+@work_orders_bp.route('/api/work-orders/<int:order_id>/approve', methods=['PUT'])
+@login_required
+def approve_work_order(order_id):
+    """Customer approves the current design."""
+    user_id = g.user_id
+    order = WorkOrder.query.filter_by(id=order_id, user_id=user_id).first()
+    if not order:
+        return jsonify({'error': 'Work order not found.'}), 404
+
+    old_status = order.status
+    order.status = 'Approved'
+
+    history = WorkOrderStatusHistory(
+        work_order_id=order_id,
+        from_status=old_status if isinstance(old_status, str) else str(old_status),
+        to_status='Approved',
+        changed_by=user_id,
+        changed_at=datetime.utcnow(),
+    )
+    db.session.add(history)
+    db.session.commit()
+
     return jsonify({'work_order': order.to_dict()}), 200
 
 @admin_work_orders_bp.route('/api/admin/work-orders', methods=['GET'])
@@ -162,3 +263,90 @@ def admin_delete_work_order(order_id):
     db.session.delete(order)
     db.session.commit()
     return jsonify({'message': 'Work order deleted.'}), 200
+
+
+# ── Admin revision endpoints ──────────────────────────────────────
+
+@admin_work_orders_bp.route('/api/admin/work-orders/<int:order_id>', methods=['GET'])
+@admin_required
+def admin_get_work_order(order_id):
+    """Admin: get single work order with project data & template."""
+    order = WorkOrder.query.get(order_id)
+    if not order:
+        return jsonify({'error': 'Work order not found.'}), 404
+    return jsonify({
+        'work_order': order.to_dict(include_admin_notes=True, include_project_data=True)
+    }), 200
+
+
+@admin_work_orders_bp.route('/api/admin/work-orders/<int:order_id>/revisions', methods=['GET'])
+@admin_required
+def admin_list_revisions(order_id):
+    """Admin: list all revisions for a work order."""
+    order = WorkOrder.query.get(order_id)
+    if not order:
+        return jsonify({'error': 'Work order not found.'}), 404
+    revisions = (
+        WorkOrderRevision.query
+        .filter_by(work_order_id=order_id)
+        .order_by(WorkOrderRevision.revision_number.asc())
+        .all()
+    )
+    return jsonify({'revisions': [r.to_dict() for r in revisions]}), 200
+
+
+@admin_work_orders_bp.route('/api/admin/work-orders/<int:order_id>/revisions', methods=['POST'])
+@admin_required
+def admin_create_revision(order_id):
+    """Admin creates a new revision and optionally sends for customer review."""
+    order = WorkOrder.query.get(order_id)
+    if not order:
+        return jsonify({'error': 'Work order not found.'}), 404
+
+    data = request.get_json() or {}
+    design_data = data.get('design_data')
+    if not isinstance(design_data, dict):
+        return jsonify({'error': 'design_data must be a JSON object'}), 400
+
+    send_for_review = data.get('send_for_review', False)
+
+    # Determine next revision number
+    max_rev = (
+        db.session.query(db.func.max(WorkOrderRevision.revision_number))
+        .filter_by(work_order_id=order_id)
+        .scalar()
+    ) or 0
+
+    revision = WorkOrderRevision(
+        work_order_id=order_id,
+        revision_number=max_rev + 1,
+        author_type='admin',
+        author_id=g.user_id,
+        design_data=design_data,
+        notes=data.get('notes'),
+    )
+    db.session.add(revision)
+
+    # Update the project's design_data to match latest revision
+    if order.project:
+        order.project.design_data = design_data
+
+    # Update status if sending for customer review
+    if send_for_review:
+        old_status = order.status
+        order.status = 'Revision Requested'
+        history = WorkOrderStatusHistory(
+            work_order_id=order_id,
+            from_status=old_status if isinstance(old_status, str) else str(old_status),
+            to_status='Revision Requested',
+            changed_by=g.user_id,
+            changed_at=datetime.utcnow(),
+        )
+        db.session.add(history)
+
+    db.session.commit()
+
+    return jsonify({
+        'revision': revision.to_dict(),
+        'work_order': order.to_dict(include_admin_notes=True, include_project_data=True),
+    }), 201

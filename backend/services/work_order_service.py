@@ -5,7 +5,8 @@ from backend.models import WorkOrder, WorkOrderStatusHistory, UserProject
 from backend.utils.email import send_email, work_order_confirmation_email, work_order_notification_email
 
 STATUS_WORKFLOW = [
-    'Pending Review', 'Under Review', 'Quote Sent', 'Approved', 'In Production', 'Completed', 'Cancelled'
+    'Pending Review', 'Under Review', 'Revision Requested', 'Revision Submitted',
+    'Quote Sent', 'Approved', 'In Production', 'Completed', 'Cancelled'
 ]
 
 

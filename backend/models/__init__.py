@@ -11,6 +11,7 @@ from .template import Template, TemplateRegion
 from .glass_type import GlassType
 from .project import UserProject
 from .work_order import WorkOrder, WorkOrderStatusHistory
+from .revision import WorkOrderRevision
 
 __all__ = [
     "db",
@@ -20,4 +21,5 @@ __all__ = [
     "UserProject",
     "WorkOrder",
     "WorkOrderStatusHistory",
+    "WorkOrderRevision",
 ]

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import api from '../services/api';
+import api, { approveWorkOrder } from '../services/api';
 import styles from './MyWorkOrders.module.css';
 
 const toOrdersArray = (payload) => {
@@ -13,6 +13,7 @@ const toOrdersArray = (payload) => {
 const getProjectName = (order) => {
   if (order?.projectName) return order.projectName;
   if (order?.project_name) return order.project_name;
+  if (order?.project?.name) return order.project.name;
   const notes = order?.customer_notes || '';
   const projectLine = notes
     .split('\n')
@@ -27,18 +28,41 @@ const normalizeStatus = (status) => {
   if (s === 'pending review') return 'pending';
   if (s === 'under review') return 'review';
   if (s === 'quote sent') return 'quote';
+  if (s === 'revision requested') return 'revision_requested';
+  if (s === 'revision submitted') return 'revision_submitted';
   if (s === 'in production') return 'production';
   if (s === 'completed') return 'completed';
   if (s === 'cancelled' || s === 'canceled') return 'cancelled';
+  if (s === 'approved') return 'approved';
   return s;
 };
 
 const STATUS_COLORS = {
   pending: '#ffb300',
+  review: '#2196f3',
+  revision_requested: '#ff6f00',
+  revision_submitted: '#7b1fa2',
+  quote: '#00897b',
   approved: '#4caf50',
-  rejected: '#e53935',
+  production: '#1565c0',
   completed: '#4169e1',
+  cancelled: '#e53935',
 };
+
+const STATUS_LABELS = {
+  pending: 'Pending Review',
+  review: 'Under Review',
+  revision_requested: 'Revision Requested',
+  revision_submitted: 'Revision Submitted',
+  quote: 'Quote Sent',
+  approved: 'Approved',
+  production: 'In Production',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
+
+// Statuses where customer can edit/review the design
+const EDITABLE_STATUSES = ['pending', 'revision_requested', 'revision_submitted', 'review'];
 
 export default function MyWorkOrders() {
   const initialStatus = (() => {
@@ -69,6 +93,26 @@ export default function MyWorkOrders() {
     fetchOrders();
   }, []);
 
+  const handleApprove = async (orderId, e) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm('Approve this design? This will move the order forward to production.')) return;
+    try {
+      const res = await approveWorkOrder(orderId);
+      const updatedOrder = res?.work_order || res;
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...updatedOrder } : o));
+      if (selected?.id === orderId) setSelected(prev => ({ ...prev, ...updatedOrder }));
+      alert('Design approved!');
+    } catch {
+      alert('Failed to approve. Please try again.');
+    }
+  };
+
+  const openDesigner = (orderId, e) => {
+    if (e) e.stopPropagation();
+    window.location.hash = `#/designer?workorder=${orderId}`;
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  };
+
   const filtered = orders.filter(o => filter === 'all' || normalizeStatus(o?.status) === filter);
 
   return (
@@ -77,32 +121,110 @@ export default function MyWorkOrders() {
       <select value={filter} onChange={e => setFilter(e.target.value)}>
         <option value="all">All</option>
         <option value="pending">Pending</option>
+        <option value="review">Under Review</option>
+        <option value="revision_requested">Revision Requested</option>
+        <option value="revision_submitted">Revision Submitted</option>
+        <option value="quote">Quote Sent</option>
         <option value="approved">Approved</option>
-        <option value="rejected">Rejected</option>
+        <option value="production">In Production</option>
         <option value="completed">Completed</option>
+        <option value="cancelled">Cancelled</option>
       </select>
       {loading ? <div>Loading...</div> : error ? <div>{error}</div> : (
         <div className={styles.list}>
-          {filtered.map(order => (
-            <div key={order.id} className={styles.item} onClick={() => setSelected(order)}>
-              <span className={styles.badge} style={{ background: STATUS_COLORS[normalizeStatus(order.status)] || '#ccc' }}>{order.status}</span>
-              <span className={styles.name}>{getProjectName(order)}</span>
-              <span className={styles.date}>{getOrderDate(order) ? new Date(getOrderDate(order)).toLocaleString() : '—'}</span>
-            </div>
-          ))}
+          {filtered.length === 0 && (
+            <div className={styles.empty}>No work orders found.</div>
+          )}
+          {filtered.map(order => {
+            const statusKey = normalizeStatus(order.status);
+            const canEdit = EDITABLE_STATUSES.includes(statusKey);
+            const needsReview = statusKey === 'revision_requested';
+            return (
+              <div key={order.id} className={`${styles.item} ${needsReview ? styles.needsAttention : ''}`} onClick={() => setSelected(order)}>
+                <div className={styles.itemTop}>
+                  <span className={styles.badge} style={{ background: STATUS_COLORS[statusKey] || '#ccc' }}>
+                    {STATUS_LABELS[statusKey] || order.status}
+                  </span>
+                  <span className={styles.orderNum}>{order.work_order_number || `#${order.id}`}</span>
+                  {order.revision_count > 0 && (
+                    <span className={styles.revCount} title="Number of revisions">
+                      {order.revision_count} rev{order.revision_count !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                <div className={styles.itemBody}>
+                  <span className={styles.name}>{getProjectName(order)}</span>
+                  <span className={styles.date}>
+                    {getOrderDate(order) ? new Date(getOrderDate(order)).toLocaleString() : '—'}
+                  </span>
+                </div>
+                {needsReview && (
+                  <div className={styles.attentionBanner}>
+                    ⚠️ Admin has made changes — please review
+                  </div>
+                )}
+                <div className={styles.itemActions}>
+                  {canEdit && (
+                    <button className={styles.editBtn} onClick={(e) => openDesigner(order.id, e)}>
+                      🎨 Review & Edit
+                    </button>
+                  )}
+                  {needsReview && (
+                    <button className={styles.approveBtn} onClick={(e) => handleApprove(order.id, e)}>
+                      ✅ Approve
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
+
+      {/* Detail Modal */}
       {selected && (
         <div className={styles.detailModal}>
           <div className={styles.detailBox}>
             <button className={styles.closeBtn} onClick={() => setSelected(null)} aria-label="Close">×</button>
             <h2>{getProjectName(selected)}</h2>
-            <div>Status: <span className={styles.badge} style={{ background: STATUS_COLORS[normalizeStatus(selected.status)] || '#ccc' }}>{selected.status}</span></div>
-            <div>Notes: {selected.customer_notes || selected.notes || '—'}</div>
-            <div>Timeline: {selected.timeline}</div>
-            <div>Budget: {selected.budget}</div>
-            <div>Contact: {selected.contact}</div>
-            {selected.previewUrl && <img src={selected.previewUrl} alt="Preview" className={styles.preview} />}
+            <div className={styles.detailRow}>
+              <strong>Status:</strong>
+              <span className={styles.badge} style={{ background: STATUS_COLORS[normalizeStatus(selected.status)] || '#ccc' }}>
+                {STATUS_LABELS[normalizeStatus(selected.status)] || selected.status}
+              </span>
+            </div>
+            <div className={styles.detailRow}>
+              <strong>Order #:</strong> {selected.work_order_number || `#${selected.id}`}
+            </div>
+            <div className={styles.detailRow}>
+              <strong>Notes:</strong> {selected.customer_notes || selected.notes || '—'}
+            </div>
+            {selected.admin_notes && (
+              <div className={styles.detailRow}>
+                <strong>Admin Notes:</strong> {selected.admin_notes}
+              </div>
+            )}
+            {(selected.project?.design_data?.preview_url || selected.project?.design_data?.dataUrl) && (
+              <div className={styles.previewBox}>
+                <img
+                  src={selected.project.design_data.preview_url || selected.project.design_data.dataUrl}
+                  alt="Design Preview"
+                  className={styles.preview}
+                />
+              </div>
+            )}
+            <div className={styles.detailActions}>
+              {EDITABLE_STATUSES.includes(normalizeStatus(selected.status)) && (
+                <button className={styles.editBtn} onClick={(e) => openDesigner(selected.id, e)}>
+                  🎨 Open in Designer
+                </button>
+              )}
+              {normalizeStatus(selected.status) === 'revision_requested' && (
+                <button className={styles.approveBtn} onClick={(e) => handleApprove(selected.id, e)}>
+                  ✅ Approve Design
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

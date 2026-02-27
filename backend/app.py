@@ -124,6 +124,21 @@ def create_app(config_name=None):
         except Exception as e:
             app.logger.warning(f"db.create_all() warning: {e}")
 
+        # Add new ENUM values for work order statuses (PostgreSQL)
+        try:
+            from sqlalchemy import text
+            for new_status in ('Revision Requested', 'Revision Submitted'):
+                try:
+                    db.session.execute(
+                        text(f"ALTER TYPE work_order_status ADD VALUE IF NOT EXISTS '{new_status}'")
+                    )
+                    db.session.commit()
+                    app.logger.info(f"Added ENUM value: {new_status}")
+                except Exception:
+                    db.session.rollback()
+        except Exception as e:
+            app.logger.warning(f"ENUM migration warning: {e}")
+
         # Add new columns to existing tables if they're missing (SQLite ALTER TABLE)
         try:
             from sqlalchemy import inspect, text

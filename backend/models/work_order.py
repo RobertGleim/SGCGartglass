@@ -8,6 +8,8 @@ from . import db
 WORK_ORDER_STATUSES = (
     "Pending Review",
     "Under Review",
+    "Revision Requested",
+    "Revision Submitted",
     "Quote Sent",
     "Approved",
     "In Production",
@@ -109,6 +111,17 @@ class WorkOrder(db.Model):
                     "template_type": self.project.template.template_type,
                     "image_url": self.project.template.image_url,
                 }
+        # Include revision summary
+        if hasattr(self, 'revisions'):
+            rev_query = self.revisions
+            rev_count = rev_query.count() if hasattr(rev_query, 'count') else 0
+            out["revision_count"] = rev_count
+            if rev_count > 0:
+                latest = rev_query.order_by(None).order_by(
+                    db.text("revision_number DESC")
+                ).first()
+                if latest:
+                    out["latest_revision"] = latest.to_dict()
         return out
 
 

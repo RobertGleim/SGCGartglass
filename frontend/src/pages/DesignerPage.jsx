@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import api, { getTemplates, saveProject, submitWorkOrder, getProject, getTemplate } from '../services/api';
+import api, { getTemplates, saveProject, submitWorkOrder, getProject, getTemplate,
+  getWorkOrder, getAdminWorkOrder, createCustomerRevision, createAdminRevision,
+  approveWorkOrder as apiApproveWorkOrder, getWorkOrderRevisions, getAdminWorkOrderRevisions
+} from '../services/api';
 import useCustomerAuth from '../hooks/useCustomerAuth';
+import useAuth from '../hooks/useAuth';
 import styles from './DesignerPage.module.css';
 
 const STEP = { GALLERY: 'gallery', DESIGN: 'design' };
@@ -113,6 +117,17 @@ export default function DesignerPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const { customerToken } = useCustomerAuth();
+  const { authToken } = useAuth();
+
+  // ── Work Order revision mode ─────────────────────────────────
+  const [workOrderMode, setWorkOrderMode] = useState(false);
+  const [workOrderId, setWorkOrderId] = useState(null);
+  const [workOrderData, setWorkOrderData] = useState(null);
+  const [revisions, setRevisions] = useState([]);
+  const [revisionNotes, setRevisionNotes] = useState('');
+  const [savingRevision, setSavingRevision] = useState(false);
+  const [showRevisionHistory, setShowRevisionHistory] = useState(false);
+  const isAdmin = !!authToken && !customerToken; // admin token but no customer token
 
   // ── Load templates ───────────────────────────────────────────
   useEffect(() => {
@@ -179,6 +194,65 @@ export default function DesignerPage() {
         console.error('[DesignerPage] Failed to load project:', err);
       })
       .finally(() => setLoadingProject(false));
+  }, []); // Only run once on mount
+
+  // ── Load work order from URL params (revision mode) ──────────
+  useEffect(() => {
+    const params = getQueryParams();
+    const woId = params.workorder;
+    if (!woId) return;
+
+    setWorkOrderMode(true);
+    setWorkOrderId(Number(woId));
+    setLoadingProject(true);
+
+    const fetchWO = isAdmin ? getAdminWorkOrder : getWorkOrder;
+    const fetchRevisions = isAdmin ? getAdminWorkOrderRevisions : getWorkOrderRevisions;
+
+    fetchWO(woId)
+      .then(async (res) => {
+        const wo = res?.work_order || res;
+        if (!wo) return;
+        setWorkOrderData(wo);
+
+        // Load template  
+        const templateData = wo.template;
+        const templateId = templateData?.id || wo.project?.template_id;
+        let template = templateData;
+
+        if (templateId && !template?.svg_content && !template?.image_url) {
+          try {
+            const tplRes = await getTemplate(templateId);
+            template = tplRes?.template || tplRes;
+          } catch (err) {
+            console.error('[DesignerPage] Failed to load WO template:', err);
+          }
+        }
+
+        if (template) {
+          setSelectedTemplate(template);
+          setStep(STEP.DESIGN);
+        }
+
+        // Set project ID for continuity
+        if (wo.project?.id) setProjectId(wo.project.id);
+
+        // Apply design data (from latest revision or project)
+        const designData = wo.latest_revision?.design_data || wo.project?.design_data;
+        if (designData && Object.keys(designData).length > 0) {
+          setTimeout(() => applyDesignData(designData), 500);
+        }
+      })
+      .catch(err => console.error('[DesignerPage] Failed to load work order:', err))
+      .finally(() => setLoadingProject(false));
+
+    // Also load revision history
+    fetchRevisions(woId)
+      .then(res => {
+        const revs = res?.revisions || [];
+        setRevisions(revs);
+      })
+      .catch(() => {});
   }, []); // Only run once on mount
   
   // Apply design data to canvas
@@ -1562,6 +1636,69 @@ export default function DesignerPage() {
     }
   }, [projectId, selectedTemplate, submitForm]);
 
+  // ── Save revision (work order mode) ───────────────────────────
+  const getCurrentDesignData = useCallback(() => {
+    let canvasData, previewUrl;
+    if (isFloodFillMode.current) {
+      const cvs = canvasRef.current;
+      previewUrl = cvs ? cvs.toDataURL('image/png') : '';
+      canvasData = { floodFill: true, dataUrl: previewUrl };
+    } else {
+      const canvas = fabricRef.current;
+      canvasData = canvas ? canvas.toJSON() : {};
+      previewUrl = canvas ? canvas.toDataURL({ format: 'png', quality: 0.8 }) : '';
+    }
+    canvasData.sections = { ...(sectionFillsRef.current || {}) };
+    canvasData.preview_url = previewUrl;
+    return canvasData;
+  }, []);
+
+  const handleSaveRevision = useCallback(async (sendForReview = false) => {
+    if (!workOrderId) return;
+    setSavingRevision(true);
+    try {
+      const designData = getCurrentDesignData();
+      let res;
+      if (isAdmin) {
+        res = await createAdminRevision(workOrderId, designData, revisionNotes, sendForReview);
+      } else {
+        res = await createCustomerRevision(workOrderId, designData, revisionNotes);
+      }
+      const newRev = res?.revision;
+      if (newRev) setRevisions(prev => [...prev, newRev]);
+      if (res?.work_order) setWorkOrderData(res.work_order);
+      setRevisionNotes('');
+      
+      if (sendForReview) {
+        alert(isAdmin ? 'Revision sent to customer for review!' : 'Revision submitted for admin review!');
+        // Navigate back to the appropriate dashboard
+        window.location.hash = isAdmin ? '#/admin' : `#/my-work-orders?refresh=${Date.now()}`;
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      } else {
+        alert('Revision saved!');
+      }
+    } catch (err) {
+      console.error('[DesignerPage] Failed to save revision:', err);
+      alert('Failed to save revision. Please try again.');
+    } finally {
+      setSavingRevision(false);
+    }
+  }, [workOrderId, isAdmin, revisionNotes, getCurrentDesignData]);
+
+  const handleApproveDesign = useCallback(async () => {
+    if (!workOrderId) return;
+    if (!window.confirm('Approve this design? This will move the work order to production.')) return;
+    try {
+      await apiApproveWorkOrder(workOrderId);
+      alert('Design approved! The work order will move to production.');
+      window.location.hash = `#/my-work-orders?refresh=${Date.now()}`;
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    } catch (err) {
+      console.error('[DesignerPage] Failed to approve:', err);
+      alert('Failed to approve design. Please try again.');
+    }
+  }, [workOrderId]);
+
   // ── Filtered templates ────────────────────────────────────────
   const filtered = categoryFilter
     ? templates.filter(t => t.category === categoryFilter)
@@ -1689,10 +1826,23 @@ export default function DesignerPage() {
 
       {/* ── Toolbar ─────────────────────────────────── */}
       <div className={styles.toolbar}>
-        <button className={styles.toolBtn} onClick={() => setStep(STEP.GALLERY)}>
-          ← Gallery
-        </button>
-        <span className={styles.templateName}>{selectedTemplate?.name}</span>
+        {workOrderMode ? (
+          <button className={styles.toolBtn} onClick={() => {
+            window.location.hash = isAdmin ? '#/admin' : '#/my-work-orders';
+            window.dispatchEvent(new HashChangeEvent('hashchange'));
+          }}>
+            ← Back
+          </button>
+        ) : (
+          <button className={styles.toolBtn} onClick={() => setStep(STEP.GALLERY)}>
+            ← Gallery
+          </button>
+        )}
+        <span className={styles.templateName}>
+          {workOrderMode
+            ? `WO: ${workOrderData?.work_order_number || ''} — ${selectedTemplate?.name || 'Design'}`
+            : selectedTemplate?.name}
+        </span>
         <button className={styles.toolBtn} onClick={undo}>↩ Undo</button>
         <button className={styles.toolBtn} onClick={redo}>↪ Redo</button>
         <button className={styles.toolBtn} onClick={fillAll} title="Fill all pieces with current color">
@@ -1702,7 +1852,44 @@ export default function DesignerPage() {
           ↺ Reset
         </button>
         <div className={styles.spacer} />
-        {customerToken ? (
+
+        {/* ── Work Order Mode buttons ── */}
+        {workOrderMode ? (
+          <>
+            {revisions.length > 0 && (
+              <button
+                className={styles.toolBtn}
+                onClick={() => setShowRevisionHistory(!showRevisionHistory)}
+                title="View revision history"
+              >
+                📋 History ({revisions.length})
+              </button>
+            )}
+            <button
+              className={`${styles.toolBtn} ${styles.save}`}
+              onClick={() => handleSaveRevision(false)}
+              disabled={savingRevision}
+            >
+              {savingRevision ? 'Saving…' : '💾 Save Revision'}
+            </button>
+            <button
+              className={`${styles.toolBtn} ${styles.submit}`}
+              onClick={() => handleSaveRevision(true)}
+              disabled={savingRevision}
+            >
+              {isAdmin ? '📤 Send for Review' : '📤 Submit Changes'}
+            </button>
+            {!isAdmin && (
+              <button
+                className={`${styles.toolBtn} ${styles.approveBtn}`}
+                onClick={handleApproveDesign}
+                title="Approve the current design"
+              >
+                ✅ Approve
+              </button>
+            )}
+          </>
+        ) : customerToken ? (
           <>
             <button
               className={`${styles.toolBtn} ${styles.save}`}
@@ -1727,6 +1914,54 @@ export default function DesignerPage() {
           </button>
         )}
       </div>
+
+      {/* ── Revision History Sidebar ─────────────────── */}
+      {workOrderMode && showRevisionHistory && (
+        <div className={styles.revisionSidebar}>
+          <div className={styles.revisionSidebarHeader}>
+            <h3>Revision History</h3>
+            <button onClick={() => setShowRevisionHistory(false)}>×</button>
+          </div>
+          <div className={styles.revisionNoteInput}>
+            <textarea
+              value={revisionNotes}
+              onChange={e => setRevisionNotes(e.target.value)}
+              placeholder="Add notes about this revision..."
+              rows={2}
+            />
+          </div>
+          <div className={styles.revisionList}>
+            {revisions.length === 0 ? (
+              <p className={styles.noRevisions}>No revisions yet. Original submission.</p>
+            ) : (
+              revisions.map(rev => (
+                <div
+                  key={rev.id}
+                  className={styles.revisionItem}
+                  onClick={() => {
+                    // Load this revision's design data
+                    if (rev.design_data) {
+                      applyDesignData(rev.design_data);
+                    }
+                  }}
+                  title="Click to load this revision"
+                >
+                  <div className={styles.revisionHeader}>
+                    <span className={styles.revisionNumber}>Rev #{rev.revision_number}</span>
+                    <span className={`${styles.revisionAuthor} ${rev.author_type === 'admin' ? styles.adminBadge : styles.customerBadge}`}>
+                      {rev.author_type === 'admin' ? '👤 Admin' : '🎨 Customer'}
+                    </span>
+                  </div>
+                  <div className={styles.revisionDate}>
+                    {rev.created_at ? new Date(rev.created_at).toLocaleString() : ''}
+                  </div>
+                  {rev.notes && <div className={styles.revisionNotes}>{rev.notes}</div>}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Work Area ────────────────────────────────── */}
       <div className={styles.workArea}>

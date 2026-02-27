@@ -254,3 +254,34 @@
   background: #dc3545;
   color: white;
 }
+
+/* Designer buttons */
+.designerBtn {
+  margin-left: 0.4rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid #1565c0;
+  border-radius: 6px;
+  background: #1565c0;
+  color: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.designerBtn:hover {
+  background: #0d47a1;
+}
+
+.designerBtnLarge {
+  padding: 0.6rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  background: #1565c0;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.designerBtnLarge:hover {
+  background: #0d47a1;
+}

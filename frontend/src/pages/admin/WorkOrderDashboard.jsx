@@ -4,10 +4,12 @@ import { getTemplate, updateAdminWorkOrderDesign } from '../../services/api';
 import ColoredDesignPreview from '../../components/admin/ColoredDesignPreview';
 import styles from './WorkOrderDashboard.module.css';
 
-const STATUS_OPTIONS = ['pending', 'review', 'quote', 'production', 'completed', 'cancelled'];
+const STATUS_OPTIONS = ['pending', 'review', 'revision_requested', 'revision_submitted', 'quote', 'production', 'completed', 'cancelled'];
 const STATUS_LABELS = {
   pending: 'Pending Review',
   review: 'Under Review',
+  revision_requested: 'Revision Requested',
+  revision_submitted: 'Revision Submitted',
   quote: 'Quote Sent',
   production: 'In Production',
   completed: 'Completed',
@@ -28,6 +30,8 @@ const normalizeStatus = (status) => {
   if (s === 'pending review') return 'pending';
   if (s === 'under review') return 'review';
   if (s === 'quote sent') return 'quote';
+  if (s === 'revision requested') return 'revision_requested';
+  if (s === 'revision submitted') return 'revision_submitted';
   if (s === 'in production') return 'production';
   if (s === 'completed') return 'completed';
   if (s === 'cancelled' || s === 'canceled') return 'cancelled';
@@ -167,6 +171,8 @@ export default function WorkOrderDashboard() {
   const summary = {
     pending: orders.filter(o => o.status_key === 'pending').length,
     review: orders.filter(o => o.status_key === 'review').length,
+    revision_submitted: orders.filter(o => o.status_key === 'revision_submitted').length,
+    revision_requested: orders.filter(o => o.status_key === 'revision_requested').length,
     quote: orders.filter(o => o.status_key === 'quote').length,
     production: orders.filter(o => o.status_key === 'production').length,
   };
@@ -192,6 +198,8 @@ export default function WorkOrderDashboard() {
       <div className={styles.summary}>
         <div className={styles.card} onClick={() => setStatusFilter('pending')}>Pending Review: {summary.pending}</div>
         <div className={styles.card} onClick={() => setStatusFilter('review')}>Under Review: {summary.review}</div>
+        <div className={styles.card} onClick={() => setStatusFilter('revision_submitted')}>Revisions In: {summary.revision_submitted}</div>
+        <div className={styles.card} onClick={() => setStatusFilter('revision_requested')}>Sent for Review: {summary.revision_requested}</div>
         <div className={styles.card} onClick={() => setStatusFilter('quote')}>Quote Sent: {summary.quote}</div>
         <div className={styles.card} onClick={() => setStatusFilter('production')}>In Production: {summary.production}</div>
       </div>
@@ -254,6 +262,16 @@ export default function WorkOrderDashboard() {
                 <td>{o.date ? new Date(o.date).toLocaleString() : '-'}</td>
                 <td>
                   <button onClick={(e) => openPreview(o, e)}>View</button>
+                  <button
+                    className={styles.designerBtn}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.location.hash = `#/designer?workorder=${o.id}`;
+                      window.dispatchEvent(new HashChangeEvent('hashchange'));
+                    }}
+                  >
+                    🎨 Edit
+                  </button>
                   <button className={styles.deleteBtn} onClick={(e) => handleDelete(o.id, e)}>Delete</button>
                 </td>
               </tr>
@@ -320,6 +338,22 @@ export default function WorkOrderDashboard() {
                   }
                 }}
               />
+            </div>
+
+            <div className={styles.modalSection}>
+              <h3>Full Designer</h3>
+              <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0 0.75rem' }}>
+                Open this work order in the full designer canvas to make edits, then send back to customer for review.
+              </p>
+              <button
+                className={styles.designerBtnLarge}
+                onClick={() => {
+                  window.location.hash = `#/designer?workorder=${selectedOrder.id}`;
+                  window.dispatchEvent(new HashChangeEvent('hashchange'));
+                }}
+              >
+                🎨 Edit in Designer
+              </button>
             </div>
 
             <div className={styles.modalSection}>

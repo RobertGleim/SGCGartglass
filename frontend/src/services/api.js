@@ -125,7 +125,19 @@ export const getMyWorkOrders = () => api.get('/work-orders');
 export const getAdminTemplates = () => api.get('/admin/templates');
 export const getAdminGlassTypes = () => api.get('/admin/glass-types');
 export const getAdminWorkOrders = () => api.get('/admin/work-orders');
+export const getAdminWorkOrder = (id) => api.get(`/admin/work-orders/${id}`);
 export const updateWorkOrderStatus = (id, status, notes) => api.put(`/admin/work-orders/${id}/status`, { new_status: status, notes });
 export const updateAdminWorkOrderDesign = (id, design_data) => api.put(`/admin/work-orders/${id}/design-data`, { design_data });
+
+// Revision endpoints
+export const getWorkOrderRevisions = (id) => api.get(`/work-orders/${id}/revisions`);
+export const createCustomerRevision = (id, design_data, notes) =>
+  api.post(`/work-orders/${id}/revisions`, { design_data, notes });
+export const approveWorkOrder = (id) => api.put(`/work-orders/${id}/approve`);
+export const getWorkOrder = (id) => api.get(`/work-orders/${id}`);
+
+export const getAdminWorkOrderRevisions = (id) => api.get(`/admin/work-orders/${id}/revisions`);
+export const createAdminRevision = (id, design_data, notes, sendForReview = false) =>
+  api.post(`/admin/work-orders/${id}/revisions`, { design_data, notes, send_for_review: sendForReview });
 
 export default api;
