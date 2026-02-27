@@ -130,6 +130,28 @@ def admin_update_work_order_status(order_id):
         return jsonify({'error': err}), 400
     return jsonify({'work_order': work_order.to_dict()}), 200
 
+@admin_work_orders_bp.route('/api/admin/work-orders/<int:order_id>/design-data', methods=['PUT'])
+@admin_required
+def admin_update_work_order_design_data(order_id):
+    order = WorkOrder.query.get(order_id)
+    if not order:
+        return jsonify({'error': 'Work order not found.'}), 404
+    if not order.project:
+        return jsonify({'error': 'No project associated with this work order.'}), 400
+
+    data = request.get_json() or {}
+    design_data = data.get('design_data')
+    if not isinstance(design_data, dict):
+        return jsonify({'error': 'design_data must be a JSON object'}), 400
+
+    order.project.design_data = design_data
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Design data updated.',
+        'work_order': order.to_dict(include_admin_notes=True, include_project_data=True),
+    }), 200
+
 @admin_work_orders_bp.route('/api/admin/work-orders/<int:order_id>', methods=['DELETE'])
 @admin_required
 def admin_delete_work_order(order_id):

@@ -30,16 +30,39 @@ const getColorName = (hex) => {
   return HEX_COLOR_NAMES[h] || h;
 };
 
-export default function ColoredDesignPreview({ designData, template }) {
+export default function ColoredDesignPreview({ designData, template, editable = false, locked = false, onDesignDataChange }) {
   const svgContainerRef = useRef(null);
   const [popover, setPopover] = useState(null); // { sectionId, x, y, color, glassType }
   const [sectionCenters, setSectionCenters] = useState([]); // [{ id, cx, cy }]
   const [highlightedSection, setHighlightedSection] = useState(null);
+  const [workingSections, setWorkingSections] = useState(designData?.sections || {});
+  const [activeSectionMeta, setActiveSectionMeta] = useState(null); // { id, num }
+  const [editColor, setEditColor] = useState('#98fb98');
+  const [savingDesign, setSavingDesign] = useState(false);
 
-  const sections = designData?.sections || {};
+  useEffect(() => {
+    setWorkingSections(designData?.sections || {});
+  }, [designData?.sections]);
+
+  const sections = workingSections || {};
   const previewUrl = designData?.preview_url || designData?.dataUrl || '';
   const isFloodFill = !!designData?.floodFill;
   const hasSvg = template?.svg_content && template?.template_type === 'svg';
+  const isEditingEnabled = editable && hasSvg && !locked;
+  const showEditableSvgGuard = editable && !hasSvg;
+
+  const persistSections = async (nextSections) => {
+    if (!onDesignDataChange) return;
+    setSavingDesign(true);
+    try {
+      await onDesignDataChange({
+        ...(designData || {}),
+        sections: nextSections,
+      });
+    } finally {
+      setSavingDesign(false);
+    }
+  };
 
   // Helper: detect if a fill colour is very dark (outline / leading)
   const isOutlineFill = (fill) => {
@@ -352,16 +375,22 @@ export default function ColoredDesignPreview({ designData, template }) {
     const el = e.target.closest('[data-section-id]');
     if (!el) { setPopover(null); setHighlightedSection(null); return; }
     const sectionId = el.getAttribute('data-section-id');
-    const data = sections[sectionId];
-    if (!data) { setPopover(null); setHighlightedSection(null); return; }
+    const sectionNum = Number(el.getAttribute('data-section-num')) || null;
+    const data = sections[sectionId] || {};
+    if (!sections[sectionId] && isEditingEnabled) {
+      setActiveSectionMeta({ id: sectionId, num: sectionNum });
+      setEditColor('#98fb98');
+    }
+    if (data?.color) setEditColor(data.color);
 
     const containerRect = svgContainerRef.current.getBoundingClientRect();
     setHighlightedSection(sectionId);
+    setActiveSectionMeta({ id: sectionId, num: sectionNum || data?.sectionNum || null });
     setPopover({
       sectionId,
       x: e.clientX - containerRect.left,
       y: e.clientY - containerRect.top,
-      color: data.color,
+      color: data.color || '#cccccc',
       glassType: data.glassType,
       glassTypeId: data.glassTypeId,
     });
@@ -400,6 +429,27 @@ export default function ColoredDesignPreview({ designData, template }) {
     return byNum?.id || sectionId;
   };
 
+  if (showEditableSvgGuard) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.guardBox}>
+          <h4 className={styles.guardTitle}>Editable revisions require an SVG template</h4>
+          <p className={styles.guardText}>
+            This work order only has a raster/image preview, so admin editing is disabled to prevent mismatched section edits.
+          </p>
+          <p className={styles.guardText}>
+            Ask the customer to submit from an SVG template, then reopen this work order to edit colors here.
+          </p>
+          {previewUrl && (
+            <div className={styles.previewWrap}>
+              <img src={previewUrl} alt="Design preview" className={styles.previewImg} />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // ----- Flood-fill / image-based template -----
   if (isFloodFill || !hasSvg) {
     return (
@@ -417,7 +467,7 @@ export default function ColoredDesignPreview({ designData, template }) {
             <div className={styles.sectionGrid}>
               {sectionEntries.map(([id, data], idx) => (
                 <div key={id} className={styles.sectionItem}>
-                  <span className={styles.sectionNumber}>{data.sectionNum || idx + 1}</span>
+                    <span className={styles.sectionNumber}>{sectionNumMap[id] || data.sectionNum || idx + 1}</span>
                   <div className={styles.sectionSwatch} style={{ backgroundColor: data.color || '#ccc' }} />
                   <div className={styles.sectionInfo}>
                     <span className={styles.sectionColorName}>{getColorName(data.color)}</span>
@@ -436,6 +486,43 @@ export default function ColoredDesignPreview({ designData, template }) {
   // ----- SVG template with interactive sections -----
   return (
     <div className={styles.container}>
+      {editable && locked && (
+        <div className={styles.lockedNotice}>Final revision is locked. Editing is disabled.</div>
+      )}
+      {isEditingEnabled && (
+        <div className={styles.editorBar}>
+          <span className={styles.editorTitle}>
+            {activeSectionMeta?.num ? `Editing Section #${activeSectionMeta.num}` : 'Select a section to edit'}
+          </span>
+          <input
+            type="color"
+            value={editColor}
+            onChange={(e) => setEditColor(e.target.value)}
+            className={styles.colorPicker}
+            disabled={!activeSectionMeta}
+          />
+          <button
+            className={styles.applyButton}
+            disabled={!activeSectionMeta || savingDesign}
+            onClick={async () => {
+              if (!activeSectionMeta) return;
+              const existing = sections[activeSectionMeta.id] || {};
+              const nextSections = {
+                ...sections,
+                [activeSectionMeta.id]: {
+                  ...existing,
+                  color: editColor,
+                  sectionNum: existing.sectionNum || activeSectionMeta.num || null,
+                },
+              };
+              setWorkingSections(nextSections);
+              await persistSections(nextSections);
+            }}
+          >
+            {savingDesign ? 'Saving...' : 'Apply Color'}
+          </button>
+        </div>
+      )}
       <div
         ref={svgContainerRef}
         className={styles.svgContainer}
@@ -484,6 +571,10 @@ export default function ColoredDesignPreview({ designData, template }) {
                   className={`${styles.sectionItem} ${highlightedSection === renderableId ? styles.sectionItemActive : ''}`}
                   onClick={() => {
                     setHighlightedSection(renderableId);
+                    if (isEditingEnabled) {
+                      setActiveSectionMeta({ id: renderableId, num: Number(displayNum) || null });
+                      if (data?.color) setEditColor(data.color);
+                    }
                     const center = sectionCenters.find(c => c.id === renderableId);
                     if (center) {
                       setPopover({

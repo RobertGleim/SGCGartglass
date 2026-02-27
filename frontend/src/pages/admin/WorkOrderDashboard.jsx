@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
+import { getTemplate, updateAdminWorkOrderDesign } from '../../services/api';
 import ColoredDesignPreview from '../../components/admin/ColoredDesignPreview';
 import styles from './WorkOrderDashboard.module.css';
 
@@ -52,6 +53,31 @@ export default function WorkOrderDashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [updating, setUpdating] = useState(false);
+  const [lockingRevision, setLockingRevision] = useState(false);
+
+  const isRevisionLocked = (designData) => !!designData?.admin_revision_locked;
+
+  const toggleRevisionLock = async (order, lock) => {
+    if (!order) return;
+    const orderId = order.id;
+    const nextDesignData = {
+      ...(order.designData || {}),
+      admin_revision_locked: !!lock,
+      admin_revision_locked_at: lock ? new Date().toISOString() : null,
+    };
+    setLockingRevision(true);
+    try {
+      await updateAdminWorkOrderDesign(orderId, nextDesignData);
+      setSelectedOrder((prev) => prev ? { ...prev, designData: nextDesignData } : prev);
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, designData: nextDesignData } : o)));
+      window.toast && window.toast(lock ? 'Final revision locked' : 'Revision unlocked', { type: 'success' });
+    } catch (err) {
+      console.error('[WorkOrderDashboard] Failed to toggle revision lock:', err);
+      window.toast && window.toast('Failed to update revision lock', { type: 'error' });
+    } finally {
+      setLockingRevision(false);
+    }
+  };
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -114,9 +140,24 @@ export default function WorkOrderDashboard() {
   };
 
   // Open preview modal
-  const openPreview = (order, e) => {
+  const openPreview = async (order, e) => {
     if (e) e.stopPropagation();
-    setSelectedOrder(order);
+    let hydrated = order;
+    const templateId = order?.project?.template_id || order?.designData?.template_id;
+    const missingSvg = !order?.templateData?.svg_content;
+    if (templateId && missingSvg) {
+      try {
+        const tplRes = await getTemplate(templateId);
+        const tpl = tplRes?.template || tplRes;
+        if (tpl) {
+          hydrated = { ...order, templateData: tpl, templateName: tpl.name || order.templateName };
+          setOrders((prev) => prev.map((o) => (o.id === order.id ? hydrated : o)));
+        }
+      } catch (err) {
+        console.error('[WorkOrderDashboard] Failed to hydrate template for preview:', err);
+      }
+    }
+    setSelectedOrder(hydrated);
   };
 
   // Close preview modal
@@ -245,9 +286,39 @@ export default function WorkOrderDashboard() {
 
             <div className={styles.modalSection}>
               <h3>Design Preview</h3>
+              <div className={styles.revisionControls}>
+                <span className={styles.revisionState}>
+                  {isRevisionLocked(selectedOrder.designData) ? 'Final revision: Locked' : 'Final revision: Editable'}
+                </span>
+                <button
+                  className={styles.revisionButton}
+                  disabled={lockingRevision}
+                  onClick={() => toggleRevisionLock(selectedOrder, !isRevisionLocked(selectedOrder.designData))}
+                >
+                  {lockingRevision
+                    ? 'Saving...'
+                    : isRevisionLocked(selectedOrder.designData)
+                      ? 'Unlock Revision'
+                      : 'Lock Final Revision'}
+                </button>
+              </div>
               <ColoredDesignPreview
                 designData={selectedOrder.designData}
                 template={selectedOrder.templateData}
+                editable={true}
+                locked={isRevisionLocked(selectedOrder.designData)}
+                onDesignDataChange={async (nextDesignData) => {
+                  const orderId = selectedOrder.id;
+                  try {
+                    await updateAdminWorkOrderDesign(orderId, nextDesignData);
+                    setSelectedOrder((prev) => prev ? { ...prev, designData: nextDesignData } : prev);
+                    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, designData: nextDesignData } : o)));
+                    window.toast && window.toast('Design updated', { type: 'success' });
+                  } catch (err) {
+                    console.error('[WorkOrderDashboard] Failed to update design data:', err);
+                    window.toast && window.toast('Failed to save design changes', { type: 'error' });
+                  }
+                }}
               />
             </div>
 

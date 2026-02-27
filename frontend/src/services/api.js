@@ -126,5 +126,6 @@ export const getAdminTemplates = () => api.get('/admin/templates');
 export const getAdminGlassTypes = () => api.get('/admin/glass-types');
 export const getAdminWorkOrders = () => api.get('/admin/work-orders');
 export const updateWorkOrderStatus = (id, status, notes) => api.put(`/admin/work-orders/${id}/status`, { new_status: status, notes });
+export const updateAdminWorkOrderDesign = (id, design_data) => api.put(`/admin/work-orders/${id}/design-data`, { design_data });
 
 export default api;

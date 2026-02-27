@@ -2,6 +2,74 @@
   position: relative;
 }
 
+.guardBox {
+  border: 1px solid #e3d6b8;
+  background: #fff8ea;
+  border-radius: 12px;
+  padding: 0.9rem;
+}
+
+.guardTitle {
+  margin: 0 0 0.45rem 0;
+  font-size: 0.95rem;
+  color: #6d4e00;
+}
+
+.guardText {
+  margin: 0 0 0.45rem 0;
+  font-size: 0.83rem;
+  color: #6b5a35;
+}
+
+.editorBar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+
+.lockedNotice {
+  margin-bottom: 0.7rem;
+  border: 1px solid #e3d6b8;
+  background: #fff8ea;
+  color: #6d4e00;
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.editorTitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.colorPicker {
+  width: 38px;
+  height: 30px;
+  border: 1px solid #d8d8d8;
+  border-radius: 6px;
+  background: #fff;
+  padding: 0;
+}
+
+.applyButton {
+  border: 1px solid #4169e1;
+  color: #4169e1;
+  background: #fff;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  cursor: pointer;
+}
+
+.applyButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* SVG container */
 .svgContainer {
   position: relative;
