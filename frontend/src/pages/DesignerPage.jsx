@@ -940,7 +940,7 @@ export default function DesignerPage() {
 
             const gW = group?.width  || svgOptions.width  || svgOptions.viewBoxWidth  || 500;
             const gH = group?.height || svgOptions.height || svgOptions.viewBoxHeight || 500;
-            const scaleF = Math.min(CANVAS_W / gW, CANVAS_H / gH) * 0.97;
+            const scaleF = Math.min(CANVAS_W / gW, CANVAS_H / gH) * 0.995;
 
             if (group) {
               // CRITICAL: apply the scale to the group BEFORE computing child transforms
@@ -1087,9 +1087,9 @@ export default function DesignerPage() {
         const EDGE_MARGIN = 8;
         const isTracedSvgTemplate = !!selectedTemplate?.image_url;
         const canvasArea = CANVAS_W * CANVAS_H;
-        const MIN_SEGMENT_AREA = isTracedSvgTemplate ? Math.max(140, canvasArea * 0.0012) : 0;
-        const MIN_SEGMENT_SIDE = isTracedSvgTemplate ? 10 : 3;
-        const MAX_SEGMENT_ASPECT = isTracedSvgTemplate ? 14 : 40;
+        const MIN_SEGMENT_AREA = isTracedSvgTemplate ? Math.max(220, canvasArea * 0.0022) : 0;
+        const MIN_SEGMENT_SIDE = isTracedSvgTemplate ? 12 : 3;
+        const MAX_SEGMENT_ASPECT = isTracedSvgTemplate ? 10 : 40;
         canvas.getObjects().forEach((obj) => {
           if (!obj.selectable) return;
           const b = obj.getBoundingRect();

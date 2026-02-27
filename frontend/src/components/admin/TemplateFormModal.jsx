@@ -65,9 +65,118 @@ async function blobToDataUrl(blob) {
   });
 }
 
-async function rasterBlobToTracedSvg(blob) {
+async function preprocessRasterForTracing(blob) {
   const dataUrl = await blobToDataUrl(blob);
-  const svgText = await new Promise((resolve, reject) => {
+  const image = await new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Failed to load raster for tracing'));
+    img.src = dataUrl;
+  });
+
+  const sourceCanvas = document.createElement('canvas');
+  sourceCanvas.width = image.width;
+  sourceCanvas.height = image.height;
+  const sourceCtx = sourceCanvas.getContext('2d', { willReadFrequently: true });
+  sourceCtx.drawImage(image, 0, 0);
+
+  const pixels = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height).data;
+  let minX = sourceCanvas.width;
+  let minY = sourceCanvas.height;
+  let maxX = 0;
+  let maxY = 0;
+  let found = false;
+
+  for (let y = 0; y < sourceCanvas.height; y++) {
+    for (let x = 0; x < sourceCanvas.width; x++) {
+      const i = (y * sourceCanvas.width + x) * 4;
+      const r = pixels[i];
+      const g = pixels[i + 1];
+      const b = pixels[i + 2];
+      const a = pixels[i + 3];
+      const isBackground = a < 20 || (r > 245 && g > 245 && b > 245);
+      if (!isBackground) {
+        found = true;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  const pad = 20;
+  const cropX = found ? Math.max(0, minX - pad) : 0;
+  const cropY = found ? Math.max(0, minY - pad) : 0;
+  const cropW = found ? Math.min(sourceCanvas.width - cropX, (maxX - minX + 1) + pad * 2) : sourceCanvas.width;
+  const cropH = found ? Math.min(sourceCanvas.height - cropY, (maxY - minY + 1) + pad * 2) : sourceCanvas.height;
+
+  const targetMax = 2200;
+  const scale = Math.min(1.8, targetMax / Math.max(cropW, cropH));
+  const outW = Math.max(1, Math.round(cropW * scale));
+  const outH = Math.max(1, Math.round(cropH * scale));
+
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = outW;
+  outCanvas.height = outH;
+  const outCtx = outCanvas.getContext('2d');
+  outCtx.fillStyle = '#ffffff';
+  outCtx.fillRect(0, 0, outW, outH);
+  outCtx.drawImage(sourceCanvas, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
+
+  return outCanvas.toDataURL('image/png');
+}
+
+async function normalizeSvgViewport(svgText) {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svgText, 'image/svg+xml');
+    const svg = doc.documentElement;
+    if (!svg || svg.tagName.toLowerCase() !== 'svg') return svgText;
+
+    const tempWrap = document.createElement('div');
+    tempWrap.style.position = 'fixed';
+    tempWrap.style.left = '-10000px';
+    tempWrap.style.top = '-10000px';
+    tempWrap.style.width = '1px';
+    tempWrap.style.height = '1px';
+    tempWrap.style.overflow = 'hidden';
+
+    const mountedSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    mountedSvg.innerHTML = svg.innerHTML;
+    document.body.appendChild(tempWrap);
+    tempWrap.appendChild(mountedSvg);
+
+    const bbox = mountedSvg.getBBox();
+    document.body.removeChild(tempWrap);
+
+    if (!bbox || !Number.isFinite(bbox.width) || !Number.isFinite(bbox.height) || bbox.width <= 0 || bbox.height <= 0) {
+      return svgText;
+    }
+
+    const wrapper = doc.createElementNS('http://www.w3.org/2000/svg', 'g');
+    while (svg.firstChild) {
+      wrapper.appendChild(svg.firstChild);
+    }
+    wrapper.setAttribute('transform', `translate(${-bbox.x}, ${-bbox.y})`);
+    svg.appendChild(wrapper);
+
+    const vw = Math.round(bbox.width);
+    const vh = Math.round(bbox.height);
+    svg.setAttribute('viewBox', `0 0 ${vw} ${vh}`);
+    svg.setAttribute('width', String(vw));
+    svg.setAttribute('height', String(vh));
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+    return new XMLSerializer().serializeToString(svg);
+  } catch {
+    return svgText;
+  }
+}
+
+async function rasterBlobToTracedSvg(blob) {
+  const dataUrl = await preprocessRasterForTracing(blob);
+  const rawSvg = await new Promise((resolve, reject) => {
     try {
       ImageTracer.imageToSVG(
         dataUrl,
@@ -79,12 +188,14 @@ async function rasterBlobToTracedSvg(blob) {
           resolve(svg);
         },
         {
-          numberofcolors: 8,
-          ltres: 1,
-          qtres: 1,
-          pathomit: 20,
-          colorsampling: 2,
-          blurradius: 1,
+          numberofcolors: 4,
+          ltres: 0.6,
+          qtres: 0.6,
+          pathomit: 2,
+          colorsampling: 0,
+          blurradius: 0,
+          blurdelta: 0,
+          linefilter: false,
           rightangleenhance: true,
         },
       );
@@ -92,7 +203,8 @@ async function rasterBlobToTracedSvg(blob) {
       reject(err);
     }
   });
-  return ensureSvgPathIds(svgText);
+  const normalizedSvg = await normalizeSvgViewport(rawSvg);
+  return ensureSvgPathIds(normalizedSvg);
 }
 
 /** Render first page of a PDF to a PNG Blob via canvas */
@@ -107,7 +219,7 @@ async function pdfToBlob(file) {
     pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
   }
   const page = await pdf.getPage(1);
-  const viewport = page.getViewport({ scale: 2 });
+  const viewport = page.getViewport({ scale: 4 });
   const canvas = document.createElement('canvas');
   canvas.width = viewport.width;
   canvas.height = viewport.height;
@@ -393,13 +505,13 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
             {/* Info badge about file type */}
             {currentType === 'svg' && (
               <div className={`${styles.fileTypeBadge} ${styles.badgeSvg}`}>
-                ✓ SVG — customers can color individual glass pieces
+                ✓ SVG — exact section geometry is preserved for stained-glass production
                 {form.piece_count > 0 && ` · ${form.piece_count} pieces detected`}
               </div>
             )}
             {currentType === 'image' && (
               <div className={`${styles.fileTypeBadge} ${styles.badgeImage}`}>
-                ✓ Raster source accepted — converted to editable SVG paths automatically
+                ✓ High-detail trace mode — editable SVG is generated, but line/section fidelity is approximate
               </div>
             )}
           </div>
