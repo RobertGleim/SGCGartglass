@@ -79,11 +79,12 @@ async function rasterBlobToTracedSvg(blob) {
           resolve(svg);
         },
         {
-          numberofcolors: 24,
+          numberofcolors: 8,
           ltres: 1,
           qtres: 1,
-          pathomit: 4,
+          pathomit: 20,
           colorsampling: 2,
+          blurradius: 1,
           rightangleenhance: true,
         },
       );

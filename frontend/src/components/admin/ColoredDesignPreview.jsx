@@ -246,6 +246,11 @@ export default function ColoredDesignPreview({ designData, template, editable = 
       // sequentially. We replicate that logic here using getBBox for border
       // detection (sections touching 2+ SVG edges are borders).
       const EDGE_MARGIN = 5;
+      const isTracedSvgTemplate = !!template?.image_url;
+      const svgArea = svgW * svgH;
+      const MIN_SEGMENT_AREA = isTracedSvgTemplate ? Math.max(140, svgArea * 0.0012) : 0;
+      const MIN_SEGMENT_SIDE = isTracedSvgTemplate ? 10 : 3;
+      const MAX_SEGMENT_ASPECT = isTracedSvgTemplate ? 14 : 40;
       const sectionIdByNum = {};
       Object.entries(sections).forEach(([id, data]) => {
         const num = Number(data?.sectionNum);
@@ -258,7 +263,9 @@ export default function ColoredDesignPreview({ designData, template, editable = 
       fillableEls.forEach((el) => {
         try {
           const bbox = el.getBBox();
-          if (bbox.width < 3 || bbox.height < 3) return;
+          const area = bbox.width * bbox.height;
+          const aspect = Math.max(bbox.width, bbox.height) / Math.max(1, Math.min(bbox.width, bbox.height));
+          if (bbox.width < MIN_SEGMENT_SIDE || bbox.height < MIN_SEGMENT_SIDE || area < MIN_SEGMENT_AREA || aspect > MAX_SEGMENT_ASPECT) return;
           // Border detection: skip sections touching 2+ SVG edges
           const touchesLeft   = bbox.x < EDGE_MARGIN;
           const touchesTop    = bbox.y < EDGE_MARGIN;
@@ -294,7 +301,9 @@ export default function ColoredDesignPreview({ designData, template, editable = 
         const num = el.getAttribute('data-section-num');
         try {
           const bbox = el.getBBox();
-          if (bbox.width < 3 || bbox.height < 3) return;
+          const area = bbox.width * bbox.height;
+          const aspect = Math.max(bbox.width, bbox.height) / Math.max(1, Math.min(bbox.width, bbox.height));
+          if (bbox.width < MIN_SEGMENT_SIDE || bbox.height < MIN_SEGMENT_SIDE || area < MIN_SEGMENT_AREA || aspect > MAX_SEGMENT_ASPECT) return;
           raw.push({
             el, id, num,
             cx: bbox.x + bbox.width / 2,
@@ -309,7 +318,6 @@ export default function ColoredDesignPreview({ designData, template, editable = 
       });
 
       // --- Step 3: remove full-canvas background fills ---
-      const svgArea = svgW * svgH;
       const filtered = raw.filter((s) => {
         if (s.area < svgArea * 0.6) return true;
         let contained = 0;

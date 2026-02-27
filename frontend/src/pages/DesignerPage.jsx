@@ -1085,9 +1085,27 @@ export default function DesignerPage() {
         // Any section whose bbox touches 2+ canvas edges is a frame, corner,
         // or background piece and should not be colorable.
         const EDGE_MARGIN = 8;
+        const isTracedSvgTemplate = !!selectedTemplate?.image_url;
+        const canvasArea = CANVAS_W * CANVAS_H;
+        const MIN_SEGMENT_AREA = isTracedSvgTemplate ? Math.max(140, canvasArea * 0.0012) : 0;
+        const MIN_SEGMENT_SIDE = isTracedSvgTemplate ? 10 : 3;
+        const MAX_SEGMENT_ASPECT = isTracedSvgTemplate ? 14 : 40;
         canvas.getObjects().forEach((obj) => {
           if (!obj.selectable) return;
           const b = obj.getBoundingRect();
+          const area = b.width * b.height;
+          const aspect = Math.max(b.width, b.height) / Math.max(1, Math.min(b.width, b.height));
+          const tooSmall = b.width < MIN_SEGMENT_SIDE || b.height < MIN_SEGMENT_SIDE || area < MIN_SEGMENT_AREA;
+          const tooThin = aspect > MAX_SEGMENT_ASPECT;
+          if (tooSmall || tooThin) {
+            obj.set({
+              selectable: false,
+              evented: false,
+              hoverCursor: 'default',
+            });
+            obj._isNoise = true;
+            return;
+          }
           const touchesLeft   = b.left < EDGE_MARGIN;
           const touchesTop    = b.top < EDGE_MARGIN;
           const touchesRight  = b.left + b.width > CANVAS_W - EDGE_MARGIN;
@@ -1113,12 +1131,12 @@ export default function DesignerPage() {
           const raw = [];
           let num = 0;
           canvas.getObjects().forEach((obj) => {
-            if (!obj.selectable) return;
+            if (!obj.selectable || obj._isNoise || obj._isBorder) return;
+            const bounds = obj.getBoundingRect();
+            if (bounds.width < MIN_SEGMENT_SIDE || bounds.height < MIN_SEGMENT_SIDE) return;
             num++;
             obj._sectionNumber = num;
             obj._sectionId = `sec-${num}`;
-            const bounds = obj.getBoundingRect();
-            if (bounds.width < 3 || bounds.height < 3) return;
             const cx = bounds.left + bounds.width / 2;
             const cy = bounds.top + bounds.height / 2;
             raw.push({
