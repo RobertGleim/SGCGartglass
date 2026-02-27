@@ -57,12 +57,11 @@ def submit_work_order_route():
     user_id = g.user_id
     data = request.get_json() or {}
     project_id = data.get('project_id')
+    incoming_design = data.get('canvas_data') or data.get('design_data') or {}
 
     # Auto-save project when none exists yet
     if not project_id:
-        design_data = data.get('canvas_data') or data.get('design_data') or {}
-        if not isinstance(design_data, dict):
-            design_data = {}
+        design_data = incoming_design if isinstance(incoming_design, dict) else {}
         auto_project = UserProject(
             user_id=user_id,
             template_id=data.get('template_id'),
@@ -72,6 +71,7 @@ def submit_work_order_route():
         db.session.add(auto_project)
         db.session.commit()
         project_id = auto_project.id
+        data['design_data'] = design_data
 
     # Verify ownership for existing/newly-created project
     project = None
@@ -79,6 +79,14 @@ def submit_work_order_route():
         project = UserProject.query.filter_by(id=project_id, user_id=user_id).first()
         if not project:
             return jsonify({'error': 'Project not found or not owned by user.'}), 404
+        # Persist latest design data on submission so admin sees correct sections
+        if isinstance(incoming_design, dict) and incoming_design:
+            project.design_data = incoming_design
+            db.session.commit()
+            data['design_data'] = incoming_design
+        elif project.design_data and isinstance(project.design_data, dict):
+            # Ensure downstream validation gets design_data even if payload omitted it
+            data['design_data'] = project.design_data
     
     template = {}  # Empty template to skip validation if no project
     work_order, err = submit_work_order(user_id, project_id, data, db.session, template)
