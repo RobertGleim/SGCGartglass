@@ -162,6 +162,29 @@ def create_app(config_name=None):
         except Exception as e:
             app.logger.warning(f"Migration warning: {e}")
 
+        # Migrate author_id / changed_by from INTEGER to VARCHAR (admin user IDs are emails)
+        try:
+            from sqlalchemy import text, inspect as sa_inspect
+            insp = sa_inspect(db.engine)
+            col_migrations = [
+                ("work_order_revisions", "author_id"),
+                ("work_order_status_history", "changed_by"),
+            ]
+            for tbl, col in col_migrations:
+                if tbl in insp.get_table_names():
+                    cols = {c["name"]: c for c in insp.get_columns(tbl)}
+                    if col in cols:
+                        col_type = str(cols[col]["type"])
+                        if "INT" in col_type.upper() or "int" in col_type:
+                            db.session.execute(
+                                text(f'ALTER TABLE {tbl} ALTER COLUMN {col} TYPE VARCHAR(255) USING {col}::VARCHAR')
+                            )
+                            db.session.commit()
+                            app.logger.info(f"Migrated {tbl}.{col} from INTEGER to VARCHAR(255)")
+        except Exception as e:
+            db.session.rollback()
+            app.logger.warning(f"Column type migration warning: {e}")
+
     return app
 
 

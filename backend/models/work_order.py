@@ -143,7 +143,7 @@ class WorkOrderStatusHistory(db.Model):
     from_status = db.Column(db.String(50), nullable=True)
     to_status = db.Column(db.String(50), nullable=False)
     changed_at = db.Column(db.DateTime, server_default=db.func.now())
-    changed_by = db.Column(db.Integer, nullable=True)
+    changed_by = db.Column(db.String(255), nullable=True)
 
     def __repr__(self):
         return f"<WorkOrderStatusHistory id={self.id} work_order_id={self.work_order_id} {self.from_status!r}->{self.to_status!r}>"

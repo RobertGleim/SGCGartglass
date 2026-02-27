@@ -26,7 +26,7 @@ class WorkOrderRevision(db.Model):
     author_type = db.Column(
         db.String(20), nullable=False, default="customer"
     )  # 'customer' | 'admin'
-    author_id = db.Column(db.Integer, nullable=True)
+    author_id = db.Column(db.String(255), nullable=True)
     design_data = db.Column(db.JSON, nullable=False)
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
