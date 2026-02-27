@@ -314,7 +314,7 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
       return;
     }
 
-    // PDF or raster image — convert to SVG + upload image as thumbnail
+    // PDF or raster image — keep exact raster source and upload as image template
     setUploading(true);
     try {
       let uploadBlob = file;
@@ -331,21 +331,17 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
         setPreviewUrl(URL.createObjectURL(file));
       }
 
-      setUploadProgress('Converting to editable SVG…');
-      const tracedSvg = await rasterBlobToTracedSvg(uploadBlob);
-      const pieceCount = countSVGPaths(tracedSvg);
-
       setUploadProgress('Uploading to server…');
       const imageUrl = await uploadImageFile(uploadBlob, uploadFileName);
 
       setPreviewUrl(`${getApiOrigin()}${imageUrl}`);
-      setFileType('svg');
+      setFileType('image');
       setForm(f => ({
         ...f,
         image_url: imageUrl,
-        svg_content: tracedSvg,
-        piece_count: pieceCount,
-        template_type: 'svg',
+        svg_content: '',
+        piece_count: 0,
+        template_type: 'image',
       }));
       setUploadProgress('');
     } catch (err) {
@@ -511,7 +507,7 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
             )}
             {currentType === 'image' && (
               <div className={`${styles.fileTypeBadge} ${styles.badgeImage}`}>
-                ✓ High-detail trace mode — editable SVG is generated, but line/section fidelity is approximate
+                ✓ Exact raster template — image fidelity is preserved from your upload
               </div>
             )}
           </div>
