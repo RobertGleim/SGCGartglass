@@ -240,12 +240,11 @@ export default function DesignerPage() {
         // Set project ID for continuity
         if (wo.project?.id) setProjectId(wo.project.id);
 
-        // Apply design data (from latest revision or project)
+        // Store design data so canvas init can apply it after initialisation
         const designData = wo.latest_revision?.design_data || wo.project?.design_data;
         if (designData && Object.keys(designData).length > 0) {
-          // Store in ref so canvas init can use dataUrl as fallback
+          // Store in ref — canvas init will apply after canvas is ready
           woDesignDataRef.current = designData;
-          setTimeout(() => applyDesignData(designData), 500);
         }
       })
       .catch(err => console.error('[DesignerPage] Failed to load work order:', err))
@@ -286,16 +285,21 @@ export default function DesignerPage() {
     // For image-based templates with saved dataUrl, redraw the canvas from the snapshot
     if (isFloodFillMode.current && designData.dataUrl && canvasRef.current) {
       const cvs = canvasRef.current;
+      const CANVAS_W = 700;
+      const CANVAS_H = 500;
+      // Ensure canvas has correct dimensions (guard against default 300x150)
+      if (cvs.width !== CANVAS_W) cvs.width = CANVAS_W;
+      if (cvs.height !== CANVAS_H) cvs.height = CANVAS_H;
       const ctx = cvs.getContext('2d');
       const img = new Image();
       img.onload = () => {
-        ctx.clearRect(0, 0, cvs.width, cvs.height);
-        ctx.drawImage(img, 0, 0, cvs.width, cvs.height);
+        ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.drawImage(img, 0, 0, CANVAS_W, CANVAS_H);
         // Update history with restored state
-        const snap = ctx.getImageData(0, 0, cvs.width, cvs.height);
+        const snap = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
         historyRef.current = [snap];
         historyIdxRef.current = 0;
-        console.log('[DesignerPage] Restored flood-fill canvas from saved dataUrl');
+        console.log('[DesignerPage] Restored flood-fill canvas from saved dataUrl at', CANVAS_W, 'x', CANVAS_H);
       };
       img.src = designData.dataUrl;
     }
@@ -1000,6 +1004,12 @@ export default function DesignerPage() {
 
           // Store cleanup ref
           fabricRef.current = { _floodCleanup: () => cvs.removeEventListener('click', handleClick) };
+
+          // Apply saved WO design data now that canvas is fully initialised at 700x500
+          if (woDesignDataRef.current && !destroyed) {
+            applyDesignData(woDesignDataRef.current);
+          }
+
           return;
         }
 
@@ -1353,6 +1363,11 @@ export default function DesignerPage() {
       } catch (err) {
         console.error('[DesignerPage] Canvas initialization error:', err);
         console.error('[DesignerPage] Error stack:', err.stack);
+      }
+
+      // Apply saved WO design data now that canvas is fully initialised
+      if (woDesignDataRef.current && !destroyed) {
+        applyDesignData(woDesignDataRef.current);
       }
     })();
 
