@@ -285,20 +285,6 @@ export default function DesignerPage() {
       sectionFillsRef.current = { ...designData.sections };
     }
     
-    // For SVG templates with Fabric.js
-    if (fabricRef.current) {
-      fabricRef.current.getObjects().forEach(obj => {
-        const regionId = obj.id || obj.regionId;
-        if (regionId && designData[regionId]) {
-          const regionData = designData[regionId];
-          if (regionData.color) {
-            obj.set('fill', regionData.color);
-          }
-        }
-      });
-      fabricRef.current.renderAll();
-    }
-    
     // For image-based templates with saved dataUrl, redraw the canvas from the snapshot
     if (isFloodFillMode.current && designData.dataUrl && canvasRef.current) {
       const cvs = canvasRef.current;
@@ -318,7 +304,24 @@ export default function DesignerPage() {
         historyIdxRef.current = 0;
         console.log('[DesignerPage] Restored flood-fill canvas from saved dataUrl at', CANVAS_W, 'x', CANVAS_H);
       };
+      img.onerror = () => console.error('[DesignerPage] Failed to load saved dataUrl image');
       img.src = designData.dataUrl;
+      console.log('[DesignerPage] Applied flood-fill design data, dataUrl length:', designData.dataUrl.length);
+      return; // flood-fill handled, skip Fabric.js path
+    }
+
+    // For SVG templates with Fabric.js (only when a real Fabric canvas exists)
+    if (fabricRef.current && typeof fabricRef.current.getObjects === 'function') {
+      fabricRef.current.getObjects().forEach(obj => {
+        const regionId = obj.id || obj.regionId;
+        if (regionId && designData[regionId]) {
+          const regionData = designData[regionId];
+          if (regionData.color) {
+            obj.set('fill', regionData.color);
+          }
+        }
+      });
+      fabricRef.current.renderAll();
     }
     
     console.log('[DesignerPage] Applied design data:', Object.keys(designData).length, 'keys');
