@@ -23,6 +23,8 @@ class Template(db.Model):
     piece_count = db.Column(db.Integer, nullable=True)
     svg_content = db.Column(db.Text, nullable=True)          # None for image-based templates
     image_url = db.Column(db.String(500), nullable=True)     # URL for JPEG/PDF-converted images
+    image_data = db.Column(db.LargeBinary, nullable=True)     # Raw image bytes (persists across deploys)
+    image_mime = db.Column(db.String(50), nullable=True)      # e.g. 'image/png'
     template_type = db.Column(db.String(20), nullable=False, default='svg')  # 'svg' or 'image'
     thumbnail_url = db.Column(db.String(500), nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)

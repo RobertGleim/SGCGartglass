@@ -143,15 +143,25 @@ def upload_template_image():
         if ext not in allowed_ext:
             return jsonify({"error": "validation_error", "detail": f"Unsupported file type: {ext}. Use JPEG or PNG."}), 400
 
-        # Determine save directory: backend/uploads/templates/
+        # Read file bytes for DB persistence (Render ephemeral FS)
+        file_bytes = f.read()
+        mime_type = f.content_type or f"image/{ext.lstrip('.')}"
+
+        # Also save to disk as a cache
         uploads_dir = os.path.join(current_app.root_path, "uploads", "templates")
         os.makedirs(uploads_dir, exist_ok=True)
-
         unique_name = f"{uuid.uuid4().hex}{ext}"
         save_path = os.path.join(uploads_dir, unique_name)
-        f.save(save_path)
+        with open(save_path, "wb") as fp:
+            fp.write(file_bytes)
 
         image_url = f"/uploads/templates/{unique_name}"
+
+        # Stash bytes in app-level cache so create_template can persist to DB
+        if not hasattr(current_app, '_upload_cache'):
+            current_app._upload_cache = {}
+        current_app._upload_cache[image_url] = (file_bytes, mime_type)
+
         return jsonify({"image_url": image_url}), 201
     except Exception as e:
         return jsonify({"error": "server_error", "detail": str(e)}), 500
@@ -188,6 +198,23 @@ def create_template():
         elif image_url:
             template_type = "image"
 
+        # Retrieve cached image bytes (from upload-image endpoint)
+        image_data = None
+        image_mime = None
+        if image_url and hasattr(current_app, '_upload_cache') and image_url in current_app._upload_cache:
+            image_data, image_mime = current_app._upload_cache.pop(image_url)
+        elif image_url and not image_url.startswith('http'):
+            # Try reading from disk as fallback
+            try:
+                disk_path = os.path.join(current_app.root_path, image_url.lstrip('/'))
+                if os.path.isfile(disk_path):
+                    with open(disk_path, 'rb') as fp:
+                        image_data = fp.read()
+                    ext = os.path.splitext(disk_path)[1].lower().lstrip('.')
+                    image_mime = f'image/{ext}' if ext else 'image/png'
+            except Exception:
+                pass
+
         template = Template(
             name=data["name"],
             description=data.get("description"),
@@ -197,6 +224,8 @@ def create_template():
             piece_count=data.get("piece_count"),
             svg_content=svg_content or "",   # empty string for image-based (SQLite NOT NULL compat)
             image_url=image_url,
+            image_data=image_data,
+            image_mime=image_mime,
             template_type=template_type,
             thumbnail_url=data.get("thumbnail_url"),
             is_active=data.get("is_active", True),

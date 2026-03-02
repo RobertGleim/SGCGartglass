@@ -68,12 +68,35 @@ def create_app(config_name=None):
         return send_from_directory(str(textures_dir), filename)
 
     # Serve uploaded template images at /uploads/templates/<filename>
+    # Falls back to database image_data when file is missing (Render ephemeral FS)
     @app.route("/uploads/templates/<path:filename>")
     def send_template_image(filename):
         from pathlib import Path
-        from flask import send_from_directory
+        from flask import send_from_directory, make_response
+        import os
         templates_dir = Path(app.root_path) / "uploads" / "templates"
-        return send_from_directory(str(templates_dir), filename)
+        file_path = templates_dir / filename
+        if file_path.is_file():
+            return send_from_directory(str(templates_dir), filename)
+        # File missing (ephemeral FS) — serve from DB
+        from .models import Template as TemplateModel
+        url_path = f"/uploads/templates/{filename}"
+        tmpl = TemplateModel.query.filter(
+            (TemplateModel.image_url == url_path) | (TemplateModel.thumbnail_url == url_path)
+        ).first()
+        if tmpl and tmpl.image_data:
+            resp = make_response(tmpl.image_data)
+            resp.headers['Content-Type'] = tmpl.image_mime or 'image/png'
+            resp.headers['Cache-Control'] = 'public, max-age=86400'
+            # Re-cache to disk so subsequent requests are fast
+            try:
+                os.makedirs(str(templates_dir), exist_ok=True)
+                with open(str(file_path), 'wb') as fp:
+                    fp.write(tmpl.image_data)
+            except Exception:
+                pass
+            return resp
+        return jsonify({'error': 'Image not found'}), 404
 
     # Test route to verify backend is running updated code
     @app.route("/api/test-backend")
@@ -151,6 +174,8 @@ def create_app(config_name=None):
                     "piece_count":   "INTEGER",
                     "image_url":     "VARCHAR(500)",
                     "template_type": "VARCHAR(20) DEFAULT 'svg'",
+                    "image_data":    "BYTEA",
+                    "image_mime":    "VARCHAR(50)",
                 }
                 for col, col_type in additions.items():
                     if col not in existing:
