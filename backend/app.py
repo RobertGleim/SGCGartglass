@@ -3,7 +3,9 @@ SGCG Designer - Flask application factory.
 Initializes Flask, CORS, Flask-SQLAlchemy, and registers blueprints.
 """
 import os
-from flask import Flask, jsonify
+from urllib import request as urllib_request
+from urllib.error import URLError, HTTPError
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 
 from .config import get_config
@@ -41,6 +43,32 @@ def create_app(config_name=None):
     @app.route("/api/health", methods=["GET"])
     def health():
         return jsonify({"status": "ok"})
+
+    # Proxy external texture URLs through backend so frontend canvas can load same-origin assets.
+    @app.route("/api/texture-proxy", methods=["GET"])
+    def texture_proxy():
+        source_url = (request.args.get("url") or "").strip()
+        if not source_url:
+            return jsonify({"error": "Missing url"}), 400
+        if not (source_url.startswith("http://") or source_url.startswith("https://")):
+            return jsonify({"error": "Invalid url"}), 400
+
+        req = urllib_request.Request(
+            source_url,
+            headers={"User-Agent": "SGCG-TextureProxy/1.0"},
+            method="GET",
+        )
+
+        try:
+            with urllib_request.urlopen(req, timeout=12) as upstream:
+                body = upstream.read()
+                content_type = upstream.headers.get("Content-Type", "application/octet-stream")
+                response = Response(body, mimetype=content_type)
+                response.headers["Cache-Control"] = "public, max-age=86400"
+                return response
+        except (HTTPError, URLError, TimeoutError) as exc:
+            app.logger.warning("Texture proxy failed for %s: %s", source_url, exc)
+            return jsonify({"error": "Texture fetch failed"}), 502
 
     # Designer template API
     try:

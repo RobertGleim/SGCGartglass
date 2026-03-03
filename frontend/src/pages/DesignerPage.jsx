@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import api, { getTemplates, saveProject, submitWorkOrder, getProject, getTemplate,
   getWorkOrder, getAdminWorkOrder, createCustomerRevision, createAdminRevision,
   approveWorkOrder as apiApproveWorkOrder, getWorkOrderRevisions, getAdminWorkOrderRevisions
@@ -38,6 +38,7 @@ const QUICK_COLORS = [
 ];
 
 const CLEAR_GLASS_COLOR = '#eaf6ff';
+const REMOVE_COLOR_HEX = '#ffffff';
 const CANVAS_BASE_W = 840;
 const CANVAS_BASE_H = 600;
 
@@ -57,6 +58,34 @@ const resolveBackendAssetUrl = (value, fallbackFolder = '') => {
   if (value.startsWith('/')) return `${getApiOrigin()}${value}`;
   if (fallbackFolder) return `${getApiOrigin()}${fallbackFolder}/${value}`;
   return `${getApiOrigin()}/${value}`;
+};
+
+const getTextureLoadUrl = (textureUrl) => {
+  try {
+    const absoluteUrl = new URL(textureUrl, window.location.origin);
+    const apiOrigin = new URL(getApiOrigin(), window.location.origin).origin;
+    if (absoluteUrl.origin === apiOrigin) {
+      return absoluteUrl.toString();
+    }
+    return `${getApiOrigin()}/api/texture-proxy?url=${encodeURIComponent(absoluteUrl.toString())}`;
+  } catch {
+    return textureUrl;
+  }
+};
+
+const canReadImagePixels = (img) => {
+  try {
+    const probe = document.createElement('canvas');
+    probe.width = 1;
+    probe.height = 1;
+    const ctx = probe.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return false;
+    ctx.drawImage(img, 0, 0, 1, 1);
+    ctx.getImageData(0, 0, 1, 1);
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 export default function DesignerPage() {
@@ -84,6 +113,7 @@ export default function DesignerPage() {
   // regionPixels: Map<regionId, number[]> — list of pixel indices per region
   const regionPixelsRef = useRef(null);
   const [selectedObj, setSelectedObj] = useState(null);
+  const [selectedLegendNumber, setSelectedLegendNumber] = useState(null);
   const [selectedColor, setSelectedColor] = useState('#c8a96e');
   // Ref so canvas event handlers (stale closures) always read the current color
   const selectedColorRef = useRef('#c8a96e');
@@ -139,6 +169,9 @@ export default function DesignerPage() {
   const [showRevisionHistory, setShowRevisionHistory] = useState(false);
   const isAdmin = !!authToken && !customerToken; // admin token but no customer token
   const [canvasZoom, setCanvasZoom] = useState(1);
+  const [isEraseMode, setIsEraseMode] = useState(false);
+  const isEraseModeRef = useRef(false);
+  useEffect(() => { isEraseModeRef.current = isEraseMode; }, [isEraseMode]);
 
   const clampZoom = useCallback((value) => {
     const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
@@ -160,6 +193,23 @@ export default function DesignerPage() {
   const handleZoomSlider = useCallback((e) => {
     setCanvasZoom(clampZoom(Number(e.target.value)));
   }, [clampZoom]);
+
+  const resetTemplateSession = useCallback(() => {
+    sectionFillsRef.current = {};
+    historyRef.current = [];
+    historyIdxRef.current = -1;
+    borderRegionsRef.current = new Set();
+    setSelectedObj(null);
+    setSectionLabels([]);
+    setFillVersion(v => v + 1);
+    setSelectedColor('#c8a96e');
+    selectedColorRef.current = '#c8a96e';
+    setActiveGlassType(null);
+    activeGlassTypeRef.current = null;
+    setCanvasZoom(1);
+    setProjectId(null);
+    woDesignDataRef.current = null;
+  }, []);
 
   // ── Load templates ───────────────────────────────────────────
   useEffect(() => {
@@ -306,7 +356,7 @@ export default function DesignerPage() {
   }, []); // Only run once on mount
   
   // Apply design data to canvas
-  const applyDesignData = (designData) => {
+  const applyDesignData = async (designData) => {
     if (!designData || typeof designData !== 'object') return;
     
     // Restore section fills from saved data
@@ -322,7 +372,7 @@ export default function DesignerPage() {
       // Ensure canvas has correct dimensions (guard against default 300x150)
       if (cvs.width !== CANVAS_W) cvs.width = CANVAS_W;
       if (cvs.height !== CANVAS_H) cvs.height = CANVAS_H;
-      const ctx = cvs.getContext('2d');
+      const ctx = cvs.getContext('2d', { willReadFrequently: true });
       const img = new Image();
       img.onload = () => {
         ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
@@ -341,14 +391,77 @@ export default function DesignerPage() {
 
     // For SVG templates with Fabric.js (only when a real Fabric canvas exists)
     if (fabricRef.current && typeof fabricRef.current.getObjects === 'function') {
-      fabricRef.current.getObjects().forEach(obj => {
-        const regionId = obj.id || obj.regionId;
-        if (regionId && designData[regionId]) {
-          const regionData = designData[regionId];
-          if (regionData.color) {
-            obj.set('fill', regionData.color);
-          }
+      const sectionDataMap = (designData.sections && typeof designData.sections === 'object')
+        ? designData.sections
+        : designData;
+
+      const createTexturedTile = (color, textureImg, tileSize = 120) => {
+        const tile = document.createElement('canvas');
+        tile.width = tileSize;
+        tile.height = tileSize;
+        const tCtx = tile.getContext('2d');
+        tCtx.fillStyle = color;
+        tCtx.fillRect(0, 0, tileSize, tileSize);
+
+        const gs = document.createElement('canvas');
+        gs.width = tileSize;
+        gs.height = tileSize;
+        const gCtx = gs.getContext('2d');
+        gCtx.drawImage(textureImg, 0, 0, tileSize, tileSize);
+        const id = gCtx.getImageData(0, 0, tileSize, tileSize);
+        const d = id.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const lum = Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
+          d[i] = d[i + 1] = d[i + 2] = lum;
         }
+        gCtx.putImageData(id, 0, 0);
+
+        tCtx.globalCompositeOperation = 'multiply';
+        tCtx.drawImage(gs, 0, 0, tileSize, tileSize);
+        tCtx.globalCompositeOperation = 'soft-light';
+        tCtx.globalAlpha = 0.45;
+        tCtx.drawImage(gs, 0, 0, tileSize, tileSize);
+        tCtx.globalAlpha = 1;
+        tCtx.globalCompositeOperation = 'source-over';
+        return tile;
+      };
+
+      let PatternCtor = null;
+      try {
+        const fabricMod = await import('fabric');
+        PatternCtor = fabricMod.Pattern;
+      } catch {
+        PatternCtor = null;
+      }
+
+      fabricRef.current.getObjects().forEach(obj => {
+        const sectionId = obj._sectionId || obj.id || obj.regionId;
+        const fallbackSectionId = obj._sectionNumber ? `sec-${obj._sectionNumber}` : null;
+        const regionData =
+          (sectionId && sectionDataMap[sectionId])
+          || (fallbackSectionId && sectionDataMap[fallbackSectionId])
+          || null;
+
+        if (!regionData || !regionData.color) return;
+
+        const gtId = Number(regionData.glassTypeId);
+        const gt = Number.isFinite(gtId)
+          ? glassTypes.find(g => Number(g.id) === gtId)
+          : null;
+        const texImg = gt ? textureCacheRef.current.get(gt.id) : null;
+        const isBeveled = !!(gt && (gt.name || '').toLowerCase().includes('bevel'));
+
+        if (isBeveled) {
+          obj.set('fill', regionData.color);
+        } else if (texImg && PatternCtor) {
+          const tile = createTexturedTile(regionData.color, texImg);
+          obj.set('fill', new PatternCtor({ source: tile, repeat: 'repeat' }));
+        } else {
+          obj.set('fill', regionData.color);
+        }
+
+        obj._glassType = regionData.glassType || null;
+        obj._fillColor = regionData.color;
       });
       fabricRef.current.renderAll();
     }
@@ -376,18 +489,24 @@ export default function DesignerPage() {
       .then(res => {
         const items = res?.items || res || [];
         setGlassTypes(items);
+
         // Preload texture images into cache
         items.forEach(gt => {
           if (gt.texture_url && !textureCacheRef.current.has(gt.id)) {
-            const textureUrl = resolveBackendAssetUrl(gt.texture_url, '/uploads/textures');
+            const textureSourceUrl = resolveBackendAssetUrl(gt.texture_url, '/uploads/textures');
+            const textureUrl = getTextureLoadUrl(textureSourceUrl);
             
             const img = new Image();
             img.crossOrigin = 'anonymous';
             img.onload = () => {
+              img._supportsReadback = canReadImagePixels(img);
               textureCacheRef.current.set(gt.id, img);
-              console.log('[DesignerPage] Loaded glass texture:', gt.name, textureUrl);
+              console.log('[DesignerPage] Loaded glass texture:', gt.name, textureSourceUrl);
+              if (woDesignDataRef.current && step === STEP.DESIGN) {
+                applyDesignData(woDesignDataRef.current);
+              }
             };
-            img.onerror = () => console.error('[DesignerPage] Failed to load glass texture:', gt.name, textureUrl);
+            img.onerror = () => console.error('[DesignerPage] Failed to load glass texture:', gt.name, textureSourceUrl);
             img.src = textureUrl;
           }
         });
@@ -617,6 +736,7 @@ export default function DesignerPage() {
       const pixels = regionPixelsRef.current?.get(regionId);
       if (!pixels || pixels.length === 0) return;
       const [baseR, baseG, baseB] = hexToRgb(color);
+      const isNearWhite = baseR >= 245 && baseG >= 245 && baseB >= 245;
 
       let minX = w, minY = h, maxX = 0, maxY = 0;
       for (const pi of pixels) {
@@ -648,12 +768,22 @@ export default function DesignerPage() {
         const specular = Math.max(0, 1 - ((specDx * specDx) / 0.05 + (specDy * specDy) / 0.035)) * 0.4;
         const edgeShadow = (nx * 0.18) + (ny * 0.22);
 
-        const lightBoost = topHighlight + leftHighlight + specular;
-        const shadowFactor = Math.min(0.28, edgeShadow * 0.85);
+        const lightBoost = isNearWhite
+          ? (topHighlight + leftHighlight + specular) * 0.28
+          : (topHighlight + leftHighlight + specular);
+        const shadowFactor = isNearWhite
+          ? Math.min(0.05, edgeShadow * 0.22)
+          : Math.min(0.28, edgeShadow * 0.85);
 
         let r = baseR + (255 - baseR) * lightBoost - baseR * shadowFactor;
         let g = baseG + (255 - baseG) * lightBoost - baseG * shadowFactor;
         let b = baseB + (255 - baseB) * lightBoost - baseB * shadowFactor;
+
+        if (isNearWhite) {
+          r = Math.max(248, r);
+          g = Math.max(248, g);
+          b = Math.max(248, b);
+        }
 
         data[ci] = Math.max(0, Math.min(255, Math.round(r)));
         data[ci + 1] = Math.max(0, Math.min(255, Math.round(g)));
@@ -787,21 +917,29 @@ export default function DesignerPage() {
       tile.width = tileSize;
       tile.height = tileSize;
       const tCtx = tile.getContext('2d');
+      const [baseR, baseG, baseB] = hexToRgb(color);
+      const isNearWhite = baseR >= 245 && baseG >= 245 && baseB >= 245;
 
       tCtx.fillStyle = color;
       tCtx.fillRect(0, 0, tileSize, tileSize);
 
       const topSheen = tCtx.createLinearGradient(0, 0, 0, tileSize);
-      topSheen.addColorStop(0, 'rgba(255,255,255,0.62)');
-      topSheen.addColorStop(0.34, 'rgba(255,255,255,0.22)');
-      topSheen.addColorStop(0.72, 'rgba(255,255,255,0.06)');
-      topSheen.addColorStop(1, 'rgba(0,0,0,0.18)');
+      if (isNearWhite) {
+        topSheen.addColorStop(0, 'rgba(255,255,255,0.42)');
+        topSheen.addColorStop(0.45, 'rgba(255,255,255,0.16)');
+        topSheen.addColorStop(1, 'rgba(0,0,0,0.04)');
+      } else {
+        topSheen.addColorStop(0, 'rgba(255,255,255,0.62)');
+        topSheen.addColorStop(0.34, 'rgba(255,255,255,0.22)');
+        topSheen.addColorStop(0.72, 'rgba(255,255,255,0.06)');
+        topSheen.addColorStop(1, 'rgba(0,0,0,0.18)');
+      }
       tCtx.fillStyle = topSheen;
       tCtx.fillRect(0, 0, tileSize, tileSize);
 
       const highlight = tCtx.createRadialGradient(tileSize * 0.28, tileSize * 0.2, 1, tileSize * 0.28, tileSize * 0.2, tileSize * 0.6);
-      highlight.addColorStop(0, 'rgba(255,255,255,0.75)');
-      highlight.addColorStop(0.42, 'rgba(255,255,255,0.2)');
+      highlight.addColorStop(0, isNearWhite ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.75)');
+      highlight.addColorStop(0.42, isNearWhite ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.2)');
       highlight.addColorStop(1, 'rgba(255,255,255,0)');
       tCtx.fillStyle = highlight;
       tCtx.fillRect(0, 0, tileSize, tileSize);
@@ -939,7 +1077,7 @@ export default function DesignerPage() {
           const cvs = canvasRef.current;
           cvs.width = CANVAS_W;
           cvs.height = CANVAS_H;
-          const ctx = cvs.getContext('2d');
+          const ctx = cvs.getContext('2d', { willReadFrequently: true });
 
           // Fill background
           ctx.fillStyle = '#f8f4ef';
@@ -1104,8 +1242,31 @@ export default function DesignerPage() {
             if (borderRegionsRef.current && borderRegionsRef.current.has(regionId)) return;
             const color = selectedColorRef.current;
             const gt = activeGlassTypeRef.current;
-            const texImg = gt ? textureCacheRef.current.get(gt.id) : null;
+            const cachedTexture = gt ? textureCacheRef.current.get(gt.id) : null;
+            const texImg = cachedTexture && cachedTexture._supportsReadback !== false ? cachedTexture : null;
             const isBeveled = !!(gt && (gt.name || '').toLowerCase().includes('bevel'));
+            const eraseMode = isEraseModeRef.current;
+
+            if (eraseMode) {
+              fillRegion(ctx, regionId, 255, 255, 255, CANVAS_W, CANVAS_H);
+              restoreLines(ctx, CANVAS_W, CANVAS_H);
+              const snap = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
+              const arr = historyRef.current.slice(0, historyIdxRef.current + 1);
+              arr.push(snap);
+              historyRef.current = arr;
+              historyIdxRef.current = arr.length - 1;
+              setSelectedObj({
+                fill: REMOVE_COLOR_HEX,
+                glassType: null,
+              });
+              delete sectionFillsRef.current[regionId];
+              const erasedLabel = sectionLabels.find(l => l.id === regionId);
+              if (erasedLabel?.num) {
+                setSelectedLegendNumber(erasedLabel.num);
+              }
+              setFillVersion(v => v + 1);
+              return;
+            }
 
             if (isBeveled) {
               fillRegionBeveled(ctx, regionId, color, CANVAS_W, CANVAS_H);
@@ -1132,6 +1293,9 @@ export default function DesignerPage() {
             // Track section fill for work order data
             // Find section number from labels
             const lbl = sectionLabels.find(l => l.id === regionId);
+            if (lbl?.num) {
+              setSelectedLegendNumber(lbl.num);
+            }
             sectionFillsRef.current[regionId] = {
               color,
               glassType: gt?.name || null,
@@ -1392,6 +1556,17 @@ export default function DesignerPage() {
             num++;
             obj._sectionNumber = num;
             obj._sectionId = `sec-${num}`;
+            if (!obj._originalStyle) {
+              obj._originalStyle = {
+                fill: obj.fill,
+                stroke: obj.stroke,
+                strokeWidth: obj.strokeWidth,
+                strokeLineJoin: obj.strokeLineJoin,
+                strokeLineCap: obj.strokeLineCap,
+                paintFirst: obj.paintFirst,
+                shadow: obj.shadow,
+              };
+            }
             const cx = bounds.left + bounds.width / 2;
             const cy = bounds.top + bounds.height / 2;
             raw.push({
@@ -1464,6 +1639,7 @@ export default function DesignerPage() {
         canvas.on('mouse:down', async (e) => {
           const hit = e.target;
           if (!hit || hit.selectable === false) return;
+          const eraseMode = isEraseModeRef.current;
           const color = selectedColorRef.current;
           const gt = activeGlassTypeRef.current;
           const texImg = gt ? textureCacheRef.current.get(gt.id) : null;
@@ -1471,7 +1647,20 @@ export default function DesignerPage() {
           // Check if this is beveled glass (by name)
           const isBeveled = gt && (gt.name || '').toLowerCase().includes('bevel');
           
-          if (isBeveled) {
+          if (eraseMode) {
+            const originalStyle = hit._originalStyle || {};
+            hit.set({
+              fill: REMOVE_COLOR_HEX,
+              stroke: originalStyle.stroke,
+              strokeWidth: originalStyle.strokeWidth,
+              strokeLineJoin: originalStyle.strokeLineJoin,
+              strokeLineCap: originalStyle.strokeLineCap,
+              paintFirst: originalStyle.paintFirst,
+              shadow: originalStyle.shadow,
+            });
+            hit._hasBevel = false;
+            hit._bevelColor = null;
+          } else if (isBeveled) {
             // Apply beveled edge effect that follows shape boundaries
             await applyBeveledEffect(hit, color);
           } else if (texImg) {
@@ -1486,20 +1675,57 @@ export default function DesignerPage() {
             const pattern = new Pattern({ source: glossyTile, repeat: 'repeat' });
             hit.set('fill', pattern);
           }
-          hit._glassType = gt?.name || null;
-          hit._fillColor = color; // remember the base colour for display
+          hit._glassType = eraseMode ? null : (gt?.name || null);
+          hit._fillColor = eraseMode ? REMOVE_COLOR_HEX : color; // remember the base colour for display
           hit.dirty = true;
           canvas.requestRenderAll();
-          setSelectedObj({ fill: color, glassType: hit._glassType });
+          setSelectedObj({ fill: eraseMode ? REMOVE_COLOR_HEX : color, glassType: hit._glassType });
           // Track section fill for work order data
-          const sectionId = hit._sectionId || `sec-${hit._sectionNumber || canvas.getObjects().indexOf(hit) + 1}`;
-          console.log('[DesignerPage] Section filled:', { sectionId, sectionNum: hit._sectionNumber, color });
-          sectionFillsRef.current[sectionId] = {
-            color,
-            glassType: gt?.name || null,
-            glassTypeId: gt?.id || null,
-            sectionNum: hit._sectionNumber || null,
-          };
+          const fallbackSectionNumFromId = Number(String(hit._sectionId || '').replace(/^sec-/, ''));
+          const bounds = typeof hit.getBoundingRect === 'function' ? hit.getBoundingRect() : null;
+          const centerX = bounds ? bounds.left + (bounds.width / 2) : null;
+          const centerY = bounds ? bounds.top + (bounds.height / 2) : null;
+          const nearestLabel = (centerX != null && centerY != null && sectionLabels.length > 0)
+            ? sectionLabels.reduce((closest, label) => {
+                const dx = (label.cx || 0) - centerX;
+                const dy = (label.cy || 0) - centerY;
+                const distSq = (dx * dx) + (dy * dy);
+                if (!closest || distSq < closest.distSq) {
+                  return { num: label.num, distSq };
+                }
+                return closest;
+              }, null)
+            : null;
+
+          const sectionNumber =
+            (Number.isFinite(hit._sectionNumber) && hit._sectionNumber > 0 ? hit._sectionNumber : null)
+            || (Number.isFinite(fallbackSectionNumFromId) && fallbackSectionNumFromId > 0 ? fallbackSectionNumFromId : null)
+            || (nearestLabel?.num || null);
+
+          const sectionId =
+            hit._sectionId
+            || (sectionNumber ? `sec-${sectionNumber}` : `sec-${canvas.getObjects().indexOf(hit) + 1}`);
+
+          if (!hit._sectionId && sectionId) hit._sectionId = sectionId;
+          if (!hit._sectionNumber && sectionNumber) hit._sectionNumber = sectionNumber;
+
+          if (eraseMode) {
+            delete sectionFillsRef.current[sectionId];
+            if (sectionNumber) {
+              setSelectedLegendNumber(sectionNumber);
+            }
+          } else {
+            console.log('[DesignerPage] Section filled:', { sectionId, sectionNum: sectionNumber, color });
+            sectionFillsRef.current[sectionId] = {
+              color,
+              glassType: gt?.name || null,
+              glassTypeId: gt?.id || null,
+              sectionNum: sectionNumber,
+            };
+            if (sectionNumber) {
+              setSelectedLegendNumber(sectionNumber);
+            }
+          }
           setFillVersion(v => v + 1);
           pushHistory(canvas);
         });
@@ -1569,7 +1795,8 @@ export default function DesignerPage() {
       ctx.putImageData(imageData, 0, 0);
       // Texture overlay if glass type selected
       const gt = activeGlassType;
-      const texImg = gt ? textureCacheRef.current.get(gt.id) : null;
+      const cachedTexture = gt ? textureCacheRef.current.get(gt.id) : null;
+      const texImg = cachedTexture && cachedTexture._supportsReadback !== false ? cachedTexture : null;
       const isBeveled = !!(gt && (gt.name || '').toLowerCase().includes('bevel'));
       if (isBeveled) {
         for (const [regionId] of regionPixels) {
@@ -1901,6 +2128,72 @@ export default function DesignerPage() {
     ? templates.filter(t => t.category === categoryFilter)
     : templates;
 
+  const sectionLegendItems = useMemo(() => {
+    const sectionNumbers = new Set();
+    const colorBySection = new Map();
+
+    sectionLabels.forEach((label) => {
+      const number = Number(label?.num);
+      if (Number.isFinite(number) && number > 0) {
+        sectionNumbers.add(number);
+      }
+    });
+
+    Object.entries(sectionFillsRef.current || {}).forEach(([sectionId, fill]) => {
+      let number = Number(fill?.sectionNum);
+      if (!Number.isFinite(number) || number <= 0) {
+        const idMatch = String(sectionId || '').match(/^sec-(\d+)$/);
+        if (idMatch) {
+          number = Number(idMatch[1]);
+        }
+      }
+      if (!Number.isFinite(number) || number <= 0) return;
+      sectionNumbers.add(number);
+      if (fill?.color) {
+        colorBySection.set(number, fill.color);
+      }
+    });
+
+    return [...sectionNumbers]
+      .sort((a, b) => a - b)
+      .map((number) => ({
+        number,
+        color: colorBySection.get(number) || null,
+      }));
+  }, [sectionLabels, fillVersion]);
+
+  useEffect(() => {
+    if (selectedLegendNumber == null) return;
+    const stillVisible = sectionLegendItems.some((item) => item.number === selectedLegendNumber);
+    if (!stillVisible) {
+      setSelectedLegendNumber(null);
+    }
+  }, [sectionLegendItems, selectedLegendNumber]);
+
+  const selectedLegendDetails = useMemo(() => {
+    if (selectedLegendNumber == null) return null;
+    const sectionEntries = Object.entries(sectionFillsRef.current || {});
+    let matchedFill = null;
+
+    for (const [sectionId, fill] of sectionEntries) {
+      const storedNum = Number(fill?.sectionNum);
+      if (Number.isFinite(storedNum) && storedNum === selectedLegendNumber) {
+        matchedFill = fill;
+        break;
+      }
+      const idMatch = String(sectionId || '').match(/^sec-(\d+)$/);
+      if (!matchedFill && idMatch && Number(idMatch[1]) === selectedLegendNumber) {
+        matchedFill = fill;
+      }
+    }
+
+    return {
+      number: selectedLegendNumber,
+      color: matchedFill?.color || null,
+      glassType: matchedFill?.glassType || '',
+    };
+  }, [selectedLegendNumber, fillVersion]);
+
   // ═══════════════════════════════════════
   //  GALLERY VIEW
   // ═══════════════════════════════════════
@@ -1949,6 +2242,7 @@ export default function DesignerPage() {
                     key={t.id}
                     className={styles.templateCard}
                     onClick={async () => {
+                      resetTemplateSession();
                       // Fetch full template (with svg_content / image_url) before entering designer
                       console.log('[DesignerPage] Template clicked:', t.id, t.name);
                       try {
@@ -2002,6 +2296,7 @@ export default function DesignerPage() {
               <button
                 className={styles.startBlank}
                 onClick={() => {
+                  resetTemplateSession();
                   setSelectedTemplate({ id: null, name: 'Custom Design', svg_content: null });
                   setStep(STEP.DESIGN);
                 }}
@@ -2031,7 +2326,10 @@ export default function DesignerPage() {
             ← Back
           </button>
         ) : (
-          <button className={styles.toolBtn} onClick={() => setStep(STEP.GALLERY)}>
+          <button className={styles.toolBtn} onClick={() => {
+            resetTemplateSession();
+            setStep(STEP.GALLERY);
+          }}>
             ← Gallery
           </button>
         )}
@@ -2187,7 +2485,7 @@ export default function DesignerPage() {
                       viewBox={`0 0 ${sectionLabels[0]?.canvasW || CANVAS_BASE_W} ${sectionLabels[0]?.canvasH || CANVAS_BASE_H}`}
                     >
                       {sectionLabels
-                        .filter((lbl) => lbl.small && !sectionFillsRef.current[lbl.id])
+                        .filter((lbl) => lbl.small)
                         .map((lbl) => (
                           <line
                             key={`line-${lbl.id}`}
@@ -2201,7 +2499,6 @@ export default function DesignerPage() {
                         ))}
                     </svg>
                     {sectionLabels
-                      .filter((lbl) => !sectionFillsRef.current[lbl.id])
                       .map((lbl) => {
                       const leftPct = (lbl.cx / lbl.canvasW) * 100;
                       const topPct = (lbl.cy / lbl.canvasH) * 100;
@@ -2277,6 +2574,7 @@ export default function DesignerPage() {
                     className={`${styles.paletteCell} ${selectedColor === c ? styles.paletteCellActive : ''}`}
                     style={{ '--swatch-color': c }}
                     onClick={() => {
+                      setIsEraseMode(false);
                       selectedColorRef.current = c;
                       setSelectedColor(c);
                     }}
@@ -2288,13 +2586,12 @@ export default function DesignerPage() {
               <div className={styles.paletteActions}>
                 <button
                   type="button"
-                  className={`${styles.paletteActionBtn} ${styles.removeColorBtn}`}
+                  className={`${styles.paletteActionBtn} ${styles.removeColorBtn} ${isEraseMode ? styles.paletteActionBtnActive : ''}`}
                   onClick={() => {
-                    selectedColorRef.current = '#ffffff';
-                    setSelectedColor('#ffffff');
+                    setIsEraseMode(prev => !prev);
                     setActiveGlassType(null);
                   }}
-                  title="Remove color from a section (fills with white)"
+                  title="Targeted reset: click a section to remove color"
                 >
                   Remove Color
                 </button>
@@ -2302,6 +2599,7 @@ export default function DesignerPage() {
                   type="button"
                   className={`${styles.paletteActionBtn} ${styles.clearGlassActionBtn}`}
                   onClick={() => {
+                    setIsEraseMode(false);
                     selectedColorRef.current = CLEAR_GLASS_COLOR;
                     setSelectedColor(CLEAR_GLASS_COLOR);
                     setActiveGlassType(null);
@@ -2318,6 +2616,7 @@ export default function DesignerPage() {
                   type="color"
                   value={selectedColor}
                   onChange={e => {
+                    setIsEraseMode(false);
                     selectedColorRef.current = e.target.value;
                     setSelectedColor(e.target.value);
                   }}
@@ -2403,18 +2702,68 @@ export default function DesignerPage() {
           </div>
 
           {/* Last colored piece indicator */}
-          {selectedObj && (
+          {(selectedObj || sectionLegendItems.length > 0) && (
             <div className={styles.panelSection}>
-              <h3>Last Colored</h3>
-              <div className={styles.lastColoredRow}>
-                <div className={styles.colorPreview} style={{ background: selectedObj.fill }} />
-                <div>
-                  <span className={styles.meta}>{selectedObj.fill}</span>
-                  {isAdmin && selectedObj.glassType && (
-                    <span className={styles.lastGlassLabel}>Glass: {selectedObj.glassType}</span>
+              <div className={styles.lastColoredPanels}>
+                <div className={styles.lastColoredCard}>
+                  <h3>Last Colored</h3>
+                  {selectedObj ? (
+                    <div className={styles.lastColoredRow}>
+                      <div className={styles.colorPreview} style={{ background: selectedObj.fill }} />
+                      <div>
+                        <span className={styles.meta}>{selectedObj.fill}</span>
+                        {isAdmin && selectedObj.glassType && (
+                          <span className={styles.lastGlassLabel}>Glass: {selectedObj.glassType}</span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={styles.lastColoredEmpty}>No section colored yet.</div>
+                  )}
+                </div>
+
+                <div className={styles.lastColoredCard}>
+                  <h3>Legend Selection</h3>
+                  {selectedLegendDetails ? (
+                    <div className={styles.lastColoredRow}>
+                      <div
+                        className={styles.colorPreview}
+                        style={selectedLegendDetails.color ? { background: selectedLegendDetails.color } : undefined}
+                      />
+                      <div>
+                        <span className={styles.meta}>
+                          Section {selectedLegendDetails.number}: {selectedLegendDetails.color || ''}
+                        </span>
+                        <span className={styles.lastGlassLabel}>Glass: {selectedLegendDetails.glassType || ''}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={styles.lastColoredEmpty}>Select a legend number icon.</div>
                   )}
                 </div>
               </div>
+
+              {sectionLegendItems.length > 0 && (
+                <div className={styles.sectionLegendBlock}>
+                  <div className={styles.sectionLegendList}>
+                    {sectionLegendItems.map((item) => (
+                      <button
+                        type="button"
+                        key={item.number}
+                        className={`${styles.sectionLegendItem} ${selectedLegendNumber === item.number ? styles.sectionLegendItemActive : ''}`}
+                        onClick={() => setSelectedLegendNumber(item.number)}
+                        title={item.color ? `Section ${item.number}: ${item.color}` : `Section ${item.number}: not colored`}
+                      >
+                        <span className={styles.sectionLegendNumber}>{item.number}.</span>
+                        <span
+                          className={styles.sectionLegendColor}
+                          style={item.color ? { background: item.color } : undefined}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
