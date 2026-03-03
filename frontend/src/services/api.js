@@ -73,16 +73,52 @@ import { getAuthToken, isValidToken, cleanupCorruptedTokens } from '../utils/aut
 // Clean up any corrupted tokens on module load
 cleanupCorruptedTokens();
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+const configuredBaseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+const isLocalDevHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const baseURL = isLocalDevHost ? '/api' : configuredBaseURL;
 console.log('[API] Using base URL:', baseURL);
 const api = axios.create({
   baseURL,
   withCredentials: false,
 });
 
+const getRoutePath = () => {
+  const hash = window.location.hash || '';
+  return hash.startsWith('#') ? hash.slice(1) : hash;
+};
+
+const getTokenForRequest = (config) => {
+  const adminToken = localStorage.getItem('sgcg_token') || '';
+  const customerToken = localStorage.getItem('sgcg_customer_token') || '';
+  const requestUrl = String(config?.url || '');
+  const routePath = getRoutePath();
+
+  // Admin API endpoints must always use admin token.
+  if (requestUrl.startsWith('/admin/') || requestUrl.includes('/admin/')) {
+    return isValidToken(adminToken) ? adminToken : '';
+  }
+
+  // Customer account/workflow routes should prioritize customer auth.
+  const isCustomerRoute =
+    routePath.startsWith('/account')
+    || routePath.startsWith('/my-work-orders')
+    || routePath.startsWith('/my-projects')
+    || routePath.startsWith('/designer');
+
+  if (isCustomerRoute && isValidToken(customerToken)) {
+    return customerToken;
+  }
+
+  // Default for non-admin endpoints: prefer customer token, then fallback.
+  if (isValidToken(customerToken)) return customerToken;
+  if (isValidToken(adminToken)) return adminToken;
+
+  return getAuthToken();
+};
+
 api.interceptors.request.use(
   (config) => {
-    const token = getAuthToken();
+    const token = getTokenForRequest(config);
     if (token && isValidToken(token)) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -93,7 +129,23 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => response.data,
-  (error) => {
+  async (error) => {
+    const originalConfig = error?.config || {};
+
+    if (
+      error?.message === 'Network Error'
+      && isLocalDevHost
+      && !originalConfig.__networkRetry
+    ) {
+      const retryConfig = {
+        ...originalConfig,
+        baseURL: '/api',
+        __networkRetry: true,
+      };
+      console.warn('[API] Network error detected, retrying once via local proxy base /api:', retryConfig.url);
+      return api.request(retryConfig);
+    }
+
     // Check if error response is HTML (404 or misconfigured routing)
     if (error.response?.data && typeof error.response.data === 'string' && error.response.data.startsWith('<!')) {
       console.error('[API] Server returned HTML instead of JSON. Likely API routing misconfiguration.');

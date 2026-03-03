@@ -2158,15 +2158,38 @@ export default function DesignerPage() {
         project_id: ensuredProjectId,
         template_id: selectedTemplate?.id || null,
         canvas_data: canvasData,
-        ...submitForm,
+        design_data: canvasData,
+        project_name: submitForm?.project_name || selectedTemplate?.name || 'My Design',
+        project_notes: submitForm?.notes || '',
+        preferred_timeline: submitForm?.timeline || '',
+        budget_range: submitForm?.budget || '',
+        contact_preference: submitForm?.contact || '',
         preview_url: previewUrl,
       });
       setSubmitModal(false);
       alert('Work order submitted! We will contact you shortly.');
       window.location.hash = `#/my-work-orders?status=pending&refresh=${Date.now()}`;
       window.dispatchEvent(new HashChangeEvent('hashchange'));
-    } catch {
-      alert('Submission failed. Please try again.');
+    } catch (err) {
+      const statusCode = err?.response?.status;
+      const responseData = err?.response?.data || {};
+      const existingWorkOrderId = responseData?.work_order?.id;
+
+      if (statusCode === 409 && existingWorkOrderId) {
+        setSubmitModal(false);
+        alert('A work order already exists for this project. Opening it now.');
+        window.location.hash = `#/designer?workorder=${existingWorkOrderId}`;
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+        return;
+      }
+
+      const errorMessage =
+        responseData?.error
+        || responseData?.message
+        || err?.message
+        || 'Submission failed. Please try again.';
+
+      alert(errorMessage);
     } finally {
       setSubmitting(false);
     }

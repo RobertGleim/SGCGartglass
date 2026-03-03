@@ -16,7 +16,17 @@ import {
   createCustomerReview,
 } from '../../services/api'
 
-const TABS = ['overview', 'orders', 'favorites', 'cart', 'reviews', 'settings']
+const TABS = ['overview', 'orders', 'favorites', 'cart', 'reviews', 'settings', 'work_orders']
+
+const TAB_LABELS = {
+  overview: 'overview',
+  orders: 'orders',
+  favorites: 'favorites',
+  cart: 'cart',
+  reviews: 'reviews',
+  settings: 'settings',
+  work_orders: 'customer work order',
+}
 
 export default function CustomerPortal({ manualProducts }) {
   const { customerToken, logout } = useCustomerAuth()
@@ -195,10 +205,17 @@ export default function CustomerPortal({ manualProducts }) {
         {TABS.map((tab) => (
           <button
             key={tab}
-            className={tab === activeTab ? 'active' : ''}
-            onClick={() => setActiveTab(tab)}
+            className={`${tab === activeTab ? 'active' : ''} ${tab === 'work_orders' ? 'work-orders-tab' : ''}`.trim()}
+            onClick={() => {
+              if (tab === 'work_orders') {
+                window.location.hash = '#/my-work-orders'
+                window.dispatchEvent(new HashChangeEvent('hashchange'))
+                return
+              }
+              setActiveTab(tab)
+            }}
           >
-            {tab}
+            {TAB_LABELS[tab] || tab}
           </button>
         ))}
       </div>

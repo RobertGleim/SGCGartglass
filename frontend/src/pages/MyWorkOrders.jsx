@@ -38,15 +38,32 @@ const normalizeStatus = (status) => {
 };
 
 const STATUS_COLORS = {
-  pending: '#ffb300',
-  review: '#2196f3',
-  revision_requested: '#ff6f00',
-  revision_submitted: '#7b1fa2',
-  quote: '#00897b',
-  approved: '#4caf50',
-  production: '#1565c0',
-  completed: '#4169e1',
-  cancelled: '#e53935',
+  pending:            { bg: '#fde8e8', border: '#e53935', text: '#b71c1c' },
+  review:             { bg: '#fff3e0', border: '#fb8c00', text: '#e65100' },
+  revision_requested: { bg: '#fff9c4', border: '#fdd835', text: '#f57f17' },
+  revision_submitted: { bg: '#fff8e1', border: '#ffb300', text: '#ff8f00' },
+  quote:              { bg: '#e3f2fd', border: '#1e88e5', text: '#0d47a1' },
+  approved:           { bg: '#e8f5e9', border: '#43a047', text: '#1b5e20' },
+  production:         { bg: '#e0f2f1', border: '#00897b', text: '#004d40' },
+  completed:          { bg: '#e8f5e9', border: '#2e7d32', text: '#1b5e20' },
+  cancelled:          { bg: '#f5f5f5', border: '#9e9e9e', text: '#616161' },
+};
+
+const getStatusBadgeStyle = (statusKey) => {
+  const c = STATUS_COLORS[statusKey] || STATUS_COLORS.pending;
+  return {
+    backgroundColor: c.bg,
+    color: c.text,
+    border: `1px solid ${c.border}`,
+  };
+};
+
+const getStatusRowStyle = (statusKey) => {
+  const c = STATUS_COLORS[statusKey] || STATUS_COLORS.pending;
+  return {
+    backgroundColor: '#ffffff',
+    borderLeft: `5px solid ${c.border}`,
+  };
 };
 
 const STATUS_LABELS = {
@@ -108,11 +125,18 @@ export default function MyWorkOrders() {
   useEffect(() => {
     async function fetchOrders() {
       setLoading(true);
+      setError(null);
       try {
         const res = await api.get('/work-orders');
         setOrders(toOrdersArray(res));
-      } catch {
-        setError('Failed to load work orders');
+      } catch (err) {
+        console.error('[MyWorkOrders] Failed to load work orders:', err);
+        const status = err?.response?.status;
+        if (status === 401 || status === 403) {
+          setError('Failed to load work orders (authentication issue). Please sign in again.');
+        } else {
+          setError('Failed to load work orders');
+        }
       } finally {
         setLoading(false);
       }
@@ -131,6 +155,20 @@ export default function MyWorkOrders() {
       alert('Design approved!');
     } catch {
       alert('Failed to approve. Please try again.');
+    }
+  };
+
+  const handleDelete = async (orderId, orderNumber, e) => {
+    if (e) e.stopPropagation();
+    const displayNumber = orderNumber || `#${orderId}`;
+    if (!window.confirm(`Delete work order ${displayNumber}? This cannot be undone.`)) return;
+    try {
+      await api.delete(`/work-orders/${orderId}`);
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+      if (selected?.id === orderId) setSelected(null);
+      alert('Work order deleted.');
+    } catch {
+      alert('Failed to delete work order. Please try again.');
     }
   };
 
@@ -171,29 +209,37 @@ export default function MyWorkOrders() {
             const canEdit = EDITABLE_STATUSES.includes(statusKey);
             const needsReview = statusKey === 'revision_requested';
             return (
-              <div key={order.id} className={`${styles.item} ${needsReview ? styles.needsAttention : ''}`} onClick={() => setSelected(order)}>
-                <div className={styles.itemTop}>
-                  <span className={styles.badge} style={{ background: STATUS_COLORS[statusKey] || '#ccc' }}>
-                    {STATUS_LABELS[statusKey] || order.status}
-                  </span>
-                  <span className={styles.orderNum}>{order.work_order_number || `#${order.id}`}</span>
-                  {order.revision_count > 0 && (
-                    <span className={styles.revCount} title="Number of revisions">
-                      {order.revision_count} rev{order.revision_count !== 1 ? 's' : ''}
+              <div
+                key={order.id}
+                className={`${styles.item} ${needsReview ? styles.needsAttention : ''}`}
+                style={getStatusRowStyle(statusKey)}
+                onClick={() => setSelected(order)}
+              >
+                <div className={styles.fileInfo}>
+                  <div className={styles.itemTop}>
+                    <span className={styles.badge} style={getStatusBadgeStyle(statusKey)}>
+                      {STATUS_LABELS[statusKey] || order.status}
                     </span>
+                    <span className={styles.orderNum}>{order.work_order_number || `#${order.id}`}</span>
+                    {order.revision_count > 0 && (
+                      <span className={styles.revCount} title="Number of revisions">
+                        {order.revision_count} rev{order.revision_count !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  <div className={styles.itemBody}>
+                    <span className={styles.name}>{getProjectName(order)}</span>
+                    <span className={styles.date}>
+                      {getOrderDate(order) ? new Date(getOrderDate(order)).toLocaleString() : '—'}
+                    </span>
+                  </div>
+                  {needsReview && (
+                    <div className={styles.attentionBanner}>
+                      ⚠️ Admin has made changes — please review
+                    </div>
                   )}
                 </div>
-                <div className={styles.itemBody}>
-                  <span className={styles.name}>{getProjectName(order)}</span>
-                  <span className={styles.date}>
-                    {getOrderDate(order) ? new Date(getOrderDate(order)).toLocaleString() : '—'}
-                  </span>
-                </div>
-                {needsReview && (
-                  <div className={styles.attentionBanner}>
-                    ⚠️ Admin has made changes — please review
-                  </div>
-                )}
+
                 <div className={styles.itemActions}>
                   {canEdit && (
                     <button className={styles.editBtn} onClick={(e) => openDesigner(order.id, e)}>
@@ -205,6 +251,12 @@ export default function MyWorkOrders() {
                       ✅ Approve
                     </button>
                   )}
+                  <button
+                    className={styles.deleteBtn}
+                    onClick={(e) => handleDelete(order.id, order.work_order_number, e)}
+                  >
+                    🗑 Delete
+                  </button>
                 </div>
               </div>
             );
@@ -220,7 +272,7 @@ export default function MyWorkOrders() {
             <h2>{getProjectName(selected)}</h2>
             <div className={styles.detailRow}>
               <strong>Status:</strong>
-              <span className={styles.badge} style={{ background: STATUS_COLORS[normalizeStatus(selected.status)] || '#ccc' }}>
+              <span className={styles.badge} style={getStatusBadgeStyle(normalizeStatus(selected.status))}>
                 {STATUS_LABELS[normalizeStatus(selected.status)] || selected.status}
               </span>
             </div>
@@ -255,6 +307,12 @@ export default function MyWorkOrders() {
                   ✅ Approve Design
                 </button>
               )}
+              <button
+                className={styles.deleteBtn}
+                onClick={(e) => handleDelete(selected.id, selected.work_order_number, e)}
+              >
+                🗑 Delete Work Order
+              </button>
             </div>
           </div>
         </div>

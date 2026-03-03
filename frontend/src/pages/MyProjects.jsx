@@ -15,6 +15,31 @@ const FILTER_OPTIONS = [
   { label: 'Submitted', value: 'submitted' },
 ];
 
+const STATUS_LABELS = {
+  inprogress: 'In Progress',
+  pending: 'Pending',
+  reviewed: 'Under Review',
+  process: 'In Process',
+  submitted: 'Submitted',
+};
+
+const STATUS_COLORS = {
+  inprogress: { bg: '#f3f4f6', border: '#9ca3af', text: '#374151' },
+  pending: { bg: '#fde8e8', border: '#e53935', text: '#b71c1c' },
+  reviewed: { bg: '#fff3e0', border: '#fb8c00', text: '#e65100' },
+  process: { bg: '#e0f2f1', border: '#00897b', text: '#004d40' },
+  submitted: { bg: '#e3f2fd', border: '#1e88e5', text: '#0d47a1' },
+};
+
+const getStatusStyle = (statusKey) => {
+  const c = STATUS_COLORS[statusKey] || STATUS_COLORS.inprogress;
+  return {
+    backgroundColor: c.bg,
+    color: c.text,
+    border: `1px solid ${c.border}`,
+  };
+};
+
 // Handle API response that may be array or {projects: [...]}
 const toProjectsArray = (res) => {
   if (Array.isArray(res)) return res;
@@ -171,19 +196,27 @@ export default function MyProjects() {
         <button onClick={fetchProjects} disabled={loading}>Refresh</button>
       </div>
       {loading ? <div>Loading...</div> : error ? <div className={styles.error}>{error}</div> : (
-        <div className={styles.grid}>
+        <div className={styles.list}>
           {filteredProjects.length === 0 ? (
             <div className={styles.empty}>No projects found. Start designing!</div>
           ) : filteredProjects.map(project => (
-            <div key={project.id} className={styles.card}>
-              {project.thumbnailUrl && (
+            <div key={project.id} className={styles.item}>
+              {project.thumbnailUrl ? (
                 <img src={project.thumbnailUrl} alt={project.name} className={styles.thumb} />
+              ) : (
+                <div className={styles.thumbPlaceholder}>No Preview</div>
               )}
-              <div className={styles.info}>
-                <div className={styles.name}>{project.name || 'Untitled Project'}</div>
+
+              <div className={styles.fileInfo}>
+                <div className={styles.itemTop}>
+                  <span className={styles.name}>{project.name || 'Untitled Project'}</span>
+                  <span className={styles.statusBadge} style={getStatusStyle(project.status_key)}>
+                    {STATUS_LABELS[project.status_key] || project.status_key}
+                  </span>
+                </div>
                 <div className={styles.meta}>Last modified: {project.modified ? new Date(project.modified).toLocaleString() : '—'}</div>
-                <div className={styles.meta}>Status: <span className={styles[`status_${project.status_key}`]}>{project.status_key}</span></div>
               </div>
+
               <div className={styles.actions}>
                 <button onClick={() => handleEdit(project)}>Edit</button>
                 <button onClick={() => handleDuplicate(project)}>Duplicate</button>

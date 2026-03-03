@@ -50,6 +50,24 @@
   border-color: #1f4ea1;
 }
 
+.portal-tabs button.work-orders-tab {
+  background: #fff6dd;
+  border-color: #f0c670;
+  color: #7a4c00;
+  font-weight: 700;
+}
+
+.portal-tabs button.work-orders-tab:hover {
+  background: #ffe8b0;
+  border-color: #ddad4f;
+}
+
+.portal-tabs button.work-orders-tab.active {
+  background: #c98b1c;
+  border-color: #c98b1c;
+  color: #fff;
+}
+
 .portal-grid {
   display: grid;
   grid-template-columns: 1fr;

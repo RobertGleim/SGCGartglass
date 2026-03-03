@@ -127,6 +127,20 @@ def get_work_order(order_id):
     return jsonify({'work_order': order.to_dict(include_project_data=True)}), 200
 
 
+@work_orders_bp.route('/api/work-orders/<int:order_id>', methods=['DELETE'])
+@login_required
+def delete_work_order(order_id):
+    """Customer deletes their own work order."""
+    user_id = g.user_id
+    order = WorkOrder.query.filter_by(id=order_id, user_id=user_id).first()
+    if not order:
+        return jsonify({'error': 'Work order not found or not owned by user.'}), 404
+
+    db.session.delete(order)
+    db.session.commit()
+    return jsonify({'message': 'Work order deleted.'}), 200
+
+
 # ── Customer revision endpoints ──────────────────────────────────────
 
 @work_orders_bp.route('/api/work-orders/<int:order_id>/revisions', methods=['GET'])
