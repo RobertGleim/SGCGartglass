@@ -1372,7 +1372,7 @@ export default function DesignerPage() {
                 glassType: null,
               });
               delete sectionFillsRef.current[regionId];
-              const erasedLabel = sectionLabels.find(l => l.id === regionId);
+              const erasedLabel = sectionLabels.find(l => String(l.id) === String(regionId));
               if (erasedLabel?.num) {
                 setSelectedLegendNumber(erasedLabel.num);
               }
@@ -1404,7 +1404,7 @@ export default function DesignerPage() {
             });
             // Track section fill for work order data
             // Find section number from labels
-            const lbl = sectionLabels.find(l => l.id === regionId);
+            const lbl = sectionLabels.find(l => String(l.id) === String(regionId));
             if (lbl?.num) {
               setSelectedLegendNumber(lbl.num);
             }
@@ -2086,6 +2086,8 @@ export default function DesignerPage() {
     historyIdxRef.current = 0;
     sectionFillsRef.current = {};
     setSelectedObj(null);
+    setSelectedLegendNumber(null);
+    setFillVersion(v => v + 1);
   }, []);
 
   // ── Save project ──────────────────────────────────────────────
@@ -2266,11 +2268,13 @@ export default function DesignerPage() {
   const sectionLegendItems = useMemo(() => {
     const sectionNumbers = new Set();
     const colorBySection = new Map();
+    const sectionNumberById = new Map();
 
     sectionLabels.forEach((label) => {
       const number = Number(label?.num);
       if (Number.isFinite(number) && number > 0) {
         sectionNumbers.add(number);
+        sectionNumberById.set(String(label?.id), number);
       }
     });
 
@@ -2281,6 +2285,9 @@ export default function DesignerPage() {
         if (idMatch) {
           number = Number(idMatch[1]);
         }
+      }
+      if ((!Number.isFinite(number) || number <= 0) && sectionNumberById.has(String(sectionId))) {
+        number = Number(sectionNumberById.get(String(sectionId)));
       }
       if (!Number.isFinite(number) || number <= 0) return;
       sectionNumbers.add(number);
@@ -2308,6 +2315,9 @@ export default function DesignerPage() {
   const selectedLegendDetails = useMemo(() => {
     if (selectedLegendNumber == null) return null;
     const sectionEntries = Object.entries(sectionFillsRef.current || {});
+    const sectionNumberById = new Map(
+      (sectionLabels || []).map((label) => [String(label?.id), Number(label?.num)])
+    );
     let matchedFill = null;
 
     for (const [sectionId, fill] of sectionEntries) {
@@ -2320,6 +2330,12 @@ export default function DesignerPage() {
       if (!matchedFill && idMatch && Number(idMatch[1]) === selectedLegendNumber) {
         matchedFill = fill;
       }
+      if (!matchedFill) {
+        const mappedNum = Number(sectionNumberById.get(String(sectionId)));
+        if (Number.isFinite(mappedNum) && mappedNum === selectedLegendNumber) {
+          matchedFill = fill;
+        }
+      }
     }
 
     return {
@@ -2327,7 +2343,7 @@ export default function DesignerPage() {
       color: matchedFill?.color || null,
       glassType: matchedFill?.glassType || '',
     };
-  }, [selectedLegendNumber, fillVersion]);
+  }, [selectedLegendNumber, fillVersion, sectionLabels]);
 
   const disableTemplateContextMenu = useCallback((e) => {
     e.preventDefault();
@@ -2921,7 +2937,14 @@ export default function DesignerPage() {
                         type="button"
                         key={item.number}
                         className={`${styles.sectionLegendItem} ${selectedLegendNumber === item.number ? styles.sectionLegendItemActive : ''}`}
-                        onClick={() => setSelectedLegendNumber(item.number)}
+                        onClick={() => {
+                          setSelectedLegendNumber(item.number);
+                          if (item.color) {
+                            setIsEraseMode(false);
+                            selectedColorRef.current = item.color;
+                            setSelectedColor(item.color);
+                          }
+                        }}
                         title={item.color ? `Section ${item.number}: ${item.color}` : `Section ${item.number}: not colored`}
                       >
                         <span className={styles.sectionLegendNumber}>{item.number}.</span>
