@@ -37,6 +37,10 @@ const QUICK_COLORS = [
   '#ffffff', '#cccccc', '#888888', '#222222',
 ];
 
+const CLEAR_GLASS_COLOR = '#eaf6ff';
+const CANVAS_BASE_W = 840;
+const CANVAS_BASE_H = 600;
+
 const getApiOrigin = () => {
   const configuredBase = import.meta.env.VITE_API_BASE_URL || '/api';
   if (/^https?:\/\//i.test(configuredBase)) {
@@ -56,6 +60,9 @@ const resolveBackendAssetUrl = (value, fallbackFolder = '') => {
 };
 
 export default function DesignerPage() {
+  const MIN_ZOOM = 0.6;
+  const MAX_ZOOM = 2.5;
+  const ZOOM_STEP = 0.1;
   const [step, setStep] = useState(STEP.GALLERY);
   const [templates, setTemplates] = useState([]);
   const [templatesLoading, setTemplatesLoading] = useState(true);
@@ -131,6 +138,28 @@ export default function DesignerPage() {
   const [savingRevision, setSavingRevision] = useState(false);
   const [showRevisionHistory, setShowRevisionHistory] = useState(false);
   const isAdmin = !!authToken && !customerToken; // admin token but no customer token
+  const [canvasZoom, setCanvasZoom] = useState(1);
+
+  const clampZoom = useCallback((value) => {
+    const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
+    return Number(clamped.toFixed(2));
+  }, [MIN_ZOOM, MAX_ZOOM]);
+
+  const handleZoomIn = useCallback(() => {
+    setCanvasZoom(prev => clampZoom(prev + ZOOM_STEP));
+  }, [clampZoom, ZOOM_STEP]);
+
+  const handleZoomOut = useCallback(() => {
+    setCanvasZoom(prev => clampZoom(prev - ZOOM_STEP));
+  }, [clampZoom, ZOOM_STEP]);
+
+  const handleZoomReset = useCallback(() => {
+    setCanvasZoom(1);
+  }, []);
+
+  const handleZoomSlider = useCallback((e) => {
+    setCanvasZoom(clampZoom(Number(e.target.value)));
+  }, [clampZoom]);
 
   // ── Load templates ───────────────────────────────────────────
   useEffect(() => {
@@ -288,8 +317,8 @@ export default function DesignerPage() {
     // For image-based templates with saved dataUrl, redraw the canvas from the snapshot
     if (isFloodFillMode.current && designData.dataUrl && canvasRef.current) {
       const cvs = canvasRef.current;
-      const CANVAS_W = 700;
-      const CANVAS_H = 500;
+      const CANVAS_W = CANVAS_BASE_W;
+      const CANVAS_H = CANVAS_BASE_H;
       // Ensure canvas has correct dimensions (guard against default 300x150)
       if (cvs.width !== CANVAS_W) cvs.width = CANVAS_W;
       if (cvs.height !== CANVAS_H) cvs.height = CANVAS_H;
@@ -583,6 +612,58 @@ export default function DesignerPage() {
       ctx.putImageData(imageData, 0, 0);
     }
 
+    // Fill one region with a glossy glass effect (no texture image required)
+    function fillRegionGlossy(ctx, regionId, color, w, h) {
+      const pixels = regionPixelsRef.current?.get(regionId);
+      if (!pixels || pixels.length === 0) return;
+      const [baseR, baseG, baseB] = hexToRgb(color);
+
+      let minX = w, minY = h, maxX = 0, maxY = 0;
+      for (const pi of pixels) {
+        const x = pi % w;
+        const y = (pi - x) / w;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+
+      const regionW = Math.max(1, maxX - minX);
+      const regionH = Math.max(1, maxY - minY);
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const data = imageData.data;
+
+      for (const pi of pixels) {
+        const x = pi % w;
+        const y = (pi - x) / w;
+        const ci = pi * 4;
+
+        const nx = (x - minX) / regionW;
+        const ny = (y - minY) / regionH;
+
+        const topHighlight = Math.max(0, 1 - ny * 1.7) * 0.32;
+        const leftHighlight = Math.max(0, 1 - nx * 2.0) * 0.1;
+        const specDx = nx - 0.28;
+        const specDy = ny - 0.2;
+        const specular = Math.max(0, 1 - ((specDx * specDx) / 0.05 + (specDy * specDy) / 0.035)) * 0.4;
+        const edgeShadow = (nx * 0.18) + (ny * 0.22);
+
+        const lightBoost = topHighlight + leftHighlight + specular;
+        const shadowFactor = Math.min(0.28, edgeShadow * 0.85);
+
+        let r = baseR + (255 - baseR) * lightBoost - baseR * shadowFactor;
+        let g = baseG + (255 - baseG) * lightBoost - baseG * shadowFactor;
+        let b = baseB + (255 - baseB) * lightBoost - baseB * shadowFactor;
+
+        data[ci] = Math.max(0, Math.min(255, Math.round(r)));
+        data[ci + 1] = Math.max(0, Math.min(255, Math.round(g)));
+        data[ci + 2] = Math.max(0, Math.min(255, Math.round(b)));
+        data[ci + 3] = 255;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+    }
+
     // Apply a textured fill to a specific region
     function fillRegionTextured(ctx, regionId, color, textureImg, w, h) {
       const pixels = regionPixelsRef.current?.get(regionId);
@@ -701,6 +782,40 @@ export default function DesignerPage() {
       return tile;
     }
 
+    function createGlossyTile(color, tileSize = 120) {
+      const tile = document.createElement('canvas');
+      tile.width = tileSize;
+      tile.height = tileSize;
+      const tCtx = tile.getContext('2d');
+
+      tCtx.fillStyle = color;
+      tCtx.fillRect(0, 0, tileSize, tileSize);
+
+      const topSheen = tCtx.createLinearGradient(0, 0, 0, tileSize);
+      topSheen.addColorStop(0, 'rgba(255,255,255,0.62)');
+      topSheen.addColorStop(0.34, 'rgba(255,255,255,0.22)');
+      topSheen.addColorStop(0.72, 'rgba(255,255,255,0.06)');
+      topSheen.addColorStop(1, 'rgba(0,0,0,0.18)');
+      tCtx.fillStyle = topSheen;
+      tCtx.fillRect(0, 0, tileSize, tileSize);
+
+      const highlight = tCtx.createRadialGradient(tileSize * 0.28, tileSize * 0.2, 1, tileSize * 0.28, tileSize * 0.2, tileSize * 0.6);
+      highlight.addColorStop(0, 'rgba(255,255,255,0.75)');
+      highlight.addColorStop(0.42, 'rgba(255,255,255,0.2)');
+      highlight.addColorStop(1, 'rgba(255,255,255,0)');
+      tCtx.fillStyle = highlight;
+      tCtx.fillRect(0, 0, tileSize, tileSize);
+
+      tCtx.globalCompositeOperation = 'screen';
+      tCtx.fillStyle = 'rgba(255,255,255,0.2)';
+      tCtx.beginPath();
+      tCtx.ellipse(tileSize * 0.52, tileSize * 0.28, tileSize * 0.36, tileSize * 0.12, -0.42, 0, Math.PI * 2);
+      tCtx.fill();
+      tCtx.globalCompositeOperation = 'source-over';
+
+      return tile;
+    }
+
     // Apply beveled effect using inner strokes that only affect edges
     async function applyBeveledEffect(fabricObj, color) {
       // Parse color to RGB
@@ -788,8 +903,8 @@ export default function DesignerPage() {
     (async () => {
       try {
         const templateType = selectedTemplate.template_type || 'svg';
-        const CANVAS_W = 700;
-        const CANVAS_H = 500;
+        const CANVAS_W = CANVAS_BASE_W;
+        const CANVAS_H = CANVAS_BASE_H;
 
         // ============================================================
         //  IMAGE / PDF TEMPLATE  →  flood-fill on a plain 2D canvas
@@ -988,20 +1103,20 @@ export default function DesignerPage() {
             // Block coloring of border/frame regions
             if (borderRegionsRef.current && borderRegionsRef.current.has(regionId)) return;
             const color = selectedColorRef.current;
-            const [r, g, b] = hexToRgb(color);
             const gt = activeGlassTypeRef.current;
             const texImg = gt ? textureCacheRef.current.get(gt.id) : null;
             const isBeveled = !!(gt && (gt.name || '').toLowerCase().includes('bevel'));
-            // Fill the entire region with flat colour first
+
             if (isBeveled) {
               fillRegionBeveled(ctx, regionId, color, CANVAS_W, CANVAS_H);
-            } else {
+            } else if (texImg) {
+              const [r, g, b] = hexToRgb(color);
               fillRegion(ctx, regionId, r, g, b, CANVAS_W, CANVAS_H);
-            }
-            // Then overlay texture if a non-beveled glass type is selected
-            if (texImg && !isBeveled) {
               fillRegionTextured(ctx, regionId, color, texImg, CANVAS_W, CANVAS_H);
+            } else {
+              fillRegionGlossy(ctx, regionId, color, CANVAS_W, CANVAS_H);
             }
+
             // Restore line pixels so outlines always stay original
             restoreLines(ctx, CANVAS_W, CANVAS_H);
             // Push undo state
@@ -1030,7 +1145,7 @@ export default function DesignerPage() {
           // Store cleanup ref
           fabricRef.current = { _floodCleanup: () => cvs.removeEventListener('click', handleClick) };
 
-          // Apply saved WO design data now that canvas is fully initialised at 700x500
+          // Apply saved WO design data now that canvas is fully initialised at 840x600
           if (woDesignDataRef.current && !destroyed) {
             applyDesignData(woDesignDataRef.current);
           }
@@ -1078,8 +1193,8 @@ export default function DesignerPage() {
               ? util.groupSVGElements(rawObjects, svgOptions)
               : null;
 
-            const gW = group?.width  || svgOptions.width  || svgOptions.viewBoxWidth  || 500;
-            const gH = group?.height || svgOptions.height || svgOptions.viewBoxHeight || 500;
+            const gW = group?.width  || svgOptions.width  || svgOptions.viewBoxWidth  || CANVAS_W;
+            const gH = group?.height || svgOptions.height || svgOptions.viewBoxHeight || CANVAS_H;
             const scaleF = Math.min(CANVAS_W / gW, CANVAS_H / gH) * 0.995;
 
             if (group) {
@@ -1366,7 +1481,10 @@ export default function DesignerPage() {
             const pattern = new Pattern({ source: tile, repeat: 'repeat' });
             hit.set('fill', pattern);
           } else {
-            hit.set('fill', color);
+            const glossyTile = createGlossyTile(color);
+            const { Pattern } = await import('fabric');
+            const pattern = new Pattern({ source: glossyTile, repeat: 'repeat' });
+            hit.set('fill', pattern);
           }
           hit._glassType = gt?.name || null;
           hit._fillColor = color; // remember the base colour for display
@@ -1488,6 +1606,10 @@ export default function DesignerPage() {
         texCtx.drawImage(maskCvs, 0, 0);
         texCtx.globalCompositeOperation = 'source-over';
         ctx.drawImage(texCvs, 0, 0);
+      } else {
+        for (const [regionId] of regionPixels) {
+          fillRegionGlossy(ctx, regionId, selectedColor, w, h);
+        }
       }
       // Restore line pixels
       const maskR = lineMaskRef.current;
@@ -1538,6 +1660,10 @@ export default function DesignerPage() {
       tCtx.globalCompositeOperation = 'source-over';
       const { Pattern } = await import('fabric');
       pattern = new Pattern({ source: tile, repeat: 'repeat' });
+    } else {
+      const glossyTile = createGlossyTile(selectedColor, 120);
+      const { Pattern } = await import('fabric');
+      pattern = new Pattern({ source: glossyTile, repeat: 'repeat' });
     }
     
     // Apply fill to all objects
@@ -2039,52 +2165,87 @@ export default function DesignerPage() {
 
         {/* Canvas */}
         <div className={styles.canvasWrapper}>
-          <canvas ref={canvasRef} />
-          {/* ── Numbered section labels overlay ── */}
-          {sectionLabels.length > 0 && (
-            <div className={styles.sectionLabelsOverlay}>
-              {/* Leader lines for small sections */}
-              <svg
-                className={styles.leaderLineSvg}
-                viewBox={`0 0 ${sectionLabels[0]?.canvasW || 700} ${sectionLabels[0]?.canvasH || 500}`}
+          <div className={styles.canvasViewport}>
+            <div
+              className={styles.canvasScroller}
+              style={{
+                width: `${Math.round(CANVAS_BASE_W * canvasZoom)}px`,
+                height: `${Math.round(CANVAS_BASE_H * canvasZoom)}px`,
+              }}
+            >
+              <div
+                className={styles.canvasStage}
+                style={{ transform: `scale(${canvasZoom})` }}
               >
-                {sectionLabels
-                  .filter((lbl) => lbl.small && !sectionFillsRef.current[lbl.id])
-                  .map((lbl) => (
-                    <line
-                      key={`line-${lbl.id}`}
-                      x1={lbl.anchorX}
-                      y1={lbl.anchorY}
-                      x2={lbl.cx}
-                      y2={lbl.cy}
-                      stroke="#444"
-                      strokeWidth="1"
-                    />
-                  ))}
-              </svg>
-              {sectionLabels
-                .filter((lbl) => !sectionFillsRef.current[lbl.id])
-                .map((lbl) => {
-                const leftPct = (lbl.cx / lbl.canvasW) * 100;
-                const topPct = (lbl.cy / lbl.canvasH) * 100;
-                return (
-                  <div
-                    key={lbl.id}
-                    className={styles.sectionBadge}
-                    style={{ left: `${leftPct}%`, top: `${topPct}%` }}
-                    title={`Section ${lbl.num}`}
-                  >
-                    {lbl.num}
+                <canvas ref={canvasRef} />
+                {/* ── Numbered section labels overlay ── */}
+                {sectionLabels.length > 0 && (
+                  <div className={styles.sectionLabelsOverlay}>
+                    {/* Leader lines for small sections */}
+                    <svg
+                      className={styles.leaderLineSvg}
+                      viewBox={`0 0 ${sectionLabels[0]?.canvasW || CANVAS_BASE_W} ${sectionLabels[0]?.canvasH || CANVAS_BASE_H}`}
+                    >
+                      {sectionLabels
+                        .filter((lbl) => lbl.small && !sectionFillsRef.current[lbl.id])
+                        .map((lbl) => (
+                          <line
+                            key={`line-${lbl.id}`}
+                            x1={lbl.anchorX}
+                            y1={lbl.anchorY}
+                            x2={lbl.cx}
+                            y2={lbl.cy}
+                            stroke="#444"
+                            strokeWidth="1"
+                          />
+                        ))}
+                    </svg>
+                    {sectionLabels
+                      .filter((lbl) => !sectionFillsRef.current[lbl.id])
+                      .map((lbl) => {
+                      const leftPct = (lbl.cx / lbl.canvasW) * 100;
+                      const topPct = (lbl.cy / lbl.canvasH) * 100;
+                      return (
+                        <div
+                          key={lbl.id}
+                          className={styles.sectionBadge}
+                          style={{ left: `${leftPct}%`, top: `${topPct}%` }}
+                          title={`Section ${lbl.num}`}
+                        >
+                          {lbl.num}
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                )}
+              </div>
             </div>
-          )}
-          {selectedTemplate?.template_type === 'image' ? (
-            <div className={styles.hint}>Pick a color, then click any white section to fill it in</div>
-          ) : (
-            <div className={styles.hint}>Pick a color from the palette, then click any section to fill it</div>
-          )}
+
+            {selectedTemplate?.template_type === 'image' ? (
+              <div className={styles.hint}>Pick a color, then click any white section to fill it in</div>
+            ) : (
+              <div className={styles.hint}>Pick a color from the palette, then click any section to fill it</div>
+            )}
+          </div>
+
+          <div className={styles.zoomRail}>
+            <button className={`${styles.toolBtn} ${styles.zoomBtn}`} onClick={handleZoomIn} title="Zoom in">+</button>
+            <div className={styles.zoomSliderWrap}>
+              <input
+                type="range"
+                min={MIN_ZOOM}
+                max={MAX_ZOOM}
+                step={ZOOM_STEP}
+                value={canvasZoom}
+                onChange={handleZoomSlider}
+                className={styles.zoomSlider}
+                aria-label="Zoom"
+              />
+            </div>
+            <button className={`${styles.toolBtn} ${styles.zoomBtn}`} onClick={handleZoomOut} title="Zoom out">−</button>
+            <button className={`${styles.toolBtn} ${styles.zoomReset}`} onClick={handleZoomReset} title="Reset zoom">100%</button>
+            <span className={styles.zoomValue}>{Math.round(canvasZoom * 100)}%</span>
+          </div>
         </div>
 
         {/* Side Panel */}
@@ -2092,14 +2253,17 @@ export default function DesignerPage() {
 
           <div className={styles.toolsRow}>
             {/* ── Color Palette (primary tool) ─────────────────── */}
-            <div ref={colorToolBoxRef} className={`${styles.panelSection} ${styles.toolBox} ${styles.colorToolBox}`}>
+            <div
+              ref={colorToolBoxRef}
+              className={`${styles.panelSection} ${styles.toolBox} ${styles.colorToolBox} ${!isAdmin ? styles.customerColorToolBox : ''}`}
+            >
               <h3 className={styles.paletteHeading}>🎨 Pick a Color</h3>
 
               {/* Active color indicator */}
               <div className={styles.activeColorRow}>
                 <div
                   className={styles.activeColorSwatch}
-                  style={{ background: selectedColor }}
+                  style={{ '--active-color': selectedColor }}
                   title="Current active color"
                 />
                 <span className={styles.activeColorLabel}>Active color — click any section to fill</span>
@@ -2111,7 +2275,7 @@ export default function DesignerPage() {
                   <div
                     key={c}
                     className={`${styles.paletteCell} ${selectedColor === c ? styles.paletteCellActive : ''}`}
-                    style={{ background: c }}
+                    style={{ '--swatch-color': c }}
                     onClick={() => {
                       selectedColorRef.current = c;
                       setSelectedColor(c);
@@ -2119,6 +2283,33 @@ export default function DesignerPage() {
                     title={c}
                   />
                 ))}
+              </div>
+
+              <div className={styles.paletteActions}>
+                <button
+                  type="button"
+                  className={`${styles.paletteActionBtn} ${styles.removeColorBtn}`}
+                  onClick={() => {
+                    selectedColorRef.current = '#ffffff';
+                    setSelectedColor('#ffffff');
+                    setActiveGlassType(null);
+                  }}
+                  title="Remove color from a section (fills with white)"
+                >
+                  Remove Color
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.paletteActionBtn} ${styles.clearGlassActionBtn}`}
+                  onClick={() => {
+                    selectedColorRef.current = CLEAR_GLASS_COLOR;
+                    setSelectedColor(CLEAR_GLASS_COLOR);
+                    setActiveGlassType(null);
+                  }}
+                  title="Pick clear-glass color (no texture)"
+                >
+                  Clear Glass
+                </button>
               </div>
 
               {/* Custom color picker — native input, no library warnings */}
@@ -2141,8 +2332,8 @@ export default function DesignerPage() {
               </p>
             </div>
 
-            {/* Glass Types Picker */}
-            {glassTypes.length > 0 && (
+            {/* Glass Types Picker (admin only) */}
+            {isAdmin && glassTypes.length > 0 && (
               <div
                 className={`${styles.panelSection} ${styles.toolBox} ${styles.glassToolBox}`}
                 style={syncedToolBoxHeight ? { height: `${syncedToolBoxHeight}px` } : undefined}
@@ -2219,7 +2410,7 @@ export default function DesignerPage() {
                 <div className={styles.colorPreview} style={{ background: selectedObj.fill }} />
                 <div>
                   <span className={styles.meta}>{selectedObj.fill}</span>
-                  {selectedObj.glassType && (
+                  {isAdmin && selectedObj.glassType && (
                     <span className={styles.lastGlassLabel}>Glass: {selectedObj.glassType}</span>
                   )}
                 </div>

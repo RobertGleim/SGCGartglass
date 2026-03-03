@@ -176,6 +176,21 @@
 .loginPrompt { background: #edf3ff; border-color: #b7caef; color: #1f2f4d; }
 .loginPrompt:hover { background: #dce8ff; }
 .spacer { flex: 1; }
+.zoomBtn {
+  min-width: 34px;
+  padding: 0.4rem 0.55rem;
+  font-weight: 700;
+}
+.zoomReset {
+  padding: 0.4rem 0.55rem;
+}
+.zoomValue {
+  min-width: 3.4rem;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1f2f4d;
+}
 
 /* Work area */
 .workArea {
@@ -184,36 +199,79 @@
   overflow: hidden;
 }
 .canvasWrapper {
-  flex: 1;
+  flex: 0 0 auto;
   position: relative;
-  overflow: auto;
   display: flex;
   align-items: flex-start;
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 0.7rem;
   padding: 1.5rem;
   background: #f5ede0;
 }
-.canvasWrapper canvas {
+.canvasViewport {
+  position: relative;
+  width: 840px;
+  height: 600px;
+  overflow: auto;
   border: 2px solid #c8a96e;
-  border-radius: 4px;
+  border-radius: 6px;
   box-shadow: 0 4px 16px rgba(50,30,10,0.18);
-  max-width: 100%;
+  background: #f7f2ea;
+}
+.canvasScroller {
+  position: relative;
+}
+.canvasStage {
+  position: relative;
+  width: 840px;
+  height: 600px;
+  transform-origin: top left;
+  will-change: transform;
+}
+.canvasWrapper canvas {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  display: block;
+  max-width: none;
   cursor: crosshair;
+}
+
+.zoomRail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.45rem;
+  border: 1px solid #d9c8ac;
+  border-radius: 10px;
+  background: #fffaf5;
+  box-shadow: 0 2px 8px rgba(40, 22, 8, 0.12);
+}
+
+.zoomSliderWrap {
+  height: 220px;
+  width: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.zoomSlider {
+  -webkit-appearance: slider-vertical;
+  appearance: slider-vertical;
+  width: 20px;
+  height: 210px;
+  cursor: pointer;
 }
 
 /* ── Section number labels overlay ── */
 .sectionLabelsOverlay {
   position: absolute;
-  /* Match the canvas position exactly: center-aligned with the same offset as the canvas */
-  top: 1.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-  /* Canvas is 700x500 with 2px border — overlay covers the inner area */
-  width: 700px;
-  max-width: calc(100% - 3rem);
-  aspect-ratio: 700 / 500;
-  /* Offset for the canvas border */
-  margin-top: 2px;
+  top: 2px;
+  left: 2px;
+  width: 840px;
+  height: 600px;
   pointer-events: none;
 }
 .sectionBadge {
@@ -238,7 +296,7 @@
 }
 .hint {
   position: absolute;
-  bottom: 1rem;
+  bottom: 0.75rem;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(44,26,14,0.75);
@@ -321,6 +379,7 @@
   margin-bottom: 0.75rem;
 }
 .activeColorSwatch {
+  --active-color: #c8a96e;
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -329,6 +388,23 @@
   cursor: pointer;
   flex-shrink: 0;
   transition: transform 0.1s;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.25) 34%, rgba(255,255,255,0) 55%),
+    linear-gradient(160deg, rgba(255,255,255,0.58) 0%, rgba(255,255,255,0.14) 36%, rgba(0,0,0,0.18) 100%),
+    var(--active-color);
+}
+.activeColorSwatch::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 8px;
+  width: 60%;
+  height: 34%;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.45);
+  filter: blur(0.5px);
 }
 .activeColorSwatch:hover { transform: scale(1.08); }
 .activeColorLabel {
@@ -343,11 +419,28 @@
   margin-bottom: 0.6rem;
 }
 .paletteCell {
+  --swatch-color: #c8a96e;
   aspect-ratio: 1;
   border-radius: 4px;
   border: 2px solid transparent;
   cursor: pointer;
   transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 28% 22%, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.24) 34%, rgba(255,255,255,0) 56%),
+    linear-gradient(150deg, rgba(255,255,255,0.58) 0%, rgba(255,255,255,0.1) 38%, rgba(0,0,0,0.16) 100%),
+    var(--swatch-color);
+}
+.paletteCell::after {
+  content: '';
+  position: absolute;
+  top: 6%;
+  left: 10%;
+  width: 65%;
+  height: 28%;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.45);
 }
 .paletteCell:hover {
   transform: scale(1.12);
@@ -377,6 +470,108 @@
   font-size: 0.74rem;
   line-height: 1.35;
   color: #6b4c30;
+}
+
+.customerColorToolBox {
+  padding: 0.65rem 0.75rem;
+}
+
+.customerColorToolBox .paletteHeading {
+  margin-bottom: 0.45rem;
+  font-size: 0.92rem !important;
+}
+
+.customerColorToolBox .activeColorRow {
+  margin-bottom: 0.45rem;
+  gap: 0.45rem;
+}
+
+.customerColorToolBox .activeColorSwatch {
+  width: 30px;
+  height: 30px;
+  border-width: 2px;
+}
+
+.customerColorToolBox .activeColorLabel {
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.customerColorToolBox .paletteGrid {
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+  margin-bottom: 0.45rem;
+}
+
+.customerColorToolBox .paletteCell {
+  border-width: 1.5px;
+}
+
+.customerColorToolBox .paletteActions {
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+
+.customerColorToolBox .paletteActionBtn {
+  font-size: 0.72rem;
+  padding: 0.33rem 0.42rem;
+  border-radius: 6px;
+}
+
+.customerColorToolBox .designerDisclaimer {
+  margin-top: 0.4rem;
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+.paletteActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  margin-bottom: 0.6rem;
+}
+
+.paletteActionBtn {
+  border: 1.5px solid #c8a96e;
+  border-radius: 8px;
+  padding: 0.42rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #4b2f14;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.15s, background 0.15s;
+}
+
+.paletteActionBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(44, 26, 14, 0.2);
+}
+
+.removeColorBtn {
+  background: linear-gradient(165deg, #fff 0%, #f3ede6 52%, #e7d9c9 100%);
+}
+
+.clearGlassActionBtn {
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.28) 45%, rgba(255,255,255,0) 70%),
+    linear-gradient(170deg, #eef8ff 0%, #d8ecff 50%, #bfdfff 100%);
+  position: relative;
+  padding-left: 1.65rem;
+}
+
+.clearGlassActionBtn::before {
+  content: '';
+  position: absolute;
+  left: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0.78rem;
+  height: 0.78rem;
+  border-radius: 50%;
+  border: 1px solid rgba(31, 78, 161, 0.35);
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0) 75%),
+    #dff1ff;
 }
 
 /* Last colored piece */
@@ -619,6 +814,159 @@
   }
   .toolsRow {
     flex-direction: column;
+  }
+}
+
+@media (max-width: 1024px) {
+  .designerLayout {
+    height: auto;
+    min-height: calc(100vh - 64px);
+  }
+  .toolbar {
+    gap: 0.4rem;
+    padding: 0.5rem 0.75rem;
+  }
+  .templateName {
+    max-width: 100%;
+    flex: 1 1 100%;
+    order: 99;
+  }
+  .workArea {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+  .canvasWrapper {
+    min-height: 58vh;
+    padding: 1rem;
+    align-items: flex-start;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .canvasViewport {
+    width: calc(100vw - 7.5rem);
+    max-width: 840px;
+    height: clamp(360px, 58vh, 600px);
+  }
+  .zoomRail {
+    flex: 0 0 auto;
+  }
+  .sidePanel {
+    width: 100%;
+    min-width: 0;
+    border-left: none;
+    border-top: 1.5px solid #e0d5c5;
+    padding: 0.65rem;
+    max-height: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 1rem 0.65rem;
+  }
+  .toolBtn {
+    font-size: 0.8rem;
+    padding: 0.35rem 0.65rem;
+  }
+  .zoomValue {
+    min-width: 3rem;
+    font-size: 0.75rem;
+  }
+  .canvasWrapper {
+    padding: 0.75rem;
+    min-height: 50vh;
+    gap: 0.5rem;
+  }
+  .canvasViewport {
+    width: calc(100vw - 6.75rem);
+    height: clamp(320px, 52vh, 520px);
+  }
+  .zoomSliderWrap {
+    height: 170px;
+  }
+  .zoomSlider {
+    height: 160px;
+  }
+  .hint,
+  .imageTemplateHint {
+    font-size: 0.78rem;
+    padding: 0.35rem 0.75rem;
+    white-space: normal;
+  }
+  .panelSection {
+    padding: 0.7rem 0.75rem;
+  }
+  .paletteGrid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  .customerColorToolBox .paletteGrid {
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+  }
+  .customerColorToolBox .paletteActionBtn {
+    font-size: 0.68rem;
+    padding: 0.28rem 0.35rem;
+  }
+  .customerColorToolBox .activeColorSwatch {
+    width: 26px;
+    height: 26px;
+  }
+  .customerColorToolBox .designerDisclaimer {
+    font-size: 0.62rem;
+    line-height: 1.18;
+  }
+  .glassGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .toolbar {
+    justify-content: flex-start;
+  }
+  .spacer {
+    display: none;
+  }
+  .canvasWrapper {
+    padding: 0.5rem;
+    gap: 0.35rem;
+  }
+  .canvasViewport {
+    width: calc(100vw - 5.6rem);
+    height: clamp(280px, 48vh, 440px);
+  }
+  .zoomRail {
+    padding: 0.38rem 0.28rem;
+    gap: 0.35rem;
+  }
+  .zoomSliderWrap {
+    height: 122px;
+    width: 22px;
+  }
+  .zoomSlider {
+    height: 112px;
+    width: 16px;
+  }
+  .paletteGrid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+  .customerColorToolBox .paletteGrid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 3px;
+  }
+  .customerColorToolBox .activeColorLabel {
+    font-size: 0.66rem;
+  }
+  .customerColorToolBox .paletteActionBtn {
+    font-size: 0.64rem;
+    padding: 0.24rem 0.3rem;
+  }
+  .customerColorToolBox .designerDisclaimer {
+    display: none;
+  }
+  .glassGrid {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
