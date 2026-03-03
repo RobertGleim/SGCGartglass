@@ -78,6 +78,33 @@ export default function MyWorkOrders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const disableTemplateContextMenu = (e) => {
+    e.preventDefault();
+  };
+
+  const disableTemplateDrag = (e) => {
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    const handleProtectedShortcuts = (event) => {
+      const key = String(event.key || '').toLowerCase();
+      const withModifier = event.ctrlKey || event.metaKey;
+      const isBlockedCombo = withModifier && (key === 's' || key === 'c' || key === 'x' || key === 'p');
+      const isPrintScreen = key === 'printscreen';
+
+      if (isBlockedCombo || isPrintScreen) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    window.addEventListener('keydown', handleProtectedShortcuts, true);
+    return () => {
+      window.removeEventListener('keydown', handleProtectedShortcuts, true);
+    };
+  }, []);
+
   useEffect(() => {
     async function fetchOrders() {
       setLoading(true);
@@ -116,7 +143,11 @@ export default function MyWorkOrders() {
   const filtered = orders.filter(o => filter === 'all' || normalizeStatus(o?.status) === filter);
 
   return (
-    <div className={styles.page}>
+    <div
+      className={`${styles.page} ${styles.protectedAssets}`}
+      onContextMenu={disableTemplateContextMenu}
+      onDragStart={disableTemplateDrag}
+    >
       <h1>My Work Orders</h1>
       <select value={filter} onChange={e => setFilter(e.target.value)}>
         <option value="all">All</option>

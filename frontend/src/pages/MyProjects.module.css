@@ -3,6 +3,12 @@
   margin: 0 auto;
   padding: 2rem 1rem;
 }
+
+.protectedAssets img,
+.protectedAssets canvas {
+  user-select: none;
+  -webkit-touch-callout: none;
+}
 .controls {
   display: flex;
   gap: 1rem;

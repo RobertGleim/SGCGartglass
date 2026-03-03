@@ -4,6 +4,12 @@
   padding: 2rem 1rem;
 }
 
+.protectedAssets img,
+.protectedAssets canvas {
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .page h1 {
   margin-bottom: 0.5rem;
 }

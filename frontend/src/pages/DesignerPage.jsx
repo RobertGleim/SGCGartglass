@@ -426,6 +426,51 @@ export default function DesignerPage() {
         return tile;
       };
 
+      const createGlossyTileForApply = (color, tileSize = 120) => {
+        const tile = document.createElement('canvas');
+        tile.width = tileSize;
+        tile.height = tileSize;
+        const tCtx = tile.getContext('2d');
+        const parsed = parseInt(String(color || '#000000').replace('#', ''), 16);
+        const baseR = (parsed >> 16) & 0xff;
+        const baseG = (parsed >> 8) & 0xff;
+        const baseB = parsed & 0xff;
+        const isNearWhite = baseR >= 245 && baseG >= 245 && baseB >= 245;
+
+        tCtx.fillStyle = color;
+        tCtx.fillRect(0, 0, tileSize, tileSize);
+
+        const topSheen = tCtx.createLinearGradient(0, 0, 0, tileSize);
+        if (isNearWhite) {
+          topSheen.addColorStop(0, 'rgba(255,255,255,0.42)');
+          topSheen.addColorStop(0.45, 'rgba(255,255,255,0.16)');
+          topSheen.addColorStop(1, 'rgba(0,0,0,0.04)');
+        } else {
+          topSheen.addColorStop(0, 'rgba(255,255,255,0.62)');
+          topSheen.addColorStop(0.34, 'rgba(255,255,255,0.22)');
+          topSheen.addColorStop(0.72, 'rgba(255,255,255,0.06)');
+          topSheen.addColorStop(1, 'rgba(0,0,0,0.18)');
+        }
+        tCtx.fillStyle = topSheen;
+        tCtx.fillRect(0, 0, tileSize, tileSize);
+
+        const highlight = tCtx.createRadialGradient(tileSize * 0.28, tileSize * 0.2, 1, tileSize * 0.28, tileSize * 0.2, tileSize * 0.6);
+        highlight.addColorStop(0, isNearWhite ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.75)');
+        highlight.addColorStop(0.42, isNearWhite ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.2)');
+        highlight.addColorStop(1, 'rgba(255,255,255,0)');
+        tCtx.fillStyle = highlight;
+        tCtx.fillRect(0, 0, tileSize, tileSize);
+
+        tCtx.globalCompositeOperation = 'screen';
+        tCtx.fillStyle = 'rgba(255,255,255,0.2)';
+        tCtx.beginPath();
+        tCtx.ellipse(tileSize * 0.52, tileSize * 0.28, tileSize * 0.36, tileSize * 0.12, -0.42, 0, Math.PI * 2);
+        tCtx.fill();
+        tCtx.globalCompositeOperation = 'source-over';
+
+        return tile;
+      };
+
       let PatternCtor = null;
       try {
         const fabricMod = await import('fabric');
@@ -452,7 +497,30 @@ export default function DesignerPage() {
         const isBeveled = !!(gt && (gt.name || '').toLowerCase().includes('bevel'));
 
         if (isBeveled) {
-          obj.set('fill', regionData.color);
+          const bounds = typeof obj.getBoundingRect === 'function' ? obj.getBoundingRect() : { width: 40, height: 40 };
+          const avgSize = (bounds.width + bounds.height) / 2;
+          const strokeWidth = Math.max(3, avgSize * 0.07);
+          const parsedColor = parseInt(String(regionData.color || '#000000').replace('#', ''), 16);
+          const r = (parsedColor >> 16) & 0xff;
+          const g = (parsedColor >> 8) & 0xff;
+          const b = parsedColor & 0xff;
+          const lighter = `rgba(${Math.min(255, r + 72)}, ${Math.min(255, g + 72)}, ${Math.min(255, b + 72)}, 0.78)`;
+          const glossyTile = createGlossyTileForApply(regionData.color);
+          const beveledFill = PatternCtor
+            ? new PatternCtor({ source: glossyTile, repeat: 'repeat' })
+            : regionData.color;
+
+          obj.set({
+            fill: beveledFill,
+            stroke: lighter,
+            strokeWidth,
+            strokeLineJoin: 'round',
+            strokeLineCap: 'round',
+            paintFirst: 'fill',
+            shadow: null,
+          });
+          obj._hasBevel = true;
+          obj._bevelColor = regionData.color;
         } else if (texImg && PatternCtor) {
           const tile = createTexturedTile(regionData.color, texImg);
           obj.set('fill', new PatternCtor({ source: tile, repeat: 'repeat' }));
@@ -702,25 +770,58 @@ export default function DesignerPage() {
 
       const imageData = ctx.getImageData(0, 0, w, h);
       const data = imageData.data;
+      const isNearWhite = baseR >= 245 && baseG >= 245 && baseB >= 245;
 
       for (const pi of pixels) {
         const x = pi % w;
         const y = (pi - x) / w;
         const ci = pi * 4;
 
-        let r = baseR;
-        let g = baseG;
-        let b = baseB;
+        const nx = (x - minX) / bboxW;
+        const ny = (y - minY) / bboxH;
+
+        const topHighlight = Math.max(0, 1 - ny * 1.7) * 0.3;
+        const leftHighlight = Math.max(0, 1 - nx * 2.0) * 0.09;
+        const specDx = nx - 0.28;
+        const specDy = ny - 0.2;
+        const specular = Math.max(0, 1 - ((specDx * specDx) / 0.05 + (specDy * specDy) / 0.035)) * 0.35;
+        const bodyShadow = (nx * 0.12) + (ny * 0.16);
+
+        const lighten = topHighlight + leftHighlight + specular;
+        const darken = bodyShadow;
+
+        let r = Math.round(baseR + (255 - baseR) * lighten - baseR * darken);
+        let g = Math.round(baseG + (255 - baseG) * lighten - baseG * darken);
+        let b = Math.round(baseB + (255 - baseB) * lighten - baseB * darken);
+
+        if (isNearWhite) {
+          r = Math.min(255, Math.round(r + 4));
+          g = Math.min(255, Math.round(g + 4));
+          b = Math.min(255, Math.round(b + 4));
+        }
 
         const d = dist[pi];
         if (d >= 0 && d <= bevelDepth) {
           const edgeStrength = 1 - (d / (bevelDepth + 1));
           const falloff = edgeStrength * edgeStrength;
-          const edgeShadow = Math.round(90 * falloff);
-          r = Math.max(0, Math.min(255, baseR - edgeShadow));
-          g = Math.max(0, Math.min(255, baseG - edgeShadow));
-          b = Math.max(0, Math.min(255, baseB - edgeShadow));
+          const edgeShadow = Math.round(82 * falloff);
+          r -= edgeShadow;
+          g -= edgeShadow;
+          b -= edgeShadow;
+
+          const bevelHighlightZone = bevelDepth * 0.58;
+          if (d <= bevelHighlightZone) {
+            const bevelHighlight = (1 - (d / (bevelHighlightZone + 1))) * Math.max(0, 1 - (nx * 0.9 + ny * 1.1));
+            const boost = Math.round(68 * bevelHighlight);
+            r += boost;
+            g += boost;
+            b += boost;
+          }
         }
+
+        r = Math.max(0, Math.min(255, r));
+        g = Math.max(0, Math.min(255, g));
+        b = Math.max(0, Math.min(255, b));
 
         data[ci] = r;
         data[ci + 1] = g;
@@ -964,16 +1065,27 @@ export default function DesignerPage() {
       
       // Create lighter and darker versions for bevel effect
       const lighter = `rgba(${Math.min(255, r + 80)}, ${Math.min(255, g + 80)}, ${Math.min(255, b + 80)}, 0.8)`;
-      const darker = `rgba(${Math.max(0, r - 70)}, ${Math.max(0, g - 70)}, ${Math.max(0, b - 70)}, 0.7)`;
       
       // Get object size for proportional bevel width
       const bounds = fabricObj.getBoundingRect();
       const avgSize = (bounds.width + bounds.height) / 2;
       const strokeWidth = Math.max(4, avgSize * 0.08); // 8% of average dimension
       
-      // Set base fill color (no shadow or effects on interior)
+      const glossyTile = createGlossyTile(color, 120);
+      let PatternCtor = null;
+      try {
+        const fabricMod = await import('fabric');
+        PatternCtor = fabricMod.Pattern;
+      } catch {
+        PatternCtor = null;
+      }
+      const beveledFill = PatternCtor
+        ? new PatternCtor({ source: glossyTile, repeat: 'repeat' })
+        : color;
+
+      // Set glossy fill + beveled edge effect
       fabricObj.set({
-        fill: color,
+        fill: beveledFill,
         stroke: lighter,  // Light stroke on edges
         strokeWidth: strokeWidth,
         strokeLineJoin: 'round',
@@ -2194,12 +2306,43 @@ export default function DesignerPage() {
     };
   }, [selectedLegendNumber, fillVersion]);
 
+  const disableTemplateContextMenu = useCallback((e) => {
+    e.preventDefault();
+  }, []);
+
+  const disableTemplateDrag = useCallback((e) => {
+    e.preventDefault();
+  }, []);
+
+  useEffect(() => {
+    const handleProtectedShortcuts = (event) => {
+      const key = String(event.key || '').toLowerCase();
+      const withModifier = event.ctrlKey || event.metaKey;
+      const isBlockedCombo = withModifier && (key === 's' || key === 'c' || key === 'x' || key === 'p');
+      const isPrintScreen = key === 'printscreen';
+
+      if (isBlockedCombo || isPrintScreen) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    window.addEventListener('keydown', handleProtectedShortcuts, true);
+    return () => {
+      window.removeEventListener('keydown', handleProtectedShortcuts, true);
+    };
+  }, []);
+
   // ═══════════════════════════════════════
   //  GALLERY VIEW
   // ═══════════════════════════════════════
   if (step === STEP.GALLERY) {
     return (
-      <div className={styles.page}>
+      <div
+        className={`${styles.page} ${styles.protectedAssets}`}
+        onContextMenu={disableTemplateContextMenu}
+        onDragStart={disableTemplateDrag}
+      >
         <div className={styles.galleryHeader}>
           <h1>Stained Glass Designer</h1>
           <p>Choose a template to start designing or begin with a blank canvas.</p>
@@ -2314,7 +2457,11 @@ export default function DesignerPage() {
   //  DESIGNER VIEW
   // ═══════════════════════════════════════
   return (
-    <div className={styles.designerLayout}>
+    <div
+      className={`${styles.designerLayout} ${styles.protectedAssets}`}
+      onContextMenu={disableTemplateContextMenu}
+      onDragStart={disableTemplateDrag}
+    >
 
       {/* ── Toolbar ─────────────────────────────────── */}
       <div className={styles.toolbar}>
