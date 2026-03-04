@@ -257,6 +257,8 @@ def create_app(config_name=None):
                     "image_data":    "BYTEA",
                     "image_mime":    "VARCHAR(50)",
                     "default_design_data": "JSON",
+                    "is_private": "BOOLEAN DEFAULT FALSE",
+                    "assigned_customer_id": "INTEGER",
                 }
                 for col, col_type in additions.items():
                     if col not in existing:

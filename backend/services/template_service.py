@@ -194,6 +194,31 @@ def validate_template_data(data: Any) -> tuple[bool, dict[str, Any], str]:
                 normalized_sections[section_id.strip()] = normalized_entry
             default_design_data = {"sections": normalized_sections}
 
+    is_private = payload.get("is_private")
+    if is_private is not None:
+        if isinstance(is_private, bool):
+            pass
+        elif isinstance(is_private, str):
+            is_private = is_private.strip().lower() in ("1", "true", "yes", "on")
+        else:
+            is_private = bool(is_private)
+    else:
+        is_private = False
+
+    assigned_customer_id = payload.get("assigned_customer_id")
+    if assigned_customer_id is not None and assigned_customer_id != "":
+        try:
+            assigned_customer_id = int(assigned_customer_id)
+            if assigned_customer_id <= 0:
+                return False, {}, "assigned_customer_id must be a positive integer"
+        except (ValueError, TypeError):
+            return False, {}, "assigned_customer_id must be an integer"
+    else:
+        assigned_customer_id = None
+
+    if not is_private:
+        assigned_customer_id = None
+
     normalized = {
         "name": name,
         "description": description,
@@ -206,6 +231,8 @@ def validate_template_data(data: Any) -> tuple[bool, dict[str, Any], str]:
         "template_type": template_type,
         "image_url": image_url,
         "default_design_data": default_design_data,
+        "is_private": is_private,
+        "assigned_customer_id": assigned_customer_id,
     }
     if svg_content is not None:
         normalized["svg_content"] = svg_content

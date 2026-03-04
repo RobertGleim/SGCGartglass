@@ -397,6 +397,16 @@ def admin_send_template_to_customer(customer_id):
     if not template or not template.is_active:
         return jsonify({'error': 'Template not found.'}), 404
 
+    is_direct_message = (template.category or '').strip().lower() == 'direct message'
+    if template.is_private and template.assigned_customer_id and int(template.assigned_customer_id) != int(customer_id):
+        return jsonify({'error': 'template_assigned_to_another_customer'}), 400
+    if is_direct_message or template.is_private:
+        template.is_private = True
+        if not template.assigned_customer_id:
+            template.assigned_customer_id = customer_id
+        if int(template.assigned_customer_id) != int(customer_id):
+            return jsonify({'error': 'template_assigned_to_another_customer'}), 400
+
     project_name = (payload.get('project_name') or '').strip() or f"{template.name} - Admin Draft"
     design_data = payload.get('design_data') if isinstance(payload.get('design_data'), dict) else {}
 

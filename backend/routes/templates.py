@@ -6,6 +6,7 @@ from sqlalchemy import func
 from werkzeug.utils import secure_filename
 
 from ..models import db, Template, TemplateRegion
+from ..auth import decode_token
 from ..services.template_service import (
     validate_template_data,
     parse_svg_regions,
@@ -28,6 +29,40 @@ def _require_admin(handler):
     return handler
 
 
+def _get_request_auth_payload():
+    auth_header = (request.headers.get("Authorization") or "").strip()
+    if not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header.split(" ", 1)[1].strip()
+    if not token:
+        return None
+    try:
+        return decode_token(token)
+    except Exception:
+        return None
+
+
+def _is_private_template(template: Template) -> bool:
+    category = (template.category or "").strip().lower()
+    return bool(template.is_private) or category == "direct message"
+
+
+def _can_access_template(template: Template, auth_payload: dict | None) -> bool:
+    if not _is_private_template(template):
+        return True
+    if not auth_payload:
+        return False
+    role = auth_payload.get("role")
+    if role != "customer":
+        return True
+    customer_id = auth_payload.get("customer_id")
+    try:
+        customer_id = int(customer_id)
+    except (TypeError, ValueError):
+        return False
+    return bool(template.assigned_customer_id and int(template.assigned_customer_id) == customer_id)
+
+
 @templates_bp.get("/templates")
 def list_templates():
     """
@@ -42,10 +77,23 @@ def list_templates():
 
         limit = max(1, min(limit, MAX_LIMIT))
         offset = max(0, offset)
+        auth_payload = _get_request_auth_payload()
+        role = auth_payload.get("role") if isinstance(auth_payload, dict) else None
+        is_admin = bool(auth_payload) and role != "customer"
+        customer_id = auth_payload.get("customer_id") if role == "customer" else None
 
         q = Template.query.filter(Template.is_active.is_(True))
         if category:
             q = q.filter(func.lower(Template.category) == func.lower(category))
+
+        direct_message_filter = func.lower(func.coalesce(Template.category, "")) == "direct message"
+        public_filter = Template.is_private.is_(False) & (~direct_message_filter)
+        if not is_admin:
+            if customer_id is not None:
+                q = q.filter(public_filter | (Template.assigned_customer_id == customer_id))
+            else:
+                q = q.filter(public_filter)
+
         q = q.order_by(Template.updated_at.desc(), Template.id.desc())
         total = q.count()
         items = q.offset(offset).limit(limit).all()
@@ -72,6 +120,9 @@ def get_template(template_id):
             Template.is_active.is_(True),
         ).first()
         if not template:
+            return jsonify({"error": "not_found", "detail": "Template not found"}), 404
+        auth_payload = _get_request_auth_payload()
+        if not _can_access_template(template, auth_payload):
             return jsonify({"error": "not_found", "detail": "Template not found"}), 404
         return jsonify(template.to_dict(include_regions=True, include_svg=True))
     except Exception as e:
@@ -228,6 +279,8 @@ def create_template():
             image_mime=image_mime,
             template_type=template_type,
             default_design_data=data.get("default_design_data"),
+            is_private=data.get("is_private", False),
+            assigned_customer_id=data.get("assigned_customer_id"),
             thumbnail_url=data.get("thumbnail_url"),
             is_active=data.get("is_active", True),
         )
@@ -272,13 +325,15 @@ def update_template(template_id):
             "image_url": template.image_url,
             "template_type": template.template_type,
             "default_design_data": template.default_design_data,
+            "is_private": template.is_private,
+            "assigned_customer_id": template.assigned_customer_id,
             "thumbnail_url": template.thumbnail_url,
             "is_active": template.is_active,
         }
         # Only include existing svg_content if it's non-empty (skip for image templates)
         if template.svg_content:
             merged["svg_content"] = template.svg_content
-        merged.update({k: v for k, v in payload.items() if k in merged or k in ("is_active", "difficulty", "dimensions", "piece_count", "svg_content", "image_url", "default_design_data")})
+        merged.update({k: v for k, v in payload.items() if k in merged or k in ("is_active", "difficulty", "dimensions", "piece_count", "svg_content", "image_url", "default_design_data", "is_private", "assigned_customer_id")})
         ok, data, err = validate_template_data(merged)
         if not ok:
             return jsonify({"error": "validation_error", "detail": err}), 400
@@ -292,6 +347,10 @@ def update_template(template_id):
             template.piece_count = data["piece_count"]
         if "default_design_data" in data:
             template.default_design_data = data.get("default_design_data")
+        if "is_private" in data:
+            template.is_private = bool(data.get("is_private"))
+        if "assigned_customer_id" in data:
+            template.assigned_customer_id = data.get("assigned_customer_id")
         template.thumbnail_url = data.get("thumbnail_url")
         template.is_active = data.get("is_active", True)
 

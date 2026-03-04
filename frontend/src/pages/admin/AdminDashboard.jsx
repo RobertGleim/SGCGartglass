@@ -797,13 +797,18 @@ export default function AdminDashboard({
         uploadPayload.append("file", sendTemplateForm.uploaded_file);
         const uploadResult = await uploadAdminTemplateImage(uploadPayload);
 
+        const chosenCategory = sendTemplateForm.new_template_category.trim() || "Direct Message";
+        const isDirectMessageTemplate = chosenCategory.toLowerCase() === "direct message";
+
         const createdTemplate = await createAdminTemplate({
           name: sendTemplateForm.new_template_name.trim(),
-          category: sendTemplateForm.new_template_category.trim() || "Direct Message",
+          category: chosenCategory,
           template_type: "image",
           image_url: uploadResult.image_url,
           thumbnail_url: uploadResult.image_url,
           is_active: true,
+          is_private: isDirectMessageTemplate,
+          assigned_customer_id: isDirectMessageTemplate ? editingCustomer.id : null,
         });
 
         templateId = createdTemplate?.id || null;

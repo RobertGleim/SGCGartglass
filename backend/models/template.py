@@ -27,6 +27,8 @@ class Template(db.Model):
     image_mime = db.Column(db.String(50), nullable=True)      # e.g. 'image/png'
     template_type = db.Column(db.String(20), nullable=False, default='svg')  # 'svg' or 'image'
     default_design_data = db.Column(db.JSON, nullable=True)
+    is_private = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    assigned_customer_id = db.Column(db.Integer, nullable=True, index=True)
     thumbnail_url = db.Column(db.String(500), nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
@@ -68,6 +70,8 @@ class Template(db.Model):
             "template_type": self.template_type or 'svg',
             "image_url": self.image_url,
             "default_design_data": self.default_design_data if isinstance(self.default_design_data, dict) else None,
+            "is_private": bool(self.is_private),
+            "assigned_customer_id": self.assigned_customer_id,
             "thumbnail_url": self.thumbnail_url,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
