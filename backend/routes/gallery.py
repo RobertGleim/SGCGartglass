@@ -64,6 +64,22 @@ def _normalize_display_name(value):
     return normalized[:120]
 
 
+def _get_public_base_url():
+    forwarded_proto = (request.headers.get("X-Forwarded-Proto") or "").strip()
+    forwarded_host = (request.headers.get("X-Forwarded-Host") or "").strip()
+    if forwarded_proto and forwarded_host:
+        return f"{forwarded_proto}://{forwarded_host}".rstrip("/")
+    return request.url_root.rstrip("/")
+
+
+def _with_absolute_image_url(item):
+    output = dict(item)
+    image_url = output.get("image_url")
+    if image_url and isinstance(image_url, str) and image_url.startswith("/"):
+        output["image_url"] = f"{_get_public_base_url()}{image_url}"
+    return output
+
+
 def _serialize_list(query, include_admin_fields=False):
     items = query.order_by(GalleryPhoto.created_at.desc(), GalleryPhoto.id.desc()).all()
     categories = sorted({item.category for item in items if item.category})
@@ -72,7 +88,7 @@ def _serialize_list(query, include_admin_fields=False):
         key=lambda template: template.name.lower(),
     )
     return {
-        "items": [item.to_dict(include_admin_fields=include_admin_fields) for item in items],
+        "items": [_with_absolute_image_url(item.to_dict(include_admin_fields=include_admin_fields)) for item in items],
         "categories": categories,
         "templates": [{"id": template.id, "name": template.name} for template in templates],
     }
@@ -182,7 +198,7 @@ def create_gallery_photo():
     db.session.commit()
     return jsonify({
         "submission_group_id": submission_group_id,
-        "items": [photo.to_dict(include_admin_fields=True) for photo in created_photos],
+        "items": [_with_absolute_image_url(photo.to_dict(include_admin_fields=True)) for photo in created_photos],
     }), 201
 
 
@@ -271,7 +287,7 @@ def admin_update_gallery_photo(photo_id):
             fallback.is_cover = True
 
     db.session.commit()
-    return jsonify(photo.to_dict(include_admin_fields=True))
+    return jsonify(_with_absolute_image_url(photo.to_dict(include_admin_fields=True)))
 
 
 @admin_gallery_bp.delete("/gallery/photos/<int:photo_id>")

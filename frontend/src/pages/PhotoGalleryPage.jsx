@@ -12,6 +12,21 @@ const getInitialTemplateIdFromHash = () => {
   return params.get('template_id') || params.get('template') || '';
 };
 
+const getApiOrigin = () => {
+  const configuredBase = import.meta.env.VITE_API_BASE_URL || '/api';
+  if (/^https?:\/\//i.test(configuredBase)) {
+    return configuredBase.replace(/\/api\/?$/, '');
+  }
+  return window.location.origin;
+};
+
+const resolveGalleryImageUrl = (value) => {
+  if (!value) return '';
+  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+  if (value.startsWith('/')) return `${getApiOrigin()}${value}`;
+  return `${getApiOrigin()}/${value}`;
+};
+
 export default function PhotoGalleryPage() {
   const { authToken } = useAuth();
   const { customerToken } = useCustomerAuth();
@@ -354,7 +369,7 @@ export default function PhotoGalleryPage() {
                   {group.photos.slice(0, 3).map((photo, index) => (
                     <img
                       key={photo.id}
-                      src={photo.image_url}
+                      src={resolveGalleryImageUrl(photo.image_url)}
                       alt={group.panel_name}
                       className={styles.cardImage}
                       style={{ zIndex: 10 - index, transform: `translate(${index * 8}px, ${index * 6}px)` }}
@@ -506,7 +521,7 @@ export default function PhotoGalleryPage() {
             <div className={styles.viewerContent}>
               <div className={styles.viewerVisual}>
                 <img
-                  src={activeViewerPhoto?.image_url}
+                  src={resolveGalleryImageUrl(activeViewerPhoto?.image_url)}
                   alt={activeViewerPhoto?.panel_name || 'Gallery photo'}
                   className={styles.viewerImage}
                 />

@@ -10,6 +10,21 @@ import styles from './GalleryManagement.module.css';
 
 const ADMIN_DEFAULT_DISPLAY_NAME = 'SGCG Art';
 
+const getApiOrigin = () => {
+  const configuredBase = import.meta.env.VITE_API_BASE_URL || '/api';
+  if (/^https?:\/\//i.test(configuredBase)) {
+    return configuredBase.replace(/\/api\/?$/, '');
+  }
+  return window.location.origin;
+};
+
+const resolveGalleryImageUrl = (value) => {
+  if (!value) return '';
+  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+  if (value.startsWith('/')) return `${getApiOrigin()}${value}`;
+  return `${getApiOrigin()}/${value}`;
+};
+
 export default function GalleryManagement() {
   const [photos, setPhotos] = useState([]);
   const [templates, setTemplates] = useState([]);
@@ -403,7 +418,7 @@ export default function GalleryManagement() {
                 onClick={() => openGroupModal(group)}
               >
                 <img
-                  src={(group.photos.find((photo) => photo.is_cover) || group.photos[0])?.image_url}
+                  src={resolveGalleryImageUrl((group.photos.find((photo) => photo.is_cover) || group.photos[0])?.image_url)}
                   alt={group.panel_name}
                   className={styles.listThumb}
                 />
@@ -615,7 +630,7 @@ export default function GalleryManagement() {
             <div className={styles.modalStackList}>
               {modalPhotos.map((photo) => (
                 <div key={photo.id} className={styles.modalPhotoRow}>
-                  <img src={photo.image_url} alt="Submission" className={styles.modalPhotoThumb} />
+                  <img src={resolveGalleryImageUrl(photo.image_url)} alt="Submission" className={styles.modalPhotoThumb} />
                   <div className={styles.modalPhotoMeta}>
                     <span className={styles.listTime}>Added: {formatTimestamp(photo.created_at)}</span>
                     <label>
