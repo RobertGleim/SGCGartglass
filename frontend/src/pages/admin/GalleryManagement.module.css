@@ -402,4 +402,90 @@
     grid-template-columns: 30px 1fr;
     grid-auto-rows: auto;
   }
+
+  .listPanelName,
+  .listTime {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .modal {
+    width: min(920px, 98vw);
+    max-height: 92vh;
+  }
+
+  .modalActionsRow {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .addPhotoLaunchRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .addPhotoLaunchRow .button {
+    width: 100%;
+  }
+
+  .modalPhotoRow {
+    grid-template-columns: 1fr;
+  }
+
+  .modalPhotoThumb {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    max-width: 180px;
+  }
+
+  .photoToggleRow {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
+
+  .actions .button,
+  .modalActionsRow .button {
+    flex: 1 1 140px;
+  }
+
+  .compactRow {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+
+  .listCount,
+  .listTime {
+    grid-column: 2;
+  }
+
+  .listPanelName {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .modalHeader {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .section {
+    padding: 0.7rem;
+  }
+
+  .modal {
+    padding: 0.75rem;
+  }
+
+  .previewGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

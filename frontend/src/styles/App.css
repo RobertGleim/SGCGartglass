@@ -1146,6 +1146,163 @@
   border-top: 1px solid rgba(31, 78, 161, 0.1);
 }
 
+@media (max-width: 1024px) {
+  .dashboard-header {
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .dashboard-tabs {
+    flex-wrap: wrap;
+    border-bottom: none;
+    gap: 0.5rem;
+  }
+
+  .tab {
+    flex: 1 1 calc(33.333% - 0.5rem);
+    padding: 0.75rem 1rem;
+    margin-bottom: 0;
+    border: 1px solid rgba(31, 78, 161, 0.15);
+    border-radius: 10px;
+  }
+
+  .tab.active {
+    border-color: #1f4ea1;
+    background: rgba(31, 78, 161, 0.06);
+  }
+
+  .panel-section {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-dashboard {
+    width: 100%;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+  }
+
+  .dashboard-header h2 {
+    font-size: 1.55rem;
+  }
+
+  .dashboard-tabs {
+    margin-bottom: 1.25rem;
+  }
+
+  .tab {
+    flex: 1 1 calc(50% - 0.5rem);
+  }
+
+  .tab-panel {
+    gap: 1rem;
+  }
+
+  .panel-section {
+    padding: 1rem;
+    border-radius: 14px;
+  }
+
+  .panel-section h3 {
+    font-size: 1.15rem;
+    margin-bottom: 1rem;
+  }
+
+  .product-row {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: start;
+  }
+
+  .product-thumb {
+    width: 52px;
+    height: 52px;
+  }
+
+  .product-details {
+    min-width: 0;
+  }
+
+  .product-details h4 {
+    flex-wrap: wrap;
+    line-height: 1.2;
+  }
+
+  .product-meta {
+    overflow-wrap: anywhere;
+  }
+
+  .product-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .modal-header {
+    padding: 1rem 1rem 0.75rem;
+  }
+
+  .modal-header h2 {
+    font-size: 1.2rem;
+    padding-right: 0.5rem;
+  }
+
+  .modal-form {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .modal-actions .button {
+    width: 100%;
+  }
+
+  .inline-form input {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .dashboard-header h2 {
+    font-size: 1.35rem;
+  }
+
+  .tab {
+    flex: 1 1 100%;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .button-icon {
+    padding: 0.45rem 0.55rem;
+  }
+
+  .featured-badge {
+    font-size: 0.68rem;
+  }
+}
+
 @keyframes modal-slide-up {
   from {
     opacity: 0;

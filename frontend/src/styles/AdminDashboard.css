@@ -549,20 +549,53 @@
 
 /* Small phones (375px+) */
 @media (min-width: 375px) {
-  /* Responsive adjustments */
+  .search-input {
+    max-width: 100%;
+  }
 }
 
 /* Large phones (480px+) */
 @media (min-width: 480px) {
-  /* Responsive adjustments */
+  .image-grid {
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  }
 }
 
 /* Tablets (768px+) */
 @media (min-width: 768px) {
-  /* Responsive adjustments */
+  .size-inputs,
+  .price-quantity-inputs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* Desktop (1024px+) */
 @media (min-width: 1024px) {
-  /* Responsive adjustments */
+  .size-inputs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .multi-select-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .multi-select-row {
+    align-items: stretch;
+  }
+
+  .input-button-row {
+    flex-direction: column;
+  }
+
+  .input-button-row .multi-select-add-btn,
+  .multi-select-add-btn {
+    width: 100%;
+  }
+
+  .watermark-input-group input {
+    max-width: 100%;
+  }
 }

@@ -302,3 +302,134 @@
 .designerBtnLarge:hover {
   background: #0d47a1;
 }
+
+@media (max-width: 1024px) {
+  .filters {
+    align-items: stretch;
+  }
+
+  .filters > * {
+    flex: 1 1 180px;
+    min-width: 0;
+  }
+
+  .table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .modalGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 1.25rem 0.75rem;
+  }
+
+  .summary {
+    gap: 0.75rem;
+  }
+
+  .card {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    font-size: 1rem;
+  }
+
+  .thumbCell {
+    width: 50px;
+    height: 50px;
+  }
+
+  .modalContent {
+    padding: 1.25rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .filters > * {
+    flex: 1 1 100%;
+  }
+
+  .closeBtn {
+    top: 0.5rem;
+    right: 0.5rem;
+  }
+
+  .statusSelect,
+  .statusSelectLarge {
+    width: 100%;
+    max-width: none;
+  }
+
+  .deleteBtn,
+  .designerBtn {
+    margin-left: 0;
+    margin-top: 0.25rem;
+    display: inline-block;
+  }
+}
+
+@media (max-width: 760px) {
+  .table,
+  .table thead,
+  .table tbody,
+  .table tr,
+  .table th,
+  .table td {
+    display: block;
+    width: 100%;
+  }
+
+  .table {
+    white-space: normal;
+    overflow: visible;
+  }
+
+  .table thead {
+    display: none;
+  }
+
+  .table tr {
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 0.65rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .table td {
+    border: none;
+    padding: 0.35rem 0;
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .table td::before {
+    font-weight: 600;
+    color: #4d4d4d;
+    font-size: 0.85rem;
+  }
+
+  .table td:nth-child(1)::before { content: "Preview"; }
+  .table td:nth-child(2)::before { content: "Order"; }
+  .table td:nth-child(3)::before { content: "Customer"; }
+  .table td:nth-child(4)::before { content: "Project"; }
+  .table td:nth-child(5)::before { content: "Status"; }
+  .table td:nth-child(6)::before { content: "Date"; }
+  .table td:nth-child(7)::before { content: "Actions"; }
+
+  .table td:last-child button {
+    width: 100%;
+    margin: 0.2rem 0 0;
+  }
+
+  .thumbCell {
+    width: 56px;
+    height: 56px;
+  }
+}
