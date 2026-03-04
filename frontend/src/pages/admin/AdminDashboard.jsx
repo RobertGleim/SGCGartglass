@@ -4,6 +4,7 @@ import { fetchCustomers } from "../../services/api.js";
 import TemplateManagement from "./TemplateManagement";
 import GlassTypeManagement from "./GlassTypeManagement";
 import WorkOrderDashboard from "./WorkOrderDashboard";
+import GalleryManagement from "./GalleryManagement";
 import "../../styles/AdminDashboard.css";
 import "../../styles/forms/stainedglass_form.css";
 import "../../styles/forms/woodwork_form.css";
@@ -621,6 +622,12 @@ export default function AdminDashboard({
         >
           Work Orders
         </button>
+        <button
+          className={`tab ${activeTab === "gallery" ? "active" : ""}`}
+          onClick={() => setActiveTab("gallery")}
+        >
+          Photo Gallery
+        </button>
         {/*
         <button
           className={`tab ${activeTab === 'etsy' ? 'active' : ''}`}
@@ -907,6 +914,12 @@ export default function AdminDashboard({
         {activeTab === "work-orders" && (
           <div className="tab-panel">
             <WorkOrderDashboard />
+          </div>
+        )}
+
+        {activeTab === "gallery" && (
+          <div className="tab-panel">
+            <GalleryManagement />
           </div>
         )}
       </div>

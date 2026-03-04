@@ -30,6 +30,7 @@ export default function Header({ brandName, authToken, customerToken }) {
         <a href="#/" onClick={handleNavClick}>Home</a>
         <a href="#/product" onClick={handleNavClick}>Product</a>
         <a href="#/designer" onClick={handleNavClick}>Designer</a>
+        <a href="#/gallery" onClick={handleNavClick}>Photo Gallery</a>
         {authToken ? (
           <a href="#/admin" onClick={handleNavClick}>Admin</a>
         ) : customerToken ? (

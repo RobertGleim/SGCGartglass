@@ -192,4 +192,12 @@ export const getAdminWorkOrderRevisions = (id) => api.get(`/admin/work-orders/${
 export const createAdminRevision = (id, design_data, notes, sendForReview = false) =>
   api.post(`/admin/work-orders/${id}/revisions`, { design_data, notes, send_for_review: sendForReview });
 
+export const getGalleryPhotos = (filters) => api.get('/gallery/photos', { params: filters });
+export const submitGalleryPhoto = (formData) => api.post('/gallery/photos', formData, {
+  headers: { 'Content-Type': 'multipart/form-data' },
+});
+export const getAdminGalleryPhotos = (filters) => api.get('/admin/gallery/photos', { params: filters });
+export const updateAdminGalleryPhoto = (id, payload) => api.put(`/admin/gallery/photos/${id}`, payload);
+export const deleteAdminGalleryPhoto = (id) => api.delete(`/admin/gallery/photos/${id}`);
+
 export default api;

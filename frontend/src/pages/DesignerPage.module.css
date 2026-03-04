@@ -132,6 +132,13 @@
   margin-top: 0.25rem;
   display: block;
 }
+.cardGalleryLink {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: #1f4ea1;
+  text-decoration: underline;
+}
 
 /* ── Designer Layout ──────────────────────── */
 .designerLayout {
@@ -162,6 +169,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.relatedGalleryLink {
+  font-size: 0.82rem;
+  color: #1f4ea1;
+  text-decoration: underline;
+  margin-right: 0.35rem;
 }
 .toolBtn {
   padding: 0.4rem 0.8rem;

@@ -29,6 +29,7 @@ import AdminTemplatesPage from './pages/admin/AdminTemplatesPage';
 import AdminGlassTypesPage from './pages/admin/AdminGlassTypesPage';
 import AdminWorkOrdersPage from './pages/admin/AdminWorkOrdersPage';
 import DiagnosticsPage from './pages/DiagnosticsPage';
+import PhotoGalleryPage from './pages/PhotoGalleryPage';
 
 const BRAND_NAME = 'SGCG Art'
 
@@ -227,6 +228,12 @@ function App() {
       {route.path === '/designer' && (
         <main>
           <DesignerPage />
+        </main>
+      )}
+
+      {route.path === '/gallery' && (
+        <main>
+          <PhotoGalleryPage />
         </main>
       )}
 

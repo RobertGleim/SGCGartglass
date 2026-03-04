@@ -2467,6 +2467,13 @@ export default function DesignerPage() {
                         </span>
                       )}
                       {t.piece_count && <span className={styles.meta}>{t.piece_count} pieces</span>}
+                      <a
+                        href={`#/gallery?template_id=${t.id}`}
+                        className={styles.cardGalleryLink}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        See linked photos
+                      </a>
                     </div>
                   </div>
                 ))}
@@ -2524,6 +2531,14 @@ export default function DesignerPage() {
             ? `WO: ${workOrderData?.work_order_number || ''} — ${selectedTemplate?.name || 'Design'}`
             : selectedTemplate?.name}
         </span>
+        {selectedTemplate?.id && (
+          <a
+            href={`#/gallery?template_id=${selectedTemplate.id}`}
+            className={styles.relatedGalleryLink}
+          >
+            View linked photos
+          </a>
+        )}
         <button className={styles.toolBtn} onClick={undo}>↩ Undo</button>
         <button className={styles.toolBtn} onClick={redo}>↪ Redo</button>
         <button className={styles.toolBtn} onClick={fillAll} title="Fill all pieces with current color">

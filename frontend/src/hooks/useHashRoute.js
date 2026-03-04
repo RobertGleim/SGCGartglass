@@ -29,6 +29,9 @@ const getRoute = () => {
   if (parts[0] === 'designer') {
     return { path: '/designer', params: {} }
   }
+  if (parts[0] === 'gallery') {
+    return { path: '/gallery', params: {} }
+  }
   if (parts[0] === 'diagnostics') {
     return { path: '/diagnostics', params: {} }
   }

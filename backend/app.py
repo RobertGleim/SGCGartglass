@@ -86,6 +86,14 @@ def create_app(config_name=None):
     except ImportError:
         pass
 
+    # Gallery API
+    try:
+        from .routes import gallery_bp, admin_gallery_bp
+        app.register_blueprint(gallery_bp, url_prefix="/api")
+        app.register_blueprint(admin_gallery_bp, url_prefix="/api/admin")
+    except ImportError:
+        pass
+
     # Serve uploaded textures at /uploads/textures/<filename>
     @app.route("/uploads/textures/<path:filename>")
     def send_texture(filename):
@@ -121,6 +129,33 @@ def create_app(config_name=None):
                 os.makedirs(str(templates_dir), exist_ok=True)
                 with open(str(file_path), 'wb') as fp:
                     fp.write(tmpl.image_data)
+            except Exception:
+                pass
+            return resp
+        return jsonify({'error': 'Image not found'}), 404
+
+    # Serve uploaded gallery images at /uploads/gallery/<filename>
+    # Falls back to database image_data when file is missing (ephemeral FS)
+    @app.route("/uploads/gallery/<path:filename>")
+    def send_gallery_image(filename):
+        from pathlib import Path
+        from flask import send_from_directory, make_response
+        import os
+        gallery_dir = Path(app.root_path) / "uploads" / "gallery"
+        file_path = gallery_dir / filename
+        if file_path.is_file():
+            return send_from_directory(str(gallery_dir), filename)
+        from .models import GalleryPhoto
+        url_path = f"/uploads/gallery/{filename}"
+        photo = GalleryPhoto.query.filter(GalleryPhoto.image_url == url_path).first()
+        if photo and photo.image_data:
+            resp = make_response(photo.image_data)
+            resp.headers['Content-Type'] = photo.image_mime or 'image/png'
+            resp.headers['Cache-Control'] = 'public, max-age=86400'
+            try:
+                os.makedirs(str(gallery_dir), exist_ok=True)
+                with open(str(file_path), 'wb') as fp:
+                    fp.write(photo.image_data)
             except Exception:
                 pass
             return resp
@@ -212,6 +247,30 @@ def create_app(config_name=None):
                         )
                         db.session.commit()
                         app.logger.info(f"Added column: templates.{col}")
+
+            if "gallery_photos" in inspector.get_table_names():
+                gallery_existing = {c["name"] for c in inspector.get_columns("gallery_photos")}
+                gallery_additions = {
+                    "approval_status": "VARCHAR(20) DEFAULT 'pending'",
+                    "submission_group_id": "VARCHAR(64)",
+                }
+                for col, col_type in gallery_additions.items():
+                    if col not in gallery_existing:
+                        db.session.execute(
+                            text(f"ALTER TABLE gallery_photos ADD COLUMN {col} {col_type}")
+                        )
+                        db.session.commit()
+                        app.logger.info(f"Added column: gallery_photos.{col}")
+
+                if "approval_status" in gallery_existing:
+                    db.session.execute(
+                        text("UPDATE gallery_photos SET approval_status = 'approved' WHERE approval_status IS NULL")
+                    )
+                    db.session.commit()
+                db.session.execute(
+                    text("UPDATE gallery_photos SET submission_group_id = CAST(id AS VARCHAR) WHERE submission_group_id IS NULL OR submission_group_id = ''")
+                )
+                db.session.commit()
         except Exception as e:
             app.logger.warning(f"Migration warning: {e}")
 
