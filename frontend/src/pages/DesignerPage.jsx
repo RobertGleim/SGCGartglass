@@ -454,6 +454,108 @@ export default function DesignerPage() {
       return; // flood-fill handled, skip Fabric.js path
     }
 
+    // For image-based templates with section metadata only (template defaults / locks),
+    // repaint from section colors so the canvas visually reflects saved defaults.
+    if (isFloodFillMode.current && canvasRef.current) {
+      const ctx = floodCtxRef.current || canvasRef.current.getContext('2d', { willReadFrequently: true });
+      const regionPixels = regionPixelsRef.current;
+      const baseImage = initialImageRef.current;
+      if (!ctx || !regionPixels || !baseImage) {
+        return;
+      }
+
+      const sectionDataMap = (designData.sections && typeof designData.sections === 'object')
+        ? designData.sections
+        : designData;
+      if (!sectionDataMap || typeof sectionDataMap !== 'object') {
+        return;
+      }
+
+      const labelIdByNum = new Map((sectionLabels || []).map((label) => [Number(label?.num), Number(label?.id)]));
+
+      const parseHexToRgb = (hex) => {
+        const cleaned = String(hex || '#000000').replace('#', '');
+        const normalized = cleaned.length === 3
+          ? `${cleaned[0]}${cleaned[0]}${cleaned[1]}${cleaned[1]}${cleaned[2]}${cleaned[2]}`
+          : cleaned;
+        const parsed = Number.parseInt(normalized, 16);
+        if (!Number.isFinite(parsed)) return [0, 0, 0];
+        return [(parsed >> 16) & 0xff, (parsed >> 8) & 0xff, parsed & 0xff];
+      };
+
+      const resolveRegionId = (sectionId, fill) => {
+        const direct = Number(sectionId);
+        if (Number.isFinite(direct) && direct > 0 && regionPixels.has(direct)) {
+          return direct;
+        }
+
+        const idMatch = String(sectionId || '').match(/^sec-(\d+)$/);
+        const byIdNum = idMatch ? Number(idMatch[1]) : null;
+        const byFillNum = Number(fill?.sectionNum);
+        const sectionNumber =
+          (Number.isFinite(byFillNum) && byFillNum > 0 ? byFillNum : null)
+          || (Number.isFinite(byIdNum) && byIdNum > 0 ? byIdNum : null);
+
+        if (sectionNumber != null) {
+          const mappedRegionId = Number(labelIdByNum.get(sectionNumber));
+          if (Number.isFinite(mappedRegionId) && mappedRegionId > 0 && regionPixels.has(mappedRegionId)) {
+            return mappedRegionId;
+          }
+        }
+
+        return null;
+      };
+
+      const fillRegionFlat = (regionId, color) => {
+        const pixels = regionPixels.get(regionId);
+        if (!pixels || pixels.length === 0) return;
+        const [r, g, b] = parseHexToRgb(color);
+        const imageData = ctx.getImageData(0, 0, CANVAS_BASE_W, CANVAS_BASE_H);
+        const data = imageData.data;
+        for (const pixelIndex of pixels) {
+          const colorIndex = pixelIndex * 4;
+          data[colorIndex] = r;
+          data[colorIndex + 1] = g;
+          data[colorIndex + 2] = b;
+          data[colorIndex + 3] = 255;
+        }
+        ctx.putImageData(imageData, 0, 0);
+      };
+
+      // Start from original unfilled art lines.
+      ctx.putImageData(baseImage, 0, 0);
+
+      Object.entries(sectionDataMap).forEach(([sectionId, fill]) => {
+        if (!fill || typeof fill !== 'object' || !fill.color) return;
+        const regionId = resolveRegionId(sectionId, fill);
+        if (!regionId) return;
+        fillRegionFlat(regionId, fill.color);
+      });
+
+      // Restore original black lead lines after region fills.
+      const mask = lineMaskRef.current;
+      if (mask) {
+        const current = ctx.getImageData(0, 0, CANVAS_BASE_W, CANVAS_BASE_H);
+        const currentPixels = current.data;
+        const basePixels = baseImage.data;
+        for (let i = 0; i < currentPixels.length; i += 4) {
+          if (mask[i / 4]) {
+            currentPixels[i] = basePixels[i];
+            currentPixels[i + 1] = basePixels[i + 1];
+            currentPixels[i + 2] = basePixels[i + 2];
+            currentPixels[i + 3] = basePixels[i + 3];
+          }
+        }
+        ctx.putImageData(current, 0, 0);
+      }
+
+      const snap = ctx.getImageData(0, 0, CANVAS_BASE_W, CANVAS_BASE_H);
+      historyRef.current = [snap];
+      historyIdxRef.current = 0;
+      console.log('[DesignerPage] Applied flood-fill section metadata to canvas:', Object.keys(sectionDataMap).length, 'sections');
+      return;
+    }
+
     // For SVG templates with Fabric.js (only when a real Fabric canvas exists)
     if (fabricRef.current && typeof fabricRef.current.getObjects === 'function') {
       const sectionDataMap = (designData.sections && typeof designData.sections === 'object')
