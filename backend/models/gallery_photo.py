@@ -13,6 +13,9 @@ class GalleryPhoto(db.Model):
     description = db.Column(db.String(200), nullable=True)
     category = db.Column(db.String(100), nullable=True, index=True)
     submission_group_id = db.Column(db.String(64), nullable=True, index=True)
+    is_cover = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    display_name = db.Column(db.String(120), nullable=True)
+    hide_submitter_name = db.Column(db.Boolean, nullable=False, default=False)
     image_url = db.Column(db.String(500), nullable=False)
     image_data = db.Column(db.LargeBinary, nullable=True)
     image_mime = db.Column(db.String(80), nullable=True)
@@ -35,6 +38,9 @@ class GalleryPhoto(db.Model):
             "description": self.description if self.show_description else None,
             "category": self.category,
             "submission_group_id": self.submission_group_id,
+            "is_cover": self.is_cover,
+            "display_name": None if self.hide_submitter_name else self.display_name,
+            "hide_submitter_name": self.hide_submitter_name,
             "image_url": self.image_url,
             "template_id": self.template_id,
             "template_name": template_name,
@@ -46,6 +52,7 @@ class GalleryPhoto(db.Model):
         }
         if include_admin_fields:
             data["raw_description"] = self.description
+            data["raw_display_name"] = self.display_name
             data["created_by_role"] = self.created_by_role
             data["created_by_id"] = self.created_by_id
         return data

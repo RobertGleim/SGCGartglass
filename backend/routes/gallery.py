@@ -57,6 +57,13 @@ def _normalize_description(value):
     return normalized[:200]
 
 
+def _normalize_display_name(value):
+    normalized = (value or "").strip()
+    if not normalized:
+        return None
+    return normalized[:120]
+
+
 def _serialize_list(query, include_admin_fields=False):
     items = query.order_by(GalleryPhoto.created_at.desc(), GalleryPhoto.id.desc()).all()
     categories = sorted({item.category for item in items if item.category})
@@ -101,6 +108,8 @@ def create_gallery_photo():
     panel_name = (request.form.get("panel_name") or "").strip()
     description = _normalize_description(request.form.get("description"))
     category = _normalize_category(request.form.get("category"))
+    display_name = _normalize_display_name(request.form.get("display_name"))
+    hide_submitter_name = str(request.form.get("hide_submitter_name") or "").strip().lower() in {"1", "true", "yes", "on"}
     template_id = request.form.get("template_id", type=int)
 
     if not panel_name:
@@ -126,9 +135,17 @@ def create_gallery_photo():
     approval_status = "pending" if role == "customer" else "approved"
     created_by = payload.get("sub") or str(payload.get("customer_id") or "")
 
+    if not display_name:
+        if role == "customer":
+            email = str(payload.get("sub") or "")
+            guessed = email.split("@", 1)[0].replace(".", " ").replace("_", " ").strip()
+            display_name = guessed[:120] if guessed else "Customer"
+        else:
+            display_name = "SGCG Art"
+
     submission_group_id = uuid.uuid4().hex
     created_photos = []
-    for file in valid_files:
+    for index, file in enumerate(valid_files):
         original_name = secure_filename(file.filename)
         ext = os.path.splitext(original_name)[1].lower()
         mime_type = (file.content_type or "").lower()
@@ -146,6 +163,9 @@ def create_gallery_photo():
             description=description,
             category=category,
             submission_group_id=submission_group_id,
+            is_cover=(index == 0),
+            display_name=display_name,
+            hide_submitter_name=hide_submitter_name,
             image_url=f"/uploads/gallery/{unique_name}",
             image_data=file_bytes,
             image_mime=mime_type,
@@ -224,6 +244,31 @@ def admin_update_gallery_photo(photo_id):
             if not template:
                 return jsonify({"error": "validation_error", "detail": "Template not found."}), 400
             photo.template_id = template.id
+    if "display_name" in payload:
+        photo.display_name = _normalize_display_name(payload.get("display_name"))
+    if "hide_submitter_name" in payload:
+        photo.hide_submitter_name = bool(payload.get("hide_submitter_name"))
+    if "is_cover" in payload:
+        is_cover = bool(payload.get("is_cover"))
+        if is_cover:
+            group_id = photo.submission_group_id or str(photo.id)
+            GalleryPhoto.query.filter(
+                GalleryPhoto.submission_group_id == group_id,
+                GalleryPhoto.id != photo.id,
+            ).update({"is_cover": False}, synchronize_session=False)
+        photo.is_cover = is_cover
+
+    group_id = photo.submission_group_id or str(photo.id)
+    has_cover = GalleryPhoto.query.filter(
+        GalleryPhoto.submission_group_id == group_id,
+        GalleryPhoto.is_cover.is_(True),
+    ).first()
+    if not has_cover:
+        fallback = GalleryPhoto.query.filter(
+            GalleryPhoto.submission_group_id == group_id,
+        ).order_by(GalleryPhoto.created_at.asc(), GalleryPhoto.id.asc()).first()
+        if fallback:
+            fallback.is_cover = True
 
     db.session.commit()
     return jsonify(photo.to_dict(include_admin_fields=True))
@@ -239,6 +284,9 @@ def admin_delete_gallery_photo(photo_id):
     if not photo:
         return jsonify({"error": "not_found"}), 404
 
+    was_cover = bool(photo.is_cover)
+    group_id = photo.submission_group_id or str(photo.id)
+
     if photo.image_url:
         disk_path = os.path.join(os.path.dirname(__file__), "..", photo.image_url.lstrip("/"))
         disk_path = os.path.abspath(disk_path)
@@ -250,4 +298,13 @@ def admin_delete_gallery_photo(photo_id):
 
     db.session.delete(photo)
     db.session.commit()
+
+    if was_cover:
+        replacement = GalleryPhoto.query.filter(
+            GalleryPhoto.submission_group_id == group_id,
+        ).order_by(GalleryPhoto.created_at.asc(), GalleryPhoto.id.asc()).first()
+        if replacement and not replacement.is_cover:
+            replacement.is_cover = True
+            db.session.commit()
+
     return jsonify({"success": True})

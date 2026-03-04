@@ -253,6 +253,9 @@ def create_app(config_name=None):
                 gallery_additions = {
                     "approval_status": "VARCHAR(20) DEFAULT 'pending'",
                     "submission_group_id": "VARCHAR(64)",
+                    "is_cover": "BOOLEAN DEFAULT FALSE",
+                    "display_name": "VARCHAR(120)",
+                    "hide_submitter_name": "BOOLEAN DEFAULT FALSE",
                 }
                 for col, col_type in gallery_additions.items():
                     if col not in gallery_existing:
@@ -269,6 +272,35 @@ def create_app(config_name=None):
                     db.session.commit()
                 db.session.execute(
                     text("UPDATE gallery_photos SET submission_group_id = CAST(id AS VARCHAR) WHERE submission_group_id IS NULL OR submission_group_id = ''")
+                )
+                db.session.commit()
+                db.session.execute(
+                    text("UPDATE gallery_photos SET is_cover = FALSE WHERE is_cover IS NULL")
+                )
+                db.session.commit()
+                db.session.execute(
+                    text("UPDATE gallery_photos SET hide_submitter_name = FALSE WHERE hide_submitter_name IS NULL")
+                )
+                db.session.commit()
+                db.session.execute(
+                    text(
+                        """
+                        WITH groups_without_cover AS (
+                          SELECT submission_group_id
+                          FROM gallery_photos
+                          GROUP BY submission_group_id
+                          HAVING SUM(CASE WHEN is_cover THEN 1 ELSE 0 END) = 0
+                        ), first_photo AS (
+                          SELECT MIN(id) AS id
+                          FROM gallery_photos
+                          WHERE submission_group_id IN (SELECT submission_group_id FROM groups_without_cover)
+                          GROUP BY submission_group_id
+                        )
+                        UPDATE gallery_photos
+                        SET is_cover = TRUE
+                        WHERE id IN (SELECT id FROM first_photo)
+                        """
+                    )
                 )
                 db.session.commit()
         except Exception as e:

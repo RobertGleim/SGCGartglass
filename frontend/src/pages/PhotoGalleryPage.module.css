@@ -62,21 +62,25 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 200px));
   gap: 1rem;
 }
 
 .card {
+  width: 200px;
+  height: 200px;
   border: 1px solid #ececec;
   border-radius: 12px;
   background: #fff;
   overflow: hidden;
   cursor: pointer;
+  display: grid;
+  grid-template-rows: 150px 1fr;
 }
 
 .cardImageWrap {
   width: 100%;
-  aspect-ratio: 4 / 3;
+  height: 150px;
   background: #f5f5f5;
   position: relative;
 }
@@ -112,24 +116,18 @@
 }
 
 .cardBody {
-  padding: 0.7rem 0.8rem 0.9rem;
+  padding: 0.45rem 0.6rem;
+  display: flex;
+  align-items: center;
 }
 
 .cardBody h3 {
   margin: 0;
-  font-size: 1rem;
-}
-
-.cardBody p {
-  margin: 0.4rem 0 0.55rem;
-  color: #4f4f4f;
-}
-
-.cardMetaRow {
-  display: flex;
-  gap: 0.45rem;
-  flex-wrap: wrap;
-  align-items: center;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .badge {
@@ -193,6 +191,13 @@
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+}
+
+.inlineToggle {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .form input,
@@ -264,6 +269,16 @@
   position: relative;
 }
 
+.viewerContent {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 270px;
+  gap: 0.9rem;
+}
+
+.viewerVisual {
+  min-width: 0;
+}
+
 .viewerImage {
   width: 100%;
   max-height: 70vh;
@@ -302,6 +317,38 @@
   border-color: #1f2937;
 }
 
+.viewerInfoBox {
+  border: 1px solid #ececec;
+  border-radius: 10px;
+  padding: 0.75rem;
+  background: #fafafa;
+  height: fit-content;
+}
+
+.viewerTitle {
+  margin: 0 0 0.45rem;
+  font-size: 1.05rem;
+}
+
+.viewerDescription {
+  margin: 0 0 0.55rem;
+  color: #4f4f4f;
+}
+
+.viewerTagRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+}
+
+.viewerMeta {
+  margin: 0.2rem 0;
+  font-size: 0.84rem;
+  color: #555;
+}
+
 .submitError {
   color: #b42318;
   font-size: 0.9rem;
@@ -311,4 +358,18 @@
   display: flex;
   justify-content: flex-end;
   gap: 0.55rem;
+}
+
+@media (max-width: 900px) {
+  .viewerContent {
+    grid-template-columns: 1fr;
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+
+  .card {
+    width: 100%;
+  }
 }

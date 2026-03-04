@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import useAuth from '../hooks/useAuth';
 import useCustomerAuth from '../hooks/useCustomerAuth';
-import { getGalleryPhotos, getTemplates, submitGalleryPhoto } from '../services/api';
+import { fetchCustomerProfile, getGalleryPhotos, getTemplates, submitGalleryPhoto } from '../services/api';
 import styles from './PhotoGalleryPage.module.css';
 
 const getInitialTemplateIdFromHash = () => {
@@ -33,12 +33,16 @@ export default function PhotoGalleryPage() {
     description: '',
     category: '',
     template_id: '',
+    display_name: '',
+    hide_submitter_name: false,
   });
+  const [defaultDisplayName, setDefaultDisplayName] = useState('');
   const [photoFiles, setPhotoFiles] = useState([]);
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState([]);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerPhotos, setViewerPhotos] = useState([]);
   const [viewerIndex, setViewerIndex] = useState(0);
+  const [viewerGroup, setViewerGroup] = useState(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -88,7 +92,39 @@ export default function PhotoGalleryPage() {
     loadPhotos();
   }, [selectedCategory, selectedTemplateId]);
 
+  useEffect(() => {
+    if (!customerToken) {
+      setDefaultDisplayName('');
+      return;
+    }
+    fetchCustomerProfile()
+      .then((profile) => {
+        const firstName = String(profile?.first_name || '').trim();
+        setDefaultDisplayName(firstName);
+        setForm((prev) => ({
+          ...prev,
+          display_name: prev.display_name || firstName,
+        }));
+      })
+      .catch(() => {});
+  }, [customerToken]);
+
   const descriptionLength = form.description.length;
+
+  const formatTimestamp = (value) => {
+    if (!value) return '-';
+    const raw = String(value);
+    const hasTz = /([zZ]|[+\-]\d{2}:\d{2})$/.test(raw);
+    const normalized = hasTz ? raw : `${raw}Z`;
+    const d = new Date(normalized);
+    if (Number.isNaN(d.getTime())) return '-';
+    return `${new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Chicago',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+    }).format(d)}`;
+  };
 
   const templateNameMap = useMemo(() => {
     const byId = new Map();
@@ -97,7 +133,14 @@ export default function PhotoGalleryPage() {
   }, [templates]);
 
   const resetSubmitState = () => {
-    setForm({ panel_name: '', description: '', category: '', template_id: '' });
+    setForm({
+      panel_name: '',
+      description: '',
+      category: '',
+      template_id: '',
+      display_name: defaultDisplayName,
+      hide_submitter_name: false,
+    });
     setPhotoFiles([]);
     setSubmitError('');
   };
@@ -147,7 +190,22 @@ export default function PhotoGalleryPage() {
       }
       groups.get(groupId).photos.push(photo);
     });
-    return Array.from(groups.values());
+    return Array.from(groups.values()).map((group) => {
+      const ordered = [...group.photos].sort((left, right) => {
+        const leftCover = left.is_cover ? 1 : 0;
+        const rightCover = right.is_cover ? 1 : 0;
+        if (leftCover !== rightCover) {
+          return rightCover - leftCover;
+        }
+        const leftTime = new Date(left.created_at || 0).getTime();
+        const rightTime = new Date(right.created_at || 0).getTime();
+        return leftTime - rightTime;
+      });
+      return {
+        ...group,
+        photos: ordered,
+      };
+    });
   }, [photos]);
 
   const handleDrop = (event) => {
@@ -182,6 +240,8 @@ export default function PhotoGalleryPage() {
       payload.append('description', form.description.trim());
       payload.append('category', form.category.trim());
       payload.append('template_id', form.template_id || '');
+      payload.append('display_name', (form.display_name || '').trim());
+      payload.append('hide_submitter_name', form.hide_submitter_name ? 'true' : 'false');
       photoFiles.forEach((file) => {
         payload.append('photos', file);
       });
@@ -194,6 +254,15 @@ export default function PhotoGalleryPage() {
       setSubmitting(false);
     }
   };
+
+  const closeViewer = () => {
+    setViewerOpen(false);
+    setViewerPhotos([]);
+    setViewerGroup(null);
+    setViewerIndex(0);
+  };
+
+  const activeViewerPhoto = viewerPhotos[viewerIndex] || null;
 
   return (
     <div className={styles.page}>
@@ -208,7 +277,11 @@ export default function PhotoGalleryPage() {
             type="button"
             onClick={() => {
               setShowSubmitModal(true);
-              setForm((prev) => ({ ...prev, template_id: selectedTemplateId || prev.template_id }));
+              setForm((prev) => ({
+                ...prev,
+                template_id: selectedTemplateId || prev.template_id,
+                display_name: prev.display_name || defaultDisplayName,
+              }));
             }}
           >
             Submit Photo
@@ -272,6 +345,7 @@ export default function PhotoGalleryPage() {
               onClick={() => {
                 setViewerPhotos(group.photos);
                 setViewerIndex(0);
+                setViewerGroup(group);
                 setViewerOpen(true);
               }}
             >
@@ -291,15 +365,6 @@ export default function PhotoGalleryPage() {
               </div>
               <div className={styles.cardBody}>
                 <h3>{group.panel_name}</h3>
-                {group.description && <p>{group.description}</p>}
-                <div className={styles.cardMetaRow}>
-                  {group.category && <span className={styles.badge}>{group.category}</span>}
-                  {(group.template_name || group.template_id) && (
-                    <a href={`#/gallery?template_id=${group.template_id}`} className={styles.templateLink} onClick={(e) => e.stopPropagation()}>
-                      {group.template_name || templateNameMap.get(String(group.template_id)) || 'Template'}
-                    </a>
-                  )}
-                </div>
               </div>
             </article>
           ))}
@@ -322,6 +387,26 @@ export default function PhotoGalleryPage() {
                   onChange={(e) => setForm((prev) => ({ ...prev, panel_name: e.target.value }))}
                   required
                 />
+              </label>
+
+              <label>
+                Display Name
+                <input
+                  type="text"
+                  value={form.display_name}
+                  onChange={(e) => setForm((prev) => ({ ...prev, display_name: e.target.value }))}
+                  disabled={form.hide_submitter_name}
+                  placeholder="Name shown with photo"
+                />
+              </label>
+
+              <label className={styles.inlineToggle}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.hide_submitter_name)}
+                  onChange={(e) => setForm((prev) => ({ ...prev, hide_submitter_name: e.target.checked }))}
+                />
+                Hide name from photos
               </label>
 
               <label>
@@ -415,41 +500,63 @@ export default function PhotoGalleryPage() {
       )}
 
       {viewerOpen && viewerPhotos.length > 0 && (
-        <div className={styles.modalOverlay} onClick={() => setViewerOpen(false)}>
+        <div className={styles.modalOverlay} onClick={closeViewer}>
           <div className={styles.viewerModal} onClick={(e) => e.stopPropagation()}>
-            <button className={styles.closeBtn} type="button" onClick={() => setViewerOpen(false)}>×</button>
-            <img
-              src={viewerPhotos[viewerIndex]?.image_url}
-              alt={viewerPhotos[viewerIndex]?.panel_name || 'Gallery photo'}
-              className={styles.viewerImage}
-            />
-            <div className={styles.viewerActions}>
-              <button
-                type="button"
-                className={styles.browseBtn}
-                onClick={() => setViewerIndex((prev) => (prev === 0 ? viewerPhotos.length - 1 : prev - 1))}
-              >
-                Prev
-              </button>
-              <span>{viewerIndex + 1} / {viewerPhotos.length}</span>
-              <button
-                type="button"
-                className={styles.browseBtn}
-                onClick={() => setViewerIndex((prev) => (prev === viewerPhotos.length - 1 ? 0 : prev + 1))}
-              >
-                Next
-              </button>
-            </div>
-            <div className={styles.viewerDots}>
-              {viewerPhotos.map((photo, index) => (
-                <button
-                  key={photo.id}
-                  type="button"
-                  className={`${styles.viewerDot} ${viewerIndex === index ? styles.viewerDotActive : ''}`}
-                  onClick={() => setViewerIndex(index)}
-                  aria-label={`View photo ${index + 1}`}
+            <button className={styles.closeBtn} type="button" onClick={closeViewer}>×</button>
+            <div className={styles.viewerContent}>
+              <div className={styles.viewerVisual}>
+                <img
+                  src={activeViewerPhoto?.image_url}
+                  alt={activeViewerPhoto?.panel_name || 'Gallery photo'}
+                  className={styles.viewerImage}
                 />
-              ))}
+                <div className={styles.viewerActions}>
+                  <button
+                    type="button"
+                    className={styles.browseBtn}
+                    onClick={() => setViewerIndex((prev) => (prev === 0 ? viewerPhotos.length - 1 : prev - 1))}
+                  >
+                    Prev
+                  </button>
+                  <span>{viewerIndex + 1} / {viewerPhotos.length}</span>
+                  <button
+                    type="button"
+                    className={styles.browseBtn}
+                    onClick={() => setViewerIndex((prev) => (prev === viewerPhotos.length - 1 ? 0 : prev + 1))}
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className={styles.viewerDots}>
+                  {viewerPhotos.map((photo, index) => (
+                    <button
+                      key={photo.id}
+                      type="button"
+                      className={`${styles.viewerDot} ${viewerIndex === index ? styles.viewerDotActive : ''}`}
+                      onClick={() => setViewerIndex(index)}
+                      aria-label={`View photo ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <aside className={styles.viewerInfoBox}>
+                <h3 className={styles.viewerTitle}>{viewerGroup?.panel_name || activeViewerPhoto?.panel_name || 'Panel'}</h3>
+                {viewerGroup?.description && <p className={styles.viewerDescription}>{viewerGroup.description}</p>}
+                <div className={styles.viewerTagRow}>
+                  {viewerGroup?.category && <span className={styles.badge}>{viewerGroup.category}</span>}
+                  {(viewerGroup?.template_name || viewerGroup?.template_id) && (
+                    <a href={`#/gallery?template_id=${viewerGroup?.template_id}`} className={styles.templateLink}>
+                      {viewerGroup?.template_name || templateNameMap.get(String(viewerGroup?.template_id)) || 'Template'}
+                    </a>
+                  )}
+                </div>
+                <p className={styles.viewerMeta}>Photo {viewerIndex + 1} of {viewerPhotos.length}</p>
+                <p className={styles.viewerMeta}>Added: {formatTimestamp(activeViewerPhoto?.created_at)}</p>
+                {activeViewerPhoto?.display_name && (
+                  <p className={styles.viewerMeta}>By: {activeViewerPhoto.display_name}</p>
+                )}
+              </aside>
             </div>
           </div>
         </div>
