@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 // import AddEtsyListingForm from "../../components/forms/AddEtsyListingForm";
-import { fetchCustomers } from "../../services/api.js";
+import {
+  createAdminTemplate,
+  fetchCustomers,
+  getCustomerDetails,
+  getTemplates,
+  sendTemplateToCustomerWorkOrder,
+  uploadAdminTemplateImage,
+  updateCustomer,
+} from "../../services/api.js";
 import TemplateManagement from "./TemplateManagement";
 import GlassTypeManagement from "./GlassTypeManagement";
 import WorkOrderDashboard from "./WorkOrderDashboard";
@@ -44,11 +52,74 @@ export default function AdminDashboard({
   onDeleteManualProduct,
   onLogout,
 }) {
-  const GLASS_CATEGORY_LABEL = "Stained Glass";
-  const WOOD_CATEGORY_LABEL = "Wood Work";
+  const PRODUCT_TYPE_CONFIG = [
+    { key: "stainedGlassPanels", label: "Stained Glass Panels", theme: "stainedGlass" },
+    { key: "fusedArt", label: "Fused Art", theme: "stainedGlass" },
+    { key: "laserAndSandblasting", label: "Laser and Sandblasting", theme: "stainedGlass" },
+    { key: "woodArt", label: "Wood Art", theme: "woodwork" },
+    { key: "patterns", label: "Patterns", theme: "stainedGlass" },
+  ];
+
+  const PRODUCT_TYPE_LABEL_BY_KEY = PRODUCT_TYPE_CONFIG.reduce(
+    (acc, entry) => ({ ...acc, [entry.key]: entry.label }),
+    {},
+  );
+
+  const CATEGORY_TYPE_ALIASES = {
+    stainedglasspanels: "stainedGlassPanels",
+    stainedglass: "stainedGlassPanels",
+    glass: "stainedGlassPanels",
+    fusedart: "fusedArt",
+    laserandsandblasting: "laserAndSandblasting",
+    laser: "laserAndSandblasting",
+    sandblast: "laserAndSandblasting",
+    sandblasting: "laserAndSandblasting",
+    woodart: "woodArt",
+    woodwork: "woodArt",
+    woodworking: "woodArt",
+    wood: "woodArt",
+    pattern: "patterns",
+    patterns: "patterns",
+  };
+
+  const createEmptyTypeBuckets = () =>
+    PRODUCT_TYPE_CONFIG.reduce(
+      (acc, entry) => ({ ...acc, [entry.key]: [] }),
+      {},
+    );
 
   const [activeTab, setActiveTab] = useState("products");
   const [customers, setCustomers] = useState([]);
+  const [editingCustomer, setEditingCustomer] = useState(null);
+  const [customerForm, setCustomerForm] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    admin_notes: "",
+    address: {
+      label: "Primary",
+      line1: "",
+      line2: "",
+      city: "",
+      state: "",
+      postal_code: "",
+      country: "",
+    },
+  });
+  const [customerStatus, setCustomerStatus] = useState("");
+  const [isSavingCustomer, setIsSavingCustomer] = useState(false);
+  const [sendTemplateForm, setSendTemplateForm] = useState({
+    template_id: "",
+    message: "",
+    project_name: "",
+    uploaded_file: null,
+    new_template_name: "",
+    new_template_category: "",
+  });
+  const [sendTemplateStatus, setSendTemplateStatus] = useState("");
+  const [isSendingTemplate, setIsSendingTemplate] = useState(false);
+  const [adminTemplateOptions, setAdminTemplateOptions] = useState([]);
 
   useEffect(() => {
     if (activeTab === "customers") {
@@ -60,27 +131,41 @@ export default function AdminDashboard({
   // eslint-disable-next-line no-unused-vars
   const [status, setStatus] = useState("");
   const [manualProductSearch, setManualProductSearch] = useState("");
+  const [manualProductTypeFilter, setManualProductTypeFilter] = useState("all");
   const [showManualProductModal, setShowManualProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [productType, setProductType] = useState("stainedGlass"); // 'stainedGlass' or 'woodwork'
+  const [productType, setProductType] = useState("stainedGlassPanels");
   const [favoriteCategoriesByType, setFavoriteCategoriesByType] = useState(
     () => {
       const savedByType = localStorage.getItem("favoriteCategoriesByType");
       if (savedByType) {
         const parsed = JSON.parse(savedByType);
+        const emptyBuckets = createEmptyTypeBuckets();
         return {
-          stainedGlass: Array.isArray(parsed?.stainedGlass)
-            ? parsed.stainedGlass
+          ...emptyBuckets,
+          stainedGlassPanels: Array.isArray(parsed?.stainedGlassPanels)
+            ? parsed.stainedGlassPanels
+            : Array.isArray(parsed?.stainedGlass)
+              ? parsed.stainedGlass
+              : [],
+          fusedArt: Array.isArray(parsed?.fusedArt) ? parsed.fusedArt : [],
+          laserAndSandblasting: Array.isArray(parsed?.laserAndSandblasting)
+            ? parsed.laserAndSandblasting
             : [],
-          woodwork: Array.isArray(parsed?.woodwork) ? parsed.woodwork : [],
+          woodArt: Array.isArray(parsed?.woodArt)
+            ? parsed.woodArt
+            : Array.isArray(parsed?.woodwork)
+              ? parsed.woodwork
+              : [],
+          patterns: Array.isArray(parsed?.patterns) ? parsed.patterns : [],
         };
       }
 
       const legacySaved = localStorage.getItem("favoriteCategories");
       const legacyCategories = legacySaved ? JSON.parse(legacySaved) : [];
       return {
-        stainedGlass: legacyCategories,
-        woodwork: [],
+        ...createEmptyTypeBuckets(),
+        stainedGlassPanels: legacyCategories,
       };
     },
   );
@@ -89,18 +174,30 @@ export default function AdminDashboard({
     if (savedByType) {
       const parsed = JSON.parse(savedByType);
       return {
-        stainedGlass: Array.isArray(parsed?.stainedGlass)
-          ? parsed.stainedGlass
+        ...createEmptyTypeBuckets(),
+        stainedGlassPanels: Array.isArray(parsed?.stainedGlassPanels)
+          ? parsed.stainedGlassPanels
+          : Array.isArray(parsed?.stainedGlass)
+            ? parsed.stainedGlass
+            : [],
+        fusedArt: Array.isArray(parsed?.fusedArt) ? parsed.fusedArt : [],
+        laserAndSandblasting: Array.isArray(parsed?.laserAndSandblasting)
+          ? parsed.laserAndSandblasting
           : [],
-        woodwork: Array.isArray(parsed?.woodwork) ? parsed.woodwork : [],
+        woodArt: Array.isArray(parsed?.woodArt)
+          ? parsed.woodArt
+          : Array.isArray(parsed?.woodwork)
+            ? parsed.woodwork
+            : [],
+        patterns: Array.isArray(parsed?.patterns) ? parsed.patterns : [],
       };
     }
 
     const legacySaved = localStorage.getItem("favoriteMaterials");
     const legacyMaterials = legacySaved ? JSON.parse(legacySaved) : [];
     return {
-      stainedGlass: legacyMaterials,
-      woodwork: [],
+      ...createEmptyTypeBuckets(),
+      stainedGlassPanels: legacyMaterials,
     };
   });
   const [manualProduct, setManualProduct] = useState({
@@ -182,43 +279,58 @@ export default function AdminDashboard({
         ? [product.category]
         : [];
 
-    const hasWoodworkCategory = categories.some((entry) => {
-      const normalized = String(entry || "")
-        .toLowerCase()
-        .replace(/\s+/g, "");
-      return normalized.includes("woodwork") || normalized.includes("wood");
-    });
+    const explicitType = categories
+      .map((entry) =>
+        CATEGORY_TYPE_ALIASES[
+          String(entry || "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "")
+        ],
+      )
+      .find(Boolean);
 
-    return hasWoodworkCategory ? "woodwork" : "stainedGlass";
+    if (explicitType) {
+      return explicitType;
+    }
+
+    const combined = [
+      toSearchableText(product?.category),
+      toSearchableText(product?.materials),
+      toSearchableText(product?.name),
+      toSearchableText(product?.description),
+    ].join(" ");
+
+    if (/pattern|template|svg|line\s*art|trace/.test(combined)) {
+      return "patterns";
+    }
+    if (/laser|sandblast|sand\s*blast|engrave|etch/.test(combined)) {
+      return "laserAndSandblasting";
+    }
+    if (/fused|kiln|slump|melt/.test(combined)) {
+      return "fusedArt";
+    }
+    if (/wood|woodwork|timber|carv|oak|walnut|maple|cedar/.test(combined)) {
+      return "woodArt";
+    }
+
+    return "stainedGlassPanels";
   };
 
-  const isGlassTypeCategory = (value) => {
+  const normalizeTypeFromCategory = (value) => {
     const normalized = String(value || "")
       .toLowerCase()
-      .replace(/\s+/g, "");
-    return normalized === "stainedglass" || normalized === "glass";
+      .replace(/[^a-z0-9]/g, "");
+    return CATEGORY_TYPE_ALIASES[normalized] || null;
   };
 
-  const isWoodTypeCategory = (value) => {
-    const normalized = String(value || "")
-      .toLowerCase()
-      .replace(/\s+/g, "");
-    return (
-      normalized === "woodwork" ||
-      normalized === "wood" ||
-      normalized === "woodworking"
-    );
-  };
+  const isTypeCategory = (value) => Boolean(normalizeTypeFromCategory(value));
 
   const removeTypeCategories = (categories = []) => {
-    return categories.filter(
-      (entry) => !isGlassTypeCategory(entry) && !isWoodTypeCategory(entry),
-    );
+    return categories.filter((entry) => !isTypeCategory(entry));
   };
 
   const setPrimaryTypeCategory = (type) => {
-    const label =
-      type === "woodwork" ? WOOD_CATEGORY_LABEL : GLASS_CATEGORY_LABEL;
+    const label = PRODUCT_TYPE_LABEL_BY_KEY[type] || PRODUCT_TYPE_LABEL_BY_KEY.stainedGlassPanels;
     setManualProduct((prev) => ({
       ...prev,
       category: [label, ...removeTypeCategories(prev.category)],
@@ -226,12 +338,10 @@ export default function AdminDashboard({
   };
 
   const visibleCategoryTags = removeTypeCategories(manualProduct.category);
-  const isGlassChecked = manualProduct.category.some((entry) =>
-    isGlassTypeCategory(entry),
-  );
-  const isWoodChecked = manualProduct.category.some((entry) =>
-    isWoodTypeCategory(entry),
-  );
+  const selectedTypeCategory =
+    manualProduct.category
+      .map((entry) => normalizeTypeFromCategory(entry))
+      .find(Boolean) || productType;
 
   const closeFavoriteDropdowns = () => {
     setShowCategoryDropdown(false);
@@ -493,7 +603,8 @@ export default function AdminDashboard({
         ? [product.category]
         : [];
     const normalizedCategories = [
-      inferredType === "woodwork" ? WOOD_CATEGORY_LABEL : GLASS_CATEGORY_LABEL,
+      PRODUCT_TYPE_LABEL_BY_KEY[inferredType] ||
+        PRODUCT_TYPE_LABEL_BY_KEY.stainedGlassPanels,
       ...removeTypeCategories(existingCategories),
     ];
 
@@ -573,6 +684,185 @@ export default function AdminDashboard({
     setWatermarkText("SGCG ART GLASS"); // Reset to default text
   };
 
+  const openCustomerEditModal = async (customer) => {
+    setEditingCustomer(customer);
+    setCustomerStatus("Loading customer details...");
+    setCustomerForm({
+      first_name: customer.first_name || "",
+      last_name: customer.last_name || "",
+      email: customer.email || "",
+      phone: customer.phone || "",
+      admin_notes: customer.admin_notes || "",
+      address: {
+        label: "Primary",
+        line1: "",
+        line2: "",
+        city: "",
+        state: "",
+        postal_code: "",
+        country: "",
+      },
+    });
+    try {
+      if (adminTemplateOptions.length === 0) {
+        const templatesResponse = await getTemplates({ active: 1 });
+        const templateItems = Array.isArray(templatesResponse?.items)
+          ? templatesResponse.items
+          : Array.isArray(templatesResponse)
+            ? templatesResponse
+            : [];
+        setAdminTemplateOptions(templateItems);
+      }
+
+      const details = await getCustomerDetails(customer.id);
+      const nextCustomer = details?.customer || customer;
+      const primaryAddress =
+        (Array.isArray(details?.addresses)
+          ? details.addresses.find((entry) => entry.is_default)
+          : null) ||
+        (Array.isArray(details?.addresses) ? details.addresses[0] : null) ||
+        {};
+
+      setEditingCustomer(nextCustomer);
+      setCustomerForm({
+        first_name: nextCustomer.first_name || "",
+        last_name: nextCustomer.last_name || "",
+        email: nextCustomer.email || "",
+        phone: nextCustomer.phone || "",
+        admin_notes: nextCustomer.admin_notes || "",
+        address: {
+          label: primaryAddress.label || "Primary",
+          line1: primaryAddress.line1 || "",
+          line2: primaryAddress.line2 || "",
+          city: primaryAddress.city || "",
+          state: primaryAddress.state || "",
+          postal_code: primaryAddress.postal_code || "",
+          country: primaryAddress.country || "",
+        },
+      });
+      setCustomerStatus("");
+      setSendTemplateStatus("");
+      setSendTemplateForm({
+        template_id: "",
+        message: "",
+        project_name: "",
+        uploaded_file: null,
+        new_template_name: "",
+        new_template_category: "",
+      });
+    } catch (error) {
+      const message =
+        error?.response?.data?.error || error?.message || "Unable to load address details.";
+      setCustomerStatus(`Error: ${message}`);
+    }
+  };
+
+  const closeCustomerEditModal = () => {
+    setEditingCustomer(null);
+    setCustomerStatus("");
+    setIsSavingCustomer(false);
+    setSendTemplateStatus("");
+    setIsSendingTemplate(false);
+    setSendTemplateForm({
+      template_id: "",
+      message: "",
+      project_name: "",
+      uploaded_file: null,
+      new_template_name: "",
+      new_template_category: "",
+    });
+  };
+
+  const handleSendTemplateToCustomer = async () => {
+    if (!editingCustomer) return;
+
+    setIsSendingTemplate(true);
+    setSendTemplateStatus("");
+    try {
+      let templateId = sendTemplateForm.template_id ? Number(sendTemplateForm.template_id) : null;
+
+      if (!templateId) {
+        if (!sendTemplateForm.uploaded_file) {
+          setSendTemplateStatus("Select a template from the list or upload a new one.");
+          setIsSendingTemplate(false);
+          return;
+        }
+        if (!sendTemplateForm.new_template_name.trim()) {
+          setSendTemplateStatus("Enter a name for the uploaded template.");
+          setIsSendingTemplate(false);
+          return;
+        }
+
+        const uploadPayload = new FormData();
+        uploadPayload.append("file", sendTemplateForm.uploaded_file);
+        const uploadResult = await uploadAdminTemplateImage(uploadPayload);
+
+        const createdTemplate = await createAdminTemplate({
+          name: sendTemplateForm.new_template_name.trim(),
+          category: sendTemplateForm.new_template_category.trim() || "Direct Message",
+          template_type: "image",
+          image_url: uploadResult.image_url,
+          thumbnail_url: uploadResult.image_url,
+          is_active: true,
+        });
+
+        templateId = createdTemplate?.id || null;
+        if (!templateId) {
+          throw new Error("Template was uploaded but could not be created.");
+        }
+        setAdminTemplateOptions((prev) => [createdTemplate, ...prev]);
+      }
+
+      await sendTemplateToCustomerWorkOrder(editingCustomer.id, {
+        template_id: templateId,
+        message: sendTemplateForm.message,
+        project_name: sendTemplateForm.project_name,
+      });
+      setSendTemplateStatus("Template sent to customer work orders.");
+      setSendTemplateForm((prev) => ({
+        ...prev,
+        template_id: "",
+        message: "",
+        project_name: "",
+        uploaded_file: null,
+        new_template_name: "",
+        new_template_category: "",
+      }));
+    } catch (error) {
+      const message =
+        error?.response?.data?.detail ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to send template to customer.";
+      setSendTemplateStatus(`Error: ${message}`);
+    } finally {
+      setIsSendingTemplate(false);
+    }
+  };
+
+  const handleCustomerSave = async (event) => {
+    event.preventDefault();
+    if (!editingCustomer) return;
+    setIsSavingCustomer(true);
+    setCustomerStatus("");
+    try {
+      const updated = await updateCustomer(editingCustomer.id, customerForm);
+      setCustomers((prev) =>
+        prev.map((customer) =>
+          customer.id === editingCustomer.id ? { ...customer, ...updated } : customer,
+        ),
+      );
+      setCustomerStatus("Customer updated successfully.");
+      setEditingCustomer((prev) => (prev ? { ...prev, ...updated } : prev));
+    } catch (error) {
+      const message =
+        error?.response?.data?.error || error?.message || "Failed to update customer.";
+      setCustomerStatus(`Error: ${message}`);
+    } finally {
+      setIsSavingCustomer(false);
+    }
+  };
+
   return (
     <div className="admin-dashboard">
       <div className="dashboard-header">
@@ -644,24 +934,32 @@ export default function AdminDashboard({
             {customers.length === 0 ? (
               <p className="form-note">No customers found.</p>
             ) : (
-              <table className="admin-table">
+              <table className="admin-table customer-admin-table">
                 <thead>
                   <tr>
                     <th>Name</th>
                     <th>Email</th>
                     <th>Phone</th>
-                    <th>Created</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {customers.map((c) => (
                     <tr key={c.id}>
-                      <td>
+                      <td className="customer-actions-cell">
                         {c.first_name} {c.last_name}
                       </td>
                       <td>{c.email}</td>
                       <td>{c.phone || "-"}</td>
-                      <td>{c.created_at ? c.created_at.split("T")[0] : "-"}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="button"
+                          onClick={() => openCustomerEditModal(c)}
+                        >
+                          Edit
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -680,28 +978,20 @@ export default function AdminDashboard({
               <h3>Add Manual Product</h3>
               {/* <p className="form-note">Add products that are not listed on Etsy</p> */}
               <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                <button
-                  className="button primary"
-                  type="button"
-                  onClick={() => {
-                    setProductType("stainedGlass");
-                    setPrimaryTypeCategory("stainedGlass");
-                    setShowManualProductModal(true);
-                  }}
-                >
-                  Add Stained Glass Product
-                </button>
-                <button
-                  className="button primary"
-                  type="button"
-                  onClick={() => {
-                    setProductType("woodwork");
-                    setPrimaryTypeCategory("woodwork");
-                    setShowManualProductModal(true);
-                  }}
-                >
-                  Add Wood Work Product
-                </button>
+                {PRODUCT_TYPE_CONFIG.map((typeEntry) => (
+                  <button
+                    key={typeEntry.key}
+                    className="button primary"
+                    type="button"
+                    onClick={() => {
+                      setProductType(typeEntry.key);
+                      setPrimaryTypeCategory(typeEntry.key);
+                      setShowManualProductModal(true);
+                    }}
+                  >
+                    {`Add ${typeEntry.label} Product`}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -741,6 +1031,32 @@ export default function AdminDashboard({
 
             <div className="panel-section">
               <h3>Manual Products ({manualProducts.length})</h3>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "8px",
+                  margin: "0.5rem 0 0.85rem",
+                }}
+              >
+                <button
+                  type="button"
+                  className={`button ${manualProductTypeFilter === "all" ? "primary" : ""}`}
+                  onClick={() => setManualProductTypeFilter("all")}
+                >
+                  All
+                </button>
+                {PRODUCT_TYPE_CONFIG.map((typeEntry) => (
+                  <button
+                    key={typeEntry.key}
+                    type="button"
+                    className={`button ${manualProductTypeFilter === typeEntry.key ? "primary" : ""}`}
+                    onClick={() => setManualProductTypeFilter(typeEntry.key)}
+                  >
+                    {typeEntry.label}
+                  </button>
+                ))}
+              </div>
               <div className="search-box-container">
                 <input
                   type="text"
@@ -758,11 +1074,18 @@ export default function AdminDashboard({
                   const category = toSearchableText(product.category);
                   const materials = toSearchableText(product.materials);
 
+                  const matchesType =
+                    manualProductTypeFilter === "all" ||
+                    inferProductType(product) === manualProductTypeFilter;
+
                   return (
-                    name.includes(searchLower) ||
-                    description.includes(searchLower) ||
-                    category.includes(searchLower) ||
-                    materials.includes(searchLower)
+                    matchesType &&
+                    (
+                      name.includes(searchLower) ||
+                      description.includes(searchLower) ||
+                      category.includes(searchLower) ||
+                      materials.includes(searchLower)
+                    )
                   );
                 });
 
@@ -924,7 +1247,9 @@ export default function AdminDashboard({
         )}
       </div>
 
-      <div className={`product-form-wrapper product-form-${productType}`}>
+      <div
+        className={`product-form-wrapper product-form-${PRODUCT_TYPE_CONFIG.find((entry) => entry.key === productType)?.theme || "stainedGlass"}`}
+      >
         {showManualProductModal && (
           <div className="modal-overlay" onClick={handleCloseModal}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -932,7 +1257,7 @@ export default function AdminDashboard({
                 <h2>
                   {editingProduct
                     ? "Edit Product"
-                    : `Add ${productType === "stainedGlass" ? "Stained Glass" : "Woodwork"} Product`}
+                    : `Add ${PRODUCT_TYPE_LABEL_BY_KEY[productType] || PRODUCT_TYPE_LABEL_BY_KEY.stainedGlassPanels} Product`}
                 </h2>
                 <button
                   className="modal-close"
@@ -1080,38 +1405,25 @@ export default function AdminDashboard({
                   <div className="multi-select-wrapper">
                     <div className="multi-select-inner">
                       <div className="multi-select-row">
-                        <label
-                          className="checkbox-label"
-                          style={{ marginBottom: 0 }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isGlassChecked}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setProductType("stainedGlass");
-                                setPrimaryTypeCategory("stainedGlass");
-                              }
-                            }}
-                          />
-                          <span>Glass</span>
-                        </label>
-                        <label
-                          className="checkbox-label"
-                          style={{ marginBottom: 0 }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isWoodChecked}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setProductType("woodwork");
-                                setPrimaryTypeCategory("woodwork");
-                              }
-                            }}
-                          />
-                          <span>Wood</span>
-                        </label>
+                        {PRODUCT_TYPE_CONFIG.map((typeEntry) => (
+                          <label
+                            key={typeEntry.key}
+                            className="checkbox-label"
+                            style={{ marginBottom: 0 }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedTypeCategory === typeEntry.key}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setProductType(typeEntry.key);
+                                  setPrimaryTypeCategory(typeEntry.key);
+                                }
+                              }}
+                            />
+                            <span>{typeEntry.label}</span>
+                          </label>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -1578,6 +1890,304 @@ export default function AdminDashboard({
           </div>
         )}
       </div>
+
+      {editingCustomer && (
+        <div className="modal-overlay" onClick={closeCustomerEditModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit Customer</h2>
+              <button className="modal-close" onClick={closeCustomerEditModal} aria-label="Close">
+                ×
+              </button>
+            </div>
+            <form className="modal-form" onSubmit={handleCustomerSave}>
+              <div className="panel-section" style={{ padding: "1rem", marginTop: "0.15rem" }}>
+                <h3 style={{ marginBottom: "0.75rem", fontSize: "1.05rem" }}>Send Template to Customer</h3>
+                <label>
+                  Template
+                  <select
+                    value={sendTemplateForm.template_id}
+                    onChange={(e) =>
+                      setSendTemplateForm((prev) => ({
+                        ...prev,
+                        template_id: e.target.value,
+                        uploaded_file: e.target.value ? null : prev.uploaded_file,
+                      }))
+                    }
+                  >
+                    <option value="">Select template...</option>
+                    {adminTemplateOptions.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Or Upload New Template
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.gif,.webp"
+                    onChange={(e) => {
+                      const nextFile = e.target.files?.[0] || null;
+                      setSendTemplateForm((prev) => ({
+                        ...prev,
+                        template_id: nextFile ? "" : prev.template_id,
+                        uploaded_file: nextFile,
+                        new_template_name:
+                          prev.new_template_name ||
+                          (nextFile ? nextFile.name.replace(/\.[^.]+$/, "") : ""),
+                      }));
+                    }}
+                  />
+                </label>
+                {sendTemplateForm.uploaded_file && (
+                  <div className="form-note">Selected file: {sendTemplateForm.uploaded_file.name}</div>
+                )}
+                <label>
+                  New Template Name (required for upload)
+                  <input
+                    type="text"
+                    value={sendTemplateForm.new_template_name}
+                    onChange={(e) =>
+                      setSendTemplateForm((prev) => ({ ...prev, new_template_name: e.target.value }))
+                    }
+                    placeholder="Enter template name"
+                  />
+                </label>
+                <label>
+                  New Template Category (optional)
+                  <input
+                    type="text"
+                    value={sendTemplateForm.new_template_category}
+                    onChange={(e) =>
+                      setSendTemplateForm((prev) => ({ ...prev, new_template_category: e.target.value }))
+                    }
+                    placeholder="Defaults to Direct Message"
+                  />
+                </label>
+                <label>
+                  Project Name (optional)
+                  <input
+                    type="text"
+                    value={sendTemplateForm.project_name}
+                    onChange={(e) =>
+                      setSendTemplateForm((prev) => ({ ...prev, project_name: e.target.value }))
+                    }
+                    placeholder="Custom project title for customer"
+                  />
+                </label>
+                <label>
+                  Direct Message to Customer
+                  <textarea
+                    rows={3}
+                    value={sendTemplateForm.message}
+                    onChange={(e) =>
+                      setSendTemplateForm((prev) => ({ ...prev, message: e.target.value }))
+                    }
+                    placeholder="Add instructions for the customer before they open Designer"
+                  />
+                </label>
+                <div style={{ display: "flex", gap: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    className="button primary"
+                    onClick={handleSendTemplateToCustomer}
+                    disabled={isSendingTemplate}
+                  >
+                    {isSendingTemplate ? "Sending..." : "Send Template"}
+                  </button>
+                  {sendTemplateStatus && <span className="form-note">{sendTemplateStatus}</span>}
+                </div>
+              </div>
+
+              <label>
+                First Name
+                <input
+                  type="text"
+                  value={customerForm.first_name}
+                  onChange={(e) =>
+                    setCustomerForm((prev) => ({ ...prev, first_name: e.target.value }))
+                  }
+                />
+              </label>
+
+              <label>
+                Last Name
+                <input
+                  type="text"
+                  value={customerForm.last_name}
+                  onChange={(e) =>
+                    setCustomerForm((prev) => ({ ...prev, last_name: e.target.value }))
+                  }
+                />
+              </label>
+
+              <label>
+                Email *
+                <input
+                  type="text"
+                  value={customerForm.email}
+                  required
+                  onChange={(e) =>
+                    setCustomerForm((prev) => ({ ...prev, email: e.target.value }))
+                  }
+                />
+              </label>
+
+              <label>
+                Phone
+                <input
+                  type="text"
+                  value={customerForm.phone}
+                  onChange={(e) =>
+                    setCustomerForm((prev) => ({ ...prev, phone: e.target.value }))
+                  }
+                />
+              </label>
+
+              <div className="panel-section" style={{ padding: "1rem", marginTop: "0.25rem" }}>
+                <h3 style={{ marginBottom: "0.75rem", fontSize: "1.05rem" }}>Address</h3>
+                <label>
+                  Address Label
+                  <input
+                    type="text"
+                    value={customerForm.address.label}
+                    onChange={(e) =>
+                      setCustomerForm((prev) => ({
+                        ...prev,
+                        address: { ...prev.address, label: e.target.value },
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  Address Line 1
+                  <input
+                    type="text"
+                    value={customerForm.address.line1}
+                    onChange={(e) =>
+                      setCustomerForm((prev) => ({
+                        ...prev,
+                        address: { ...prev.address, line1: e.target.value },
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  Address Line 2
+                  <input
+                    type="text"
+                    value={customerForm.address.line2}
+                    onChange={(e) =>
+                      setCustomerForm((prev) => ({
+                        ...prev,
+                        address: { ...prev.address, line2: e.target.value },
+                      }))
+                    }
+                  />
+                </label>
+                <div className="price-quantity-inputs">
+                  <label>
+                    City
+                    <input
+                      type="text"
+                      value={customerForm.address.city}
+                      onChange={(e) =>
+                        setCustomerForm((prev) => ({
+                          ...prev,
+                          address: { ...prev.address, city: e.target.value },
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    State
+                    <input
+                      type="text"
+                      value={customerForm.address.state}
+                      onChange={(e) =>
+                        setCustomerForm((prev) => ({
+                          ...prev,
+                          address: { ...prev.address, state: e.target.value },
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+                <div className="price-quantity-inputs">
+                  <label>
+                    Postal Code
+                    <input
+                      type="text"
+                      value={customerForm.address.postal_code}
+                      onChange={(e) =>
+                        setCustomerForm((prev) => ({
+                          ...prev,
+                          address: { ...prev.address, postal_code: e.target.value },
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    Country
+                    <input
+                      type="text"
+                      value={customerForm.address.country}
+                      onChange={(e) =>
+                        setCustomerForm((prev) => ({
+                          ...prev,
+                          address: { ...prev.address, country: e.target.value },
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="panel-section" style={{ padding: "1rem", marginTop: "0.25rem" }}>
+                <h3 style={{ marginBottom: "0.75rem", fontSize: "1.05rem" }}>Customer Details</h3>
+                <p className="form-note">ID: {editingCustomer.id}</p>
+                <p className="form-note">
+                  Created: {editingCustomer.created_at || "-"}
+                </p>
+                <p className="form-note">
+                  Last Login: {editingCustomer.last_login_at || "-"}
+                </p>
+                <p className="form-note">
+                  Updated: {editingCustomer.updated_at || "-"}
+                </p>
+              </div>
+
+              <div className="panel-section" style={{ padding: "1rem", marginTop: "0.25rem" }}>
+                <h3 style={{ marginBottom: "0.75rem", fontSize: "1.05rem" }}>Admin Notes (Private)</h3>
+                <label>
+                  Notes for Admin Only
+                  <textarea
+                    rows={4}
+                    value={customerForm.admin_notes || ""}
+                    onChange={(e) =>
+                      setCustomerForm((prev) => ({ ...prev, admin_notes: e.target.value }))
+                    }
+                    placeholder="Add internal notes about this customer. Only admins can view this."
+                  />
+                </label>
+              </div>
+
+              {customerStatus && <p className="status-text">{customerStatus}</p>}
+
+              <div className="modal-actions">
+                <button type="button" className="button" onClick={closeCustomerEditModal}>
+                  Cancel
+                </button>
+                <button type="submit" className="button primary" disabled={isSavingCustomer}>
+                  {isSavingCustomer ? "Saving..." : "Save Customer"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

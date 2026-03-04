@@ -22,6 +22,12 @@ const toArray = (value) => {
   return [];
 };
 
+const openTemplateDefaultsDesigner = (templateId) => {
+  if (!templateId) return;
+  window.location.hash = `#/designer?template=${templateId}&mode=template-defaults`;
+  window.dispatchEvent(new HashChangeEvent('hashchange'));
+};
+
 export default function TemplateManagement() {
   const [templates, setTemplates] = useState([]);
   const [page, setPage] = useState(1);
@@ -134,6 +140,7 @@ export default function TemplateManagement() {
                 <td>{(t.is_active ?? t.active) ? 'Active' : 'Inactive'}</td>
                 <td>
                   <button onClick={() => { setEditTemplate(t); setShowModal(true); }}>Edit</button>
+                  <button onClick={() => openTemplateDefaultsDesigner(t.id)}>Pre-color / Lock</button>
                   {(t.is_active ?? t.active) ? (
                     <button className={styles.deactivateBtn} onClick={() => handleToggleActive(t.id, true)}>Deactivate</button>
                   ) : (

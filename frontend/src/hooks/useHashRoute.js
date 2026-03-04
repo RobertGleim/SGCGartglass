@@ -18,6 +18,9 @@ const getRoute = () => {
     if (parts[1] === 'signup') {
       return { path: '/account/signup', params: {} }
     }
+    if (parts[1] === 'reset-password') {
+      return { path: '/account/reset-password', params: {} }
+    }
     return { path: '/account', params: {} }
   }
   if (parts[0] === 'my-projects') {

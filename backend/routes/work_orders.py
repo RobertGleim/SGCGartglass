@@ -5,10 +5,12 @@ from backend.services.work_order_service import (
 from backend.models import db, WorkOrder, WorkOrderStatusHistory
 from backend.models.revision import WorkOrderRevision
 from backend.models.project import UserProject
+from backend.models.template import Template
 from backend.utils.email import send_email
 from backend.auth import decode_token
 from datetime import datetime
 import jwt
+from backend.db import fetch_customer_by_id
 
 work_orders_bp = Blueprint('work_orders', __name__)
 admin_work_orders_bp = Blueprint('admin_work_orders', __name__)
@@ -375,3 +377,64 @@ def admin_create_revision(order_id):
         'revision': revision.to_dict(),
         'work_order': order.to_dict(include_admin_notes=True, include_project_data=True),
     }), 201
+
+
+@admin_work_orders_bp.route('/api/admin/customers/<int:customer_id>/template-message', methods=['POST'])
+@admin_required
+def admin_send_template_to_customer(customer_id):
+    customer = fetch_customer_by_id(customer_id)
+    if not customer:
+        return jsonify({'error': 'Customer not found.'}), 404
+
+    payload = request.get_json(silent=True) or {}
+    template_id = payload.get('template_id')
+    message = (payload.get('message') or '').strip()
+
+    if not template_id:
+        return jsonify({'error': 'template_id is required.'}), 400
+
+    template = Template.query.get(template_id)
+    if not template or not template.is_active:
+        return jsonify({'error': 'Template not found.'}), 404
+
+    project_name = (payload.get('project_name') or '').strip() or f"{template.name} - Admin Draft"
+    design_data = payload.get('design_data') if isinstance(payload.get('design_data'), dict) else {}
+
+    try:
+        project = UserProject(
+            user_id=customer_id,
+            template_id=template.id,
+            name=project_name,
+            design_data=design_data,
+        )
+        db.session.add(project)
+        db.session.flush()
+
+        work_order = WorkOrder(
+            work_order_number=generate_work_order_number(db.session),
+            project_id=project.id,
+            user_id=customer_id,
+            status='Pending Review',
+            customer_notes=message or f'New template sent by admin: {template.name}',
+            admin_notes=f'Admin template sent by {g.user_id}',
+        )
+        db.session.add(work_order)
+        db.session.flush()
+
+        history = WorkOrderStatusHistory(
+            work_order_id=work_order.id,
+            from_status=None,
+            to_status='Pending Review',
+            changed_by=g.user_id,
+            changed_at=datetime.utcnow(),
+        )
+        db.session.add(history)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Template sent to customer work orders.',
+            'work_order': work_order.to_dict(include_admin_notes=True, include_project_data=True),
+        }), 201
+    except Exception:
+        db.session.rollback()
+        return jsonify({'error': 'failed_to_send_template'}), 500

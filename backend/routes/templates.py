@@ -227,6 +227,7 @@ def create_template():
             image_data=image_data,
             image_mime=image_mime,
             template_type=template_type,
+            default_design_data=data.get("default_design_data"),
             thumbnail_url=data.get("thumbnail_url"),
             is_active=data.get("is_active", True),
         )
@@ -270,13 +271,14 @@ def update_template(template_id):
             "category": template.category,
             "image_url": template.image_url,
             "template_type": template.template_type,
+            "default_design_data": template.default_design_data,
             "thumbnail_url": template.thumbnail_url,
             "is_active": template.is_active,
         }
         # Only include existing svg_content if it's non-empty (skip for image templates)
         if template.svg_content:
             merged["svg_content"] = template.svg_content
-        merged.update({k: v for k, v in payload.items() if k in merged or k in ("is_active", "difficulty", "dimensions", "piece_count", "svg_content", "image_url")})
+        merged.update({k: v for k, v in payload.items() if k in merged or k in ("is_active", "difficulty", "dimensions", "piece_count", "svg_content", "image_url", "default_design_data")})
         ok, data, err = validate_template_data(merged)
         if not ok:
             return jsonify({"error": "validation_error", "detail": err}), 400
@@ -288,6 +290,8 @@ def update_template(template_id):
         template.dimensions = data.get("dimensions")
         if data.get("piece_count") is not None:
             template.piece_count = data["piece_count"]
+        if "default_design_data" in data:
+            template.default_design_data = data.get("default_design_data")
         template.thumbnail_url = data.get("thumbnail_url")
         template.is_active = data.get("is_active", True)
 

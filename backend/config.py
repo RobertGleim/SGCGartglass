@@ -7,8 +7,13 @@ from dotenv import load_dotenv
 root_path = Path(__file__).parent.parent
 env_path = root_path / '.env'
 env_local_path = root_path / '.env.local'
+backend_path = Path(__file__).parent
+backend_env_path = backend_path / '.env'
+backend_env_local_path = backend_path / '.env.local'
 load_dotenv(dotenv_path=env_path)
 load_dotenv(dotenv_path=env_local_path, override=True)
+load_dotenv(dotenv_path=backend_env_path, override=True)
+load_dotenv(dotenv_path=backend_env_local_path, override=True)
 
 
 def _sqlalchemy_database_uri():
@@ -47,6 +52,15 @@ class BaseConfig:
 
     # Uploads (glass type textures: backend/uploads/)
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER') or str(Path(__file__).parent / 'uploads')
+
+    # Email (for password reset + notifications)
+    MAIL_SERVER = os.environ.get('MAIL_SERVER')
+    MAIL_PORT = int(os.environ.get('MAIL_PORT', '587'))
+    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
+    MAIL_USE_SSL = os.environ.get('MAIL_USE_SSL', 'false').lower() == 'true'
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or os.environ.get('MAIL_USERNAME')
 
 
 class DevelopmentConfig(BaseConfig):

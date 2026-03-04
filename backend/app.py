@@ -7,6 +7,10 @@ from urllib import request as urllib_request
 from urllib.error import URLError, HTTPError
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
+try:
+    from flask_mail import Mail
+except Exception:  # pragma: no cover
+    Mail = None
 
 from .config import get_config
 from .models import db
@@ -24,6 +28,19 @@ def create_app(config_name=None):
     config_class, resolved_config_name = get_config(config_name)
     app.config.from_object(config_class)
     app.config["ACTIVE_CONFIG"] = resolved_config_name
+
+    if Mail is not None:
+        try:
+            Mail(app)
+        except Exception as exc:  # pragma: no cover
+            app.logger.warning("Flask-Mail init warning: %s", exc)
+
+    mail_server = (app.config.get("MAIL_SERVER") or "").strip()
+    mail_sender = (app.config.get("MAIL_DEFAULT_SENDER") or "").strip()
+    if not mail_server:
+        app.logger.warning("MAIL_SERVER is not configured; password reset emails will not be delivered.")
+    if not mail_sender:
+        app.logger.warning("MAIL_DEFAULT_SENDER is not configured; password reset emails may fail.")
 
     # CORS: allow frontend (Vite/Hostinger) to call API
     allowed_origins = _get_allowed_origins(app.config.get("CORS_ORIGINS", "*"))
@@ -239,6 +256,7 @@ def create_app(config_name=None):
                     "template_type": "VARCHAR(20) DEFAULT 'svg'",
                     "image_data":    "BYTEA",
                     "image_mime":    "VARCHAR(50)",
+                    "default_design_data": "JSON",
                 }
                 for col, col_type in additions.items():
                     if col not in existing:

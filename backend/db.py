@@ -127,6 +127,7 @@ def init_db():
             first_name VARCHAR(120),
             last_name VARCHAR(120),
             phone VARCHAR(50),
+            admin_notes TEXT,
             created_at VARCHAR(50),
             updated_at VARCHAR(50),
             last_login_at VARCHAR(50)
@@ -154,6 +155,21 @@ def init_db():
     )
     cursor.execute(
         f"""
+        CREATE TABLE IF NOT EXISTS customer_password_resets (
+            id {id_column},
+            customer_id INTEGER NOT NULL,
+            token_hash VARCHAR(128) NOT NULL UNIQUE,
+            expires_at VARCHAR(50) NOT NULL,
+            used_at VARCHAR(50),
+            request_ip VARCHAR(100),
+            user_agent VARCHAR(255),
+            created_at VARCHAR(50) NOT NULL,
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+        )
+        """
+    )
+    cursor.execute(
+        f"""
         CREATE TABLE IF NOT EXISTS customer_favorites (
             id {id_column},
             customer_id INTEGER NOT NULL,
@@ -165,6 +181,11 @@ def init_db():
         )
         """
     )
+
+    if is_postgres:
+        cursor.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS admin_notes TEXT")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_password_resets_customer ON customer_password_resets(customer_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_password_resets_expires ON customer_password_resets(expires_at)")
     cursor.execute(
         f"""
         CREATE TABLE IF NOT EXISTS customer_cart_items (
@@ -662,6 +683,252 @@ def update_customer_last_login(customer_id):
     conn.close()
 
 
+def update_customer_profile_self(customer_id, payload):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    cursor.execute(
+        f"""
+        UPDATE customers
+        SET first_name = {placeholder},
+            last_name = {placeholder},
+            phone = {placeholder},
+            updated_at = {placeholder}
+        WHERE id = {placeholder}
+        """,
+        (
+            payload.get("first_name"),
+            payload.get("last_name"),
+            payload.get("phone"),
+            now,
+            customer_id,
+        ),
+    )
+
+    if cursor.rowcount == 0:
+        conn.rollback()
+        conn.close()
+        return None
+
+    cursor.execute(
+        f"SELECT * FROM customers WHERE id = {placeholder}",
+        (customer_id,),
+    )
+    updated = cursor.fetchone()
+    conn.commit()
+    conn.close()
+    return dict(updated) if updated else None
+
+
+def update_customer_password(customer_id, password_hash):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    cursor.execute(
+        f"""
+        UPDATE customers
+        SET password_hash = {placeholder}, updated_at = {placeholder}
+        WHERE id = {placeholder}
+        """,
+        (password_hash, now, customer_id),
+    )
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+    return affected > 0
+
+
+def count_recent_password_reset_requests(customer_id, request_ip, since_iso):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    cursor.execute(
+        f"""
+        SELECT COUNT(*) AS cnt
+        FROM customer_password_resets
+        WHERE customer_id = {placeholder}
+          AND created_at >= {placeholder}
+        """,
+        (customer_id, since_iso),
+    )
+    customer_count = int((cursor.fetchone() or {}).get("cnt") or 0)
+
+    ip_count = 0
+    if request_ip:
+        cursor.execute(
+            f"""
+            SELECT COUNT(*) AS cnt
+            FROM customer_password_resets
+            WHERE request_ip = {placeholder}
+              AND created_at >= {placeholder}
+            """,
+            (request_ip, since_iso),
+        )
+        ip_count = int((cursor.fetchone() or {}).get("cnt") or 0)
+
+    conn.close()
+    return {
+        "customer_count": customer_count,
+        "ip_count": ip_count,
+    }
+
+
+def create_customer_password_reset(customer_id, token_hash, expires_at, request_ip=None, user_agent=None):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_postgres = _is_postgres_backend()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    values = (
+        customer_id,
+        token_hash,
+        expires_at,
+        request_ip,
+        user_agent,
+        now,
+    )
+
+    if is_postgres:
+        cursor.execute(
+            f"""
+            INSERT INTO customer_password_resets (
+                customer_id, token_hash, expires_at, request_ip, user_agent, created_at
+            ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+            RETURNING id
+            """,
+            values,
+        )
+        reset_id = cursor.fetchone()["id"]
+    else:
+        cursor.execute(
+            f"""
+            INSERT INTO customer_password_resets (
+                customer_id, token_hash, expires_at, request_ip, user_agent, created_at
+            ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+            """,
+            values,
+        )
+        reset_id = cursor.lastrowid
+
+    conn.commit()
+    conn.close()
+    return reset_id
+
+
+def consume_customer_password_reset(token_hash, now_iso):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    cursor.execute(
+        f"""
+        SELECT id, customer_id
+        FROM customer_password_resets
+        WHERE token_hash = {placeholder}
+          AND used_at IS NULL
+          AND expires_at > {placeholder}
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        (token_hash, now_iso),
+    )
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return None
+
+    cursor.execute(
+        f"""
+        UPDATE customer_password_resets
+        SET used_at = {placeholder}
+        WHERE id = {placeholder} AND used_at IS NULL
+        """,
+        (now_iso, row["id"]),
+    )
+
+    if cursor.rowcount == 0:
+        conn.rollback()
+        conn.close()
+        return None
+
+    conn.commit()
+    conn.close()
+    return row["customer_id"]
+
+
+def revoke_customer_password_resets(customer_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"""
+        UPDATE customer_password_resets
+        SET used_at = {placeholder}
+        WHERE customer_id = {placeholder}
+          AND used_at IS NULL
+        """,
+        (now, customer_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_customer_admin(customer_id, payload):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    updates = []
+    values = []
+
+    for field in ("email", "first_name", "last_name", "phone", "admin_notes"):
+        if field in payload:
+            updates.append(f"{field} = {placeholder}")
+            values.append(payload.get(field))
+
+    updates.append(f"updated_at = {placeholder}")
+    values.append(now)
+    values.append(customer_id)
+
+    cursor.execute(
+        f"""
+        UPDATE customers
+        SET {', '.join(updates)}
+        WHERE id = {placeholder}
+        """,
+        tuple(values),
+    )
+
+    if cursor.rowcount == 0:
+        conn.rollback()
+        conn.close()
+        return None
+
+    cursor.execute(
+        f"SELECT * FROM customers WHERE id = {placeholder}",
+        (customer_id,),
+    )
+    updated = cursor.fetchone()
+    conn.commit()
+    conn.close()
+    return dict(updated) if updated else None
+
+
 def list_customer_addresses(customer_id):
     conn = get_db()
     cursor = conn.cursor()
@@ -725,6 +992,74 @@ def create_customer_address(customer_id, payload):
     conn.commit()
     conn.close()
     return address_id
+
+
+def upsert_customer_primary_address(customer_id, payload):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    cursor.execute(
+        f"SELECT id FROM customer_addresses WHERE customer_id = {placeholder} ORDER BY is_default DESC, created_at ASC LIMIT 1",
+        (customer_id,),
+    )
+    existing = cursor.fetchone()
+
+    values = (
+        payload.get("label") or "Primary",
+        payload.get("line1"),
+        payload.get("line2"),
+        payload.get("city"),
+        payload.get("state"),
+        payload.get("postal_code"),
+        payload.get("country"),
+        now,
+    )
+
+    if existing:
+        cursor.execute(
+            f"""
+            UPDATE customer_addresses
+            SET label = {placeholder},
+                line1 = {placeholder},
+                line2 = {placeholder},
+                city = {placeholder},
+                state = {placeholder},
+                postal_code = {placeholder},
+                country = {placeholder},
+                is_default = 1,
+                updated_at = {placeholder}
+            WHERE id = {placeholder}
+            """,
+            values + (existing["id"],),
+        )
+    else:
+        cursor.execute(
+            f"""
+            INSERT INTO customer_addresses (
+                customer_id, label, line1, line2, city, state, postal_code, country,
+                is_default, created_at, updated_at
+            ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder},
+                      {placeholder}, {placeholder}, 1, {placeholder}, {placeholder})
+            """,
+            (
+                customer_id,
+                payload.get("label") or "Primary",
+                payload.get("line1"),
+                payload.get("line2"),
+                payload.get("city"),
+                payload.get("state"),
+                payload.get("postal_code"),
+                payload.get("country"),
+                now,
+                now,
+            ),
+        )
+
+    conn.commit()
+    conn.close()
 
 
 def list_customer_favorites(customer_id):

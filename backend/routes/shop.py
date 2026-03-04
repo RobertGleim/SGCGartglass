@@ -7,8 +7,12 @@ Loaded as backend.routes.shop; api blueprint is re-exported from backend.routes.
 """
 import json
 import os
+import hashlib
+import secrets
+from datetime import datetime, timedelta
+from urllib.parse import quote
 
-from flask import Blueprint, jsonify, request, g
+from flask import Blueprint, jsonify, request, g, current_app
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..auth import create_token, require_auth, require_customer
@@ -26,8 +30,15 @@ from ..db import (
     fetch_customer_by_id,
     create_customer,
     update_customer_last_login,
+    update_customer_profile_self,
+    update_customer_password,
+    count_recent_password_reset_requests,
+    create_customer_password_reset,
+    consume_customer_password_reset,
+    revoke_customer_password_resets,
     list_customer_addresses,
     create_customer_address,
+    upsert_customer_primary_address,
     list_customer_favorites,
     add_customer_favorite,
     remove_customer_favorite,
@@ -41,8 +52,10 @@ from ..db import (
     list_reviews_for_product,
     list_customer_reviews,
     create_customer_review,
+    update_customer_admin,
 )
 from ..etsy import extract_listing_id, fetch_listing
+from ..utils.email import send_email
 
 
 api = Blueprint("api", __name__)
@@ -63,9 +76,78 @@ def health():
 from ..db import list_all_customers
 
 @api.get("/customers")
+@require_auth
 def list_customers():
+    if g.auth_payload.get("role") == "customer":
+        return jsonify({"error": "forbidden"}), 403
     customers = list_all_customers()
+    for customer in customers:
+        customer.pop("password_hash", None)
     return jsonify(customers), 200
+
+
+@api.put("/customers/<int:customer_id>")
+@require_auth
+def admin_update_customer(customer_id):
+    if g.auth_payload.get("role") == "customer":
+        return jsonify({"error": "forbidden"}), 403
+
+    init_db()
+    payload = request.get_json(silent=True) or {}
+    update_payload = {
+        "email": (payload.get("email") or "").strip().lower(),
+        "first_name": (payload.get("first_name") or "").strip() or None,
+        "last_name": (payload.get("last_name") or "").strip() or None,
+        "phone": (payload.get("phone") or "").strip() or None,
+        "admin_notes": (payload.get("admin_notes") or "").strip() or None,
+    }
+
+    if not update_payload["email"]:
+        return jsonify({"error": "email_required"}), 400
+
+    address_payload = payload.get("address") if isinstance(payload.get("address"), dict) else None
+
+    try:
+        updated = update_customer_admin(customer_id, update_payload)
+        if updated and address_payload:
+            upsert_customer_primary_address(customer_id, {
+                "label": (address_payload.get("label") or "Primary").strip() or "Primary",
+                "line1": (address_payload.get("line1") or "").strip() or None,
+                "line2": (address_payload.get("line2") or "").strip() or None,
+                "city": (address_payload.get("city") or "").strip() or None,
+                "state": (address_payload.get("state") or "").strip() or None,
+                "postal_code": (address_payload.get("postal_code") or "").strip() or None,
+                "country": (address_payload.get("country") or "").strip() or None,
+            })
+    except Exception as exc:
+        if "duplicate" in str(exc).lower() or "unique" in str(exc).lower():
+            return jsonify({"error": "email_in_use"}), 409
+        return jsonify({"error": "update_failed"}), 500
+
+    if not updated:
+        return jsonify({"error": "not_found"}), 404
+
+    updated.pop("password_hash", None)
+    return jsonify(updated), 200
+
+
+@api.get("/customers/<int:customer_id>/details")
+@require_auth
+def admin_get_customer_details(customer_id):
+    if g.auth_payload.get("role") == "customer":
+        return jsonify({"error": "forbidden"}), 403
+
+    init_db()
+    customer = fetch_customer_by_id(customer_id)
+    if not customer:
+        return jsonify({"error": "not_found"}), 404
+    customer.pop("password_hash", None)
+
+    addresses = list_customer_addresses(customer_id)
+    return jsonify({
+        "customer": customer,
+        "addresses": addresses,
+    }), 200
 
 
 @api.post("/auth/login")
@@ -160,6 +242,104 @@ def customer_login():
     return jsonify({"token": token, "customer_id": customer["id"]})
 
 
+def _password_reset_link(token):
+    base = (os.environ.get("FRONTEND_BASE_URL") or "").strip().rstrip("/")
+    if not base:
+        origin = request.headers.get("Origin")
+        if origin:
+            base = origin.strip().rstrip("/")
+        else:
+            base = request.host_url.rstrip("/")
+    return f"{base}/#/account/reset-password?token={quote(token)}"
+
+
+def _password_reset_email_body(reset_link):
+    return f"""
+    <html>
+    <body>
+      <h2>Reset your password</h2>
+      <p>We received a request to reset your SGCG account password.</p>
+      <p><a href=\"{reset_link}\">Click here to reset your password</a></p>
+      <p>This link expires in 30 minutes and can only be used once.</p>
+      <p>If you did not request this, you can ignore this email.</p>
+      <hr>
+      <p>SGCG Art Glass Team</p>
+    </body>
+    </html>
+    """
+
+
+@api.post("/customer/password/forgot")
+def customer_forgot_password():
+    init_db()
+    payload = request.get_json(silent=True) or {}
+    email = (payload.get("email") or "").strip().lower()
+
+    generic_response = {
+        "success": True,
+        "message": "If an account with that email exists, a reset link has been sent.",
+    }
+
+    if not email:
+        return jsonify(generic_response), 200
+
+    customer = fetch_customer_by_email(email)
+    if not customer:
+        return jsonify(generic_response), 200
+
+    now = datetime.utcnow()
+    one_hour_ago = (now - timedelta(hours=1)).isoformat()
+    request_ip = (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip() or None
+    user_agent = (request.headers.get("User-Agent") or "")[:255] or None
+    limits = count_recent_password_reset_requests(customer["id"], request_ip, one_hour_ago)
+
+    if limits["customer_count"] >= 5 or limits["ip_count"] >= 20:
+        return jsonify(generic_response), 200
+
+    reset_token = secrets.token_urlsafe(48)
+    token_hash = hashlib.sha256(reset_token.encode("utf-8")).hexdigest()
+    expires_at = (now + timedelta(minutes=30)).isoformat()
+    create_customer_password_reset(customer["id"], token_hash, expires_at, request_ip=request_ip, user_agent=user_agent)
+
+    reset_link = _password_reset_link(reset_token)
+    sent = send_email(
+        email,
+        "SGCG Password Reset",
+        _password_reset_email_body(reset_link),
+    )
+    if not sent:
+        # Keep response generic for security; log delivery failure for operators.
+        current_app.logger.warning("Password reset email was not delivered for customer_id=%s", customer["id"])
+
+    return jsonify(generic_response), 200
+
+
+@api.post("/customer/password/reset")
+def customer_reset_password():
+    init_db()
+    payload = request.get_json(silent=True) or {}
+    token = (payload.get("token") or "").strip()
+    new_password = payload.get("new_password") or ""
+
+    if not token or not new_password:
+        return jsonify({"error": "missing_credentials"}), 400
+    if len(new_password) < 8:
+        return jsonify({"error": "password_too_short"}), 400
+
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    now_iso = datetime.utcnow().isoformat()
+    customer_id = consume_customer_password_reset(token_hash, now_iso)
+    if not customer_id:
+        return jsonify({"error": "invalid_or_expired_token"}), 400
+
+    updated = update_customer_password(customer_id, generate_password_hash(new_password))
+    if not updated:
+        return jsonify({"error": "update_failed"}), 500
+
+    revoke_customer_password_resets(customer_id)
+    return jsonify({"success": True}), 200
+
+
 @api.get("/customer/me")
 @require_customer
 def customer_me():
@@ -169,7 +349,29 @@ def customer_me():
     if not customer:
         return jsonify({"error": "not_found"}), 404
     customer.pop("password_hash", None)
+    customer.pop("admin_notes", None)
     return jsonify(customer)
+
+
+@api.put("/customer/me")
+@require_customer
+def customer_update_me():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    payload = request.get_json(silent=True) or {}
+
+    update_payload = {
+        "first_name": (payload.get("first_name") or "").strip() or None,
+        "last_name": (payload.get("last_name") or "").strip() or None,
+        "phone": (payload.get("phone") or "").strip() or None,
+    }
+
+    updated = update_customer_profile_self(customer_id, update_payload)
+    if not updated:
+        return jsonify({"error": "not_found"}), 404
+    updated.pop("password_hash", None)
+    updated.pop("admin_notes", None)
+    return jsonify(updated), 200
 
 
 @api.get("/customer/addresses")
@@ -190,6 +392,53 @@ def customer_add_address():
         return jsonify({"error": "missing_address"}), 400
     address_id = create_customer_address(customer_id, payload)
     return jsonify({"id": address_id}), 201
+
+
+@api.put("/customer/addresses/primary")
+@require_customer
+def customer_update_primary_address():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    payload = request.get_json(silent=True) or {}
+    if not payload.get("line1"):
+        return jsonify({"error": "missing_address"}), 400
+
+    upsert_customer_primary_address(customer_id, {
+        "label": (payload.get("label") or "Primary").strip() or "Primary",
+        "line1": (payload.get("line1") or "").strip() or None,
+        "line2": (payload.get("line2") or "").strip() or None,
+        "city": (payload.get("city") or "").strip() or None,
+        "state": (payload.get("state") or "").strip() or None,
+        "postal_code": (payload.get("postal_code") or "").strip() or None,
+        "country": (payload.get("country") or "").strip() or None,
+    })
+    return jsonify({"success": True}), 200
+
+
+@api.put("/customer/password")
+@require_customer
+def customer_change_password():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    payload = request.get_json(silent=True) or {}
+    old_password = payload.get("old_password") or ""
+    new_password = payload.get("new_password") or ""
+
+    if not old_password or not new_password:
+        return jsonify({"error": "missing_password"}), 400
+    if len(new_password) < 8:
+        return jsonify({"error": "password_too_short"}), 400
+
+    customer = fetch_customer_by_id(customer_id)
+    if not customer:
+        return jsonify({"error": "not_found"}), 404
+    if not check_password_hash(customer.get("password_hash", ""), old_password):
+        return jsonify({"error": "invalid_old_password"}), 400
+
+    updated = update_customer_password(customer_id, generate_password_hash(new_password))
+    if not updated:
+        return jsonify({"error": "update_failed"}), 500
+    return jsonify({"success": True}), 200
 
 
 @api.get("/customer/favorites")

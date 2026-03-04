@@ -8,13 +8,18 @@ except Exception:  # optional dependency in some local envs
 def send_email(to, subject, html_body):
     if Message is None:
         current_app.logger.warning('Flask-Mail not installed; skipping email send to %s', to)
-        return
+        return False
     mail = current_app.extensions.get('mail')
     if not mail:
         current_app.logger.warning('Flask-Mail not configured; skipping email send to %s', to)
-        return
-    msg = Message(subject, recipients=[to], html=html_body)
-    mail.send(msg)
+        return False
+    try:
+        msg = Message(subject, recipients=[to], html=html_body)
+        mail.send(msg)
+        return True
+    except Exception as exc:
+        current_app.logger.error('Email send failed for %s: %s', to, exc)
+        return False
 
 def work_order_confirmation_email(work_order, customer_email):
     project_name = getattr(work_order, 'project_name', None) or getattr(getattr(work_order, 'project', None), 'name', 'Your Design')

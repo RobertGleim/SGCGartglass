@@ -159,6 +159,41 @@ def validate_template_data(data: Any) -> tuple[bool, dict[str, Any], str]:
         except (ValueError, TypeError):
             piece_count = None
 
+    default_design_data = payload.get("default_design_data")
+    if default_design_data is not None:
+        if not isinstance(default_design_data, dict):
+            return False, {}, "default_design_data must be an object"
+        sections = default_design_data.get("sections")
+        if sections is not None and not isinstance(sections, dict):
+            return False, {}, "default_design_data.sections must be an object"
+        if isinstance(sections, dict):
+            normalized_sections = {}
+            for section_id, section_value in sections.items():
+                if not isinstance(section_id, str) or not section_id.strip():
+                    return False, {}, "default_design_data.sections has invalid section id"
+                if not isinstance(section_value, dict):
+                    return False, {}, f"default_design_data.sections[{section_id!r}] must be an object"
+                normalized_entry = {}
+                if "color" in section_value and section_value["color"] is not None:
+                    if not isinstance(section_value["color"], str):
+                        return False, {}, f"default_design_data.sections[{section_id!r}].color must be a string"
+                    normalized_entry["color"] = section_value["color"].strip()
+                if "glassType" in section_value and section_value["glassType"] is not None:
+                    normalized_entry["glassType"] = str(section_value["glassType"]).strip()
+                if "glassTypeId" in section_value and section_value["glassTypeId"] is not None:
+                    try:
+                        normalized_entry["glassTypeId"] = int(section_value["glassTypeId"])
+                    except (ValueError, TypeError):
+                        return False, {}, f"default_design_data.sections[{section_id!r}].glassTypeId must be an integer"
+                if "sectionNum" in section_value and section_value["sectionNum"] is not None:
+                    try:
+                        normalized_entry["sectionNum"] = int(section_value["sectionNum"])
+                    except (ValueError, TypeError):
+                        return False, {}, f"default_design_data.sections[{section_id!r}].sectionNum must be an integer"
+                normalized_entry["locked"] = bool(section_value.get("locked", False))
+                normalized_sections[section_id.strip()] = normalized_entry
+            default_design_data = {"sections": normalized_sections}
+
     normalized = {
         "name": name,
         "description": description,
@@ -170,6 +205,7 @@ def validate_template_data(data: Any) -> tuple[bool, dict[str, Any], str]:
         "piece_count": piece_count,
         "template_type": template_type,
         "image_url": image_url,
+        "default_design_data": default_design_data,
     }
     if svg_content is not None:
         normalized["svg_content"] = svg_content

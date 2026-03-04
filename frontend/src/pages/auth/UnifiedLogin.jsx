@@ -1,11 +1,15 @@
 import { useState } from 'react'
+import { requestCustomerPasswordReset } from '../../services/api'
 import '../../styles/CustomerAuth.css'
 
 export default function UnifiedLogin({ onAdminLogin, onCustomerLogin }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [resetStatus, setResetStatus] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
   const handleSubmit = async (event) => {
@@ -14,11 +18,7 @@ export default function UnifiedLogin({ onAdminLogin, onCustomerLogin }) {
     setLoading(true)
 
     try {
-      // Try admin login first (silently - no error log if it fails)
-      await onAdminLogin(email, password)
-      // Navigation handled by onAdminLogin (App.jsx handleLogin)
-    } catch (adminError) {
-      // Admin login failed - this is expected for customer accounts, try customer login
+      // Try customer login first to avoid expected admin 401 noise for customer accounts
       try {
         await onCustomerLogin(email, password)
         console.log('[UnifiedLogin] Customer login successful')
@@ -26,17 +26,47 @@ export default function UnifiedLogin({ onAdminLogin, onCustomerLogin }) {
         // Force re-render if hash was already #/account
         window.dispatchEvent(new HashChangeEvent('hashchange'))
       } catch (customerError) {
-        // Both logins failed - now show error
-        console.error('[UnifiedLogin] Login failed:', customerError.response?.data?.error || customerError.message)
-        const serverMsg = adminError.response?.data?.error
-        if (serverMsg === 'admin_not_configured') {
-          setError('Admin account is not configured on the server. Check ADMIN_EMAIL and ADMIN_PASSWORD_HASH environment variables.')
-        } else {
-          setError('Invalid email or password. Please try again.')
+        // Customer login failed; try admin login as fallback for admin accounts
+        try {
+          await onAdminLogin(email, password)
+          // Navigation handled by onAdminLogin (App.jsx handleLogin)
+        } catch (adminError) {
+          // Both logins failed - now show error
+          console.error('[UnifiedLogin] Login failed:', adminError.response?.data?.error || adminError.message)
+          const serverMsg = adminError.response?.data?.error
+          if (serverMsg === 'admin_not_configured') {
+            setError('Admin account is not configured on the server. Check ADMIN_EMAIL and ADMIN_PASSWORD_HASH environment variables.')
+          } else {
+            setError('Invalid email or password. Please try again.')
+          }
         }
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async (event) => {
+    event.preventDefault()
+    setError('')
+    setResetStatus('')
+
+    if (!email) {
+      setError('Enter your email to reset your password.')
+      return
+    }
+
+    setResetLoading(true)
+    try {
+      const response = await requestCustomerPasswordReset(email)
+      setResetStatus(
+        response?.message
+        || 'If an account with that email exists, a reset link has been sent.'
+      )
+    } catch {
+      setResetStatus('If an account with that email exists, a reset link has been sent.')
+    } finally {
+      setResetLoading(false)
     }
   }
 
@@ -46,6 +76,7 @@ export default function UnifiedLogin({ onAdminLogin, onCustomerLogin }) {
       <p>Access your account or admin dashboard</p>
 
       {error && <div className="customer-auth-error">{error}</div>}
+      {resetStatus && <div className="customer-auth-success">{resetStatus}</div>}
 
       <form className="customer-auth-form" onSubmit={handleSubmit}>
         <div>
@@ -96,6 +127,37 @@ export default function UnifiedLogin({ onAdminLogin, onCustomerLogin }) {
           {loading ? 'Signing in...' : 'Sign in'}
         </button>
       </form>
+
+      <div className="customer-auth-links">
+        <button
+          type="button"
+          className="customer-auth-link-button"
+          onClick={() => {
+            setShowForgotPassword((prev) => !prev)
+            setResetStatus('')
+            setError('')
+          }}
+        >
+          {showForgotPassword ? 'Hide forgot password' : 'Forgot password?'}
+        </button>
+      </div>
+
+      {showForgotPassword && (
+        <form className="customer-auth-inline" onSubmit={handleForgotPassword}>
+          <label htmlFor="forgot-email">Email for reset link</label>
+          <input
+            id="forgot-email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+          />
+          <button type="submit" disabled={resetLoading}>
+            {resetLoading ? 'Sending link...' : 'Send reset link'}
+          </button>
+        </form>
+      )}
 
       <div className="customer-auth-footer">
         New customer? <a href="#/account/signup">Create an account</a>

@@ -923,6 +923,47 @@
   text-align: center;
 }
 
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 0.8rem 0.95rem;
+  border-bottom: 1px solid #e9eef8;
+  vertical-align: middle;
+}
+
+.admin-table thead th {
+  font-size: 0.95rem;
+  color: #1f2f4d;
+  font-weight: 700;
+}
+
+.admin-table tbody td {
+  color: #2b3445;
+}
+
+.customer-admin-table th:last-child,
+.customer-admin-table td:last-child,
+.customer-actions-cell {
+  text-align: right;
+}
+
+.customer-admin-table td:nth-child(1) {
+  min-width: 220px;
+}
+
+.customer-admin-table td:nth-child(2) {
+  min-width: 220px;
+}
+
+.customer-admin-table td:nth-child(3) {
+  min-width: 140px;
+}
+
 
 /* Modal Styles */
 .modal-overlay {

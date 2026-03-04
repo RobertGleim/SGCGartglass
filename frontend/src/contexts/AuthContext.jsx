@@ -11,7 +11,12 @@ cleanupCorruptedTokens();
 
 export function AuthProvider({ children }) {
   const [authToken, setAuthToken] = useState(() => {
-    const token = window.localStorage.getItem('sgcg_token') || '';
+    const sessionToken = window.sessionStorage.getItem('sgcg_token') || '';
+    const persistedToken = window.localStorage.getItem('sgcg_token') || '';
+    const token = sessionToken || persistedToken;
+    if (!sessionToken && persistedToken) {
+      window.localStorage.removeItem('sgcg_token');
+    }
     return isValidToken(token) ? token : '';
   })
   const lastActivityRef = useRef(Date.now())
@@ -19,6 +24,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => {
     setAuthToken('')
+    window.sessionStorage.removeItem('sgcg_token')
     window.localStorage.removeItem('sgcg_token')
     // Redirect to sign-in page
     if (window.location.hash.includes('/admin')) {
@@ -30,6 +36,7 @@ export function AuthProvider({ children }) {
     const token = await adminLogin(email, password)
     if (isValidToken(token)) {
       setAuthToken(token)
+      window.sessionStorage.setItem('sgcg_token', token)
       window.localStorage.setItem('sgcg_token', token)
       console.log('[Auth] Admin login successful')
     } else {

@@ -17,7 +17,12 @@ export const CustomerAuthContext = createContext({
 
 export function CustomerAuthProvider({ children }) {
   const [customerToken, setCustomerToken] = useState(() => {
-    const token = window.localStorage.getItem('sgcg_customer_token') || '';
+    const sessionToken = window.sessionStorage.getItem('sgcg_customer_token') || '';
+    const persistedToken = window.localStorage.getItem('sgcg_customer_token') || '';
+    const token = sessionToken || persistedToken;
+    if (!sessionToken && persistedToken) {
+      window.localStorage.removeItem('sgcg_customer_token');
+    }
     return isValidToken(token) ? token : '';
   })
   const lastActivityRef = useRef(Date.now())
@@ -25,6 +30,7 @@ export function CustomerAuthProvider({ children }) {
 
   const logout = useCallback(() => {
     setCustomerToken('')
+    window.sessionStorage.removeItem('sgcg_customer_token')
     window.localStorage.removeItem('sgcg_customer_token')
     // Redirect to sign-in page
     if (window.location.hash.includes('/account')) {
@@ -36,6 +42,7 @@ export function CustomerAuthProvider({ children }) {
     const token = await customerLogin(email, password)
     if (isValidToken(token)) {
       setCustomerToken(token)
+      window.sessionStorage.setItem('sgcg_customer_token', token)
       window.localStorage.setItem('sgcg_customer_token', token)
       lastActivityRef.current = Date.now()
     } else {
@@ -49,6 +56,7 @@ export function CustomerAuthProvider({ children }) {
     const token = await customerSignup(payload)
     if (isValidToken(token)) {
       setCustomerToken(token)
+      window.sessionStorage.setItem('sgcg_customer_token', token)
       window.localStorage.setItem('sgcg_customer_token', token)
       lastActivityRef.current = Date.now()
     } else {

@@ -13,6 +13,26 @@
   margin-bottom: 1.5rem;
 }
 
+.portal-signout {
+  align-self: flex-start;
+  border: 1px solid #d6dce6;
+  background: #fff;
+  color: #1f2f4d;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.portal-signout:hover {
+  background: #f0f3f8;
+  border-color: #d6dce6;
+}
+
 .customer-portal-header h2 {
   margin: 0;
   font-size: 1.5rem;
@@ -151,6 +171,57 @@
   resize: vertical;
 }
 
+.portal-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.portal-form button {
+  border: none;
+  background: #1f4ea1;
+  color: #fff;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.portal-form button:hover {
+  background: #1a438c;
+}
+
+.portal-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+}
+
+.portal-subtabs button {
+  border: 1px solid #d6dce6;
+  background: #fff;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: #1f2f4d;
+}
+
+.portal-subtabs button.active {
+  background: #1f4ea1;
+  color: #fff;
+  border-color: #1f4ea1;
+}
+
 .customer-auth-error {
   background: #ffe9e9;
   color: #a53a3a;
@@ -230,6 +301,9 @@
   }
 
   .customer-portal-header {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
     gap: 0.5rem;
     margin-bottom: 1.85rem;
   }

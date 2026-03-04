@@ -14,15 +14,34 @@ const normalizeText = (value) => {
 
 const normalizeCategoryValue = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '')
 
-const isGlassTypeCategory = (value) => {
-  const normalized = normalizeCategoryValue(value)
-  return normalized === 'stainedglass' || normalized === 'glass'
+const PRODUCT_TABS = [
+  { key: 'stained-glass-panels', label: 'Stained Glass Panels' },
+  { key: 'fused-art', label: 'Fused Art' },
+  { key: 'laser-and-sandblasting', label: 'Laser and Sandblasting' },
+  { key: 'wood-art', label: 'Wood Art' },
+  { key: 'patterns', label: 'Patterns' },
+]
+
+const CATEGORY_TYPE_ALIASES = {
+  stainedglasspanels: 'stained-glass-panels',
+  stainedglass: 'stained-glass-panels',
+  glass: 'stained-glass-panels',
+  fusedart: 'fused-art',
+  laserandsandblasting: 'laser-and-sandblasting',
+  laser: 'laser-and-sandblasting',
+  sandblasting: 'laser-and-sandblasting',
+  sandblast: 'laser-and-sandblasting',
+  woodart: 'wood-art',
+  woodwork: 'wood-art',
+  woodworking: 'wood-art',
+  wood: 'wood-art',
+  patterns: 'patterns',
+  pattern: 'patterns',
 }
 
-const isWoodTypeCategory = (value) => {
-  const normalized = normalizeCategoryValue(value)
-  return normalized === 'woodwork' || normalized === 'wood' || normalized === 'woodworking'
-}
+const normalizeTypeKeyFromCategory = (value) => CATEGORY_TYPE_ALIASES[normalizeCategoryValue(value)] || null
+
+const isTypeCategory = (value) => Boolean(normalizeTypeKeyFromCategory(value))
 
 const toCategoryArray = (category) => {
   if (Array.isArray(category)) {
@@ -55,7 +74,7 @@ const toCategoryArray = (category) => {
 }
 
 const removeTypeCategories = (categories) => {
-  return categories.filter((entry) => !isGlassTypeCategory(entry) && !isWoodTypeCategory(entry))
+  return categories.filter((entry) => !isTypeCategory(entry))
 }
 
 const inferLegacyType = (product) => {
@@ -65,19 +84,17 @@ const inferLegacyType = (product) => {
   const descriptionText = normalizeText(product.description)
   const combined = `${categoryText} ${materialsText} ${titleText} ${descriptionText}`
 
+  const looksPattern = /pattern|template|svg|line\s*art|trace/.test(combined)
+  const looksLaserOrSandblast = /laser|sandblast|sand\s*blast|engrave|etch/.test(combined)
+  const looksFused = /fused|kiln|slump|melt/.test(combined)
   const looksWood = /wood|woodwork|timber|carv|oak|walnut|maple|cedar/.test(combined)
-  const looksGlass = /glass|stained|suncatcher|sun catcher|panel|lead came|copper foil/.test(combined)
 
-  if (looksWood && !looksGlass) {
-    return 'wood-work'
-  }
+  if (looksPattern) return 'patterns'
+  if (looksLaserOrSandblast) return 'laser-and-sandblasting'
+  if (looksFused) return 'fused-art'
+  if (looksWood) return 'wood-art'
 
-  if (looksGlass && !looksWood) {
-    return 'stained-glass'
-  }
-
-  // Default legacy/unclear products to stained glass so existing catalog items remain visible.
-  return 'stained-glass'
+  return 'stained-glass-panels'
 }
 
 export default function ProductPage({ products }) {
@@ -87,22 +104,19 @@ export default function ProductPage({ products }) {
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [priceFilter, setPriceFilter] = useState('any')
   const [sortBy, setSortBy] = useState('recent')
-  const [activeTab, setActiveTab] = useState('stained-glass')
+  const [activeTab, setActiveTab] = useState('stained-glass-panels')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
   const sectionProducts = useMemo(() => {
     return products.filter((product) => {
       const categories = toCategoryArray(product.category)
-      const hasGlassType = categories.some((entry) => isGlassTypeCategory(entry))
-      const hasWoodType = categories.some((entry) => isWoodTypeCategory(entry))
+      const normalizedTypes = categories
+        .map((entry) => normalizeTypeKeyFromCategory(entry))
+        .filter(Boolean)
 
-      if (hasGlassType || hasWoodType) {
-        if (activeTab === 'wood-work') {
-          return hasWoodType && !hasGlassType
-        }
-
-        return hasGlassType && !hasWoodType
+      if (normalizedTypes.length > 0) {
+        return normalizedTypes.includes(activeTab)
       }
 
       const inferredType = inferLegacyType(product)
@@ -110,7 +124,7 @@ export default function ProductPage({ products }) {
     })
   }, [products, activeTab])
 
-  const sectionLabel = activeTab === 'wood-work' ? 'Wood Work' : 'Stained Glass'
+  const sectionLabel = PRODUCT_TABS.find((tab) => tab.key === activeTab)?.label || 'Products'
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 720)
@@ -185,6 +199,8 @@ export default function ProductPage({ products }) {
     return result
   }, [sectionProducts, search, selectedCategory, priceFilter, sortBy])
 
+  const isSectionComingSoon = sectionProducts.length === 0
+
   useEffect(() => {
     if (selectedCategory !== 'All') {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -198,18 +214,15 @@ export default function ProductPage({ products }) {
       <div className="shop-nav">
         <div className="shop-nav-inner">
           <div className="nav-tabs">
-            <button 
-              className={`nav-tab ${activeTab === 'stained-glass' ? 'active' : ''}`}
-              onClick={() => setActiveTab('stained-glass')}
-            >
-              Stained Glass
-            </button>
-            <button 
-              className={`nav-tab ${activeTab === 'wood-work' ? 'active' : ''}`}
-              onClick={() => setActiveTab('wood-work')}
-            >
-              Wood Work
-            </button>
+            {PRODUCT_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                className={`nav-tab ${activeTab === tab.key ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.key)}
+              >
+                {tab.label}
+              </button>
+            ))}
             <a
               className="nav-tab"
               href="/#/designer"
@@ -284,7 +297,21 @@ export default function ProductPage({ products }) {
           </div>
           <div className="product-grid">
             {filtered.length === 0 ? (
-              <div className="empty-state">No products found.</div>
+              isSectionComingSoon ? (
+                <div className="coming-soon-state" role="status" aria-live="polite">
+                  <div className="coming-soon-badge">Coming soon</div>
+                  <p className="coming-soon-text">
+                    We&apos;re currently building this collection.
+                  </p>
+                  <div className="coming-soon-loader" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                </div>
+              ) : (
+                <div className="empty-state">No products found.</div>
+              )
             ) : (
               filtered.map((product) => (
                 <ProductCard product={product} key={product.id} />

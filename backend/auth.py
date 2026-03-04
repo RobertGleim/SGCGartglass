@@ -38,7 +38,7 @@ def require_auth(handler):
             return jsonify({"error": "missing_token"}), 401
         token = auth_header.split(" ", 1)[1].strip()
         try:
-            decode_token(token)
+            payload = decode_token(token)
         except jwt.ExpiredSignatureError:
             return jsonify({"error": "token_expired"}), 401
         except jwt.InvalidIssuerError:
@@ -47,6 +47,7 @@ def require_auth(handler):
             return jsonify({"error": "malformed_token"}), 401
         except jwt.PyJWTError as e:
             return jsonify({"error": f"invalid_token: {type(e).__name__}"}), 401
+        g.auth_payload = payload
         return handler(*args, **kwargs)
 
     return wrapper

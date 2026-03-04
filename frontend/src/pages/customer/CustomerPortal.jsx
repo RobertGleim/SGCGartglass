@@ -4,7 +4,9 @@ import '../../styles/CustomerPortal.css'
 import {
   fetchCustomerProfile,
   fetchCustomerAddresses,
-  addCustomerAddress,
+  updateCustomerProfile,
+  upsertCustomerPrimaryAddress,
+  changeCustomerPassword,
   fetchCustomerFavorites,
   removeCustomerFavorite,
   fetchCustomerCart,
@@ -39,6 +41,13 @@ export default function CustomerPortal({ manualProducts }) {
   const [orderItems, setOrderItems] = useState({})
   const [reviews, setReviews] = useState([])
   const [status, setStatus] = useState('')
+  const [settingsTab, setSettingsTab] = useState('profile')
+  const [profileForm, setProfileForm] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+  })
   const [addressForm, setAddressForm] = useState({
     label: '',
     line1: '',
@@ -47,6 +56,11 @@ export default function CustomerPortal({ manualProducts }) {
     state: '',
     postal_code: '',
     country: '',
+  })
+  const [passwordForm, setPasswordForm] = useState({
+    old_password: '',
+    new_password: '',
+    confirm_password: '',
   })
   const [reviewForm, setReviewForm] = useState({
     product_type: 'manual',
@@ -84,7 +98,26 @@ export default function CustomerPortal({ manualProducts }) {
 
         if (!isActive) return
         setProfile(profileData)
+        setProfileForm({
+          first_name: profileData?.first_name || '',
+          last_name: profileData?.last_name || '',
+          email: profileData?.email || '',
+          phone: profileData?.phone || '',
+        })
         setAddresses(Array.isArray(addressData) ? addressData : [])
+        const primaryAddress =
+          (Array.isArray(addressData) ? addressData.find((entry) => entry.is_default) : null)
+          || (Array.isArray(addressData) ? addressData[0] : null)
+          || {}
+        setAddressForm({
+          label: primaryAddress.label || 'Primary',
+          line1: primaryAddress.line1 || '',
+          line2: primaryAddress.line2 || '',
+          city: primaryAddress.city || '',
+          state: primaryAddress.state || '',
+          postal_code: primaryAddress.postal_code || '',
+          country: primaryAddress.country || '',
+        })
         setFavorites(Array.isArray(favoriteData) ? favoriteData : [])
         setCartItems(Array.isArray(cartData) ? cartData : [])
         setOrders(Array.isArray(orderData) ? orderData : [])
@@ -112,29 +145,80 @@ export default function CustomerPortal({ manualProducts }) {
     }
   }, [customerToken])
 
+  const handleProfileSubmit = async (event) => {
+    event.preventDefault()
+    setStatus('')
+    try {
+      const updated = await updateCustomerProfile({
+        first_name: profileForm.first_name,
+        last_name: profileForm.last_name,
+        phone: profileForm.phone,
+      })
+      setProfile(updated)
+      setProfileForm((prev) => ({
+        ...prev,
+        first_name: updated?.first_name || '',
+        last_name: updated?.last_name || '',
+        email: updated?.email || prev.email,
+        phone: updated?.phone || '',
+      }))
+      setStatus('Profile updated.')
+    } catch (error) {
+      setStatus(error?.response?.data?.error || error.message || 'Unable to save profile.')
+    }
+  }
+
   const handleAddressSubmit = async (event) => {
     event.preventDefault()
     setStatus('')
     try {
-      const response = await addCustomerAddress(addressForm)
-      setAddresses((prev) => [
-        {
-          id: response.id,
-          ...addressForm,
-        },
-        ...prev,
-      ])
+      await upsertCustomerPrimaryAddress(addressForm)
+      const refreshedAddresses = await fetchCustomerAddresses()
+      const normalized = Array.isArray(refreshedAddresses) ? refreshedAddresses : []
+      setAddresses(normalized)
+      const primaryAddress = normalized.find((entry) => entry.is_default) || normalized[0] || {}
       setAddressForm({
-        label: '',
-        line1: '',
-        line2: '',
-        city: '',
-        state: '',
-        postal_code: '',
-        country: '',
+        label: primaryAddress.label || 'Primary',
+        line1: primaryAddress.line1 || '',
+        line2: primaryAddress.line2 || '',
+        city: primaryAddress.city || '',
+        state: primaryAddress.state || '',
+        postal_code: primaryAddress.postal_code || '',
+        country: primaryAddress.country || '',
       })
+      setStatus('Address updated.')
     } catch (error) {
-      setStatus(error.message || 'Unable to save address.')
+      setStatus(error?.response?.data?.error || error.message || 'Unable to save address.')
+    }
+  }
+
+  const handlePasswordSubmit = async (event) => {
+    event.preventDefault()
+    setStatus('')
+    if (!passwordForm.old_password || !passwordForm.new_password) {
+      setStatus('Enter your current and new password.')
+      return
+    }
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      setStatus('New password and confirmation must match.')
+      return
+    }
+    try {
+      await changeCustomerPassword({
+        old_password: passwordForm.old_password,
+        new_password: passwordForm.new_password,
+      })
+      setPasswordForm({ old_password: '', new_password: '', confirm_password: '' })
+      setStatus('Password updated.')
+    } catch (error) {
+      const code = error?.response?.data?.error
+      if (code === 'invalid_old_password') {
+        setStatus('Current password is incorrect.')
+      } else if (code === 'password_too_short') {
+        setStatus('New password must be at least 8 characters.')
+      } else {
+        setStatus(code || error.message || 'Unable to update password.')
+      }
     }
   }
 
@@ -195,8 +279,11 @@ export default function CustomerPortal({ manualProducts }) {
   return (
     <div className="customer-portal">
       <div className="customer-portal-header">
-        <h2>Customer portal</h2>
-        <p>Manage your account, track orders, and keep tabs on favorites.</p>
+        <div>
+          <h2>Customer portal</h2>
+          <p>Manage your account, track orders, and keep tabs on favorites.</p>
+        </div>
+        <button className="secondary portal-signout" onClick={logout}>Sign out</button>
       </div>
 
       {status && <div className="customer-auth-error">{status}</div>}
@@ -251,13 +338,6 @@ export default function CustomerPortal({ manualProducts }) {
                 <strong>{cartItems.length}</strong>
                 <span className="portal-muted">Items in cart</span>
               </div>
-            </div>
-          </div>
-          <div className="portal-card">
-            <h3>Security</h3>
-            <p className="portal-muted">Use the settings tab to manage saved addresses and sign out.</p>
-            <div className="portal-actions">
-              <button className="secondary" onClick={logout}>Sign out</button>
             </div>
           </div>
         </div>
@@ -420,30 +500,63 @@ export default function CustomerPortal({ manualProducts }) {
       )}
 
       {activeTab === 'settings' && (
-        <div className="portal-grid">
-          <div className="portal-card">
-            <h3>Saved addresses</h3>
-            {addresses.length === 0 ? (
-              <p className="portal-muted">No addresses saved yet.</p>
-            ) : (
-              <div className="portal-list">
-                {addresses.map((address) => (
-                  <div key={address.id} className="portal-list-item">
-                    <strong>{address.label || 'Address'}</strong>
-                    <span className="portal-muted">{address.line1}</span>
-                    {address.line2 && <span className="portal-muted">{address.line2}</span>}
-                    <span className="portal-muted">
-                      {address.city} {address.state} {address.postal_code}
-                    </span>
-                    <span className="portal-muted">{address.country}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+        <div className="portal-card">
+          <div className="portal-subtabs">
+            <button
+              className={settingsTab === 'profile' ? 'active' : ''}
+              onClick={() => setSettingsTab('profile')}
+            >
+              Profile
+            </button>
+            <button
+              className={settingsTab === 'address' ? 'active' : ''}
+              onClick={() => setSettingsTab('address')}
+            >
+              Address
+            </button>
+            <button
+              className={settingsTab === 'password' ? 'active' : ''}
+              onClick={() => setSettingsTab('password')}
+            >
+              Password
+            </button>
           </div>
-          <div className="portal-card">
-            <h3>Add new address</h3>
+
+          {settingsTab === 'profile' && (
+            <form className="portal-form" onSubmit={handleProfileSubmit}>
+              <h3>Profile</h3>
+              <input
+                type="text"
+                placeholder="First name"
+                value={profileForm.first_name}
+                onChange={(event) =>
+                  setProfileForm((prev) => ({ ...prev, first_name: event.target.value }))
+                }
+              />
+              <input
+                type="text"
+                placeholder="Last name"
+                value={profileForm.last_name}
+                onChange={(event) =>
+                  setProfileForm((prev) => ({ ...prev, last_name: event.target.value }))
+                }
+              />
+              <input type="email" value={profileForm.email} disabled />
+              <input
+                type="text"
+                placeholder="Phone"
+                value={profileForm.phone}
+                onChange={(event) =>
+                  setProfileForm((prev) => ({ ...prev, phone: event.target.value }))
+                }
+              />
+              <button type="submit">Save profile</button>
+            </form>
+          )}
+
+          {settingsTab === 'address' && (
             <form className="portal-form" onSubmit={handleAddressSubmit}>
+              <h3>Address</h3>
               <input
                 type="text"
                 placeholder="Label (Home, Studio)"
@@ -489,7 +602,54 @@ export default function CustomerPortal({ manualProducts }) {
               />
               <button type="submit">Save address</button>
             </form>
-          </div>
+          )}
+
+          {settingsTab === 'password' && (
+            <form className="portal-form" onSubmit={handlePasswordSubmit}>
+              <h3>Password</h3>
+              <input
+                type="email"
+                name="username"
+                autoComplete="username"
+                value={profileForm.email || ''}
+                readOnly
+                className="portal-visually-hidden"
+                tabIndex={-1}
+                aria-hidden="true"
+              />
+              <input
+                type="password"
+                placeholder="Current password"
+                autoComplete="current-password"
+                value={passwordForm.old_password}
+                onChange={(event) =>
+                  setPasswordForm((prev) => ({ ...prev, old_password: event.target.value }))
+                }
+                required
+              />
+              <input
+                type="password"
+                placeholder="New password"
+                autoComplete="new-password"
+                value={passwordForm.new_password}
+                onChange={(event) =>
+                  setPasswordForm((prev) => ({ ...prev, new_password: event.target.value }))
+                }
+                required
+              />
+              <input
+                type="password"
+                placeholder="Confirm new password"
+                autoComplete="new-password"
+                value={passwordForm.confirm_password}
+                onChange={(event) =>
+                  setPasswordForm((prev) => ({ ...prev, confirm_password: event.target.value }))
+                }
+                required
+              />
+              <button type="submit">Change password</button>
+            </form>
+          )}
         </div>
       )}
     </div>

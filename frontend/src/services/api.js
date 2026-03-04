@@ -9,6 +9,8 @@ const toArrayResponse = (res) => {
 };
 
 export const fetchCustomers = async () => toArrayResponse(await api.get('/customers'));
+export const updateCustomer = (id, payload) => api.put(`/customers/${id}`, payload);
+export const getCustomerDetails = (id) => api.get(`/customers/${id}/details`);
 export const updateManualProduct = (id, product) => api.put(`/manual-products/${id}`, product);
 export const fetchManualProducts = async () => toArrayResponse(await api.get('/manual-products'));
 export const fetchItems = async () => toArrayResponse(await api.get('/items'));
@@ -17,8 +19,11 @@ export const createManualProduct = (product) => api.post('/manual-products', pro
 export const createItem = (item) => api.post('/items', item);
 // Customer profile/address/favorites/cart/orders/reviews APIs
 export const fetchCustomerProfile = () => api.get('/customer/me');
+export const updateCustomerProfile = (payload) => api.put('/customer/me', payload);
 export const fetchCustomerAddresses = () => api.get('/customer/addresses');
 export const addCustomerAddress = (address) => api.post('/customer/addresses', address);
+export const upsertCustomerPrimaryAddress = (address) => api.put('/customer/addresses/primary', address);
+export const changeCustomerPassword = (payload) => api.put('/customer/password', payload);
 export const fetchCustomerFavorites = () => api.get('/customer/favorites');
 export const removeCustomerFavorite = (id) => api.delete(`/customer/favorites/${id}`);
 export const fetchCustomerCart = () => api.get('/customer/cart');
@@ -50,6 +55,12 @@ export const customerLogin = async (email, password) => {
   const res = await api.post('/customer/login', { email, password });
   return extractAuthToken(res);
 };
+
+export const requestCustomerPasswordReset = (email) =>
+  api.post('/customer/password/forgot', { email });
+
+export const resetCustomerPassword = (token, newPassword) =>
+  api.post('/customer/password/reset', { token, new_password: newPassword });
 
 export const adminLogin = async (email, password) => {
   const res = await api.post('/auth/login', { email, password });
@@ -88,13 +99,29 @@ const getRoutePath = () => {
 };
 
 const getTokenForRequest = (config) => {
-  const adminToken = localStorage.getItem('sgcg_token') || '';
-  const customerToken = localStorage.getItem('sgcg_customer_token') || '';
+  const adminToken = sessionStorage.getItem('sgcg_token')
+    || localStorage.getItem('sgcg_token')
+    || '';
+  const customerToken = sessionStorage.getItem('sgcg_customer_token')
+    || localStorage.getItem('sgcg_customer_token')
+    || '';
   const requestUrl = String(config?.url || '');
   const routePath = getRoutePath();
 
+  const isAdminScopedEndpoint =
+    requestUrl.startsWith('/manual-products')
+    || requestUrl.includes('/manual-products/')
+    || requestUrl.startsWith('/items')
+    || requestUrl.includes('/items/')
+    || requestUrl.startsWith('/customers')
+    || requestUrl.includes('/customers/');
+
   // Admin API endpoints must always use admin token.
-  if (requestUrl.startsWith('/admin/') || requestUrl.includes('/admin/')) {
+  if (
+    requestUrl.startsWith('/admin/')
+    || requestUrl.includes('/admin/')
+    || isAdminScopedEndpoint
+  ) {
     return isValidToken(adminToken) ? adminToken : '';
   }
 
@@ -157,6 +184,29 @@ api.interceptors.response.use(
     // Don't log 401s for auth endpoints (expected during unified login flow)
     const isAuthEndpoint = error.config?.url?.includes('/auth/login');
     const is401 = error.response?.status === 401;
+    const apiErrorCode = error.response?.data?.error || error.response?.data?.detail;
+
+    if (is401 && String(apiErrorCode || '').toLowerCase().includes('token_expired')) {
+      const authHeader = String(error.config?.headers?.Authorization || '');
+      const usedToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+      const sessionAdminToken = sessionStorage.getItem('sgcg_token') || '';
+      const sessionCustomerToken = sessionStorage.getItem('sgcg_customer_token') || '';
+      const storedAdminToken = localStorage.getItem('sgcg_token') || '';
+      const storedCustomerToken = localStorage.getItem('sgcg_customer_token') || '';
+
+      if (usedToken && usedToken === sessionAdminToken) {
+        sessionStorage.removeItem('sgcg_token');
+      }
+      if (usedToken && usedToken === sessionCustomerToken) {
+        sessionStorage.removeItem('sgcg_customer_token');
+      }
+      if (usedToken && usedToken === storedAdminToken) {
+        localStorage.removeItem('sgcg_token');
+      }
+      if (usedToken && usedToken === storedCustomerToken) {
+        localStorage.removeItem('sgcg_customer_token');
+      }
+    }
     
     if (!isAuthEndpoint || !is401) {
       const message = error.response?.data?.error || error.message;
@@ -180,6 +230,13 @@ export const getAdminWorkOrders = () => api.get('/admin/work-orders');
 export const getAdminWorkOrder = (id) => api.get(`/admin/work-orders/${id}`);
 export const updateWorkOrderStatus = (id, status, notes) => api.put(`/admin/work-orders/${id}/status`, { new_status: status, notes });
 export const updateAdminWorkOrderDesign = (id, design_data) => api.put(`/admin/work-orders/${id}/design-data`, { design_data });
+export const uploadAdminTemplateImage = (formData) =>
+  api.post('/admin/templates/upload-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+export const createAdminTemplate = (payload) => api.post('/admin/templates', payload);
+export const sendTemplateToCustomerWorkOrder = (customerId, payload) =>
+  api.post(`/admin/customers/${customerId}/template-message`, payload);
 
 // Revision endpoints
 export const getWorkOrderRevisions = (id) => api.get(`/work-orders/${id}/revisions`);

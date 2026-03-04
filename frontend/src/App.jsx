@@ -18,6 +18,7 @@ import {
   fetchManualProducts
 } from './services/api'
 import UnifiedLogin from './pages/auth/UnifiedLogin'
+import CustomerResetPassword from './pages/auth/CustomerResetPassword'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import CustomerSignup from './pages/customer/CustomerSignup'
 import CustomerPortal from './pages/customer/CustomerPortal'
@@ -212,6 +213,12 @@ function App() {
       {route.path === '/account/signup' && (
         <main className="admin-page">
           <CustomerSignup onSignup={customerSignup} />
+        </main>
+      )}
+
+      {route.path === '/account/reset-password' && (
+        <main className="admin-page">
+          <CustomerResetPassword />
         </main>
       )}
 

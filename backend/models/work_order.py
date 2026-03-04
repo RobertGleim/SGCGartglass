@@ -110,6 +110,7 @@ class WorkOrder(db.Model):
                     "svg_content": template_svg if template_svg and str(template_svg).strip() else None,
                     "template_type": self.project.template.template_type,
                     "image_url": self.project.template.image_url,
+                    "default_design_data": self.project.template.default_design_data if isinstance(self.project.template.default_design_data, dict) else None,
                 }
         # Include revision summary
         if hasattr(self, 'revisions'):
