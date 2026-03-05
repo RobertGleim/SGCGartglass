@@ -6,8 +6,21 @@ import jwt
 from flask import g, jsonify, request
 
 
+def _jwt_secret():
+    configured = (os.environ.get("JWT_SECRET") or "").strip()
+    if configured:
+        return configured
+
+    app_env = (os.environ.get("APP_ENV") or os.environ.get("FLASK_ENV") or "").strip().lower()
+    flask_debug = (os.environ.get("FLASK_DEBUG") or "").strip().lower() == "true"
+    if app_env in {"development", "testing"} or flask_debug:
+        return "dev-secret"
+
+    raise RuntimeError("JWT_SECRET must be set for non-development environments.")
+
+
 def create_token(subject, role=None, customer_id=None):
-    secret = os.environ.get("JWT_SECRET", "dev-secret")
+    secret = _jwt_secret()
     issuer = os.environ.get("JWT_ISSUER", "sgcgartglass")
     ttl_seconds = int(os.environ.get("JWT_TTL_SECONDS", "3600"))
     now = datetime.now(tz=timezone.utc)
@@ -25,7 +38,7 @@ def create_token(subject, role=None, customer_id=None):
 
 
 def decode_token(token):
-    secret = os.environ.get("JWT_SECRET", "dev-secret")
+    secret = _jwt_secret()
     issuer = os.environ.get("JWT_ISSUER", "sgcgartglass")
     return jwt.decode(token, secret, algorithms=["HS256"], issuer=issuer)
 

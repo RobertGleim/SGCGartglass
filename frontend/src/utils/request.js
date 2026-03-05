@@ -4,12 +4,6 @@ const API_BASE =
   (import.meta.env.PROD ? DEFAULT_API_BASE : 'http://localhost:5000')
 
 export const request = async (path, options = {}) => {
-  console.log(`Making ${options.method || 'GET'} request to ${path}`, {
-    headers: options.headers,
-    bodyLength: options.body?.length,
-    hasBody: !!options.body,
-  })
-
   const { headers: optionsHeaders, ...restOptions } = options
 
   const fetchOptions = {
@@ -19,8 +13,6 @@ export const request = async (path, options = {}) => {
       ...(optionsHeaders || {}),
     },
   }
-
-  console.log('Fetch options:', fetchOptions)
 
   const response = await fetch(`${API_BASE}${path}`, fetchOptions)
 

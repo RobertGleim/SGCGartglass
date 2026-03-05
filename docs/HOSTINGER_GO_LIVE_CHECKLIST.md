@@ -16,31 +16,31 @@ Use this checklist during launch day.
 
 ## 3) Backend environment (Render)
 
-MySQL credentials are already configured in `.env`:
-- [x] `DB_HOST=srv1224.hstgr.io`
-- [x] `DB_USER=u159464737_sgcgart`
-- [x] `DB_NAME=u159464737_sgcgdb`
+MySQL credentials are already configured in local env:
+- [x] `DB_HOST=<your-mysql-host>`
+- [x] `DB_USER=<your-mysql-user>`
+- [x] `DB_NAME=<your-mysql-database>`
 - [x] Database password is set
 
 Set these in Render dashboard > Environment:
-- [x ] `DB_HOST=srv1224.hstgr.io`
+- [x ] `DB_HOST=<your-mysql-host>`
 - [x ] `DB_PORT=3306`
-- [x ] `DB_USER=u159464737_sgcgart`
-- [x ] `DB_PASSWORD=wG+6EI5z=@&9`
-- [x ] `DB_NAME=u159464737_sgcgdb`
-- [ x] `JWT_SECRET=00a6ac5ea5859aa8c86bc530317d81d4`
+- [x ] `DB_USER=<your-mysql-user>`
+- [x ] `DB_PASSWORD=<your-mysql-password>`
+- [x ] `DB_NAME=<your-mysql-database>`
+- [ x] `JWT_SECRET=<your-long-random-secret>`
 - [ x] `ADMIN_EMAIL=sgcgartglass@gmail.com`
-- [x ] `ADMIN_PASSWORD_HASH=scrypt:32768:8:1$qOF1FrRyotgOpdAe$ca9e08380e972e4e50f42cac8767eeb3a4806ef0544224d887fa3a315c057b18ade0f6b770b67c06e844241cf592194b4168afbf120ec2bfeca6bad1fdb9f8ec`
-- [x ] `ETSY_API_KEY=lemw09rcpx51kqhml18rcc94`
-- [x ] `ETSY_SHARED_SECRET=vi4vs6h5zv`
+- [x ] `ADMIN_PASSWORD_HASH=<your-generated-password-hash>`
+- [x ] `ETSY_API_KEY=<your-etsy-api-key>`
+- [x ] `ETSY_SHARED_SECRET=<your-etsy-shared-secret>`
 - [x ] `CORS_ORIGINS=https://sgcgart.com,https://www.sgcgart.com`
 - [x ] `FLASK_DEBUG=false`
 
 ## 3a) Hostinger MySQL Remote Access ⚠️ CRITICAL
 
 - [x ] In Hostinger hPanel > Databases > Remote MySQL
-- [ x] Add Render's IP address: **`74.220.48.242`**
-- [ x] Select database `u159464737_sgcgdb`
+- [ x] Add Render's IP address: **`<render-egress-ip>`**
+- [ x] Select your production database
 - [x ] Save allowlist settings
 - [ ] Wait 30 seconds for propagation
 

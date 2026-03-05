@@ -37,7 +37,7 @@ def _sqlalchemy_database_uri():
 class BaseConfig:
     PORT = int(os.environ.get('PORT', '5000'))
     SECRET_KEY = os.environ.get('SECRET_KEY') or os.environ.get('JWT_SECRET', 'dev-secret')
-    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '*')
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
     DEBUG = False
     TESTING = False

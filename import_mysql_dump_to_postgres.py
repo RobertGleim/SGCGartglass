@@ -6,10 +6,7 @@ from typing import List
 from sqlalchemy import create_engine, MetaData, Table
 
 # Destination: Render PostgreSQL
-POSTGRES_URL = os.environ.get(
-    "POSTGRES_URL",
-    "postgresql://sgcg_database_user:8L6E7eQBnLBrIhSfVffllBHxiy8b6MRU@dpg-d6flhrtm5p6s73brsp10-a/sgcg_database",
-)
+POSTGRES_URL = (os.environ.get("POSTGRES_URL") or os.environ.get("DATABASE_URL") or "").strip()
 
 
 def split_tuples(values_block: str) -> List[str]:
@@ -102,6 +99,10 @@ def import_dump(dump_path: str) -> None:
 
     if not os.path.exists(dump_path):
         print("❌ Dump file not found")
+        sys.exit(1)
+
+    if not POSTGRES_URL:
+        print("❌ POSTGRES_URL or DATABASE_URL environment variable is required")
         sys.exit(1)
 
     os.environ["DATABASE_URL"] = POSTGRES_URL

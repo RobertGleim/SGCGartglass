@@ -20,8 +20,8 @@
 				"env": {
 					"APP_ENV": "development",
 					"FLASK_DEBUG": "true",
-					"POSTGRES_URL": "postgresql://sgcg_database_user:8L6E7eQBnLBrIhSfVffllBHxiy8b6MRU@dpg-d6flhrtm5p6s73brsp10-a.oregon-postgres.render.com/sgcg_database?sslmode=require",
-					"DATABASE_URL": "postgresql://sgcg_database_user:8L6E7eQBnLBrIhSfVffllBHxiy8b6MRU@dpg-d6flhrtm5p6s73brsp10-a.oregon-postgres.render.com/sgcg_database?sslmode=require"
+					"POSTGRES_URL": "${env:POSTGRES_URL}",
+					"DATABASE_URL": "${env:DATABASE_URL}"
 				}
 			},
 			"isBackground": true,

@@ -3,8 +3,11 @@ SGCG Designer - Flask application factory.
 Initializes Flask, CORS, Flask-SQLAlchemy, and registers blueprints.
 """
 import os
+import ipaddress
+import socket
 from urllib import request as urllib_request
 from urllib.error import URLError, HTTPError
+from urllib.parse import urlparse
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 try:
@@ -21,6 +24,36 @@ def _get_allowed_origins(configured_origins):
     if configured == "*":
         return ["*"]
     return [origin.strip() for origin in configured.split(",") if origin.strip()]
+
+
+def _is_private_or_local_host(hostname):
+    if not hostname:
+        return True
+
+    normalized = hostname.strip().lower()
+    if normalized in {"localhost", "127.0.0.1", "::1"}:
+        return True
+
+    try:
+        resolved = {addr[4][0] for addr in socket.getaddrinfo(normalized, None)}
+    except Exception:
+        return True
+
+    for address in resolved:
+        try:
+            ip = ipaddress.ip_address(address)
+        except ValueError:
+            continue
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            return True
+    return False
 
 
 def create_app(config_name=None):
@@ -67,8 +100,22 @@ def create_app(config_name=None):
         source_url = (request.args.get("url") or "").strip()
         if not source_url:
             return jsonify({"error": "Missing url"}), 400
-        if not (source_url.startswith("http://") or source_url.startswith("https://")):
+        parsed = urlparse(source_url)
+        if parsed.scheme not in {"http", "https"}:
             return jsonify({"error": "Invalid url"}), 400
+        if not parsed.hostname:
+            return jsonify({"error": "Invalid host"}), 400
+
+        allowed_hosts = [
+            host.strip().lower()
+            for host in str(os.environ.get("TEXTURE_PROXY_ALLOWED_HOSTS") or "").split(",")
+            if host.strip()
+        ]
+        hostname = parsed.hostname.lower()
+        if allowed_hosts and hostname not in allowed_hosts:
+            return jsonify({"error": "Host not allowed"}), 403
+        if _is_private_or_local_host(hostname):
+            return jsonify({"error": "Private network host blocked"}), 403
 
         req = urllib_request.Request(
             source_url,
@@ -178,11 +225,6 @@ def create_app(config_name=None):
             return resp
         return jsonify({'error': 'Image not found'}), 404
 
-    # Test route to verify backend is running updated code
-    @app.route("/api/test-backend")
-    def test_backend():
-        return jsonify({"status": "Backend updated", "timestamp": "2026-02-25-v2"})
-
     # Serve any other uploaded file at /uploads/<filename>
     @app.route("/uploads/<path:filename>")
     def send_upload(filename):
@@ -190,12 +232,6 @@ def create_app(config_name=None):
         from flask import send_from_directory
         import os
         upload_folder = app.config.get("UPLOAD_FOLDER") or str(Path(app.root_path) / "uploads")
-        full_path = os.path.join(upload_folder, filename)
-        print(f"[DEBUG] Uploads route - filename: {filename}")
-        print(f"[DEBUG] upload_folder: {upload_folder}")
-        print(f"[DEBUG] full_path: {full_path}")
-        print(f"[DEBUG] file exists: {os.path.exists(full_path)}")
-        print(f"[DEBUG] app.root_path: {app.root_path}")
         return send_from_directory(str(upload_folder), filename)
 
     # Projects API (user project save/load)

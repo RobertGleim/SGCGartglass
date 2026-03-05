@@ -10,11 +10,11 @@ Your Hostinger MySQL database is now configured and ready to use.
 
 Uncomment these lines in `.env` to test with Hostinger MySQL:
 ```
-DB_HOST=srv1224.hstgr.io
+DB_HOST=your-mysql-host
 DB_PORT=3306
-DB_USER=u159464737_sgcgart
-DB_PASSWORD=wG+6EI5z=@&9
-DB_NAME=u159464737_sgcgdb
+DB_USER=your-mysql-user
+DB_PASSWORD=your-mysql-password
+DB_NAME=your-mysql-database
 ```
 
 (Your local IP must be allowlisted in Hostinger to use MySQL locally)
@@ -35,7 +35,7 @@ DB_NAME=u159464737_sgcgdb
 
 ### Step 1: Render's outbound IP discovered ✓
 
-**Your Render service's outbound IP is: `74.220.48.242`**
+**Your Render service's outbound IP is: `<render-egress-ip>`**
 
 (This was detected from the MySQL connection error in your Render logs)
 
@@ -43,8 +43,8 @@ DB_NAME=u159464737_sgcgdb
 
 1. Log into Hostinger hPanel
 2. Go to **Databases** > **Remote MySQL**
-3. Add this IP address: **`74.220.48.242`**
-4. Select database: `u159464737_sgcgdb`
+3. Add this IP address: **`<render-egress-ip>`**
+4. Select your production database
 5. Click **Save**
 6. Wait ~30 seconds for the allowlist to propagate
 
@@ -53,22 +53,22 @@ DB_NAME=u159464737_sgcgdb
 In Render Dashboard > Your Service > Environment, add these variables:
 
 ```
-DB_HOST=srv1224.hstgr.io
+DB_HOST=your-mysql-host
 DB_PORT=3306
-DB_USER=u159464737_sgcgart
-DB_PASSWORD=wG+6EI5z=@&9
-DB_NAME=u159464737_sgcgdb
+DB_USER=your-mysql-user
+DB_PASSWORD=your-mysql-password
+DB_NAME=your-mysql-database
 
-JWT_SECRET=00a6ac5ea5859aa8c86bc530317d81d4
+JWT_SECRET=your-long-random-secret
 JWT_ISSUER=sgcgartglass
 JWT_TTL_SECONDS=3600
 
 ADMIN_EMAIL=sgcgartglass@gmail.com
-ADMIN_PASSWORD_HASH=scrypt:32768:8:1$qOF1FrRyotgOpdAe$ca9e08380e972e4e50f42cac8767eeb3a4806ef0544224d887fa3a315c057b18ade0f6b770b67c06e844241cf592194b4168afbf120ec2bfeca6bad1fdb9f8ec
+ADMIN_PASSWORD_HASH=your-generated-password-hash
 
 ETSY_API_BASE=https://openapi.etsy.com/v3/application
-ETSY_API_KEY=lemw09rcpx51kqhml18rcc94
-ETSY_SHARED_SECRET=vi4vs6h5zv
+ETSY_API_KEY=your-etsy-api-key
+ETSY_SHARED_SECRET=your-etsy-shared-secret
 ETSY_ACCESS_TOKEN=
 
 CORS_ORIGINS=https://sgcgart.com,https://www.sgcgart.com
@@ -93,7 +93,7 @@ FLASK_DEBUG=false
 **To use SQLite locally** (recommended for development):
 - Comment out or remove the `DB_HOST` line in `.env`:
   ```
-  # DB_HOST=srv1224.hstgr.io
+  # DB_HOST=your-mysql-host
   ```
 - App will automatically use SQLite (`backend/data.db`)
 - No Hostinger allowlist needed

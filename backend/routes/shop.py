@@ -467,42 +467,6 @@ def login():
     token = create_token(email)
     return jsonify({"token": token})
 
-# Explicit OPTIONS handler for CORS preflight
-@api.route("/auth/login", methods=["OPTIONS"])
-def login_options():
-    from flask import make_response, request
-    response = make_response('', 200)
-    response.headers["Access-Control-Allow-Origin"] = request.headers.get("Origin", "*")
-    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    return response
-
-
-# OPTIONS handler for customer signup
-@api.route("/customer/signup", methods=["OPTIONS"])
-def customer_signup_options():
-    from flask import make_response, request
-    response = make_response('', 200)
-    response.headers["Access-Control-Allow-Origin"] = request.headers.get("Origin", "*")
-    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    return response
-
-
-# OPTIONS handler for customer login
-@api.route("/customer/login", methods=["OPTIONS"])
-def customer_login_options():
-    from flask import make_response, request
-    response = make_response('', 200)
-    response.headers["Access-Control-Allow-Origin"] = request.headers.get("Origin", "*")
-    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    return response
-
-
 @api.post("/customer/signup")
 def customer_signup():
     init_db()

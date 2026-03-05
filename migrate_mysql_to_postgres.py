@@ -9,21 +9,34 @@ from sqlalchemy import create_engine, MetaData, Table, select, inspect
 from sqlalchemy.orm import sessionmaker
 
 # Source: Hostinger MySQL
-_MYSQL_USER = "u159464737_sgcgart"
-_MYSQL_PASSWORD = "wG+6EI5z-a&9"
-_MYSQL_HOST = "srv1224.hstgr.io"
-_MYSQL_PORT = 3306
-_MYSQL_DB = "u159464737_sgcgdb"
+_MYSQL_USER = (os.environ.get("MYSQL_USER") or "").strip()
+_MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD") or ""
+_MYSQL_HOST = (os.environ.get("MYSQL_HOST") or "").strip()
+_MYSQL_PORT = int((os.environ.get("MYSQL_PORT") or "3306").strip())
+_MYSQL_DB = (os.environ.get("MYSQL_DB") or "").strip()
 MYSQL_URL = (
     f"mysql+pymysql://{quote_plus(_MYSQL_USER)}:{quote_plus(_MYSQL_PASSWORD)}"
     f"@{_MYSQL_HOST}:{_MYSQL_PORT}/{_MYSQL_DB}"
 )
 
 # Destination: Render PostgreSQL
-POSTGRES_URL = "postgresql://sgcg_database_user:8L6E7eQBnLBrIhSfVffllBHxiy8b6MRU@dpg-d6flhrtm5p6s73brsp10-a/sgcg_database"
+POSTGRES_URL = (os.environ.get("POSTGRES_URL") or os.environ.get("DATABASE_URL") or "").strip()
 
 def migrate_database():
     """Copy all tables and data from MySQL to PostgreSQL"""
+
+    missing = [
+        name for name, value in {
+            "MYSQL_HOST": _MYSQL_HOST,
+            "MYSQL_USER": _MYSQL_USER,
+            "MYSQL_PASSWORD": _MYSQL_PASSWORD,
+            "MYSQL_DB": _MYSQL_DB,
+            "POSTGRES_URL": POSTGRES_URL,
+        }.items() if not value
+    ]
+    if missing:
+        print(f"❌ Missing required environment variables: {', '.join(missing)}")
+        return False
     
     print("=" * 70)
     print("MySQL → PostgreSQL Migration")
@@ -162,8 +175,8 @@ def migrate_database():
 
 if __name__ == '__main__':
     print("\n⚠️  This will copy all data from MySQL to PostgreSQL")
-    print(f"Source: {MYSQL_URL[:50]}...")
-    print(f"Destination: {POSTGRES_URL[:50]}...")
+    print("Source: mysql+pymysql://<user>:<password>@<host>:<port>/<db>")
+    print("Destination: postgresql://<user>:<password>@<host>/<db>")
     
     response = input("\nContinue? (yes/no): ").strip().lower()
     

@@ -76,13 +76,10 @@ export const adminLogin = async (email, password) => {
 };
 
 export const customerSignup = async (payload) => {
-  console.log('customerSignup: function called', payload)
   try {
     const res = await api.post('/customer/signup', payload)
-    console.log('customerSignup: response', res)
     return res.token
-  } catch (err) {
-    console.error('customerSignup: error', err)
+  } catch {
     return undefined
   }
 };
@@ -95,7 +92,6 @@ cleanupCorruptedTokens();
 const configuredBaseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 const isLocalDevHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 const baseURL = isLocalDevHost ? '/api' : configuredBaseURL;
-console.log('[API] Using base URL:', baseURL);
 const api = axios.create({
   baseURL,
   withCredentials: false,

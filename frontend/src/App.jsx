@@ -198,7 +198,6 @@ function App() {
                   return created
                 }}
                 onUpdateManualProduct={async (id, productData) => {
-                  console.log('Update product called with authToken:', authToken ? `${authToken.substring(0, 20)}...` : 'NO TOKEN')
                   const updated = await updateManualProduct(id, productData)
                   setManualProducts((prev) => prev.map(p => p.id === id ? updated : p))
                   return updated
