@@ -40,6 +40,14 @@ const CATEGORY_TYPE_ALIASES = {
   pattern: 'patterns',
 }
 
+const ALPHABET_FILTERS = ['all', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''), '#']
+
+const toAlphaBucket = (value) => {
+  const firstChar = String(value || '').trim().charAt(0).toUpperCase()
+  if (/^[A-Z]$/.test(firstChar)) return firstChar
+  return '#'
+}
+
 const normalizeTypeKeyFromCategory = (value) => CATEGORY_TYPE_ALIASES[normalizeCategoryValue(value)] || null
 
 const isTypeCategory = (value) => Boolean(normalizeTypeKeyFromCategory(value))
@@ -100,12 +108,13 @@ const inferLegacyType = (product) => {
 
 export default function ProductPage({ products }) {
   const PRODUCTS_PER_PAGE = 12
+  const titleCollator = useMemo(() => new Intl.Collator(undefined, { sensitivity: 'base', numeric: true }), [])
   // eslint-disable-next-line no-unused-vars
   const { authToken } = useAuth();
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [priceFilter, setPriceFilter] = useState('any')
-  const [sortBy, setSortBy] = useState('recent')
+  const [alphaFilter, setAlphaFilter] = useState('all')
   const [activeTab, setActiveTab] = useState('stained-glass-panels')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -207,6 +216,10 @@ export default function ProductPage({ products }) {
       const matchesSearch =
         product.title?.toLowerCase().includes(lowerSearch) ||
         product.description?.toLowerCase().includes(lowerSearch)
+
+      const matchesAlpha = alphaFilter === 'all'
+        ? true
+        : toAlphaBucket(product.title) === alphaFilter
       
       // Price filter
       let matchesPrice = true
@@ -216,27 +229,15 @@ export default function ProductPage({ products }) {
       else if (priceFilter === '250to500') matchesPrice = price >= 250 && price <= 500
       else if (priceFilter === 'over500') matchesPrice = price > 500
       
-      return matchesCategory && matchesSearch && matchesPrice
+      return matchesCategory && matchesSearch && matchesPrice && matchesAlpha
     })
-    
-    // Sort
-    if (sortBy === 'featured') {
-      result = result.filter(p => p.is_featured)
-    } else if (sortBy === 'lowest') {
-      result = [...result].sort((a, b) => (a.price_amount || 0) - (b.price_amount || 0))
-    } else if (sortBy === 'highest') {
-      result = [...result].sort((a, b) => (b.price_amount || 0) - (a.price_amount || 0))
-    } else if (sortBy === 'recent') {
-      // Sort by created_at timestamp (newest first)
-      result = [...result].sort((a, b) => {
-        const dateA = a.created_at ? new Date(a.created_at) : new Date(0)
-        const dateB = b.created_at ? new Date(b.created_at) : new Date(0)
-        return dateB - dateA
-      })
-    }
-    
-    return result
-  }, [sectionProducts, search, selectedCategory, priceFilter, sortBy])
+
+    return [...result].sort((a, b) => {
+      const left = String(a?.title || '').trim()
+      const right = String(b?.title || '').trim()
+      return titleCollator.compare(left, right)
+    })
+  }, [sectionProducts, search, selectedCategory, priceFilter, alphaFilter, titleCollator])
 
   const isSectionComingSoon = sectionProducts.length === 0
 
@@ -249,7 +250,7 @@ export default function ProductPage({ products }) {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, selectedCategory, priceFilter, sortBy, activeTab])
+  }, [search, selectedCategory, priceFilter, alphaFilter, activeTab])
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -293,6 +294,23 @@ export default function ProductPage({ products }) {
             <SearchBar search={search} setSearch={setSearch} totalItems={sectionProducts.length} />
           </div>
         </div>
+      </div>
+
+      <div className="shop-alpha-inline" aria-label="Filter products by first letter">
+        {ALPHABET_FILTERS.map((entry) => {
+          const label = entry === 'all' ? 'All' : entry
+          const isActive = alphaFilter === entry
+          return (
+            <button
+              key={entry}
+              type="button"
+              className={`shop-alpha-chip ${isActive ? 'active' : ''}`}
+              onClick={() => setAlphaFilter(entry)}
+            >
+              {label}
+            </button>
+          )
+        })}
       </div>
 
       {/* Main Content Area */}
@@ -340,16 +358,6 @@ export default function ProductPage({ products }) {
                 <option value="100to250">$100 to $250</option>
                 <option value="250to500">$250 to $500</option>
                 <option value="over500">Over $500</option>
-              </select>
-              <select 
-                className="filter-dropdown" 
-                value={sortBy} 
-                onChange={(e) => setSortBy(e.target.value)}
-              >
-                <option value="recent">Sort: Most Recent</option>
-                <option value="featured">Featured Items</option>
-                <option value="lowest">Lowest Price</option>
-                <option value="highest">Highest Price</option>
               </select>
             </div>
           </div>

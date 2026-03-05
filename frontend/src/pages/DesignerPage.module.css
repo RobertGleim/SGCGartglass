@@ -25,6 +25,51 @@
   color: #6b4c30;
   margin-bottom: 1rem;
 }
+.templateSearchWrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+.templateSearchInput {
+  width: min(560px, 100%);
+  border: 1.5px solid #d8c2a0;
+  background: #fffaf4;
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.95rem;
+  color: #3a2312;
+}
+.templateSearchInput:focus {
+  outline: none;
+  border-color: #b78d53;
+  box-shadow: 0 0 0 3px rgba(183, 141, 83, 0.18);
+}
+.templateAlphaBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+  margin: 0.2rem 0 0.8rem;
+}
+.templateAlphaChip {
+  border: 1px solid #d8c2a0;
+  background: #fff;
+  color: #6b4c30;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  padding: 0.22rem 0.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.templateAlphaChip:hover {
+  border-color: #b78d53;
+  color: #5d3a1a;
+}
+.templateAlphaChipActive {
+  border-color: #b78d53;
+  background: #c8a96e;
+  color: #fff;
+}
 .filters {
   display: flex;
   flex-wrap: wrap;

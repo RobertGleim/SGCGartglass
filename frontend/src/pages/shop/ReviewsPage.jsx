@@ -75,16 +75,6 @@ export default function ReviewsPage() {
     return [...filtered].sort((a, b) => b.createdAtMs - a.createdAtMs)
   }, [normalizedReviews, sortBy, ratingFilter])
 
-  const photoStrip = useMemo(() => {
-    const uniqueByUrl = new Map()
-    normalizedReviews.forEach((review) => {
-      const imageUrl = String(review.product_image_url || '').trim()
-      if (!imageUrl || uniqueByUrl.has(imageUrl)) return
-      uniqueByUrl.set(imageUrl, review)
-    })
-    return Array.from(uniqueByUrl.values()).slice(0, 12)
-  }, [normalizedReviews])
-
   const toProductHref = (review) => {
     const productId = String(review.product_id || '').trim()
     if (!productId) return '#/product'
@@ -126,19 +116,6 @@ export default function ReviewsPage() {
                 })}
               </div>
             </section>
-
-            {photoStrip.length > 0 && (
-              <section className="reviews-photo-strip" aria-label="Photos from reviews">
-                {photoStrip.map((review) => (
-                  <img
-                    key={`${review.id}-${review.product_image_url}`}
-                    src={review.product_image_url}
-                    alt={review.product_title || 'Reviewed product'}
-                    className="reviews-photo-item"
-                  />
-                ))}
-              </section>
-            )}
 
             <div className="reviews-toolbar">
               <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>

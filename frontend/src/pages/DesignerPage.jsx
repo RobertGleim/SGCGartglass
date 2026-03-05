@@ -119,6 +119,14 @@ const canReadImagePixels = (img) => {
   }
 };
 
+const TEMPLATE_ALPHA_FILTERS = ['all', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''), '#'];
+
+const toTemplateAlphaBucket = (value) => {
+  const firstChar = String(value || '').trim().charAt(0).toUpperCase();
+  if (/^[A-Z]$/.test(firstChar)) return firstChar;
+  return '#';
+};
+
 export default function DesignerPage() {
   const MIN_ZOOM = 0.6;
   const MAX_ZOOM = 2.5;
@@ -128,6 +136,8 @@ export default function DesignerPage() {
   const [templatesLoading, setTemplatesLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [templateSearch, setTemplateSearch] = useState('');
+  const [templateAlphaFilter, setTemplateAlphaFilter] = useState('all');
   const [categories, setCategories] = useState([]);
 
   // Canvas
@@ -250,7 +260,8 @@ export default function DesignerPage() {
       .then(res => {
         const items = res?.items || res || [];
         setTemplates(Array.isArray(items) ? items : []);
-        const cats = [...new Set(items.map(t => t.category).filter(Boolean))];
+        const cats = [...new Set(items.map(t => t.category).filter(Boolean))]
+          .sort((a, b) => String(a || '').localeCompare(String(b || ''), undefined, { sensitivity: 'base', numeric: true }));
         setCategories(cats);
       })
       .catch(() => setTemplates([]))
@@ -2464,13 +2475,38 @@ export default function DesignerPage() {
   const isDirectMessageTemplate = (template) => normalizeCategory(template?.category) === 'direct message';
 
   const filtered = useMemo(() => {
+    const sortByTemplateName = (entries) => [...entries].sort((a, b) => {
+      const left = String(a?.name || '').trim();
+      const right = String(b?.name || '').trim();
+      return left.localeCompare(right, undefined, { sensitivity: 'base', numeric: true });
+    });
+
+    const searchText = String(templateSearch || '').trim().toLowerCase();
+
+    const applySearchAndAlpha = (entries) => entries.filter((template) => {
+      const name = String(template?.name || '');
+      const description = String(template?.description || '');
+      const category = String(template?.category || '');
+      const matchesSearch = !searchText
+        || name.toLowerCase().includes(searchText)
+        || description.toLowerCase().includes(searchText)
+        || category.toLowerCase().includes(searchText);
+      const matchesAlpha = templateAlphaFilter === 'all'
+        ? true
+        : toTemplateAlphaBucket(name) === templateAlphaFilter;
+
+      return matchesSearch && matchesAlpha;
+    });
+
     if (!categoryFilter) {
-      return isAdmin ? templates.filter((template) => !isDirectMessageTemplate(template)) : templates;
+      const base = isAdmin ? templates.filter((template) => !isDirectMessageTemplate(template)) : templates;
+      return sortByTemplateName(applySearchAndAlpha(base));
     }
 
     const selectedCategory = normalizeCategory(categoryFilter);
-    return templates.filter((template) => normalizeCategory(template?.category) === selectedCategory);
-  }, [categoryFilter, templates, isAdmin]);
+    const base = templates.filter((template) => normalizeCategory(template?.category) === selectedCategory);
+    return sortByTemplateName(applySearchAndAlpha(base));
+  }, [categoryFilter, templates, isAdmin, templateSearch, templateAlphaFilter]);
 
   const sectionLegendItems = useMemo(() => {
     const sectionNumbers = new Set();
@@ -2639,6 +2675,32 @@ export default function DesignerPage() {
         <div className={styles.galleryHeader}>
           <h1>Stained Glass Designer</h1>
           <p>Choose a template to start designing or begin with a blank canvas.</p>
+          <div className={styles.templateSearchWrap}>
+            <input
+              type="search"
+              value={templateSearch}
+              onChange={(event) => setTemplateSearch(event.target.value)}
+              className={styles.templateSearchInput}
+              placeholder="Search templates"
+              aria-label="Search templates"
+            />
+          </div>
+          <div className={styles.templateAlphaBar} aria-label="Filter templates by first letter">
+            {TEMPLATE_ALPHA_FILTERS.map((entry) => {
+              const label = entry === 'all' ? 'All' : entry;
+              const isActive = templateAlphaFilter === entry;
+              return (
+                <button
+                  key={entry}
+                  type="button"
+                  className={`${styles.templateAlphaChip} ${isActive ? styles.templateAlphaChipActive : ''}`}
+                  onClick={() => setTemplateAlphaFilter(entry)}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
           {categories.length > 0 && (
             <div className={styles.filters}>
               <button

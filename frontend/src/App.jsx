@@ -183,7 +183,7 @@ function App() {
                   </div>
                 )
               }
-              return <ProductDetail product={product} />
+              return <ProductDetail product={product} products={allProducts} />
             })()}
           </main>
         )}

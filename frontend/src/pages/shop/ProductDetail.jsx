@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import '../../styles/ProductDetail.css'
+import ProductCard from '../../components/product/ProductCard'
 import useCustomerAuth from '../../hooks/useCustomerAuth'
 import {
   addCustomerCartItem,
@@ -20,7 +21,49 @@ const formatReviewDate = (value) => {
 
 const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Number(rating) || 0)))
 
-export default function ProductDetail({ product }) {
+const toCleanUrl = (value) => {
+  const url = String(value || '').trim()
+  if (!url) return ''
+  if (/^javascript:/i.test(url)) return ''
+  return url
+}
+
+const resolveImageUrl = (entry) => {
+  if (!entry) return ''
+  if (typeof entry === 'string') return toCleanUrl(entry)
+
+  const candidates = [
+    entry.image_url,
+    entry.url,
+    entry.src,
+    entry.full_url,
+    entry.large_url,
+    entry.preview_url,
+    entry.thumbnail_url,
+    entry.url_fullxfull,
+    entry.url_570xN,
+    entry.url_170x135,
+  ]
+
+  for (const candidate of candidates) {
+    const resolved = toCleanUrl(candidate)
+    if (resolved) return resolved
+  }
+
+  return ''
+}
+
+const resolveVideoUrl = (entry) => {
+  if (!entry || typeof entry === 'string') return ''
+  const candidates = [entry.video_url, entry.url, entry.src]
+  for (const candidate of candidates) {
+    const resolved = toCleanUrl(candidate)
+    if (resolved) return resolved
+  }
+  return ''
+}
+
+export default function ProductDetail({ product, products = [] }) {
   const [selectedImage, setSelectedImage] = useState(0)
   const [showZoom, setShowZoom] = useState(false)
   const [cartStatus, setCartStatus] = useState('')
@@ -146,33 +189,85 @@ export default function ProductDetail({ product }) {
     }
   }, [productReviews])
 
-  const itemReviewPhotos = useMemo(() => {
-    const uniqueByUrl = new Map()
-    productReviews.forEach((review) => {
-      const imageUrl = String(review.product_image_url || '').trim()
-      if (!imageUrl || uniqueByUrl.has(imageUrl)) return
-      uniqueByUrl.set(imageUrl, review)
-    })
-    return Array.from(uniqueByUrl.values()).slice(0, 10)
+  const latestProductReview = useMemo(() => {
+    if (productReviews.length === 0) return null
+
+    return [...productReviews].sort((a, b) => {
+      const timeA = a?.created_at ? new Date(a.created_at).getTime() : 0
+      const timeB = b?.created_at ? new Date(b.created_at).getTime() : 0
+      return timeB - timeA
+    })[0]
   }, [productReviews])
+
+  const latestReviewPhoto = useMemo(() => {
+    const imageUrl = String(latestProductReview?.product_image_url || '').trim()
+    return imageUrl ? imageUrl : null
+  }, [latestProductReview])
+
+  const relatedProducts = useMemo(() => {
+    if (!Array.isArray(products) || products.length === 0) return []
+
+    const currentId = String(product?.id || '').trim()
+    const candidates = products.filter((entry) => String(entry?.id || '').trim() !== currentId)
+    if (candidates.length <= 3) return candidates
+
+    const shuffled = [...candidates]
+    for (let idx = shuffled.length - 1; idx > 0; idx -= 1) {
+      const randomIdx = Math.floor(Math.random() * (idx + 1))
+      const temp = shuffled[idx]
+      shuffled[idx] = shuffled[randomIdx]
+      shuffled[randomIdx] = temp
+    }
+
+    return shuffled.slice(0, 3)
+  }, [products, product?.id])
   
-  // Get images from originalData (for manual products) or use image_url
+  // Normalize media records from various API payload shapes and drop invalid URLs.
   const images = useMemo(() => {
-    if (manualProductDetails?.images && manualProductDetails.images.length > 0) {
-      return manualProductDetails.images
+    const sourceImages = manualProductDetails?.images?.length > 0
+      ? manualProductDetails.images
+      : product.originalData?.images?.length > 0
+        ? product.originalData.images
+        : Array.isArray(product.images) && product.images.length > 0
+          ? product.images
+          : []
+
+    const normalized = sourceImages
+      .map((entry) => {
+        const mediaType = String(entry?.media_type || '').toLowerCase()
+        const isVideo = mediaType === 'video'
+        const mediaUrl = isVideo ? (resolveVideoUrl(entry) || resolveImageUrl(entry)) : resolveImageUrl(entry)
+        if (!mediaUrl) return null
+
+        return {
+          ...(typeof entry === 'object' && entry ? entry : {}),
+          image_url: mediaUrl,
+          media_type: isVideo ? 'video' : 'image',
+        }
+      })
+      .filter(Boolean)
+
+    if (normalized.length > 0) {
+      return normalized
     }
-    if (product.originalData?.images && product.originalData.images.length > 0) {
-      return product.originalData.images
-    } else if (product.images && product.images.length > 0) {
-      return product.images
-    } else if (product.image_url) {
-      return [{ image_url: product.image_url }]
-    }
-    return []
+
+    const fallback = resolveImageUrl(product.image_url)
+    return fallback ? [{ image_url: fallback, media_type: 'image' }] : []
   }, [product, manualProductDetails])
 
-  const mainImage = images.length > 0 ? images[selectedImage].image_url : null
+  const mainImage = images.length > 0 ? images[selectedImage]?.image_url || null : null
   const showThumbnails = images.length > 1
+
+  useEffect(() => {
+    if (images.length === 0) {
+      setSelectedImage(0)
+      return
+    }
+
+    if (selectedImage >= images.length) {
+      setSelectedImage(0)
+    }
+  }, [images.length, selectedImage])
   
   const handleAddToCart = async () => {
     setCartStatus('')
@@ -312,7 +407,11 @@ export default function ProductDetail({ product }) {
                   className={`thumbnail ${idx === selectedImage ? 'active' : ''}`}
                   onClick={() => setSelectedImage(idx)}
                 >
-                  <img src={img.image_url} alt={`${product.title} ${idx + 1}`} />
+                  {img.media_type === 'video' ? (
+                    <video src={img.image_url} muted playsInline className="thumbnail-video" />
+                  ) : (
+                    <img src={img.image_url} alt={`${product.title} ${idx + 1}`} />
+                  )}
                 </button>
               ))}
             </div>
@@ -325,7 +424,11 @@ export default function ProductDetail({ product }) {
             style={{ cursor: 'zoom-in' }}
           >
             {mainImage ? (
-              <img src={mainImage} alt={product.title} className="main-image" />
+              images[selectedImage]?.media_type === 'video' ? (
+                <video src={mainImage} controls className="main-image" />
+              ) : (
+                <img src={mainImage} alt={product.title} className="main-image" />
+              )
             ) : (
               <div className="image-placeholder">No image available</div>
             )}
@@ -474,52 +577,57 @@ export default function ProductDetail({ product }) {
               </div>
             </section>
 
-            <div className="detail-review-list">
-              {productReviews.map((review) => (
-                <article key={review.id} className="detail-review-list-card">
+            {latestProductReview ? (
+              <div className="detail-review-list">
+                <article key={latestProductReview.id} className="detail-review-list-card">
                   <div className="detail-review-list-head">
-                    <p className="detail-review-stars">{renderStars(review.rating)} <span>{Number(review.rating || 0)}/5</span></p>
-                    {(Number(review.rating) || 0) >= 4 ? <p className="detail-review-recommends">✓ Recommends</p> : null}
+                    <p className="detail-review-stars">{renderStars(latestProductReview.rating)} <span>{Number(latestProductReview.rating || 0)}/5</span></p>
+                    {(Number(latestProductReview.rating) || 0) >= 4 ? <p className="detail-review-recommends">✓ Recommends</p> : null}
                   </div>
                   <div className="detail-review-list-meta">
-                    <strong>{(review.first_name || '').trim()} {(review.last_name || '').trim()}</strong>
-                    {review.created_at ? <span>{formatReviewDate(review.created_at)}</span> : null}
+                    <strong>{(latestProductReview.first_name || '').trim()} {(latestProductReview.last_name || '').trim()}</strong>
+                    {latestProductReview.created_at ? <span>{formatReviewDate(latestProductReview.created_at)}</span> : null}
                   </div>
                   <div className="detail-review-list-body-row">
                     <div>
-                      <p className="detail-review-title">{review.title || 'Customer review'}</p>
-                      <p className="detail-review-body">{review.body || ''}</p>
+                      <p className="detail-review-title">{latestProductReview.title || 'Customer review'}</p>
+                      <p className="detail-review-body">{latestProductReview.body || ''}</p>
                     </div>
-                    {review.product_image_url ? (
+                    {latestProductReview.product_image_url ? (
                       <img
-                        src={review.product_image_url}
-                        alt={review.product_title || review.title || 'Reviewed item'}
+                        src={latestProductReview.product_image_url}
+                        alt={latestProductReview.product_title || latestProductReview.title || 'Reviewed item'}
                         className="detail-review-inline-image"
                       />
                     ) : null}
                   </div>
                 </article>
-              ))}
-            </div>
+              </div>
+            ) : null}
 
-            {itemReviewPhotos.length > 0 ? (
+            {latestReviewPhoto ? (
               <section className="detail-review-photos-section">
                 <h3>Photos from reviews</h3>
                 <div className="detail-review-photos-strip">
-                  {itemReviewPhotos.map((review) => (
-                    <img
-                      key={`${review.id}-${review.product_image_url}`}
-                      src={review.product_image_url}
-                      alt={review.product_title || 'Review photo'}
-                    />
-                  ))}
+                  <img
+                    src={latestReviewPhoto}
+                    alt={latestProductReview?.product_title || latestProductReview?.title || 'Review photo'}
+                  />
                 </div>
               </section>
             ) : null}
           </>
         )}
         <h2>More from this shop</h2>
-        <p className="related-placeholder">Related products will appear here</p>
+        {relatedProducts.length === 0 ? (
+          <p className="related-placeholder">No related products available right now.</p>
+        ) : (
+          <div className="related-products-grid" aria-label="More items from this shop">
+            {relatedProducts.map((relatedProduct) => (
+              <ProductCard key={`related-${relatedProduct.id}`} product={relatedProduct} />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Image Zoom Modal */}
