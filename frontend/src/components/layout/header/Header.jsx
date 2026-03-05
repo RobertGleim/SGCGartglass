@@ -1,8 +1,10 @@
 import '../../../styles/Header.css'
 import { useEffect, useState } from 'react'
+import { fetchCustomerCart } from '../../../services/api'
 
 export default function Header({ brandName, authToken, customerToken }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [cartCount, setCartCount] = useState(0)
 
   useEffect(() => {
     const handleHashChange = () => setMenuOpen(false)
@@ -13,6 +15,38 @@ export default function Header({ brandName, authToken, customerToken }) {
   const handleNavClick = () => {
     setMenuOpen(false)
   }
+
+  useEffect(() => {
+    let active = true
+
+    const refreshCartCount = async () => {
+      if (!customerToken) {
+        if (active) setCartCount(0)
+        return
+      }
+      try {
+        const items = await fetchCustomerCart()
+        const count = (Array.isArray(items) ? items : []).reduce(
+          (sum, item) => sum + Math.max(0, Number(item?.quantity) || 0),
+          0,
+        )
+        if (active) setCartCount(count)
+      } catch {
+        if (active) setCartCount(0)
+      }
+    }
+
+    refreshCartCount()
+    const handleCartRefresh = () => refreshCartCount()
+    window.addEventListener('hashchange', handleCartRefresh)
+    window.addEventListener('cart-updated', handleCartRefresh)
+
+    return () => {
+      active = false
+      window.removeEventListener('hashchange', handleCartRefresh)
+      window.removeEventListener('cart-updated', handleCartRefresh)
+    }
+  }, [customerToken])
 
   return (
     <header className="site-header">
@@ -36,6 +70,18 @@ export default function Header({ brandName, authToken, customerToken }) {
         ) : customerToken ? (
           <>
             <a href="#/my-projects" onClick={handleNavClick}>My Projects</a>
+            <a
+              href="#/checkout"
+              onClick={handleNavClick}
+              className="nav-cart-inline"
+              aria-label="Open cart and checkout"
+              title="Checkout"
+            >
+              🛒
+              {cartCount > 0 && (
+                <span className="nav-cart-badge">{cartCount > 99 ? '99+' : cartCount}</span>
+              )}
+            </a>
             <a href="#/account" onClick={handleNavClick}>Account</a>
           </>
         ) : (

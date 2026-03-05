@@ -1,9 +1,13 @@
 import { useState, useEffect, useMemo } from 'react'
 import '../../styles/ProductDetail.css'
+import useCustomerAuth from '../../hooks/useCustomerAuth'
+import { addCustomerCartItem } from '../../services/api'
 
 export default function ProductDetail({ product }) {
   const [selectedImage, setSelectedImage] = useState(0)
   const [showZoom, setShowZoom] = useState(false)
+  const [cartStatus, setCartStatus] = useState('')
+  const { customerToken } = useCustomerAuth()
   
   // Get images from originalData (for manual products) or use image_url
   const images = useMemo(() => {
@@ -20,9 +24,35 @@ export default function ProductDetail({ product }) {
   const mainImage = images.length > 0 ? images[selectedImage].image_url : null
   const showThumbnails = images.length > 1
   
-  const handleAddToCart = () => {
-    // TODO: Implement add to cart logic
-    console.log('Added to cart:', product)
+  const handleAddToCart = async () => {
+    setCartStatus('')
+    if (!customerToken) {
+      setCartStatus('Sign in to add items to cart.')
+      window.location.hash = '#/account/login'
+      return
+    }
+
+    const isManual = Boolean(product.isManual)
+    const resolvedProductId = isManual
+      ? String(product.originalData?.id || '').trim()
+      : String(product.id || '').trim()
+
+    if (!resolvedProductId) {
+      setCartStatus('Unable to add this product right now.')
+      return
+    }
+
+    try {
+      await addCustomerCartItem({
+        product_type: isManual ? 'manual' : 'etsy',
+        product_id: resolvedProductId,
+        quantity: 1,
+      })
+      setCartStatus('Added to cart.')
+      window.dispatchEvent(new Event('cart-updated'))
+    } catch (error) {
+      setCartStatus(error?.response?.data?.error || error.message || 'Unable to add to cart.')
+    }
   }
 
   // Handle keyboard navigation in zoom mode
@@ -162,6 +192,7 @@ export default function ProductDetail({ product }) {
               ♡
             </button>
           </div>
+          {cartStatus && <p className="currency-note">{cartStatus}</p>}
 
           {/* Shop Policies */}
           <div className="shop-policies">

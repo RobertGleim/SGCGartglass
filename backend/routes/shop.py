@@ -10,6 +10,7 @@ import os
 import hashlib
 import secrets
 from datetime import datetime, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 from urllib.parse import quote
 
 from flask import Blueprint, jsonify, request, g, current_app
@@ -48,17 +49,260 @@ from ..db import (
     remove_customer_cart_item,
     list_customer_orders,
     list_customer_order_items,
+    create_customer_order_with_items,
+    list_admin_recent_orders,
+    mark_customer_order_admin_seen,
+    update_customer_order_payment_by_reference,
+    get_customer_order_id_by_payment_reference,
+    append_customer_order_event,
+    list_customer_order_events,
     has_verified_purchase,
     list_reviews_for_product,
     list_customer_reviews,
     create_customer_review,
     update_customer_admin,
+    delete_customer_admin,
 )
 from ..etsy import extract_listing_id, fetch_listing
 from ..utils.email import send_email
 
 
 api = Blueprint("api", __name__)
+
+
+def _as_money(value):
+    try:
+        return float(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+    except Exception:
+        return 0.0
+
+
+def _resolve_cart_product_snapshot(item):
+    product_type = str(item.get("product_type") or "").lower()
+    product_id = str(item.get("product_id") or "").strip()
+    if not product_id:
+        return None
+
+    if product_type == "manual":
+        product = fetch_manual_product(int(product_id)) if product_id.isdigit() else None
+        if not product:
+            return None
+        image_url = None
+        images = product.get("images") if isinstance(product.get("images"), list) else []
+        if images:
+            image_url = images[0].get("image_url")
+        return {
+            "title": product.get("name") or f"Manual product #{product_id}",
+            "price": _as_money(product.get("price")),
+            "currency": "USD",
+            "image_url": image_url,
+            "product_type": "manual",
+            "product_id": product_id,
+        }
+
+    if product_id.isdigit():
+        etsy_item = fetch_item(int(product_id))
+    else:
+        etsy_item = None
+    if not etsy_item:
+        return None
+    return {
+        "title": etsy_item.get("title") or f"Item #{product_id}",
+        "price": _as_money(etsy_item.get("price_amount")),
+        "currency": etsy_item.get("price_currency") or "USD",
+        "image_url": etsy_item.get("image_url"),
+        "product_type": item.get("product_type"),
+        "product_id": product_id,
+    }
+
+
+def _calculate_checkout_totals(items):
+    item_count = sum(max(1, int(entry.get("quantity", 1))) for entry in items)
+    subtotal = _as_money(sum(_as_money(entry.get("line_total")) for entry in items))
+
+    free_shipping_min = _as_money(os.environ.get("CHECKOUT_FREE_SHIPPING_MIN", "50"))
+    flat_shipping = _as_money(os.environ.get("CHECKOUT_FLAT_SHIPPING", "9.99"))
+    tax_rate = _as_money(os.environ.get("CHECKOUT_TAX_RATE", "0"))
+
+    shipping = 0.0 if subtotal <= 0 or subtotal >= free_shipping_min else flat_shipping
+    tax = _as_money(subtotal * tax_rate)
+    total = _as_money(subtotal + shipping + tax)
+
+    return {
+        "item_count": item_count,
+        "subtotal": subtotal,
+        "shipping": shipping,
+        "tax": tax,
+        "total": total,
+        "currency": "USD",
+    }
+
+
+def _build_checkout_summary(customer_id):
+    cart_items = list_customer_cart_items(customer_id)
+    detailed = []
+    for cart_item in cart_items:
+        quantity = max(1, int(cart_item.get("quantity", 1)))
+        snapshot = _resolve_cart_product_snapshot(cart_item)
+        if not snapshot:
+            continue
+        unit_price = _as_money(snapshot.get("price"))
+        detailed.append({
+            "id": cart_item.get("id"),
+            "product_type": snapshot.get("product_type"),
+            "product_id": snapshot.get("product_id"),
+            "title": snapshot.get("title"),
+            "image_url": snapshot.get("image_url"),
+            "quantity": quantity,
+            "price": unit_price,
+            "line_total": _as_money(unit_price * quantity),
+            "currency": snapshot.get("currency") or "USD",
+        })
+
+    totals = _calculate_checkout_totals(detailed)
+    return {
+        "items": detailed,
+        "totals": totals,
+    }
+
+
+def _is_admin_request():
+    return g.auth_payload.get("role") != "customer"
+
+
+def _create_stripe_payment_intent(total_amount, metadata=None):
+    stripe_secret = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
+    if not stripe_secret:
+        return {
+            "mode": "mock",
+            "provider": "stripe",
+            "payment_intent_id": f"mock_intent_{int(datetime.utcnow().timestamp())}_{secrets.token_hex(4)}",
+            "client_secret": None,
+        }
+
+    import stripe
+
+    stripe.api_key = stripe_secret
+    intent = stripe.PaymentIntent.create(
+        amount=max(50, int(round(total_amount * 100))),
+        currency="usd",
+        automatic_payment_methods={"enabled": True},
+        metadata=metadata or {},
+    )
+    return {
+        "mode": "live",
+        "provider": "stripe",
+        "payment_intent_id": intent.get("id"),
+        "client_secret": intent.get("client_secret"),
+    }
+
+
+def _validate_shipping_address(payload):
+    required_fields = ["line1", "city", "state", "postal_code", "country"]
+    missing = [field for field in required_fields if not str(payload.get(field, "")).strip()]
+    return missing
+
+
+def _map_payment_to_order_status(payment_status):
+    normalized = str(payment_status or "").strip().lower()
+    if normalized in {"paid", "processing"}:
+        return "confirmed"
+    if normalized in {"failed", "requires_payment_method"}:
+        return "payment_failed"
+    if normalized in {"canceled", "cancelled"}:
+        return "cancelled"
+    return "pending"
+
+
+def _send_admin_order_email(order_number, total_amount, customer_name):
+    admin_email = (os.environ.get("ADMIN_EMAIL") or "").strip()
+    if not admin_email:
+        return
+    send_email(
+        admin_email,
+        f"New Customer Order: {order_number}",
+        f"""
+        <html>
+          <body>
+            <h2>New Customer Order Received</h2>
+            <p><strong>Order:</strong> {order_number}</p>
+            <p><strong>Customer:</strong> {customer_name or 'Unknown customer'}</p>
+            <p><strong>Total:</strong> ${total_amount:.2f}</p>
+            <p>Open the Admin Dashboard → Sales Stats to review this order.</p>
+          </body>
+        </html>
+        """,
+    )
+
+
+@api.post("/stripe/webhook")
+def stripe_webhook():
+    init_db()
+    webhook_secret = (os.environ.get("STRIPE_WEBHOOK_SECRET") or "").strip()
+
+    payload = request.get_data(as_text=False)
+    signature = request.headers.get("Stripe-Signature")
+
+    try:
+        import stripe
+        stripe_secret = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
+        if stripe_secret:
+            stripe.api_key = stripe_secret
+
+        if webhook_secret:
+            if not signature:
+                return jsonify({"error": "missing_signature"}), 400
+            event = stripe.Webhook.construct_event(payload, signature, webhook_secret)
+        else:
+            event = json.loads(payload.decode("utf-8")) if payload else {}
+    except Exception as exc:
+        current_app.logger.error("stripe webhook parse error: %s", exc)
+        return jsonify({"error": "invalid_webhook_payload"}), 400
+
+    event_type = str(event.get("type") or "")
+    data_object = (event.get("data") or {}).get("object") or {}
+    payment_intent_id = str(data_object.get("id") or "").strip()
+    if not payment_intent_id:
+        return jsonify({"received": True})
+
+    payment_status = None
+    if event_type == "payment_intent.succeeded":
+        payment_status = "paid"
+    elif event_type == "payment_intent.processing":
+        payment_status = "processing"
+    elif event_type in {"payment_intent.payment_failed", "payment_intent.requires_payment_method"}:
+        payment_status = "failed"
+    elif event_type == "payment_intent.canceled":
+        payment_status = "canceled"
+
+    if not payment_status:
+        return jsonify({"received": True, "ignored": True})
+
+    order_status = _map_payment_to_order_status(payment_status)
+    updated = update_customer_order_payment_by_reference(
+        payment_intent_id,
+        payment_status,
+        order_status=order_status,
+    )
+
+    order_id = get_customer_order_id_by_payment_reference(payment_intent_id)
+    if order_id:
+        try:
+            append_customer_order_event(
+                order_id,
+                event_type=event_type,
+                event_detail=f"payment_status={payment_status}, mapped_order_status={order_status}",
+                payload=json.dumps({"event_id": event.get("id"), "type": event_type}),
+            )
+        except Exception as exc:
+            current_app.logger.warning("failed to append order event for %s: %s", payment_intent_id, exc)
+
+    return jsonify({
+        "received": True,
+        "event_type": event_type,
+        "payment_intent_id": payment_intent_id,
+        "updated": updated,
+    })
 
 
 @api.get("/health")
@@ -148,6 +392,31 @@ def admin_get_customer_details(customer_id):
         "customer": customer,
         "addresses": addresses,
     }), 200
+
+
+@api.delete("/customers/<int:customer_id>")
+@require_auth
+def admin_delete_customer(customer_id):
+    if g.auth_payload.get("role") == "customer":
+        return jsonify({"error": "forbidden"}), 403
+
+    init_db()
+    target_customer = fetch_customer_by_id(customer_id)
+    if not target_customer:
+        return jsonify({"error": "not_found"}), 404
+
+    actor_email = (
+        str(g.auth_payload.get("email") or "").strip().lower()
+        or str(g.auth_payload.get("sub") or "").strip().lower()
+    )
+    target_email = str(target_customer.get("email") or "").strip().lower()
+    if actor_email and target_email and actor_email == target_email:
+        return jsonify({"error": "cannot_delete_self"}), 400
+
+    deleted = delete_customer_admin(customer_id)
+    if not deleted:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify({"success": True}), 200
 
 
 @api.post("/auth/login")
@@ -480,6 +749,15 @@ def customer_cart():
     return jsonify(list_customer_cart_items(customer_id))
 
 
+@api.get("/customer/cart/summary")
+@require_customer
+def customer_cart_summary():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    summary = _build_checkout_summary(customer_id)
+    return jsonify(summary)
+
+
 @api.post("/customer/cart/items")
 @require_customer
 def customer_add_cart_item():
@@ -488,10 +766,20 @@ def customer_add_cart_item():
     payload = request.get_json(silent=True) or {}
     product_type = payload.get("product_type")
     product_id = payload.get("product_id")
-    quantity = int(payload.get("quantity", 1))
+    try:
+        quantity = int(payload.get("quantity", 1))
+    except (TypeError, ValueError):
+        quantity = 1
     if not product_type or not product_id:
         return jsonify({"error": "missing_product"}), 400
-    upsert_customer_cart_item(customer_id, product_type, str(product_id), quantity)
+    clamped_quantity = 1
+    upsert_customer_cart_item(customer_id, product_type, str(product_id), clamped_quantity)
+    if quantity > 1:
+        return jsonify({
+            "success": True,
+            "warning": "single_item_limit",
+            "message": "Items are sold per piece. Please contact customer service if you need more than one of the same item.",
+        }), 201
     return jsonify({"success": True}), 201
 
 
@@ -501,8 +789,18 @@ def customer_update_cart_item(item_id):
     init_db()
     customer_id = g.auth_payload.get("customer_id")
     payload = request.get_json(silent=True) or {}
-    quantity = int(payload.get("quantity", 1))
-    update_customer_cart_item_quantity(customer_id, item_id, quantity)
+    try:
+        quantity = int(payload.get("quantity", 1))
+    except (TypeError, ValueError):
+        quantity = 1
+
+    if quantity > 1:
+        return jsonify({
+            "error": "single_item_limit",
+            "message": "Items are sold per piece. Please contact customer service if you need more than one of the same item.",
+        }), 400
+
+    update_customer_cart_item_quantity(customer_id, item_id, 1)
     return jsonify({"success": True})
 
 
@@ -513,6 +811,127 @@ def customer_remove_cart_item(item_id):
     customer_id = g.auth_payload.get("customer_id")
     remove_customer_cart_item(customer_id, item_id)
     return jsonify({"success": True})
+
+
+@api.post("/customer/checkout/intent")
+@require_customer
+def customer_checkout_intent():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    summary = _build_checkout_summary(customer_id)
+    totals = summary.get("totals") or {}
+
+    if not summary.get("items"):
+        return jsonify({"error": "cart_empty"}), 400
+
+    payload = request.get_json(silent=True) or {}
+    shipping_address = payload.get("shipping_address") if isinstance(payload.get("shipping_address"), dict) else {}
+    missing_shipping = _validate_shipping_address(shipping_address)
+    if missing_shipping:
+        return jsonify({"error": "missing_shipping_fields", "fields": missing_shipping}), 400
+
+    customer = fetch_customer_by_id(customer_id) or {}
+
+    try:
+        intent = _create_stripe_payment_intent(
+            totals.get("total", 0),
+            metadata={
+                "customer_id": str(customer_id),
+                "customer_email": customer.get("email") or "",
+                "cart_items": str(totals.get("item_count", 0)),
+            },
+        )
+    except Exception as exc:
+        current_app.logger.error("checkout intent failed: %s", exc)
+        return jsonify({"error": "payment_intent_failed"}), 502
+
+    return jsonify({
+        "intent": intent,
+        "totals": totals,
+    })
+
+
+@api.post("/customer/checkout/place-order")
+@require_customer
+def customer_place_order():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    customer = fetch_customer_by_id(customer_id) or {}
+    payload = request.get_json(silent=True) or {}
+
+    shipping_address = payload.get("shipping_address") if isinstance(payload.get("shipping_address"), dict) else {}
+    billing_address = payload.get("billing_address") if isinstance(payload.get("billing_address"), dict) else shipping_address
+    missing_shipping = _validate_shipping_address(shipping_address)
+    if missing_shipping:
+        return jsonify({"error": "missing_shipping_fields", "fields": missing_shipping}), 400
+
+    summary = _build_checkout_summary(customer_id)
+    if not summary.get("items"):
+        return jsonify({"error": "cart_empty"}), 400
+
+    totals = summary.get("totals") or {}
+    payment_intent_id = str(payload.get("payment_intent_id") or "").strip()
+    payment_status = "pending"
+    payment_provider = "stripe"
+
+    stripe_secret = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
+    if payment_intent_id:
+        if stripe_secret:
+            try:
+                import stripe
+
+                stripe.api_key = stripe_secret
+                intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+                stripe_status = str(intent.get("status") or "").lower()
+                if stripe_status not in {"succeeded", "processing", "requires_capture"}:
+                    return jsonify({"error": "payment_not_ready", "payment_status": stripe_status}), 400
+                payment_status = "paid" if stripe_status == "succeeded" else "processing"
+            except Exception as exc:
+                current_app.logger.error("stripe verify failed: %s", exc)
+                return jsonify({"error": "payment_verification_failed"}), 502
+        else:
+            payment_status = "paid" if payment_intent_id.startswith("mock_intent_") else "pending"
+
+    order_number = f"SGCG-{datetime.utcnow().strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}"
+    customer_name = (
+        str(payload.get("customer_name") or "").strip()
+        or f"{customer.get('first_name') or ''} {customer.get('last_name') or ''}".strip()
+        or "Customer"
+    )
+    customer_email = str(payload.get("customer_email") or "").strip() or customer.get("email")
+
+    order_payload = {
+        "order_number": order_number,
+        "status": "confirmed" if payment_status in {"paid", "processing"} else "pending",
+        "subtotal_amount": totals.get("subtotal"),
+        "shipping_amount": totals.get("shipping"),
+        "tax_amount": totals.get("tax"),
+        "total_amount": totals.get("total"),
+        "currency": totals.get("currency") or "USD",
+        "payment_status": payment_status,
+        "payment_provider": payment_provider,
+        "payment_reference": payment_intent_id or None,
+        "customer_name": customer_name,
+        "customer_email": customer_email,
+        "shipping_address": json.dumps(shipping_address),
+        "billing_address": json.dumps(billing_address),
+        "notes": str(payload.get("notes") or "").strip() or None,
+    }
+
+    order_id = create_customer_order_with_items(customer_id, order_payload, summary.get("items") or [])
+    _send_admin_order_email(order_number, totals.get("total", 0), customer_name)
+
+    return jsonify({
+        "success": True,
+        "order": {
+            "id": order_id,
+            "order_number": order_number,
+            "status": order_payload["status"],
+            "payment_status": payment_status,
+            "total_amount": totals.get("total"),
+            "currency": totals.get("currency") or "USD",
+        },
+    }), 201
 
 
 @api.get("/customer/orders")
@@ -529,6 +948,44 @@ def customer_order_items(order_id):
     init_db()
     customer_id = g.auth_payload.get("customer_id")
     return jsonify(list_customer_order_items(customer_id, order_id))
+
+
+@api.get("/admin/orders/recent")
+@require_auth
+def admin_recent_orders():
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    unseen_only = str(request.args.get("unseen_only", "0")).lower() in {"1", "true", "yes"}
+    limit = request.args.get("limit", 20)
+    orders = list_admin_recent_orders(limit=limit, unseen_only=unseen_only)
+    return jsonify(orders)
+
+
+@api.put("/admin/orders/<int:order_id>/seen")
+@require_auth
+def admin_mark_order_seen(order_id):
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    updated = mark_customer_order_admin_seen(order_id)
+    if not updated:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify({"success": True})
+
+
+@api.get("/admin/orders/<int:order_id>/events")
+@require_auth
+def admin_get_order_events(order_id):
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    limit = request.args.get("limit", 30)
+    events = list_customer_order_events(order_id, limit=limit)
+    return jsonify(events)
 
 
 @api.get("/customer/reviews")

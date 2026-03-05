@@ -2,9 +2,12 @@ import { useState, useEffect, useRef } from "react";
 // import AddEtsyListingForm from "../../components/forms/AddEtsyListingForm";
 import {
   createAdminTemplate,
+  deleteCustomer,
+  fetchAdminRecentOrders,
   fetchCustomers,
   getCustomerDetails,
   getTemplates,
+  markAdminOrderSeen,
   sendTemplateToCustomerWorkOrder,
   uploadAdminTemplateImage,
   updateCustomer,
@@ -109,6 +112,7 @@ export default function AdminDashboard({
   });
   const [customerStatus, setCustomerStatus] = useState("");
   const [isSavingCustomer, setIsSavingCustomer] = useState(false);
+  const [isDeletingCustomer, setIsDeletingCustomer] = useState(false);
   const [sendTemplateForm, setSendTemplateForm] = useState({
     template_id: "",
     message: "",
@@ -120,6 +124,9 @@ export default function AdminDashboard({
   const [sendTemplateStatus, setSendTemplateStatus] = useState("");
   const [isSendingTemplate, setIsSendingTemplate] = useState(false);
   const [adminTemplateOptions, setAdminTemplateOptions] = useState([]);
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [unseenOrderCount, setUnseenOrderCount] = useState(0);
+  const [expandedOrderTimelines, setExpandedOrderTimelines] = useState({});
 
   useEffect(() => {
     if (activeTab === "customers") {
@@ -128,6 +135,68 @@ export default function AdminDashboard({
         .catch(() => setCustomers([]));
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    let active = true;
+    let intervalId;
+
+    const loadOrders = async () => {
+      try {
+        const [allOrders, unseenOrders] = await Promise.all([
+          fetchAdminRecentOrders({ limit: 25 }),
+          fetchAdminRecentOrders({ limit: 25, unseen_only: true }),
+        ]);
+        if (!active) return;
+        const normalizedOrders = Array.isArray(allOrders) ? allOrders : [];
+        setRecentOrders(normalizedOrders);
+        setUnseenOrderCount(Array.isArray(unseenOrders) ? unseenOrders.length : 0);
+        setExpandedOrderTimelines((prev) => {
+          const next = {};
+          normalizedOrders.forEach((order) => {
+            const orderId = order?.id;
+            if (!orderId) return;
+            if (Object.prototype.hasOwnProperty.call(prev, orderId)) {
+              next[orderId] = prev[orderId];
+              return;
+            }
+            next[orderId] = !Number(order.admin_seen || 0);
+          });
+          return next;
+        });
+      } catch {
+        if (!active) return;
+        setRecentOrders([]);
+      }
+    };
+
+    loadOrders();
+    intervalId = window.setInterval(loadOrders, 30000);
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  const handleMarkOrderSeen = async (orderId) => {
+    await markAdminOrderSeen(orderId);
+    setRecentOrders((prev) => prev.map((order) => (
+      order.id === orderId
+        ? { ...order, admin_seen: 1, admin_seen_at: new Date().toISOString() }
+        : order
+    )));
+    setExpandedOrderTimelines((prev) => ({
+      ...prev,
+      [orderId]: false,
+    }));
+    setUnseenOrderCount((prev) => Math.max(0, prev - 1));
+  };
+
+  const handleToggleOrderTimeline = (orderId) => {
+    setExpandedOrderTimelines((prev) => ({
+      ...prev,
+      [orderId]: !prev[orderId],
+    }));
+  };
   // eslint-disable-next-line no-unused-vars
   const [status, setStatus] = useState("");
   const [manualProductSearch, setManualProductSearch] = useState("");
@@ -761,6 +830,7 @@ export default function AdminDashboard({
     setEditingCustomer(null);
     setCustomerStatus("");
     setIsSavingCustomer(false);
+    setIsDeletingCustomer(false);
     setSendTemplateStatus("");
     setIsSendingTemplate(false);
     setSendTemplateForm({
@@ -868,6 +938,29 @@ export default function AdminDashboard({
     }
   };
 
+  const handleDeleteCustomer = async () => {
+    if (!editingCustomer?.id) return;
+    const confirmDelete = window.confirm(
+      `Delete customer ${customerForm.email || `#${editingCustomer.id}`}? This permanently removes customer account data.`,
+    );
+    if (!confirmDelete) return;
+
+    setIsDeletingCustomer(true);
+    setCustomerStatus("");
+    try {
+      await deleteCustomer(editingCustomer.id);
+      setCustomers((prev) => prev.filter((customer) => customer.id !== editingCustomer.id));
+      closeCustomerEditModal();
+    } catch (error) {
+      const apiError = error?.response?.data?.error;
+      const message = apiError === "cannot_delete_self"
+        ? "You cannot delete your own admin account."
+        : apiError || error?.message || "Failed to delete customer.";
+      setCustomerStatus(`Error: ${message}`);
+      setIsDeletingCustomer(false);
+    }
+  };
+
   return (
     <div className="admin-dashboard">
       <div className="dashboard-header">
@@ -891,7 +984,7 @@ export default function AdminDashboard({
           className={`tab ${activeTab === "sales" ? "active" : ""}`}
           onClick={() => setActiveTab("sales")}
         >
-          Sales Stats
+          {`Sales Stats${unseenOrderCount > 0 ? ` (${unseenOrderCount} new)` : ""}`}
         </button>
         <button
           className={`tab ${activeTab === "customers" ? "active" : ""}`}
@@ -1181,21 +1274,73 @@ export default function AdminDashboard({
               <h3>Sales Overview</h3>
               <div className="stats-grid">
                 <div className="stat-card">
-                  <p className="stat-label">Total Sales</p>
-                  <p className="stat-value">Coming soon</p>
+                  <p className="stat-label">Orders</p>
+                  <p className="stat-value">{recentOrders.length}</p>
                 </div>
                 <div className="stat-card">
                   <p className="stat-label">Revenue</p>
-                  <p className="stat-value">Coming soon</p>
+                  <p className="stat-value">
+                    ${recentOrders.reduce((sum, entry) => sum + Number(entry.total_amount || 0), 0).toFixed(2)}
+                  </p>
                 </div>
                 <div className="stat-card">
-                  <p className="stat-label">Avg. Order Value</p>
-                  <p className="stat-value">Coming soon</p>
+                  <p className="stat-label">New Alerts</p>
+                  <p className="stat-value">{unseenOrderCount}</p>
                 </div>
               </div>
-              <p className="form-note">
-                Sales tracking will be integrated in a future update.
-              </p>
+
+              {recentOrders.length === 0 ? (
+                <p className="form-note">No customer orders yet.</p>
+              ) : (
+                <div className="product-list" style={{ marginTop: "0.9rem" }}>
+                  {recentOrders.map((order) => (
+                    <div key={order.id} className="product-row">
+                      <div className="product-details">
+                        <h4>{order.order_number || `Order #${order.id}`}</h4>
+                        <p className="product-meta">
+                          {(order.customer_name || `${order.first_name || ""} ${order.last_name || ""}`.trim() || order.customer_email || order.account_email || "Customer")}
+                          {` · ${order.item_count || 0} items · ${order.status || "pending"} · ${order.payment_status || "pending"}`}
+                        </p>
+                        <div className="order-timeline-actions">
+                          <button
+                            type="button"
+                            className="button"
+                            onClick={() => handleToggleOrderTimeline(order.id)}
+                          >
+                            {expandedOrderTimelines[order.id] ? "Hide timeline" : "Show timeline"}
+                          </button>
+                        </div>
+                        {expandedOrderTimelines[order.id] && (
+                          <div className="order-event-timeline">
+                            {(Array.isArray(order.events) && order.events.length > 0) ? (
+                              order.events.map((event) => (
+                                <div key={event.id} className="order-event-row">
+                                  <strong>{event.event_type}</strong>
+                                  <span>{event.created_at ? new Date(event.created_at).toLocaleString() : "Unknown time"}</span>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="order-event-row">
+                                <span>No events yet.</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="product-actions" style={{ minWidth: "210px", justifyContent: "flex-end", alignItems: "center", gap: "0.5rem" }}>
+                        <strong>${Number(order.total_amount || 0).toFixed(2)}</strong>
+                        {!Number(order.admin_seen || 0) ? (
+                          <button className="button" onClick={() => handleMarkOrderSeen(order.id)}>
+                            Mark seen
+                          </button>
+                        ) : (
+                          <span className="form-note" style={{ margin: 0 }}>Seen</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -2184,6 +2329,14 @@ export default function AdminDashboard({
               <div className="modal-actions">
                 <button type="button" className="button" onClick={closeCustomerEditModal}>
                   Cancel
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  onClick={handleDeleteCustomer}
+                  disabled={isDeletingCustomer || isSavingCustomer}
+                >
+                  {isDeletingCustomer ? "Deleting..." : "Delete Customer"}
                 </button>
                 <button type="submit" className="button primary" disabled={isSavingCustomer}>
                   {isSavingCustomer ? "Saving..." : "Save Customer"}

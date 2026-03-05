@@ -208,8 +208,21 @@ def init_db():
             customer_id INTEGER NOT NULL,
             order_number VARCHAR(50),
             status VARCHAR(30) DEFAULT 'pending',
+            subtotal_amount REAL,
+            shipping_amount REAL,
+            tax_amount REAL,
             total_amount REAL,
             currency VARCHAR(10) DEFAULT 'USD',
+            payment_status VARCHAR(30) DEFAULT 'pending',
+            payment_provider VARCHAR(30),
+            payment_reference VARCHAR(255),
+            customer_name VARCHAR(160),
+            customer_email VARCHAR(255),
+            shipping_address TEXT,
+            billing_address TEXT,
+            notes TEXT,
+            admin_seen INTEGER DEFAULT 0,
+            admin_seen_at VARCHAR(50),
             created_at VARCHAR(50),
             updated_at VARCHAR(50),
             FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
@@ -233,6 +246,19 @@ def init_db():
     )
     cursor.execute(
         f"""
+        CREATE TABLE IF NOT EXISTS customer_order_events (
+            id {id_column},
+            order_id INTEGER NOT NULL,
+            event_type VARCHAR(80) NOT NULL,
+            event_detail TEXT,
+            payload TEXT,
+            created_at VARCHAR(50),
+            FOREIGN KEY (order_id) REFERENCES customer_orders(id) ON DELETE CASCADE
+        )
+        """
+    )
+    cursor.execute(
+        f"""
         CREATE TABLE IF NOT EXISTS customer_reviews (
             id {id_column},
             customer_id INTEGER NOT NULL,
@@ -250,6 +276,25 @@ def init_db():
         )
         """
     )
+    conn.commit()
+
+    if is_postgres:
+        cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS subtotal_amount REAL")
+        cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS shipping_amount REAL")
+        cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS tax_amount REAL")
+        cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30) DEFAULT 'pending'")
+        cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS payment_provider VARCHAR(30)")
+        cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(255)")
+        cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS customer_name VARCHAR(160)")
+        cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS customer_email VARCHAR(255)")
+        cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS shipping_address TEXT")
+        cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS billing_address TEXT")
+        cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS notes TEXT")
+        cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS admin_seen INTEGER DEFAULT 0")
+        cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS admin_seen_at VARCHAR(50)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_order_events_order ON customer_order_events(order_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_order_events_created ON customer_order_events(created_at)")
+
     conn.commit()
     conn.close()
 
@@ -929,6 +974,22 @@ def update_customer_admin(customer_id, payload):
     return dict(updated) if updated else None
 
 
+def delete_customer_admin(customer_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    cursor.execute(
+        f"DELETE FROM customers WHERE id = {placeholder}",
+        (customer_id,),
+    )
+    deleted = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted
+
+
 def list_customer_addresses(customer_id):
     conn = get_db()
     cursor = conn.cursor()
@@ -1139,14 +1200,13 @@ def upsert_customer_cart_item(customer_id, product_type, product_id, quantity):
     )
     row = cursor.fetchone()
     if row:
-        new_quantity = max(1, int(row["quantity"]) + int(quantity))
         cursor.execute(
             f"""
             UPDATE customer_cart_items
             SET quantity = {placeholder}, updated_at = {placeholder}
             WHERE id = {placeholder}
             """,
-            (new_quantity, now, row["id"]),
+            (1, now, row["id"]),
         )
     else:
         cursor.execute(
@@ -1154,7 +1214,7 @@ def upsert_customer_cart_item(customer_id, product_type, product_id, quantity):
             INSERT INTO customer_cart_items (customer_id, product_type, product_id, quantity, created_at, updated_at)
             VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             """,
-            (customer_id, product_type, product_id, quantity, now, now),
+            (customer_id, product_type, product_id, 1, now, now),
         )
     conn.commit()
     conn.close()
@@ -1166,13 +1226,14 @@ def update_customer_cart_item_quantity(customer_id, item_id, quantity):
     now = datetime.utcnow().isoformat()
     is_mysql = _use_mysql()
     placeholder = "%s" if is_mysql else "?"
+    safe_quantity = 1 if int(quantity or 1) >= 1 else 1
     cursor.execute(
         f"""
         UPDATE customer_cart_items
         SET quantity = {placeholder}, updated_at = {placeholder}
         WHERE id = {placeholder} AND customer_id = {placeholder}
         """,
-        (quantity, now, item_id, customer_id),
+        (safe_quantity, now, item_id, customer_id),
     )
     conn.commit()
     conn.close()
@@ -1203,6 +1264,306 @@ def list_customer_orders(customer_id):
     rows = cursor.fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+
+def create_customer_order_with_items(customer_id, order_payload, order_items):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    is_postgres = _is_postgres_backend()
+    placeholder = "%s" if is_mysql else "?"
+    now = datetime.utcnow().isoformat()
+
+    insert_values = (
+        customer_id,
+        order_payload.get("order_number"),
+        order_payload.get("status", "pending"),
+        order_payload.get("subtotal_amount"),
+        order_payload.get("shipping_amount"),
+        order_payload.get("tax_amount"),
+        order_payload.get("total_amount"),
+        order_payload.get("currency", "USD"),
+        order_payload.get("payment_status", "pending"),
+        order_payload.get("payment_provider"),
+        order_payload.get("payment_reference"),
+        order_payload.get("customer_name"),
+        order_payload.get("customer_email"),
+        order_payload.get("shipping_address"),
+        order_payload.get("billing_address"),
+        order_payload.get("notes"),
+        0,
+        None,
+        now,
+        now,
+    )
+
+    if is_postgres:
+        cursor.execute(
+            f"""
+            INSERT INTO customer_orders (
+                customer_id, order_number, status,
+                subtotal_amount, shipping_amount, tax_amount, total_amount, currency,
+                payment_status, payment_provider, payment_reference,
+                customer_name, customer_email,
+                shipping_address, billing_address, notes,
+                admin_seen, admin_seen_at,
+                created_at, updated_at
+            ) VALUES (
+                {placeholder}, {placeholder}, {placeholder},
+                {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder},
+                {placeholder}, {placeholder}, {placeholder},
+                {placeholder}, {placeholder},
+                {placeholder}, {placeholder}, {placeholder},
+                {placeholder}, {placeholder},
+                {placeholder}, {placeholder}
+            )
+            RETURNING id
+            """,
+            insert_values,
+        )
+        order_id = cursor.fetchone()["id"]
+    else:
+        cursor.execute(
+            f"""
+            INSERT INTO customer_orders (
+                customer_id, order_number, status,
+                subtotal_amount, shipping_amount, tax_amount, total_amount, currency,
+                payment_status, payment_provider, payment_reference,
+                customer_name, customer_email,
+                shipping_address, billing_address, notes,
+                admin_seen, admin_seen_at,
+                created_at, updated_at
+            ) VALUES (
+                {placeholder}, {placeholder}, {placeholder},
+                {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder},
+                {placeholder}, {placeholder}, {placeholder},
+                {placeholder}, {placeholder},
+                {placeholder}, {placeholder}, {placeholder},
+                {placeholder}, {placeholder},
+                {placeholder}, {placeholder}
+            )
+            """,
+            insert_values,
+        )
+        order_id = cursor.lastrowid
+
+    for item in order_items:
+        cursor.execute(
+            f"""
+            INSERT INTO customer_order_items (order_id, product_type, product_id, title, price, quantity, image_url)
+            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+            """,
+            (
+                order_id,
+                item.get("product_type"),
+                str(item.get("product_id")),
+                item.get("title"),
+                item.get("price"),
+                int(item.get("quantity", 1)),
+                item.get("image_url"),
+            ),
+        )
+
+    cursor.execute(
+        f"""
+        INSERT INTO customer_order_events (order_id, event_type, event_detail, payload, created_at)
+        VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+        """,
+        (
+            order_id,
+            "order.placed",
+            f"Order placed with payment_status={order_payload.get('payment_status', 'pending')}",
+            None,
+            now,
+        ),
+    )
+
+    cursor.execute(
+        f"DELETE FROM customer_cart_items WHERE customer_id = {placeholder}",
+        (customer_id,),
+    )
+
+    conn.commit()
+    conn.close()
+    return order_id
+
+
+def list_admin_recent_orders(limit=20, unseen_only=False):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    limit_value = max(1, min(int(limit or 20), 100))
+
+    where_clause = "WHERE COALESCE(o.admin_seen, 0) = 0" if unseen_only else ""
+    cursor.execute(
+        f"""
+        SELECT
+            o.*, c.first_name, c.last_name,
+            c.email AS account_email,
+            COUNT(oi.id) AS item_count
+        FROM customer_orders o
+        LEFT JOIN customers c ON c.id = o.customer_id
+        LEFT JOIN customer_order_items oi ON oi.order_id = o.id
+        {where_clause}
+        GROUP BY o.id, c.first_name, c.last_name, c.email
+        ORDER BY o.created_at DESC
+        LIMIT {placeholder}
+        """,
+        (limit_value,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    orders = [dict(row) for row in rows]
+    events_by_order_id = list_customer_order_events_for_orders([entry.get("id") for entry in orders], limit_per_order=8)
+    for entry in orders:
+        entry["events"] = events_by_order_id.get(entry.get("id"), [])
+    return orders
+
+
+def mark_customer_order_admin_seen(order_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    now = datetime.utcnow().isoformat()
+
+    cursor.execute(
+        f"""
+        UPDATE customer_orders
+        SET admin_seen = 1, admin_seen_at = {placeholder}, updated_at = {placeholder}
+        WHERE id = {placeholder}
+        """,
+        (now, now, order_id),
+    )
+    updated = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return updated
+
+
+def get_customer_order_id_by_payment_reference(payment_reference):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    cursor.execute(
+        f"SELECT id FROM customer_orders WHERE payment_reference = {placeholder} LIMIT 1",
+        (payment_reference,),
+    )
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return row.get("id") if isinstance(row, dict) else row["id"]
+
+
+def append_customer_order_event(order_id, event_type, event_detail=None, payload=None):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    now = datetime.utcnow().isoformat()
+
+    cursor.execute(
+        f"""
+        INSERT INTO customer_order_events (order_id, event_type, event_detail, payload, created_at)
+        VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+        """,
+        (order_id, event_type, event_detail, payload, now),
+    )
+    conn.commit()
+    conn.close()
+
+
+def list_customer_order_events(order_id, limit=20):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    limit_value = max(1, min(int(limit or 20), 100))
+
+    cursor.execute(
+        f"""
+        SELECT id, order_id, event_type, event_detail, payload, created_at
+        FROM customer_order_events
+        WHERE order_id = {placeholder}
+        ORDER BY created_at DESC
+        LIMIT {placeholder}
+        """,
+        (order_id, limit_value),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def list_customer_order_events_for_orders(order_ids, limit_per_order=5):
+    normalized_ids = [int(oid) for oid in order_ids if oid is not None]
+    if not normalized_ids:
+        return {}
+
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    placeholders = ", ".join([placeholder] * len(normalized_ids))
+    cursor.execute(
+        f"""
+        SELECT id, order_id, event_type, event_detail, payload, created_at
+        FROM customer_order_events
+        WHERE order_id IN ({placeholders})
+        ORDER BY created_at DESC
+        """,
+        tuple(normalized_ids),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+
+    grouped = {order_id: [] for order_id in normalized_ids}
+    per_order_cap = max(1, min(int(limit_per_order or 5), 25))
+    for row in rows:
+        payload = dict(row)
+        order_id = payload.get("order_id")
+        if order_id not in grouped:
+            grouped[order_id] = []
+        if len(grouped[order_id]) >= per_order_cap:
+            continue
+        grouped[order_id].append(payload)
+    return grouped
+
+
+def update_customer_order_payment_by_reference(payment_reference, payment_status, order_status=None):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    now = datetime.utcnow().isoformat()
+
+    if order_status is None:
+        cursor.execute(
+            f"""
+            UPDATE customer_orders
+            SET payment_status = {placeholder}, updated_at = {placeholder}
+            WHERE payment_reference = {placeholder}
+            """,
+            (payment_status, now, payment_reference),
+        )
+    else:
+        cursor.execute(
+            f"""
+            UPDATE customer_orders
+            SET payment_status = {placeholder}, status = {placeholder}, updated_at = {placeholder}
+            WHERE payment_reference = {placeholder}
+            """,
+            (payment_status, order_status, now, payment_reference),
+        )
+
+    updated = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return updated
 
 
 def list_customer_order_items(customer_id, order_id):

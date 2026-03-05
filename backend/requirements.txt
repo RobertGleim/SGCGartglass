@@ -28,6 +28,7 @@ gunicorn==22.0.0
 
 # --- Image validation (glass type textures: 256x256 PNG/JPG) ---
 Pillow==10.4.0
+stripe==11.1.0
 
 # --- Development & testing ---
 pytest==8.3.2

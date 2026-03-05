@@ -70,6 +70,45 @@
   color: #1f2f4d;
 }
 
+.nav-cart-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 78, 161, 0.2);
+  color: #1f2f4d;
+  font-size: 0.95rem;
+  text-decoration: none;
+  background: #fff;
+  padding: 0;
+}
+
+.nav-cart-inline:hover {
+  color: #1f4ea1;
+  border-color: rgba(31, 78, 161, 0.45);
+}
+
+.nav-cart-badge {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.45rem;
+  min-width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  background: #1f4ea1;
+  color: #fff;
+  font-size: 0.62rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.2rem;
+  font-weight: 700;
+}
+
 .nav-links a {
   color: #1f2f4d;
   text-transform: uppercase;
@@ -155,6 +194,7 @@
     display: flex;
     flex-direction: row;
     gap: 1.5rem;
+    align-items: center;
     background: transparent;
     box-shadow: none;
     padding: 0;
@@ -163,6 +203,17 @@
   
   .nav-links a {
     padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2rem;
+    line-height: 1;
+  }
+
+  .nav-cart-inline {
+    width: 2rem;
+    height: 2rem;
+    font-size: 1.02rem;
   }
 }
 

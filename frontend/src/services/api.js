@@ -10,6 +10,7 @@ const toArrayResponse = (res) => {
 
 export const fetchCustomers = async () => toArrayResponse(await api.get('/customers'));
 export const updateCustomer = (id, payload) => api.put(`/customers/${id}`, payload);
+export const deleteCustomer = (id) => api.delete(`/customers/${id}`);
 export const getCustomerDetails = (id) => api.get(`/customers/${id}/details`);
 export const updateManualProduct = (id, product) => api.put(`/manual-products/${id}`, product);
 export const fetchManualProducts = async () => toArrayResponse(await api.get('/manual-products'));
@@ -27,10 +28,16 @@ export const changeCustomerPassword = (payload) => api.put('/customer/password',
 export const fetchCustomerFavorites = () => api.get('/customer/favorites');
 export const removeCustomerFavorite = (id) => api.delete(`/customer/favorites/${id}`);
 export const fetchCustomerCart = () => api.get('/customer/cart');
-export const updateCustomerCartItem = (itemId, data) => api.put(`/customer/cart/${itemId}`, data);
-export const removeCustomerCartItem = (itemId) => api.delete(`/customer/cart/${itemId}`);
+export const addCustomerCartItem = (payload) => api.post('/customer/cart/items', payload);
+export const updateCustomerCartItem = (itemId, data) => api.put(`/customer/cart/items/${itemId}`, data);
+export const removeCustomerCartItem = (itemId) => api.delete(`/customer/cart/items/${itemId}`);
+export const fetchCustomerCartSummary = () => api.get('/customer/cart/summary');
+export const createCheckoutIntent = (payload) => api.post('/customer/checkout/intent', payload);
+export const placeCustomerOrder = (payload) => api.post('/customer/checkout/place-order', payload);
 export const fetchCustomerOrders = () => api.get('/customer/orders');
 export const fetchCustomerOrderItems = (orderId) => api.get(`/customer/orders/${orderId}/items`);
+export const fetchAdminRecentOrders = (params = {}) => api.get('/admin/orders/recent', { params });
+export const markAdminOrderSeen = (orderId) => api.put(`/admin/orders/${orderId}/seen`);
 export const fetchCustomerReviews = () => api.get('/customer/reviews');
 export const createCustomerReview = (review) => api.post('/customer/reviews', review);
 const extractAuthToken = (payload) => {
@@ -98,6 +105,9 @@ const getRoutePath = () => {
   return hash.startsWith('#') ? hash.slice(1) : hash;
 };
 
+const isTopLevelEndpoint = (requestUrl, endpoint) =>
+  requestUrl === endpoint || requestUrl.startsWith(`${endpoint}/`);
+
 const getTokenForRequest = (config) => {
   const adminToken = sessionStorage.getItem('sgcg_token')
     || localStorage.getItem('sgcg_token')
@@ -109,12 +119,9 @@ const getTokenForRequest = (config) => {
   const routePath = getRoutePath();
 
   const isAdminScopedEndpoint =
-    requestUrl.startsWith('/manual-products')
-    || requestUrl.includes('/manual-products/')
-    || requestUrl.startsWith('/items')
-    || requestUrl.includes('/items/')
-    || requestUrl.startsWith('/customers')
-    || requestUrl.includes('/customers/');
+    isTopLevelEndpoint(requestUrl, '/manual-products')
+    || isTopLevelEndpoint(requestUrl, '/items')
+    || isTopLevelEndpoint(requestUrl, '/customers');
 
   // Admin API endpoints must always use admin token.
   if (
@@ -128,6 +135,7 @@ const getTokenForRequest = (config) => {
   // Customer account/workflow routes should prioritize customer auth.
   const isCustomerRoute =
     routePath.startsWith('/account')
+    || routePath.startsWith('/checkout')
     || routePath.startsWith('/my-work-orders')
     || routePath.startsWith('/my-projects')
     || routePath.startsWith('/designer');

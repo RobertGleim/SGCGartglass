@@ -534,6 +534,32 @@
   color: #999;
 }
 
+.order-event-timeline {
+  margin-top: 0.5rem;
+  border-top: 1px solid #ececec;
+  padding-top: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.order-timeline-actions {
+  margin-top: 0.45rem;
+}
+
+.order-event-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.86rem;
+  color: #555;
+}
+
+.order-event-row strong {
+  color: #222;
+}
+
 /* Favorites Inline Styles */
 .favorites-inline {
   display: none;

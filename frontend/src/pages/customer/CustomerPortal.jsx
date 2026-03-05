@@ -30,6 +30,8 @@ const TAB_LABELS = {
   work_orders: 'customer work order',
 }
 
+const SINGLE_ITEM_WARNING = 'Items are sold per piece. Please contact customer service if you need more than one of the same item.'
+
 export default function CustomerPortal({ manualProducts }) {
   const { customerToken, logout } = useCustomerAuth()
   const [activeTab, setActiveTab] = useState('overview')
@@ -228,10 +230,23 @@ export default function CustomerPortal({ manualProducts }) {
   }
 
   const handleUpdateCartQuantity = async (itemId, quantity) => {
-    await updateCustomerCartItem(itemId, { quantity })
-    setCartItems((prev) =>
-      prev.map((item) => (item.id === itemId ? { ...item, quantity } : item))
-    )
+    if (Number(quantity) > 1) {
+      setStatus(SINGLE_ITEM_WARNING)
+      return
+    }
+    try {
+      await updateCustomerCartItem(itemId, { quantity: 1 })
+      setCartItems((prev) =>
+        prev.map((item) => (item.id === itemId ? { ...item, quantity: 1 } : item))
+      )
+    } catch (error) {
+      const apiError = error?.response?.data?.error
+      if (apiError === 'single_item_limit') {
+        setStatus(SINGLE_ITEM_WARNING)
+      } else {
+        setStatus(error?.response?.data?.message || apiError || error.message || 'Unable to update cart quantity.')
+      }
+    }
   }
 
   const handleRemoveCartItem = async (itemId) => {
@@ -402,23 +417,28 @@ export default function CustomerPortal({ manualProducts }) {
           {cartItems.length === 0 ? (
             <p className="portal-muted">Your cart is empty.</p>
           ) : (
-            <div className="portal-list">
-              {cartItems.map((item) => (
-                <div key={item.id} className="portal-list-item">
-                  <strong>{renderProductLabel(item.product_type, item.product_id)}</strong>
-                  <span className="portal-muted">Quantity: {item.quantity}</span>
-                  <div className="portal-actions">
-                    <button className="secondary" onClick={() => handleUpdateCartQuantity(item.id, item.quantity + 1)}>
-                      +1
-                    </button>
-                    <button className="secondary" onClick={() => handleUpdateCartQuantity(item.id, Math.max(1, item.quantity - 1))}>
-                      -1
-                    </button>
-                    <button onClick={() => handleRemoveCartItem(item.id)}>Remove</button>
+            <>
+              <div className="portal-list">
+                {cartItems.map((item) => (
+                  <div key={item.id} className="portal-list-item">
+                    <strong>{renderProductLabel(item.product_type, item.product_id)}</strong>
+                    <span className="portal-muted">Quantity: {item.quantity}</span>
+                    <div className="portal-actions">
+                      <button className="secondary" onClick={() => handleUpdateCartQuantity(item.id, item.quantity + 1)}>
+                        +1
+                      </button>
+                      <button className="secondary" onClick={() => handleUpdateCartQuantity(item.id, Math.max(1, item.quantity - 1))}>
+                        -1
+                      </button>
+                      <button onClick={() => handleRemoveCartItem(item.id)}>Remove</button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+              <div className="portal-actions" style={{ marginTop: '0.75rem' }}>
+                <button onClick={() => { window.location.hash = '#/checkout' }}>Proceed to checkout</button>
+              </div>
+            </>
           )}
         </div>
       )}

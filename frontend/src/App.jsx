@@ -6,6 +6,7 @@ import Header from './components/layout/header/Header'
 import HeroSection from './components/layout/hero/HeroSection'
 import ProductPage from './pages/shop/ProductPage'
 import ProductDetail from './pages/shop/ProductDetail'
+import CheckoutPage from './pages/shop/CheckoutPage'
 import useHashRoute from './hooks/useHashRoute'
 import useAuth from './hooks/useAuth'
 import useCustomerAuth from './hooks/useCustomerAuth'
@@ -241,6 +242,16 @@ function App() {
       {route.path === '/gallery' && (
         <main>
           <PhotoGalleryPage />
+        </main>
+      )}
+
+      {route.path === '/checkout' && (
+        <main>
+          {!customerToken ? (
+            <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
+          ) : (
+            <CheckoutPage />
+          )}
         </main>
       )}
 

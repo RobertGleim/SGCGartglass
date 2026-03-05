@@ -131,6 +131,11 @@ Or run `database/schema.sql` in your MySQL client. Schema includes: `templates`,
 | `CORS_ORIGINS`   | Backend | Allowed frontend origins |
 | `MAIL_*`         | Backend | SMTP for work order notifications |
 | `ADMIN_EMAIL`    | Backend | Recipient of new work order emails |
+| `STRIPE_SECRET_KEY` | Backend | Enables live Stripe payment intents (mock checkout if missing) |
+| `STRIPE_WEBHOOK_SECRET` | Backend | Verifies Stripe webhook signatures for `/api/stripe/webhook` |
+| `CHECKOUT_TAX_RATE` | Backend | Optional decimal tax rate (example `0.07`) |
+| `CHECKOUT_FLAT_SHIPPING` | Backend | Optional flat shipping charge below free-shipping threshold |
+| `CHECKOUT_FREE_SHIPPING_MIN` | Backend | Optional subtotal threshold for free shipping |
 | `VITE_API_BASE_URL` | Frontend | API base URL (build-time for Vite) |
 
 ## Production database policy
@@ -154,6 +159,8 @@ c:/Users/rglei/OneDrive/Desktop/Sgcg/.venv/Scripts/python.exe migrate_all_sqlite
 - **Registered users** can save projects (auto-save ~60s + manual save) and submit work orders.
 - **Work orders** are the only output; no design downloads.
 - **Admin** receives an email when a new work order is submitted and can manage status (e.g. review → quote).
+- **Customer checkout** supports cart summary, shipping details, Stripe payment-intent creation, and order placement.
+- **Admin sales** shows recent customer orders, highlights unseen new-order alerts, and includes per-order payment event timeline entries from Stripe webhooks.
 
 ## Code standards
 
