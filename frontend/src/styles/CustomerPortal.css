@@ -185,6 +185,31 @@
   resize: vertical;
 }
 
+.portal-star-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.portal-star-button {
+  border: none;
+  background: transparent;
+  color: #c8d3e7;
+  font-size: 1.35rem;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+
+.portal-star-button.active {
+  color: #f4ba33;
+}
+
+.portal-stars-readonly {
+  color: #f4ba33;
+  letter-spacing: 0.04em;
+}
+
 .portal-visually-hidden {
   position: absolute;
   width: 1px;

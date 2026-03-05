@@ -61,6 +61,7 @@ const canUseTemplateForCustomer = (template, customerId) => {
 };
 
 const FACEBOOK_POSTED_STORAGE_KEY = "adminFbPostedManualProducts";
+const STAR_SCALE = [1, 2, 3, 4, 5];
 
 export default function AdminDashboard({
   items = [],
@@ -1522,7 +1523,7 @@ export default function AdminDashboard({
           <div className="tab-panel">
             <div className="panel-section">
               <h3>Review Management</h3>
-              <div style={{ display: "flex", gap: "0.65rem", alignItems: "center", marginBottom: "0.85rem" }}>
+              <div className="review-management-toolbar">
                 <label htmlFor="review-status-filter">Status</label>
                 <select
                   id="review-status-filter"
@@ -1540,67 +1541,82 @@ export default function AdminDashboard({
               {adminReviews.length === 0 ? (
                 <p className="form-note">No reviews found.</p>
               ) : (
-                <div className="product-list">
+                <div className="review-management-list">
                   {adminReviews.map((review) => (
-                    <div key={review.id} className="product-row" style={{ alignItems: "flex-start" }}>
-                      <div className="product-details" style={{ width: "100%" }}>
-                        <h4>
+                    <article key={review.id} className="review-row">
+                      <div className="review-row-header">
+                        <h4 className="review-row-title">
                           {(review.first_name || "").trim()} {(review.last_name || "").trim()} · {review.product_type} #{review.product_id}
                         </h4>
-                        <div style={{ display: "grid", gap: "0.55rem", marginTop: "0.5rem" }}>
-                          <label>
-                            Rating
-                            <input
-                              type="number"
-                              min="1"
-                              max="5"
-                              value={review.rating || 5}
-                              onChange={(event) => handleAdminReviewFieldChange(review.id, "rating", event.target.value)}
-                            />
-                          </label>
-                          <label>
-                            Title
-                            <input
-                              type="text"
-                              value={review.title || ""}
-                              onChange={(event) => handleAdminReviewFieldChange(review.id, "title", event.target.value)}
-                            />
-                          </label>
-                          <label>
-                            Body
-                            <textarea
-                              value={review.body || ""}
-                              onChange={(event) => handleAdminReviewFieldChange(review.id, "body", event.target.value)}
-                              rows={3}
-                            />
-                          </label>
-                          <label>
-                            Visibility
-                            <select
-                              value={review.status || "pending"}
-                              onChange={(event) => handleAdminReviewFieldChange(review.id, "status", event.target.value)}
-                            >
-                              <option value="approved">Show on review page</option>
-                              <option value="hidden">Hidden</option>
-                              <option value="pending">Pending</option>
-                              <option value="rejected">Rejected</option>
-                            </select>
-                          </label>
+                        <div className="review-row-actions">
+                          <button type="button" className="button" onClick={() => handleSaveAdminReview(review)}>
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            className="button"
+                            onClick={() => handleDeleteAdminReview(review.id)}
+                          >
+                            Delete
+                          </button>
                         </div>
                       </div>
-                      <div className="product-actions" style={{ minWidth: "170px", alignItems: "stretch" }}>
-                        <button type="button" className="button" onClick={() => handleSaveAdminReview(review)}>
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          className="button"
-                          onClick={() => handleDeleteAdminReview(review.id)}
-                        >
-                          Delete
-                        </button>
+
+                      <div className="review-row-fields">
+                        <label className="review-field review-field-rating">
+                          <span>Rating</span>
+                          <div className="admin-star-rating" role="radiogroup" aria-label="Select rating">
+                            {STAR_SCALE.map((value) => {
+                              const isActive = Number(review.rating || 0) >= value;
+                              return (
+                                <button
+                                  key={`${review.id}-star-${value}`}
+                                  type="button"
+                                  role="radio"
+                                  aria-checked={isActive}
+                                  className={`admin-star-button ${isActive ? "active" : ""}`}
+                                  onClick={() => handleAdminReviewFieldChange(review.id, "rating", value)}
+                                >
+                                  ★
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </label>
+
+                        <label className="review-field review-field-title">
+                          <span>Title</span>
+                          <input
+                            type="text"
+                            value={review.title || ""}
+                            onChange={(event) => handleAdminReviewFieldChange(review.id, "title", event.target.value)}
+                          />
+                        </label>
+
+                        <label className="review-field review-field-visibility">
+                          <span>Visibility</span>
+                          <select
+                            value={review.status || "pending"}
+                            onChange={(event) => handleAdminReviewFieldChange(review.id, "status", event.target.value)}
+                          >
+                            <option value="approved">Show on review page</option>
+                            <option value="hidden">Hidden</option>
+                            <option value="pending">Pending</option>
+                            <option value="rejected">Rejected</option>
+                          </select>
+                        </label>
+
+                        <label className="review-field review-field-body">
+                          <span>Body</span>
+                          <textarea
+                            value={review.body || ""}
+                            onChange={(event) => handleAdminReviewFieldChange(review.id, "body", event.target.value)}
+                            rows={2}
+                          />
+                        </label>
                       </div>
-                    </div>
+
+                    </article>
                   ))}
                 </div>
               )}

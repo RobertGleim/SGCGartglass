@@ -49,6 +49,7 @@ const toAlphaBucket = (value) => {
 }
 
 const normalizeTypeKeyFromCategory = (value) => CATEGORY_TYPE_ALIASES[normalizeCategoryValue(value)] || null
+const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Math.round(Number(rating) || 0))))
 
 const isTypeCategory = (value) => Boolean(normalizeTypeKeyFromCategory(value))
 
@@ -427,7 +428,7 @@ export default function ProductPage({ products }) {
                   </div>
                 ) : null}
                 <div className="product-page-review-content">
-                  <p className="product-page-review-rating">{Number(activeReview.rating || 0)}/5</p>
+                  <p className="product-page-review-rating">{renderStars(activeReview.rating)}</p>
                   <p className="product-page-review-title">{activeReview.title || 'Customer review'}</p>
                   <p className="product-page-review-body">{activeReview.body || ''}</p>
                   <p className="product-page-review-meta">

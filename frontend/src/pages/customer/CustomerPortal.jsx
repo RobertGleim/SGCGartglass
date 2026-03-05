@@ -35,6 +35,8 @@ const TAB_LABELS = {
 }
 
 const SINGLE_ITEM_WARNING = 'Items are sold per piece. Please contact customer service if you need more than one of the same item.'
+const STAR_SCALE = [1, 2, 3, 4, 5]
+const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Math.round(Number(rating) || 0))))
 
 export default function CustomerPortal({ manualProducts }) {
   const { customerToken, logout } = useCustomerAuth()
@@ -589,16 +591,23 @@ export default function CustomerPortal({ manualProducts }) {
                   ))
                 )}
               </select>
-              <input
-                type="number"
-                min="1"
-                max="5"
-                value={reviewForm.rating}
-                onChange={(event) =>
-                  setReviewForm((prev) => ({ ...prev, rating: event.target.value }))
-                }
-                required
-              />
+              <div className="portal-star-rating" role="radiogroup" aria-label="Select rating">
+                {STAR_SCALE.map((value) => {
+                  const isActive = Number(reviewForm.rating) >= value
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={isActive}
+                      className={`portal-star-button ${isActive ? 'active' : ''}`}
+                      onClick={() => setReviewForm((prev) => ({ ...prev, rating: value }))}
+                    >
+                      ★
+                    </button>
+                  )
+                })}
+              </div>
               <input
                 type="text"
                 placeholder="Review title"
@@ -636,7 +645,7 @@ export default function CustomerPortal({ manualProducts }) {
                 {reviews.map((review) => (
                   <div key={review.id} className="portal-list-item">
                     <strong>{renderProductLabel(review.product_type, review.product_id)}</strong>
-                    <span className="portal-muted">Rating: {review.rating}/5</span>
+                    <span className="portal-muted">Rating: <span className="portal-stars-readonly">{renderStars(review.rating)}</span></span>
                     <span className="portal-muted">Status: {review.status}</span>
                     {review.title && <span>{review.title}</span>}
                     {review.body && <span>{review.body}</span>}

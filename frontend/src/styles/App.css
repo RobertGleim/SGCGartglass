@@ -789,6 +789,105 @@
   gap: 0.5rem;
 }
 
+.review-management-toolbar {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.review-management-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.review-row {
+  border: 1px solid #e6eaf2;
+  border-radius: 12px;
+  background: #f8f9fc;
+  padding: 0.8rem 0.9rem;
+}
+
+.review-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.review-row-title {
+  margin: 0;
+  font-size: 1.03rem;
+  color: #1f2f4d;
+  line-height: 1.2;
+}
+
+.review-row-actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.review-row-actions .button {
+  padding: 0.45rem 0.95rem;
+}
+
+.review-row-fields {
+  display: grid;
+  grid-template-columns: 96px minmax(240px, 1fr) 220px;
+  gap: 0.45rem 0.55rem;
+  align-items: end;
+}
+
+.review-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  font-size: 0.82rem;
+  color: #4a5670;
+}
+
+.review-field input,
+.review-field select,
+.review-field textarea {
+  border: 1px solid #ccd4e3;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0.42rem 0.55rem;
+  font-size: 0.9rem;
+}
+
+.review-field-body {
+  grid-column: 1 / -1;
+}
+
+.review-field-body textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.admin-star-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18rem;
+}
+
+.admin-star-button {
+  border: none;
+  background: transparent;
+  color: #c8d3e7;
+  font-size: 1.22rem;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+
+.admin-star-button.active {
+  color: #f4ba33;
+}
+
 .button-icon {
   background: transparent;
   border: 1px solid #d7dbe4;
@@ -1302,6 +1401,34 @@
     grid-column: 1 / -1;
     justify-content: flex-end;
     flex-wrap: wrap;
+  }
+
+  .review-management-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .review-row {
+    padding: 0.72rem 0.75rem;
+  }
+
+  .review-row-header {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 0.45rem;
+  }
+
+  .review-row-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .review-row-fields {
+    grid-template-columns: 1fr;
+    gap: 0.38rem;
+  }
+
+  .review-field-body {
+    grid-column: auto;
   }
 
   .stats-grid {
