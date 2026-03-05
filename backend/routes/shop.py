@@ -12,7 +12,9 @@ import secrets
 import time
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
+from urllib import request as urllib_request
+from urllib.error import HTTPError, URLError
 
 from flask import Blueprint, jsonify, request, g, current_app
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -199,6 +201,97 @@ def _build_checkout_summary(customer_id):
 
 def _is_admin_request():
     return g.auth_payload.get("role") != "customer"
+
+
+def _resolve_frontend_public_url():
+    configured = (
+        os.environ.get("FRONTEND_PUBLIC_URL")
+        or os.environ.get("FRONTEND_URL")
+        or os.environ.get("APP_PUBLIC_URL")
+        or ""
+    ).strip().rstrip("/")
+    if configured:
+        return configured
+
+    request_origin = (request.headers.get("Origin") or "").strip().rstrip("/")
+    if request_origin:
+        return request_origin
+
+    return request.host_url.rstrip("/")
+
+
+def _build_manual_product_public_link(product_id):
+    return f"{_resolve_frontend_public_url()}/#/product/m-{product_id}"
+
+
+def _post_manual_product_to_facebook_page(*, product, product_link, page_id, access_token):
+    api_version = (os.environ.get("FACEBOOK_GRAPH_API_VERSION") or "v20.0").strip()
+    endpoint = f"https://graph.facebook.com/{quote(api_version, safe='')}/{quote(str(page_id), safe='')}/feed"
+
+    product_name = (product.get("name") or "Manual Product").strip()
+    raw_price = product.get("price")
+    try:
+        price_text = f"${_as_money(raw_price):.2f}" if raw_price is not None else ""
+    except Exception:
+        price_text = ""
+
+    message = "\n".join([
+        text for text in [
+            product_name,
+            f"Price: {price_text}" if price_text else "",
+            product_link,
+        ]
+        if text
+    ])
+
+    payload = urlencode({
+        "message": message,
+        "link": product_link,
+        "access_token": access_token,
+    }).encode("utf-8")
+
+    request_obj = urllib_request.Request(
+        endpoint,
+        data=payload,
+        method="POST",
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+
+    try:
+        with urllib_request.urlopen(request_obj, timeout=18) as response:
+            body = response.read().decode("utf-8") if response else ""
+            parsed = json.loads(body) if body else {}
+            return {
+                "ok": True,
+                "post_id": parsed.get("id"),
+                "response": parsed,
+            }
+    except HTTPError as exc:
+        error_body = ""
+        try:
+            error_body = exc.read().decode("utf-8")
+            parsed_error = json.loads(error_body) if error_body else {}
+        except Exception:
+            parsed_error = {}
+
+        detail = (
+            parsed_error.get("error", {}).get("message")
+            or error_body
+            or "Facebook API request failed."
+        )
+        return {
+            "ok": False,
+            "status": exc.code,
+            "error": "facebook_api_error",
+            "detail": detail,
+        }
+    except URLError as exc:
+        return {
+            "ok": False,
+            "status": 502,
+            "error": "facebook_api_unreachable",
+            "detail": str(exc.reason) if getattr(exc, "reason", None) else str(exc),
+        }
 
 
 def _create_stripe_payment_intent(total_amount, metadata=None):
@@ -1182,3 +1275,43 @@ def delete_manual_product_endpoint(product_id):
         return jsonify({"success": True, "message": "Product deleted"}), 200
     except Exception as exc:
         return jsonify({"error": "deletion_failed", "detail": str(exc)}), 500
+
+
+@api.post("/admin/manual-products/<int:product_id>/facebook-post")
+@require_auth
+def publish_manual_product_to_facebook_page(product_id):
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    product = fetch_manual_product(product_id)
+    if not product:
+        return jsonify({"error": "not_found"}), 404
+
+    page_id = (os.environ.get("FACEBOOK_PAGE_ID") or "").strip()
+    access_token = (os.environ.get("FACEBOOK_PAGE_ACCESS_TOKEN") or "").strip()
+    if not page_id or not access_token:
+        return jsonify({
+            "error": "facebook_not_configured",
+            "detail": "Set FACEBOOK_PAGE_ID and FACEBOOK_PAGE_ACCESS_TOKEN to enable direct Facebook page posting.",
+        }), 503
+
+    product_link = _build_manual_product_public_link(product_id)
+    posted = _post_manual_product_to_facebook_page(
+        product=product,
+        product_link=product_link,
+        page_id=page_id,
+        access_token=access_token,
+    )
+    if not posted.get("ok"):
+        return jsonify({
+            "error": posted.get("error") or "facebook_post_failed",
+            "detail": posted.get("detail") or "Unable to publish to Facebook page.",
+        }), int(posted.get("status") or 502)
+
+    return jsonify({
+        "success": True,
+        "post_id": posted.get("post_id"),
+        "product_id": product_id,
+        "product_link": product_link,
+    }), 200

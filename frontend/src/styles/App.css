@@ -813,6 +813,24 @@
   background: rgba(31, 78, 161, 0.05);
 }
 
+.button-icon.facebook:hover {
+  border-color: #1877f2;
+  color: #1877f2;
+  background: rgba(24, 119, 242, 0.08);
+}
+
+.button-icon.facebook.posted {
+  border-color: #16a34a;
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.1);
+}
+
+.button-icon.facebook.posted:hover {
+  border-color: #15803d;
+  color: #15803d;
+  background: rgba(21, 128, 61, 0.12);
+}
+
 .button-icon.delete:hover {
   border-color: #dc2626;
   color: #dc2626;

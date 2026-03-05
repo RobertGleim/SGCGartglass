@@ -1,14 +1,30 @@
 import { useState, useEffect, useMemo } from 'react'
 import '../../styles/ProductDetail.css'
 import useCustomerAuth from '../../hooks/useCustomerAuth'
-import { addCustomerCartItem, fetchManualProduct } from '../../services/api'
+import {
+  addCustomerCartItem,
+  addCustomerFavorite,
+  fetchCustomerFavorites,
+  fetchManualProduct,
+  removeCustomerFavorite,
+} from '../../services/api'
+import { findWishlistEntry, resolveWishlistTarget } from '../../utils/wishlist'
 
 export default function ProductDetail({ product }) {
   const [selectedImage, setSelectedImage] = useState(0)
   const [showZoom, setShowZoom] = useState(false)
   const [cartStatus, setCartStatus] = useState('')
+  const [wishlistStatus, setWishlistStatus] = useState('')
   const [manualProductDetails, setManualProductDetails] = useState(null)
+  const [favorites, setFavorites] = useState([])
   const { customerToken } = useCustomerAuth()
+
+  const wishlistTarget = useMemo(() => resolveWishlistTarget(product), [product])
+  const favoriteEntry = useMemo(
+    () => findWishlistEntry(favorites, wishlistTarget),
+    [favorites, wishlistTarget],
+  )
+  const isWishlisted = Boolean(favoriteEntry)
 
   useEffect(() => {
     let isActive = true
@@ -43,6 +59,28 @@ export default function ProductDetail({ product }) {
       isActive = false
     }
   }, [product])
+
+  useEffect(() => {
+    if (!customerToken) {
+      setFavorites([])
+      return
+    }
+
+    let isActive = true
+    fetchCustomerFavorites()
+      .then((items) => {
+        if (!isActive) return
+        setFavorites(Array.isArray(items) ? items : [])
+      })
+      .catch(() => {
+        if (!isActive) return
+        setFavorites([])
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [customerToken])
   
   // Get images from originalData (for manual products) or use image_url
   const images = useMemo(() => {
@@ -90,6 +128,67 @@ export default function ProductDetail({ product }) {
       window.dispatchEvent(new Event('cart-updated'))
     } catch (error) {
       setCartStatus(error?.response?.data?.error || error.message || 'Unable to add to cart.')
+    }
+  }
+
+  const handleAddToWishlist = async () => {
+    setWishlistStatus('')
+    if (!customerToken) {
+      setWishlistStatus('Sign in to save items to your wishlist.')
+      window.location.hash = '#/account/login'
+      return
+    }
+
+    if (!wishlistTarget) {
+      setWishlistStatus('Unable to save this item right now.')
+      return
+    }
+
+    if (isWishlisted) {
+      setWishlistStatus('Already in your wishlist.')
+      return
+    }
+
+    try {
+      await addCustomerFavorite(wishlistTarget)
+      setFavorites((prev) => [{ ...wishlistTarget, id: `temp-${Date.now()}` }, ...prev])
+      setWishlistStatus('Added to wishlist.')
+      window.dispatchEvent(new Event('wishlist-updated'))
+    } catch (error) {
+      setWishlistStatus(error?.response?.data?.error || error.message || 'Unable to add to wishlist.')
+    }
+  }
+
+  const handleToggleFavorite = async () => {
+    setWishlistStatus('')
+    if (!customerToken) {
+      setWishlistStatus('Sign in to save items to your wishlist.')
+      window.location.hash = '#/account/login'
+      return
+    }
+
+    if (!wishlistTarget) {
+      setWishlistStatus('Unable to save this item right now.')
+      return
+    }
+
+    try {
+      if (isWishlisted) {
+        if (favoriteEntry?.id) {
+          await removeCustomerFavorite(favoriteEntry.id)
+          setFavorites((prev) => prev.filter((entry) => entry.id !== favoriteEntry.id))
+        } else {
+          setFavorites((prev) => prev.filter((entry) => !findWishlistEntry([entry], wishlistTarget)))
+        }
+        setWishlistStatus('Removed from wishlist.')
+      } else {
+        await addCustomerFavorite(wishlistTarget)
+        setFavorites((prev) => [{ ...wishlistTarget, id: `temp-${Date.now()}` }, ...prev])
+        setWishlistStatus('Added to wishlist.')
+      }
+      window.dispatchEvent(new Event('wishlist-updated'))
+    } catch (error) {
+      setWishlistStatus(error?.response?.data?.error || error.message || 'Unable to update wishlist.')
     }
   }
 
@@ -226,11 +325,21 @@ export default function ProductDetail({ product }) {
             <button className="add-to-cart-btn" onClick={handleAddToCart}>
               Add to cart
             </button>
-            <button className="favorite-btn" title="Add to favorites">
-              ♡
+            <button className="wishlist-btn" onClick={handleAddToWishlist}>
+              {isWishlisted ? 'In wishlist' : 'Add to wishlist'}
+            </button>
+            <button
+              className={`favorite-btn ${isWishlisted ? 'active' : ''}`}
+              onClick={handleToggleFavorite}
+              title={isWishlisted ? 'Remove from favorites' : 'Add to favorites'}
+              aria-label={isWishlisted ? 'Remove from favorites' : 'Add to favorites'}
+              aria-pressed={isWishlisted}
+            >
+              {isWishlisted ? '♥' : '♡'}
             </button>
           </div>
           {cartStatus && <p className="currency-note">{cartStatus}</p>}
+          {wishlistStatus && <p className="currency-note">{wishlistStatus}</p>}
 
           {/* Shop Policies */}
           <div className="shop-policies">

@@ -25,6 +25,8 @@ const resolveGalleryImageUrl = (value) => {
   return `${getApiOrigin()}/${value}`;
 };
 
+const normalizeCategory = (value) => String(value || '').trim().toLowerCase();
+
 export default function GalleryManagement() {
   const [photos, setPhotos] = useState([]);
   const [templates, setTemplates] = useState([]);
@@ -100,8 +102,11 @@ export default function GalleryManagement() {
       ]);
       const items = Array.isArray(galleryResponse?.items) ? galleryResponse.items : [];
       const templateItems = Array.isArray(templateResponse?.items) ? templateResponse.items : [];
+      const nonDirectMessageTemplates = templateItems.filter(
+        (template) => normalizeCategory(template?.category) !== 'direct message',
+      );
       setPhotos(items);
-      setTemplates(templateItems.map((template) => ({ id: template.id, name: template.name })));
+      setTemplates(nonDirectMessageTemplates.map((template) => ({ id: template.id, name: template.name })));
       setStatus('');
     } catch (err) {
       setStatus(err?.response?.data?.detail || err?.message || 'Failed to load gallery management data.');

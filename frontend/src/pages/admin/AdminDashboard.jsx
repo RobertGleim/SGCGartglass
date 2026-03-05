@@ -6,6 +6,7 @@ import {
   fetchAdminRecentOrders,
   fetchCustomers,
   getCustomerDetails,
+  publishManualProductToFacebook,
   getTemplates,
   markAdminOrderSeen,
   sendTemplateToCustomerWorkOrder,
@@ -45,6 +46,18 @@ const toDisplayList = (value) => {
   }
   return String(value);
 };
+
+const normalizeCategory = (value) => String(value || "").trim().toLowerCase();
+
+const isDirectMessageTemplate = (template) =>
+  normalizeCategory(template?.category) === "direct message";
+
+const canUseTemplateForCustomer = (template, customerId) => {
+  if (!isDirectMessageTemplate(template)) return true;
+  return Number(template?.assigned_customer_id || 0) === Number(customerId || 0);
+};
+
+const FACEBOOK_POSTED_STORAGE_KEY = "adminFbPostedManualProducts";
 
 export default function AdminDashboard({
   items = [],
@@ -201,6 +214,16 @@ export default function AdminDashboard({
   const [status, setStatus] = useState("");
   const [manualProductSearch, setManualProductSearch] = useState("");
   const [manualProductTypeFilter, setManualProductTypeFilter] = useState("all");
+  const [facebookPostedProductIds, setFacebookPostedProductIds] = useState(() => {
+    try {
+      const stored = localStorage.getItem(FACEBOOK_POSTED_STORAGE_KEY);
+      if (!stored) return {};
+      const parsed = JSON.parse(stored);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  });
   const [showManualProductModal, setShowManualProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [productType, setProductType] = useState("stainedGlassPanels");
@@ -730,6 +753,91 @@ export default function AdminDashboard({
     }
   };
 
+  const openFacebookShareDialog = (product) => {
+    const productId = String(product?.id || "").trim();
+    if (!productId) {
+      setStatus("Unable to share this product right now.");
+      return false;
+    }
+
+    const productLink = `${window.location.origin}/#/product/m-${productId}`;
+    const rawPrice = Number(product?.price || 0);
+    const priceText = Number.isFinite(rawPrice) && rawPrice > 0 ? `$${rawPrice}` : "";
+    const quote = [product?.name || "Manual Product", priceText, productLink]
+      .filter(Boolean)
+      .join(" · ");
+    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productLink)}&quote=${encodeURIComponent(quote)}`;
+
+    const popup = window.open(
+      shareUrl,
+      "facebook-share",
+      "noopener,noreferrer,width=700,height=680",
+    );
+
+    if (!popup) {
+      setStatus("Popup blocked. Please allow popups for this site to share on Facebook.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleShareProductToFacebook = async (product) => {
+    const productId = String(product?.id || "").trim();
+    if (!productId) {
+      setStatus("Unable to share this product right now.");
+      return;
+    }
+
+    try {
+      await publishManualProductToFacebook(productId);
+      setFacebookPostedProductIds((prev) => ({
+        ...prev,
+        [productId]: true,
+      }));
+      setStatus(`Posted "${product?.name || "product"}" directly to your Facebook page.`);
+      return;
+    } catch (error) {
+      const apiError = error?.response?.data?.error;
+      if (apiError === "facebook_not_configured") {
+        const opened = openFacebookShareDialog(product);
+        if (opened) {
+          setFacebookPostedProductIds((prev) => ({
+            ...prev,
+            [productId]: true,
+          }));
+          setStatus("Facebook page credentials not configured yet. Opened share dialog instead.");
+        }
+        return;
+      }
+
+      const opened = openFacebookShareDialog(product);
+      if (opened) {
+        setFacebookPostedProductIds((prev) => ({
+          ...prev,
+          [productId]: true,
+        }));
+        setStatus("Facebook page post failed. Opened share dialog fallback.");
+        return;
+      }
+
+      setStatus(
+        error?.response?.data?.detail
+        || error?.response?.data?.error
+        || error?.message
+        || "Unable to post to Facebook.",
+      );
+      return;
+    }
+  };
+
+  useEffect(() => {
+    localStorage.setItem(
+      FACEBOOK_POSTED_STORAGE_KEY,
+      JSON.stringify(facebookPostedProductIds),
+    );
+  }, [facebookPostedProductIds]);
+
   const handleCloseModal = () => {
     setShowManualProductModal(false);
     setEditingProduct(null);
@@ -773,15 +881,15 @@ export default function AdminDashboard({
       },
     });
     try {
-      if (adminTemplateOptions.length === 0) {
-        const templatesResponse = await getTemplates({ active: 1 });
-        const templateItems = Array.isArray(templatesResponse?.items)
-          ? templatesResponse.items
-          : Array.isArray(templatesResponse)
-            ? templatesResponse
-            : [];
-        setAdminTemplateOptions(templateItems);
-      }
+      const templatesResponse = await getTemplates({ active: 1 });
+      const templateItems = Array.isArray(templatesResponse?.items)
+        ? templatesResponse.items
+        : Array.isArray(templatesResponse)
+          ? templatesResponse
+          : [];
+      setAdminTemplateOptions(
+        templateItems.filter((template) => canUseTemplateForCustomer(template, customer.id)),
+      );
 
       const details = await getCustomerDetails(customer.id);
       const nextCustomer = details?.customer || customer;
@@ -1250,6 +1358,14 @@ export default function AdminDashboard({
                             title="Edit product"
                           >
                             ✎
+                          </button>
+                          <button
+                            className={`button-icon facebook ${facebookPostedProductIds[String(product.id)] ? "posted" : ""}`}
+                            onClick={() => handleShareProductToFacebook(product)}
+                            title={facebookPostedProductIds[String(product.id)] ? "Posted to Facebook" : "Post to Facebook"}
+                            aria-label={facebookPostedProductIds[String(product.id)] ? "Posted to Facebook" : "Post to Facebook"}
+                          >
+                            {facebookPostedProductIds[String(product.id)] ? "✓" : "f"}
                           </button>
                           <button
                             className="button-icon delete"

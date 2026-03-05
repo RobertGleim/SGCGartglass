@@ -289,6 +289,24 @@
   background-color: #333;
 }
 
+.wishlist-btn {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.75rem 1.5rem;
+  background-color: white;
+  color: #1a1a1a;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.wishlist-btn:hover {
+  border-color: #1a1a1a;
+}
+
 .favorite-btn {
   width: 100%;
   height: 48px;
@@ -306,6 +324,11 @@
 .favorite-btn:hover {
   border-color: #1a1a1a;
   color: #f1641e;
+}
+
+.favorite-btn.active {
+  color: #dc2626;
+  border-color: #dc2626;
 }
 
 /* Shop Policies */
@@ -464,6 +487,10 @@
   }
 
   .add-to-cart-btn {
+    width: auto;
+  }
+
+  .wishlist-btn {
     width: auto;
   }
 

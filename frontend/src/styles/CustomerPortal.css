@@ -137,18 +137,32 @@
 }
 
 .portal-actions button {
-  border: none;
+  border: 1px solid #1f4ea1;
   background: #1f4ea1;
   color: #fff;
   padding: 0.45rem 0.9rem;
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.85rem;
+  font-weight: 600;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 
 .portal-actions button.secondary {
-  background: #f0f3f8;
-  color: #1f2f4d;
+  background: #ffffff;
+  color: #1f4ea1;
+  border-color: #9baecc;
+}
+
+.portal-actions button:hover {
+  background: #1a438c;
+  border-color: #1a438c;
+}
+
+.portal-actions button.secondary:hover {
+  background: #eef3fb;
+  color: #14366e;
+  border-color: #6f89b4;
 }
 
 .portal-form {

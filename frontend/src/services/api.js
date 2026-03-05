@@ -18,6 +18,7 @@ export const fetchManualProduct = (id) => api.get(`/manual-products/${id}`);
 export const fetchItems = async () => toArrayResponse(await api.get('/items'));
 export const deleteManualProduct = (id) => api.delete(`/manual-products/${id}`);
 export const createManualProduct = (product) => api.post('/manual-products', product);
+export const publishManualProductToFacebook = (id) => api.post(`/admin/manual-products/${id}/facebook-post`);
 export const createItem = (item) => api.post('/items', item);
 // Customer profile/address/favorites/cart/orders/reviews APIs
 export const fetchCustomerProfile = () => api.get('/customer/me');
@@ -27,6 +28,7 @@ export const addCustomerAddress = (address) => api.post('/customer/addresses', a
 export const upsertCustomerPrimaryAddress = (address) => api.put('/customer/addresses/primary', address);
 export const changeCustomerPassword = (payload) => api.put('/customer/password', payload);
 export const fetchCustomerFavorites = () => api.get('/customer/favorites');
+export const addCustomerFavorite = (payload) => api.post('/customer/favorites', payload);
 export const removeCustomerFavorite = (id) => api.delete(`/customer/favorites/${id}`);
 export const fetchCustomerCart = () => api.get('/customer/cart');
 export const addCustomerCartItem = (payload) => api.post('/customer/cart/items', payload);

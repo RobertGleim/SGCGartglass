@@ -8,6 +8,7 @@ import {
   upsertCustomerPrimaryAddress,
   changeCustomerPassword,
   fetchCustomerFavorites,
+  addCustomerFavorite,
   removeCustomerFavorite,
   fetchCustomerCart,
   updateCustomerCartItem,
@@ -17,13 +18,14 @@ import {
   fetchCustomerReviews,
   createCustomerReview,
 } from '../../services/api'
+import { findWishlistEntry } from '../../utils/wishlist'
 
 const TABS = ['overview', 'orders', 'favorites', 'cart', 'reviews', 'settings', 'work_orders']
 
 const TAB_LABELS = {
   overview: 'overview',
   orders: 'orders',
-  favorites: 'favorites',
+  favorites: 'wishlist',
   cart: 'cart',
   reviews: 'reviews',
   settings: 'settings',
@@ -254,6 +256,35 @@ export default function CustomerPortal({ manualProducts }) {
     setCartItems((prev) => prev.filter((item) => item.id !== itemId))
   }
 
+  const handleMoveCartItemToWishlist = async (item) => {
+    setStatus('')
+    const payload = {
+      product_type: item?.product_type,
+      product_id: String(item?.product_id || ''),
+    }
+
+    if (!payload.product_type || !payload.product_id) {
+      setStatus('Unable to move this cart item to wishlist.')
+      return
+    }
+
+    try {
+      const existing = findWishlistEntry(favorites, payload)
+      if (!existing) {
+        await addCustomerFavorite(payload)
+        setFavorites((prev) => [{ ...payload, id: `temp-${Date.now()}` }, ...prev])
+      }
+
+      await removeCustomerCartItem(item.id)
+      setCartItems((prev) => prev.filter((entry) => entry.id !== item.id))
+      window.dispatchEvent(new Event('cart-updated'))
+      window.dispatchEvent(new Event('wishlist-updated'))
+      setStatus('Moved item to wishlist.')
+    } catch (error) {
+      setStatus(error?.response?.data?.error || error.message || 'Unable to move item to wishlist.')
+    }
+  }
+
   const handleSubmitReview = async (event) => {
     event.preventDefault()
     setStatus('')
@@ -291,12 +322,26 @@ export default function CustomerPortal({ manualProducts }) {
     // return `Etsy item ${productId}`
   }
 
+  const handleViewWishlistItem = (item) => {
+    const rawProductId = String(item?.product_id || '').trim()
+    if (!rawProductId) {
+      window.location.hash = '#/product'
+      return
+    }
+
+    const routeProductId = item?.product_type === 'manual'
+      ? `m-${rawProductId}`
+      : rawProductId
+
+    window.location.hash = `#/product/${routeProductId}`
+  }
+
   return (
     <div className="customer-portal">
       <div className="customer-portal-header">
         <div>
           <h2>Customer portal</h2>
-          <p>Manage your account, track orders, and keep tabs on favorites.</p>
+          <p>Manage your account, track orders, and keep tabs on your wishlist.</p>
         </div>
         <button className="secondary portal-signout" onClick={logout}>Sign out</button>
       </div>
@@ -347,7 +392,7 @@ export default function CustomerPortal({ manualProducts }) {
               </div>
               <div className="portal-list-item">
                 <strong>{favorites.length}</strong>
-                <span className="portal-muted">Favorites saved</span>
+                <span className="portal-muted">Wishlist saved</span>
               </div>
               <div className="portal-list-item">
                 <strong>{cartItems.length}</strong>
@@ -391,7 +436,7 @@ export default function CustomerPortal({ manualProducts }) {
 
       {activeTab === 'favorites' && (
         <div className="portal-card">
-          <h3>Favorites</h3>
+          <h3>Wishlist</h3>
           {favorites.length === 0 ? (
             <p className="portal-muted">Save products you love to find them quickly later.</p>
           ) : (
@@ -400,6 +445,9 @@ export default function CustomerPortal({ manualProducts }) {
                 <div key={item.id} className="portal-list-item">
                   <strong>{renderProductLabel(item.product_type, item.product_id)}</strong>
                   <div className="portal-actions">
+                    <button className="secondary" onClick={() => handleViewWishlistItem(item)}>
+                      View
+                    </button>
                     <button className="secondary" onClick={() => handleRemoveFavorite(item.id)}>
                       Remove
                     </button>
@@ -429,6 +477,9 @@ export default function CustomerPortal({ manualProducts }) {
                       </button>
                       <button className="secondary" onClick={() => handleUpdateCartQuantity(item.id, Math.max(1, item.quantity - 1))}>
                         -1
+                      </button>
+                      <button className="secondary" onClick={() => handleMoveCartItemToWishlist(item)}>
+                        Move to wishlist
                       </button>
                       <button onClick={() => handleRemoveCartItem(item.id)}>Remove</button>
                     </div>

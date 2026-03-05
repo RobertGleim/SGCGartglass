@@ -2460,9 +2460,17 @@ export default function DesignerPage() {
   }, [workOrderId]);
 
   // ── Filtered templates ────────────────────────────────────────
-  const filtered = categoryFilter
-    ? templates.filter(t => t.category === categoryFilter)
-    : templates;
+  const normalizeCategory = (value) => String(value || '').trim().toLowerCase();
+  const isDirectMessageTemplate = (template) => normalizeCategory(template?.category) === 'direct message';
+
+  const filtered = useMemo(() => {
+    if (!categoryFilter) {
+      return isAdmin ? templates.filter((template) => !isDirectMessageTemplate(template)) : templates;
+    }
+
+    const selectedCategory = normalizeCategory(categoryFilter);
+    return templates.filter((template) => normalizeCategory(template?.category) === selectedCategory);
+  }, [categoryFilter, templates, isAdmin]);
 
   const sectionLegendItems = useMemo(() => {
     const sectionNumbers = new Set();
