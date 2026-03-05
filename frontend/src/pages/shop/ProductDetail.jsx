@@ -1,16 +1,54 @@
 import { useState, useEffect, useMemo } from 'react'
 import '../../styles/ProductDetail.css'
 import useCustomerAuth from '../../hooks/useCustomerAuth'
-import { addCustomerCartItem } from '../../services/api'
+import { addCustomerCartItem, fetchManualProduct } from '../../services/api'
 
 export default function ProductDetail({ product }) {
   const [selectedImage, setSelectedImage] = useState(0)
   const [showZoom, setShowZoom] = useState(false)
   const [cartStatus, setCartStatus] = useState('')
+  const [manualProductDetails, setManualProductDetails] = useState(null)
   const { customerToken } = useCustomerAuth()
+
+  useEffect(() => {
+    let isActive = true
+    setManualProductDetails(null)
+
+    if (!product?.isManual) {
+      return () => {
+        isActive = false
+      }
+    }
+
+    const manualId = String(product.originalData?.id || '').trim()
+    if (!manualId) {
+      return () => {
+        isActive = false
+      }
+    }
+
+    fetchManualProduct(manualId)
+      .then((payload) => {
+        if (isActive) {
+          setManualProductDetails(payload || null)
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setManualProductDetails(null)
+        }
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [product])
   
   // Get images from originalData (for manual products) or use image_url
   const images = useMemo(() => {
+    if (manualProductDetails?.images && manualProductDetails.images.length > 0) {
+      return manualProductDetails.images
+    }
     if (product.originalData?.images && product.originalData.images.length > 0) {
       return product.originalData.images
     } else if (product.images && product.images.length > 0) {
@@ -19,7 +57,7 @@ export default function ProductDetail({ product }) {
       return [{ image_url: product.image_url }]
     }
     return []
-  }, [product])
+  }, [product, manualProductDetails])
 
   const mainImage = images.length > 0 ? images[selectedImage].image_url : null
   const showThumbnails = images.length > 1

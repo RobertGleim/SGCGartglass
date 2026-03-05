@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import styles from './MyProjects.module.css';
 
+const PROJECTS_CACHE_KEY = 'sgcg_my_projects_cache_v1';
+const PROJECTS_CACHE_TTL_MS = 60 * 1000;
+
 const SORT_OPTIONS = [
   { label: 'Date Modified', value: 'date' },
   { label: 'Name', value: 'name' },
@@ -95,7 +98,8 @@ export default function MyProjects() {
   }, []);
 
   const fetchProjects = async () => {
-    setLoading(true);
+    const hasCached = projects.length > 0;
+    setLoading(!hasCached);
     setError(null);
     try {
       const res = await api.get('/projects');
@@ -106,6 +110,7 @@ export default function MyProjects() {
         thumbnailUrl: p.thumbnail_url || p.thumbnailUrl || p.preview_url || '',
       }));
       setProjects(arr);
+      sessionStorage.setItem(PROJECTS_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), projects: arr }));
     } catch (err) {
       console.error('[MyProjects] Fetch error:', err);
       setError('Failed to load projects');
@@ -115,7 +120,21 @@ export default function MyProjects() {
   };
 
   useEffect(() => {
+    try {
+      const cachedRaw = sessionStorage.getItem(PROJECTS_CACHE_KEY);
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw);
+        const age = Date.now() - Number(cached?.timestamp || 0);
+        if (Array.isArray(cached?.projects) && age >= 0 && age <= PROJECTS_CACHE_TTL_MS) {
+          setProjects(cached.projects);
+          setLoading(false);
+        }
+      }
+    } catch {
+      // ignore cache parse issues
+    }
     fetchProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle edit - navigate to designer with project ID
@@ -152,10 +171,12 @@ export default function MyProjects() {
   // Handle duplicate
   const handleDuplicate = async (project) => {
     try {
+      const projectDetails = await api.get(`/projects/${project.id}`);
+      const sourceProject = projectDetails?.project || project;
       const res = await api.post('/projects/save', {
-        template_id: project.template_id,
+        template_id: sourceProject.template_id,
         project_name: `${project.name} (Copy)`,
-        design_data: project.design_data,
+        design_data: sourceProject.design_data,
       });
       const newProject = res?.project || res;
       setProjects(prev => [{ ...newProject, status_key: 'inprogress', modified: new Date().toISOString() }, ...prev]);

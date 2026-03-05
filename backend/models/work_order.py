@@ -75,7 +75,15 @@ class WorkOrder(db.Model):
             return False, "work_order_number must match WO-YYYY-#### (e.g. WO-2025-0001)"
         return True, ""
 
-    def to_dict(self, include_history=False, include_admin_notes=False, include_project_data=False):
+    def to_dict(
+        self,
+        include_history=False,
+        include_admin_notes=False,
+        include_project_data=False,
+        include_template_data=True,
+        include_revision_summary=True,
+        project_preview_only=False,
+    ):
         out = {
             "id": self.id,
             "work_order_number": self.work_order_number,
@@ -93,14 +101,23 @@ class WorkOrder(db.Model):
             out["status_history"] = [h.to_dict() for h in self.status_history]
         # Include project design data for admin views
         if include_project_data and self.project:
+            project_design_data = self.project.design_data if isinstance(self.project.design_data, dict) else {}
+            if project_preview_only:
+                preview_data = {}
+                if project_design_data.get("preview_url"):
+                    preview_data["preview_url"] = project_design_data.get("preview_url")
+                if project_design_data.get("dataUrl"):
+                    preview_data["dataUrl"] = project_design_data.get("dataUrl")
+                project_design_data = preview_data
+
             out["project"] = {
                 "id": self.project.id,
                 "name": self.project.name,
-                "design_data": self.project.design_data if isinstance(self.project.design_data, dict) else {},
+                "design_data": project_design_data,
                 "template_id": self.project.template_id,
             }
             # Include template info if available
-            if self.project.template:
+            if include_template_data and self.project.template:
                 template_svg = self.project.template.svg_content
                 out["template"] = {
                     "id": self.project.template.id,
@@ -113,7 +130,7 @@ class WorkOrder(db.Model):
                     "default_design_data": self.project.template.default_design_data if isinstance(self.project.template.default_design_data, dict) else None,
                 }
         # Include revision summary
-        if hasattr(self, 'revisions'):
+        if include_revision_summary and hasattr(self, 'revisions'):
             rev_query = self.revisions
             rev_count = rev_query.count() if hasattr(rev_query, 'count') else 0
             out["revision_count"] = rev_count

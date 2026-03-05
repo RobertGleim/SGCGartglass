@@ -4,6 +4,7 @@ from backend.services.project_service import (
     save_project, get_user_projects, get_project_by_id, delete_project, calculate_completion_percentage
 )
 from backend.models import db
+from backend.models.work_order import WorkOrder
 from backend.auth import decode_token
 from datetime import datetime
 import jwt
@@ -51,7 +52,39 @@ def list_projects_route():
     projects, err = get_user_projects(user_id, filters, db.session)
     if err:
         return jsonify({'error': err}), 500
-    return jsonify({'projects': [p.to_dict() for p in projects]}), 200
+
+    project_ids = [p.id for p in projects if p and p.id is not None]
+    latest_order_by_project = {}
+    if project_ids:
+        rows = (
+            db.session.query(WorkOrder.project_id, WorkOrder.id, WorkOrder.status)
+            .filter(WorkOrder.project_id.in_(project_ids))
+            .order_by(WorkOrder.project_id.asc(), WorkOrder.created_at.desc())
+            .all()
+        )
+        for project_id, work_order_id, work_order_status in rows:
+            if project_id not in latest_order_by_project:
+                latest_order_by_project[project_id] = {
+                    'work_order_id': work_order_id,
+                    'work_order_status': work_order_status.value if hasattr(work_order_status, 'value') else str(work_order_status),
+                }
+
+    response_projects = []
+    for project in projects:
+        design_data = project.design_data if isinstance(project.design_data, dict) else {}
+        payload = {
+            'id': project.id,
+            'user_id': project.user_id,
+            'template_id': project.template_id,
+            'name': project.name,
+            'preview_url': design_data.get('preview_url') or design_data.get('dataUrl'),
+            'created_at': project.created_at.isoformat() if project.created_at else None,
+            'updated_at': project.updated_at.isoformat() if project.updated_at else None,
+        }
+        payload.update(latest_order_by_project.get(project.id, {}))
+        response_projects.append(payload)
+
+    return jsonify({'projects': response_projects}), 200
 
 @projects_bp.route('/api/projects/<int:project_id>', methods=['GET'])
 @login_required

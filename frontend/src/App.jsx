@@ -1,12 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import './styles/App.css'
 import FeaturedCarousel from './components/product/FeaturedCarousel'
 import Footer from './components/layout/footer/Footer'
 import Header from './components/layout/header/Header'
 import HeroSection from './components/layout/hero/HeroSection'
-import ProductPage from './pages/shop/ProductPage'
-import ProductDetail from './pages/shop/ProductDetail'
-import CheckoutPage from './pages/shop/CheckoutPage'
 import useHashRoute from './hooks/useHashRoute'
 import useAuth from './hooks/useAuth'
 import useCustomerAuth from './hooks/useCustomerAuth'
@@ -18,28 +15,29 @@ import {
   fetchItems,
   fetchManualProducts
 } from './services/api'
-import UnifiedLogin from './pages/auth/UnifiedLogin'
-import CustomerResetPassword from './pages/auth/CustomerResetPassword'
-import AdminDashboard from './pages/admin/AdminDashboard'
-import CustomerSignup from './pages/customer/CustomerSignup'
-import CustomerPortal from './pages/customer/CustomerPortal'
-import Layout from './components/Layout';
-import DesignerPage from './pages/DesignerPage';
-import MyProjectsPage from './pages/MyProjectsPage';
-import MyWorkOrdersPage from './pages/MyWorkOrdersPage';
-import AdminTemplatesPage from './pages/admin/AdminTemplatesPage';
-import AdminGlassTypesPage from './pages/admin/AdminGlassTypesPage';
-import AdminWorkOrdersPage from './pages/admin/AdminWorkOrdersPage';
-import DiagnosticsPage from './pages/DiagnosticsPage';
-import PhotoGalleryPage from './pages/PhotoGalleryPage';
+
+const ProductPage = lazy(() => import('./pages/shop/ProductPage'))
+const ProductDetail = lazy(() => import('./pages/shop/ProductDetail'))
+const CheckoutPage = lazy(() => import('./pages/shop/CheckoutPage'))
+const UnifiedLogin = lazy(() => import('./pages/auth/UnifiedLogin'))
+const CustomerResetPassword = lazy(() => import('./pages/auth/CustomerResetPassword'))
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
+const CustomerSignup = lazy(() => import('./pages/customer/CustomerSignup'))
+const CustomerPortal = lazy(() => import('./pages/customer/CustomerPortal'))
+const DesignerPage = lazy(() => import('./pages/DesignerPage'))
+const MyProjectsPage = lazy(() => import('./pages/MyProjectsPage'))
+const MyWorkOrdersPage = lazy(() => import('./pages/MyWorkOrdersPage'))
+const DiagnosticsPage = lazy(() => import('./pages/DiagnosticsPage'))
+const PhotoGalleryPage = lazy(() => import('./pages/PhotoGalleryPage'))
 
 const BRAND_NAME = 'SGCG Art'
 
 function App() {
   const route = useHashRoute()
   const [items, setItems] = useState([])
-  const [itemsLoading, setItemsLoading] = useState(true)
+  const [itemsLoading, setItemsLoading] = useState(false)
   const [manualProducts, setManualProducts] = useState([])
+  const [catalogLoaded, setCatalogLoaded] = useState(false)
   const { authToken, login: loginWithCredentials, logout } = useAuth()
   const {
     customerToken,
@@ -50,12 +48,31 @@ function App() {
   } = useCustomerAuth()
 
   useEffect(() => {
+    const needsCatalog = ['/', '/product', '/admin', '/account'].includes(route.path)
+    if (!needsCatalog || catalogLoaded) {
+      return undefined
+    }
+
     let isActive = true
-    fetchItems()
-      .then((data) => {
-        if (isActive) {
-            setItems(Array.isArray(data) ? data : [])
+    setItemsLoading(true)
+
+    Promise.allSettled([fetchItems(), fetchManualProducts({ summary: 1 })])
+      .then(([itemsResult, manualResult]) => {
+        if (!isActive) return
+
+        if (itemsResult.status === 'fulfilled') {
+          setItems(Array.isArray(itemsResult.value) ? itemsResult.value : [])
+        } else {
+          console.error('Error fetching items:', itemsResult.reason)
         }
+
+        if (manualResult.status === 'fulfilled') {
+          setManualProducts(Array.isArray(manualResult.value) ? manualResult.value : [])
+        } else {
+          console.error('Error fetching manual products:', manualResult.reason)
+        }
+
+        setCatalogLoaded(true)
       })
       .finally(() => {
         if (isActive) {
@@ -63,20 +80,10 @@ function App() {
         }
       })
 
-    fetchManualProducts()
-      .then((data) => {
-        if (isActive) {
-            setManualProducts(Array.isArray(data) ? data : [])
-        }
-      })
-      .catch((error) => {
-        console.error('Error fetching manual products:', error)
-      })
-
     return () => {
       isActive = false
     }
-  }, [])
+  }, [route.path, catalogLoaded])
 
   // Scroll to top whenever route changes
   useEffect(() => {
@@ -138,148 +145,150 @@ function App() {
         route={route}
       />
 
-      {route.path === '/' && (
-        <main>
-          <HeroSection />
+      <Suspense fallback={<main className="admin-page"><p style={{ padding: '1.5rem' }}>Loading…</p></main>}>
+        {route.path === '/' && (
+          <main>
+            <HeroSection />
 
-          <section className="featured" style={{ margin: '0 auto' }}>
-            <div className="section-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80px' }}>
-              <h2 style={{ margin: 0, textAlign: 'center' }}>Featured items</h2>
-            </div>
-            <FeaturedCarousel items={featuredItems} itemsLoading={itemsLoading} />
-          </section>
-        </main>
-      )}
+            <section className="featured" style={{ margin: '0 auto' }}>
+              <div className="section-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80px' }}>
+                <h2 style={{ margin: 0, textAlign: 'center' }}>Featured items</h2>
+              </div>
+              <FeaturedCarousel items={featuredItems} itemsLoading={itemsLoading} />
+            </section>
+          </main>
+        )}
 
-      {route.path === '/product' && !route.params?.id && (
-        <ProductPage products={allProducts} />
-      )}
+        {route.path === '/product' && !route.params?.id && (
+          <ProductPage products={allProducts} />
+        )}
 
-      {route.path === '/product' && route.params?.id && (
-        <main className="product-detail-page">
-          {(() => {
-            const product = allProducts.find(p => String(p.id) === String(route.params.id))
-            if (!product) {
-              return (
-                <div style={{ padding: '2rem', textAlign: 'center' }}>
-                  <h2>Product not found</h2>
-                  <p>The product you're looking for doesn't exist.</p>
-                  <a href="#/product" style={{ color: '#1a1a1a', textDecoration: 'underline' }}>
-                    Back to shop
-                  </a>
-                </div>
-              )
-            }
-            return <ProductDetail product={product} />
-          })()}
-        </main>
-      )}
+        {route.path === '/product' && route.params?.id && (
+          <main className="product-detail-page">
+            {(() => {
+              const product = allProducts.find(p => String(p.id) === String(route.params.id))
+              if (!product) {
+                return (
+                  <div style={{ padding: '2rem', textAlign: 'center' }}>
+                    <h2>Product not found</h2>
+                    <p>The product you're looking for doesn't exist.</p>
+                    <a href="#/product" style={{ color: '#1a1a1a', textDecoration: 'underline' }}>
+                      Back to shop
+                    </a>
+                  </div>
+                )
+              }
+              return <ProductDetail product={product} />
+            })()}
+          </main>
+        )}
 
-      {route.path === '/admin' && (
-        <main className="admin-page">
-          {!authToken ? (
+        {route.path === '/admin' && (
+          <main className="admin-page">
+            {!authToken ? (
+              <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
+            ) : (
+              <AdminDashboard
+                items={items}
+                manualProducts={manualProducts}
+                onAddItem={handleAddItem}
+                onAddManualProduct={async (productData) => {
+                  const created = await createManualProduct(productData)
+                  setManualProducts((prev) => [created, ...prev])
+                  return created
+                }}
+                onUpdateManualProduct={async (id, productData) => {
+                  console.log('Update product called with authToken:', authToken ? `${authToken.substring(0, 20)}...` : 'NO TOKEN')
+                  const updated = await updateManualProduct(id, productData)
+                  setManualProducts((prev) => prev.map(p => p.id === id ? updated : p))
+                  return updated
+                }}
+                onDeleteManualProduct={async (id) => {
+                  await deleteManualProduct(id)
+                  setManualProducts((prev) => prev.filter(p => p.id !== id))
+                }}
+                onLogout={logout}
+              />
+            )}
+          </main>
+        )}
+
+        {route.path === '/account/login' && (
+          <main className="admin-page">
             <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
-          ) : (
-            <AdminDashboard
-              items={items}
-              manualProducts={manualProducts}
-              onAddItem={handleAddItem}
-              onAddManualProduct={async (productData) => {
-                const created = await createManualProduct(productData)
-                setManualProducts((prev) => [created, ...prev])
-                return created
-              }}
-              onUpdateManualProduct={async (id, productData) => {
-                console.log('Update product called with authToken:', authToken ? `${authToken.substring(0, 20)}...` : 'NO TOKEN')
-                const updated = await updateManualProduct(id, productData)
-                setManualProducts((prev) => prev.map(p => p.id === id ? updated : p))
-                return updated
-              }}
-              onDeleteManualProduct={async (id) => {
-                await deleteManualProduct(id)
-                setManualProducts((prev) => prev.filter(p => p.id !== id))
-              }}
-              onLogout={logout}
-            />
-          )}
-        </main>
-      )}
+          </main>
+        )}
 
-      {route.path === '/account/login' && (
-        <main className="admin-page">
-          <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
-        </main>
-      )}
+        {route.path === '/account/signup' && (
+          <main className="admin-page">
+            <CustomerSignup onSignup={customerSignup} />
+          </main>
+        )}
 
-      {route.path === '/account/signup' && (
-        <main className="admin-page">
-          <CustomerSignup onSignup={customerSignup} />
-        </main>
-      )}
+        {route.path === '/account/reset-password' && (
+          <main className="admin-page">
+            <CustomerResetPassword />
+          </main>
+        )}
 
-      {route.path === '/account/reset-password' && (
-        <main className="admin-page">
-          <CustomerResetPassword />
-        </main>
-      )}
+        {route.path === '/account' && (
+          <main className="admin-page">
+            {!customerToken ? (
+              <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
+            ) : (
+              <CustomerPortal manualProducts={manualProducts} />
+            )}
+          </main>
+        )}
 
-      {route.path === '/account' && (
-        <main className="admin-page">
-          {!customerToken ? (
-            <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
-          ) : (
-            <CustomerPortal manualProducts={manualProducts} />
-          )}
-        </main>
-      )}
+        {route.path === '/designer' && (
+          <main>
+            <DesignerPage />
+          </main>
+        )}
 
-      {route.path === '/designer' && (
-        <main>
-          <DesignerPage />
-        </main>
-      )}
+        {route.path === '/gallery' && (
+          <main>
+            <PhotoGalleryPage />
+          </main>
+        )}
 
-      {route.path === '/gallery' && (
-        <main>
-          <PhotoGalleryPage />
-        </main>
-      )}
+        {route.path === '/checkout' && (
+          <main>
+            {!customerToken ? (
+              <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
+            ) : (
+              <CheckoutPage />
+            )}
+          </main>
+        )}
 
-      {route.path === '/checkout' && (
-        <main>
-          {!customerToken ? (
-            <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
-          ) : (
-            <CheckoutPage />
-          )}
-        </main>
-      )}
+        {route.path === '/my-projects' && (
+          <main>
+            {!customerToken ? (
+              <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
+            ) : (
+              <MyProjectsPage />
+            )}
+          </main>
+        )}
 
-      {route.path === '/my-projects' && (
-        <main>
-          {!customerToken ? (
-            <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
-          ) : (
-            <MyProjectsPage />
-          )}
-        </main>
-      )}
+        {route.path === '/my-work-orders' && (
+          <main>
+            {!customerToken ? (
+              <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
+            ) : (
+              <MyWorkOrdersPage />
+            )}
+          </main>
+        )}
 
-      {route.path === '/my-work-orders' && (
-        <main>
-          {!customerToken ? (
-            <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
-          ) : (
-            <MyWorkOrdersPage />
-          )}
-        </main>
-      )}
-
-      {route.path === '/diagnostics' && (
-        <main>
-          <DiagnosticsPage />
-        </main>
-      )}
+        {route.path === '/diagnostics' && (
+          <main>
+            <DiagnosticsPage />
+          </main>
+        )}
+      </Suspense>
 
       <Footer />
     </div>

@@ -13,7 +13,8 @@ export const updateCustomer = (id, payload) => api.put(`/customers/${id}`, paylo
 export const deleteCustomer = (id) => api.delete(`/customers/${id}`);
 export const getCustomerDetails = (id) => api.get(`/customers/${id}/details`);
 export const updateManualProduct = (id, product) => api.put(`/manual-products/${id}`, product);
-export const fetchManualProducts = async () => toArrayResponse(await api.get('/manual-products'));
+export const fetchManualProducts = async (params = {}) => toArrayResponse(await api.get('/manual-products', { params }));
+export const fetchManualProduct = (id) => api.get(`/manual-products/${id}`);
 export const fetchItems = async () => toArrayResponse(await api.get('/items'));
 export const deleteManualProduct = (id) => api.delete(`/manual-products/${id}`);
 export const createManualProduct = (product) => api.post('/manual-products', product);

@@ -1,9 +1,14 @@
 import React, { useState, useRef, useCallback } from 'react';
-import * as pdfjsLib from 'pdfjs-dist';
 import api from '../../services/api';
 import styles from './TemplateFormModal.module.css';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+let pdfjsLibLoader;
+async function getPdfjsLib() {
+  if (!pdfjsLibLoader) {
+    pdfjsLibLoader = import('pdfjs-dist').then((module) => module.default || module);
+  }
+  return pdfjsLibLoader;
+}
 
 const getApiOrigin = () => {
   const configuredBase = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -39,6 +44,8 @@ function countSVGPaths(svgText) {
 
 /** Render first page of a PDF to a PNG Blob via canvas */
 async function pdfToBlob(file) {
+  const pdfjsLib = await getPdfjsLib();
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
   const arrayBuffer = await file.arrayBuffer();
   let pdf;
   try {

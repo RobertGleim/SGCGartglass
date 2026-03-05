@@ -9,6 +9,7 @@ import json
 import os
 import hashlib
 import secrets
+import time
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from urllib.parse import quote
@@ -24,6 +25,7 @@ from ..db import (
     upsert_item,
     create_manual_product,
     fetch_manual_products,
+    fetch_manual_products_catalog,
     fetch_manual_product,
     update_manual_product,
     delete_manual_product,
@@ -68,6 +70,35 @@ from ..utils.email import send_email
 
 
 api = Blueprint("api", __name__)
+
+_CATALOG_CACHE_TTL_SECONDS = 60
+_catalog_cache = {
+    "items": {"value": None, "expires_at": 0},
+    "manual_products": {"value": None, "expires_at": 0},
+    "manual_products_summary": {"value": None, "expires_at": 0},
+}
+
+
+def _cache_get(key):
+    slot = _catalog_cache.get(key) or {}
+    if slot.get("value") is None:
+        return None
+    if time.time() >= float(slot.get("expires_at") or 0):
+        return None
+    return slot.get("value")
+
+
+def _cache_set(key, value):
+    _catalog_cache[key] = {
+        "value": value,
+        "expires_at": time.time() + _CATALOG_CACHE_TTL_SECONDS,
+    }
+
+
+def _catalog_cache_invalidate(*keys):
+    targets = keys or ("items", "manual_products")
+    for key in targets:
+        _catalog_cache[key] = {"value": None, "expires_at": 0}
 
 
 def _as_money(value):
@@ -1029,9 +1060,14 @@ def customer_create_review():
 @api.get("/items")
 def list_items():
     init_db()
+    cached_items = _cache_get("items")
+    if cached_items is not None:
+        return jsonify(cached_items), 200
+
     items = fetch_items()
     if items is None:
         items = []
+    _cache_set("items", items)
     return jsonify(items), 200
 
 
@@ -1092,15 +1128,24 @@ def create_item():
 
     item_id = upsert_item(listing)
     item = fetch_item(item_id) or listing
+    _catalog_cache_invalidate("items")
     return jsonify(item), 201
 
 
 @api.get("/manual-products")
 def list_manual_products():
     init_db()
-    products = fetch_manual_products()
+    summary_mode = str(request.args.get("summary") or "").strip().lower() in {"1", "true", "yes"}
+    cache_key = "manual_products_summary" if summary_mode else "manual_products"
+
+    cached_products = _cache_get(cache_key)
+    if cached_products is not None:
+        return jsonify(cached_products), 200
+
+    products = fetch_manual_products_catalog() if summary_mode else fetch_manual_products()
     if products is None:
         products = []
+    _cache_set(cache_key, products)
     return jsonify(products), 200
 
 
@@ -1129,6 +1174,7 @@ def create_manual_product_endpoint():
     try:
         product_id = create_manual_product(payload)
         product = fetch_manual_product(product_id)
+        _catalog_cache_invalidate("manual_products", "manual_products_summary")
         return jsonify(product), 201
     except Exception as exc:
         return jsonify({"error": "creation_failed", "detail": str(exc)}), 500
@@ -1153,6 +1199,7 @@ def update_manual_product_endpoint(product_id):
     try:
         update_manual_product(product_id, payload)
         updated_product = fetch_manual_product(product_id)
+        _catalog_cache_invalidate("manual_products", "manual_products_summary")
         return jsonify(updated_product)
     except Exception as exc:
         return jsonify({"error": "update_failed", "detail": str(exc)}), 500
@@ -1167,6 +1214,7 @@ def delete_manual_product_endpoint(product_id):
         return jsonify({"error": "not_found"}), 404
     try:
         delete_manual_product(product_id)
+        _catalog_cache_invalidate("manual_products", "manual_products_summary")
         return jsonify({"success": True, "message": "Product deleted"}), 200
     except Exception as exc:
         return jsonify({"error": "deletion_failed", "detail": str(exc)}), 500

@@ -143,6 +143,14 @@ Or run `database/schema.sql` in your MySQL client. Schema includes: `templates`,
 - The app now uses **PostgreSQL only** for all persisted data paths (customers, products, templates, glass types, work orders, etc.) in every environment.
 - The backend raises an error if `DATABASE_URL` is missing or not PostgreSQL.
 
+### Query performance guardrails (Big-O)
+
+- Keep hot reads on indexed predicates/sorts so they stay near `O(log n)` lookup + small `O(k)` result scans.
+- Avoid full-table scans (`O(n)`) on request paths used by cart, checkout, admin sales, and customer account pages.
+- Avoid nested-loop app logic over large result sets (`O(n^2)`); push grouping/top-N work into PostgreSQL.
+- Current hot-path indexes cover cart (`customer_id, updated_at`), orders (`customer_id, created_at`, `admin_seen, created_at`, `payment_reference`), order items (`order_id`, `product_type, product_id, order_id`), and reviews/events.
+- Keep `EXPLAIN ANALYZE` in your workflow for any new query that can touch more than a few hundred rows.
+
 ### One-step migration (SQLite -> PostgreSQL)
 
 Use `migrate_all_sqlite_to_postgres.py` to copy both legacy (`backend/data.db`) and designer (`backend/designer.db`) data into Postgres:

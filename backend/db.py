@@ -1,10 +1,15 @@
 import os
+import threading
 from datetime import datetime
 
 try:
     from .models import db as db
 except Exception:  # pragma: no cover
     db = None
+
+
+_schema_initialized = False
+_schema_init_lock = threading.Lock()
 
 
 def _db_backend():
@@ -58,7 +63,15 @@ def get_db():
     raise RuntimeError("DATABASE_URL (or POSTGRES_URL) must point to PostgreSQL.")
 
 
-def init_db():
+def init_db(force=False):
+    global _schema_initialized
+    if _schema_initialized and not force:
+        return
+
+    with _schema_init_lock:
+        if _schema_initialized and not force:
+            return
+
     conn = get_db()
     cursor = conn.cursor()
     is_mysql = _is_mysql_backend()
@@ -186,6 +199,8 @@ def init_db():
         cursor.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS admin_notes TEXT")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_password_resets_customer ON customer_password_resets(customer_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_password_resets_expires ON customer_password_resets(expires_at)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_password_resets_customer_created ON customer_password_resets(customer_id, created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customers_created_at ON customers(created_at DESC)")
     cursor.execute(
         f"""
         CREATE TABLE IF NOT EXISTS customer_cart_items (
@@ -292,11 +307,28 @@ def init_db():
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS notes TEXT")
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS admin_seen INTEGER DEFAULT 0")
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS admin_seen_at VARCHAR(50)")
+        cursor.execute("UPDATE customer_orders SET admin_seen = 0 WHERE admin_seen IS NULL")
+
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_addresses_customer_default_created ON customer_addresses(customer_id, is_default DESC, created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_favorites_customer_created ON customer_favorites(customer_id, created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_cart_items_customer_updated ON customer_cart_items(customer_id, updated_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_orders_customer_created ON customer_orders(customer_id, created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_orders_payment_reference ON customer_orders(payment_reference)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_orders_admin_seen_created ON customer_orders(admin_seen, created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_orders_unseen_created ON customer_orders(created_at DESC) WHERE admin_seen = 0")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_order_items_order ON customer_order_items(order_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_order_items_product_order ON customer_order_items(product_type, product_id, order_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_order_events_order ON customer_order_events(order_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_order_events_created ON customer_order_events(created_at)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_order_events_order_created ON customer_order_events(order_id, created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_reviews_product_status_created ON customer_reviews(product_type, product_id, status, created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_reviews_customer_created ON customer_reviews(customer_id, created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_manual_products_created_at ON manual_products(created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_product_images_product_order ON product_images(product_id, display_order)")
 
     conn.commit()
     conn.close()
+    _schema_initialized = True
 
 
 def upsert_item(payload):
@@ -483,38 +515,114 @@ def fetch_manual_products():
     import json
     conn = get_db()
     cursor = conn.cursor()
-    is_mysql = _use_mysql()
-    placeholder = "%s" if is_mysql else "?"
-    
-    cursor.execute("SELECT * FROM manual_products ORDER BY created_at DESC")
+    cursor.execute(
+        """
+        SELECT
+            p.*,
+            i.image_url AS product_image_url,
+            i.media_type AS product_image_media_type
+        FROM manual_products p
+        LEFT JOIN product_images i ON i.product_id = p.id
+        ORDER BY p.created_at DESC, i.display_order ASC
+        """
+    )
     rows = cursor.fetchall()
+
+    products = []
+    by_id = {}
+    for row in rows:
+        payload = dict(row)
+        product_id = payload.get("id")
+
+        product = by_id.get(product_id)
+        if not product:
+            payload.pop("product_image_url", None)
+            payload.pop("product_image_media_type", None)
+            product = payload
+
+            if product.get("category"):
+                try:
+                    product["category"] = json.loads(product["category"])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            if product.get("materials"):
+                try:
+                    product["materials"] = json.loads(product["materials"])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            product["images"] = []
+            by_id[product_id] = product
+            products.append(product)
+
+        image_url = payload.get("product_image_url")
+        if image_url:
+            product["images"].append(
+                {
+                    "image_url": image_url,
+                    "media_type": payload.get("product_image_media_type") or "image",
+                }
+            )
     
+    conn.close()
+    return products
+
+
+def fetch_manual_products_catalog():
+    import json
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT
+            p.id,
+            p.name,
+            p.description,
+            p.category,
+            p.materials,
+            p.width,
+            p.height,
+            p.depth,
+            p.price,
+            p.quantity,
+            p.is_featured,
+            p.created_at,
+            p.updated_at,
+            (
+                SELECT pi.image_url
+                FROM product_images pi
+                WHERE pi.product_id = p.id
+                ORDER BY pi.display_order
+                LIMIT 1
+            ) AS preview_image_url
+        FROM manual_products p
+        ORDER BY p.created_at DESC
+        """
+    )
+    rows = cursor.fetchall()
+
     products = []
     for row in rows:
         product = dict(row)
-        
-        # Deserialize category and materials from JSON strings
+
         if product.get("category"):
             try:
                 product["category"] = json.loads(product["category"])
             except (json.JSONDecodeError, TypeError):
-                pass  # Keep as string if not valid JSON
-        
+                pass
+
         if product.get("materials"):
             try:
                 product["materials"] = json.loads(product["materials"])
             except (json.JSONDecodeError, TypeError):
-                pass  # Keep as string if not valid JSON
-        
-        # Fetch images for this product
-        cursor.execute(
-            f"SELECT image_url, media_type FROM product_images WHERE product_id = {placeholder} ORDER BY display_order",
-            (product["id"],)
-        )
-        images = cursor.fetchall()
-        product["images"] = [dict(img) for img in images]
+                pass
+
+        preview_image_url = product.pop("preview_image_url", None)
+        product["images"] = [{"image_url": preview_image_url, "media_type": "image"}] if preview_image_url else []
         products.append(product)
-    
+
     conn.close()
     return products
 
@@ -1395,7 +1503,7 @@ def list_admin_recent_orders(limit=20, unseen_only=False):
     placeholder = "%s" if is_mysql else "?"
     limit_value = max(1, min(int(limit or 20), 100))
 
-    where_clause = "WHERE COALESCE(o.admin_seen, 0) = 0" if unseen_only else ""
+    where_clause = "WHERE o.admin_seen = 0" if unseen_only else ""
     cursor.execute(
         f"""
         SELECT
@@ -1507,22 +1615,47 @@ def list_customer_order_events_for_orders(order_ids, limit_per_order=5):
     conn = get_db()
     cursor = conn.cursor()
     is_mysql = _use_mysql()
+    is_postgres = _is_postgres_backend()
     placeholder = "%s" if is_mysql else "?"
-    placeholders = ", ".join([placeholder] * len(normalized_ids))
-    cursor.execute(
-        f"""
-        SELECT id, order_id, event_type, event_detail, payload, created_at
-        FROM customer_order_events
-        WHERE order_id IN ({placeholders})
-        ORDER BY created_at DESC
-        """,
-        tuple(normalized_ids),
-    )
+    per_order_cap = max(1, min(int(limit_per_order or 5), 25))
+
+    if is_postgres:
+        cursor.execute(
+            f"""
+            SELECT id, order_id, event_type, event_detail, payload, created_at
+            FROM (
+                SELECT
+                    id,
+                    order_id,
+                    event_type,
+                    event_detail,
+                    payload,
+                    created_at,
+                    ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY created_at DESC) AS rn
+                FROM customer_order_events
+                WHERE order_id = ANY({placeholder})
+            ) ranked
+            WHERE rn <= {placeholder}
+            ORDER BY order_id, created_at DESC
+            """,
+            (normalized_ids, per_order_cap),
+        )
+    else:
+        placeholders = ", ".join([placeholder] * len(normalized_ids))
+        cursor.execute(
+            f"""
+            SELECT id, order_id, event_type, event_detail, payload, created_at
+            FROM customer_order_events
+            WHERE order_id IN ({placeholders})
+            ORDER BY created_at DESC
+            """,
+            tuple(normalized_ids),
+        )
+
     rows = cursor.fetchall()
     conn.close()
 
     grouped = {order_id: [] for order_id in normalized_ids}
-    per_order_cap = max(1, min(int(limit_per_order or 5), 25))
     for row in rows:
         payload = dict(row)
         order_id = payload.get("order_id")

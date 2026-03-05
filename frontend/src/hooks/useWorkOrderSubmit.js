@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import api from '../services/api';
-import html2canvas from 'html2canvas';
+
+let html2canvasLoader;
+
+async function getHtml2Canvas() {
+  if (!html2canvasLoader) {
+    html2canvasLoader = import('html2canvas').then((module) => module.default || module);
+  }
+  return html2canvasLoader;
+}
 
 export default function useWorkOrderSubmit({ filledRegions, totalRegions, canvasRef }) {
   const [loading, setLoading] = useState(false);
@@ -13,6 +21,7 @@ export default function useWorkOrderSubmit({ filledRegions, totalRegions, canvas
   async function generatePreview() {
     if (!canvasRef.current) return null;
     const canvas = canvasRef.current;
+    const html2canvas = await getHtml2Canvas();
     const preview = await html2canvas(canvas, { backgroundColor: '#fff' });
     return preview.toDataURL('image/png');
   }

@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import api, { approveWorkOrder } from '../services/api';
 import styles from './MyWorkOrders.module.css';
 
+const WORK_ORDERS_CACHE_KEY = 'sgcg_my_work_orders_cache_v1';
+const WORK_ORDERS_CACHE_TTL_MS = 60 * 1000;
+
 const toOrdersArray = (payload) => {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.work_orders)) return payload.work_orders;
@@ -124,11 +127,14 @@ export default function MyWorkOrders() {
 
   useEffect(() => {
     async function fetchOrders() {
-      setLoading(true);
+      const hasCached = orders.length > 0;
+      setLoading(!hasCached);
       setError(null);
       try {
         const res = await api.get('/work-orders');
-        setOrders(toOrdersArray(res));
+        const nextOrders = toOrdersArray(res);
+        setOrders(nextOrders);
+        sessionStorage.setItem(WORK_ORDERS_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), orders: nextOrders }));
       } catch (err) {
         console.error('[MyWorkOrders] Failed to load work orders:', err);
         const status = err?.response?.status;
@@ -141,7 +147,23 @@ export default function MyWorkOrders() {
         setLoading(false);
       }
     }
+
+    try {
+      const cachedRaw = sessionStorage.getItem(WORK_ORDERS_CACHE_KEY);
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw);
+        const age = Date.now() - Number(cached?.timestamp || 0);
+        if (Array.isArray(cached?.orders) && age >= 0 && age <= WORK_ORDERS_CACHE_TTL_MS) {
+          setOrders(cached.orders);
+          setLoading(false);
+        }
+      }
+    } catch {
+      // ignore cache parse issues
+    }
+
     fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleApprove = async (orderId, e) => {

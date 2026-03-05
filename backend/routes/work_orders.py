@@ -116,7 +116,17 @@ def submit_work_order_route():
 def list_user_work_orders():
     user_id = g.user_id
     orders = WorkOrder.query.filter_by(user_id=user_id).order_by(WorkOrder.created_at.desc()).all()
-    return jsonify({'work_orders': [o.to_dict(include_project_data=True) for o in orders]}), 200
+    return jsonify({
+        'work_orders': [
+            o.to_dict(
+                include_project_data=True,
+                project_preview_only=True,
+                include_template_data=False,
+                include_revision_summary=False,
+            )
+            for o in orders
+        ]
+    }), 200
 
 @work_orders_bp.route('/api/work-orders/<int:order_id>', methods=['GET'])
 @login_required
@@ -245,7 +255,18 @@ def approve_work_order(order_id):
 @admin_required
 def admin_list_work_orders():
     orders = WorkOrder.query.order_by(WorkOrder.created_at.desc()).all()
-    return jsonify({'work_orders': [o.to_dict(include_admin_notes=True, include_project_data=True) for o in orders]}), 200
+    return jsonify({
+        'work_orders': [
+            o.to_dict(
+                include_admin_notes=True,
+                include_project_data=True,
+                project_preview_only=True,
+                include_template_data=False,
+                include_revision_summary=False,
+            )
+            for o in orders
+        ]
+    }), 200
 
 @admin_work_orders_bp.route('/api/admin/work-orders/<int:order_id>/status', methods=['PUT'])
 @admin_required
