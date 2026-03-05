@@ -16,7 +16,9 @@ import {
   fetchCustomerOrders,
   fetchCustomerOrderItems,
   fetchCustomerReviews,
+  fetchCustomerReviewOptions,
   createCustomerReview,
+  updateCustomerReview,
 } from '../../services/api'
 import { findWishlistEntry } from '../../utils/wishlist'
 
@@ -44,6 +46,7 @@ export default function CustomerPortal({ manualProducts }) {
   const [orders, setOrders] = useState([])
   const [orderItems, setOrderItems] = useState({})
   const [reviews, setReviews] = useState([])
+  const [reviewOptions, setReviewOptions] = useState([])
   const [status, setStatus] = useState('')
   const [settingsTab, setSettingsTab] = useState('profile')
   const [profileForm, setProfileForm] = useState({
@@ -67,8 +70,8 @@ export default function CustomerPortal({ manualProducts }) {
     confirm_password: '',
   })
   const [reviewForm, setReviewForm] = useState({
-    product_type: 'manual',
-    product_id: '',
+    review_id: null,
+    review_key: '',
     rating: 5,
     title: '',
     body: '',
@@ -90,7 +93,7 @@ export default function CustomerPortal({ manualProducts }) {
     let isActive = true
     const loadData = async () => {
       try {
-        const [profileData, addressData, favoriteData, cartData, orderData, reviewData] =
+        const [profileData, addressData, favoriteData, cartData, orderData, reviewData, reviewOptionData] =
           await Promise.all([
             fetchCustomerProfile(),
             fetchCustomerAddresses(),
@@ -98,6 +101,7 @@ export default function CustomerPortal({ manualProducts }) {
             fetchCustomerCart(),
             fetchCustomerOrders(),
             fetchCustomerReviews(),
+            fetchCustomerReviewOptions(),
           ])
 
         if (!isActive) return
@@ -126,6 +130,14 @@ export default function CustomerPortal({ manualProducts }) {
         setCartItems(Array.isArray(cartData) ? cartData : [])
         setOrders(Array.isArray(orderData) ? orderData : [])
         setReviews(Array.isArray(reviewData) ? reviewData : [])
+        const normalizedReviewOptions = Array.isArray(reviewOptionData) ? reviewOptionData : []
+        setReviewOptions(normalizedReviewOptions)
+        setReviewForm((prev) => ({
+          ...prev,
+          review_key: prev.review_key || (normalizedReviewOptions[0]
+            ? `${normalizedReviewOptions[0].product_type}:${normalizedReviewOptions[0].product_id}`
+            : ''),
+        }))
 
         const ordersArr = Array.isArray(orderData) ? orderData : []
         const itemsByOrder = {}
@@ -288,30 +300,87 @@ export default function CustomerPortal({ manualProducts }) {
   const handleSubmitReview = async (event) => {
     event.preventDefault()
     setStatus('')
+
     try {
-      const payload = {
-        ...reviewForm,
-        rating: Number(reviewForm.rating),
+      if (reviewForm.review_id) {
+        const updatePayload = {
+          rating: Number(reviewForm.rating),
+          title: reviewForm.title,
+          body: reviewForm.body,
+        }
+        await updateCustomerReview(reviewForm.review_id, updatePayload)
+        setReviews((prev) => prev.map((entry) => (
+          entry.id === reviewForm.review_id
+            ? { ...entry, ...updatePayload, status: 'pending' }
+            : entry
+        )))
+        setStatus('Review updated. It is pending approval.')
+      } else {
+        const selectedOption = reviewOptions.find(
+          (entry) => `${entry.product_type}:${entry.product_id}` === reviewForm.review_key,
+        )
+        if (!selectedOption) {
+          setStatus('Select a purchased item to review.')
+          return
+        }
+
+        const payload = {
+          product_type: selectedOption.product_type,
+          product_id: String(selectedOption.product_id),
+          rating: Number(reviewForm.rating),
+          title: reviewForm.title,
+          body: reviewForm.body,
+        }
+        const response = await createCustomerReview(payload)
+        setReviews((prev) => [
+          {
+            id: response.id,
+            ...payload,
+            status: 'pending',
+          },
+          ...prev,
+        ])
+        setStatus('Review submitted.')
       }
-      const response = await createCustomerReview(payload)
-      setReviews((prev) => [
-        {
-          id: response.id,
-          ...payload,
-          status: 'pending',
-        },
-        ...prev,
-      ])
+
       setReviewForm({
-        product_type: 'manual',
-        product_id: '',
+        review_id: null,
+        review_key: reviewForm.review_key,
         rating: 5,
         title: '',
         body: '',
       })
     } catch (error) {
-      setStatus(error.message || 'Unable to submit review.')
+      setStatus(error?.response?.data?.error || error.message || 'Unable to submit review.')
     }
+  }
+
+  const handleStartEditReview = (review) => {
+    setReviewForm({
+      review_id: review.id,
+      review_key: `${review.product_type}:${review.product_id}`,
+      rating: Number(review.rating) || 5,
+      title: review.title || '',
+      body: review.body || '',
+    })
+    setStatus('Editing review. Save to apply changes.')
+  }
+
+  const handleCancelEditReview = () => {
+    setReviewForm((prev) => ({
+      review_id: null,
+      review_key: prev.review_key,
+      rating: 5,
+      title: '',
+      body: '',
+    }))
+    setStatus('')
+  }
+
+  const renderReviewOptionLabel = (item) => {
+    const fallbackLabel = renderProductLabel(item?.product_type, item?.product_id)
+    const title = String(item?.title || '').trim()
+    return title || fallbackLabel || `${item?.product_type || 'product'} #${item?.product_id || ''}`
   }
 
   const renderProductLabel = (productType, productId) => {
@@ -319,7 +388,7 @@ export default function CustomerPortal({ manualProducts }) {
       const product = manualProductMap.get(String(productId))
       return product ? product.name : `Manual product #${productId}`
     }
-    // return `Etsy item ${productId}`
+    return `Etsy item #${productId}`
   }
 
   const handleViewWishlistItem = (item) => {
@@ -500,23 +569,26 @@ export default function CustomerPortal({ manualProducts }) {
             <h3>Submit a review</h3>
             <form className="portal-form" onSubmit={handleSubmitReview}>
               <select
-                value={reviewForm.product_type}
+                value={reviewForm.review_key}
                 onChange={(event) =>
-                  setReviewForm((prev) => ({ ...prev, product_type: event.target.value }))
+                  setReviewForm((prev) => ({ ...prev, review_key: event.target.value }))
                 }
-              >
-                <option value="manual">Manual products</option>
-                {/* <option value="etsy">Etsy items</option> */}
-              </select>
-              <input
-                type="text"
-                placeholder="Product ID"
-                value={reviewForm.product_id}
-                onChange={(event) =>
-                  setReviewForm((prev) => ({ ...prev, product_id: event.target.value }))
-                }
+                disabled={Boolean(reviewForm.review_id)}
                 required
-              />
+              >
+                {reviewOptions.length === 0 ? (
+                  <option value="">No purchased items available</option>
+                ) : (
+                  reviewOptions.map((item) => (
+                    <option
+                      key={`${item.product_type}:${item.product_id}`}
+                      value={`${item.product_type}:${item.product_id}`}
+                    >
+                      {renderReviewOptionLabel(item)}
+                    </option>
+                  ))
+                )}
+              </select>
               <input
                 type="number"
                 min="1"
@@ -543,7 +615,12 @@ export default function CustomerPortal({ manualProducts }) {
                 }
                 required
               />
-              <button type="submit">Submit review</button>
+              <button type="submit">{reviewForm.review_id ? 'Save changes' : 'Submit review'}</button>
+              {reviewForm.review_id ? (
+                <button type="button" className="secondary" onClick={handleCancelEditReview}>
+                  Cancel edit
+                </button>
+              ) : null}
             </form>
             <p className="portal-muted">
               Reviews are available for verified buyers only. If you do not have an order on file,
@@ -562,6 +639,12 @@ export default function CustomerPortal({ manualProducts }) {
                     <span className="portal-muted">Rating: {review.rating}/5</span>
                     <span className="portal-muted">Status: {review.status}</span>
                     {review.title && <span>{review.title}</span>}
+                    {review.body && <span>{review.body}</span>}
+                    <div className="portal-actions">
+                      <button className="secondary" type="button" onClick={() => handleStartEditReview(review)}>
+                        Edit
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

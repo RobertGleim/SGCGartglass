@@ -4,6 +4,7 @@ import ProductCard from '../../components/product/ProductCard';
 import SearchBar from '../../components/common/SearchBar';
 import '../../styles/ProductPage.css';
 import useAuth from '../../hooks/useAuth';
+import { fetchRecentReviews } from '../../services/api';
 
 const normalizeText = (value) => {
   if (Array.isArray(value)) {
@@ -98,6 +99,7 @@ const inferLegacyType = (product) => {
 }
 
 export default function ProductPage({ products }) {
+  const PRODUCTS_PER_PAGE = 12
   // eslint-disable-next-line no-unused-vars
   const { authToken } = useAuth();
   const [search, setSearch] = useState('')
@@ -107,6 +109,43 @@ export default function ProductPage({ products }) {
   const [activeTab, setActiveTab] = useState('stained-glass-panels')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [recentReviews, setRecentReviews] = useState([])
+  const [activeReviewIndex, setActiveReviewIndex] = useState(0)
+  const [reviewAnimationKey, setReviewAnimationKey] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1)
+
+  useEffect(() => {
+    let isActive = true
+    fetchRecentReviews({ limit: 10 })
+      .then((response) => {
+        if (!isActive) return
+        setRecentReviews(Array.isArray(response) ? response : [])
+      })
+      .catch(() => {
+        if (!isActive) return
+        setRecentReviews([])
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (recentReviews.length <= 1) {
+      setActiveReviewIndex(0)
+      return
+    }
+
+    const intervalId = window.setInterval(() => {
+      setActiveReviewIndex((prev) => (prev + 1) % recentReviews.length)
+      setReviewAnimationKey((prev) => prev + 1)
+    }, 5200)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [recentReviews.length])
 
   const sectionProducts = useMemo(() => {
     return products.filter((product) => {
@@ -201,12 +240,31 @@ export default function ProductPage({ products }) {
 
   const isSectionComingSoon = sectionProducts.length === 0
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const paginatedProducts = useMemo(() => {
+    const start = (safeCurrentPage - 1) * PRODUCTS_PER_PAGE
+    return filtered.slice(start, start + PRODUCTS_PER_PAGE)
+  }, [filtered, safeCurrentPage])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, selectedCategory, priceFilter, sortBy, activeTab])
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
   useEffect(() => {
     if (selectedCategory !== 'All') {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedCategory('All')
     }
   }, [activeTab, selectedCategory])
+
+  const activeReview = recentReviews[activeReviewIndex] || null
 
   return (
     <div className="product-page-wrapper">
@@ -313,13 +371,66 @@ export default function ProductPage({ products }) {
                 <div className="empty-state">No products found.</div>
               )
             ) : (
-              filtered.map((product) => (
+              paginatedProducts.map((product) => (
                 <ProductCard product={product} key={product.id} />
               ))
             )}
           </div>
+          {filtered.length > PRODUCTS_PER_PAGE && (
+            <div className="product-pagination" aria-label="Product pages">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={safeCurrentPage === 1}
+              >
+                Previous
+              </button>
+              <span>Page {safeCurrentPage} of {totalPages}</span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={safeCurrentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          )}
         </main>
       </div>
+
+      <section className="product-page-reviews" aria-label="Recent customer reviews">
+        
+        {recentReviews.length === 0 ? (
+          <p className="product-page-reviews-empty">No reviews yet.</p>
+        ) : (
+          <div className="product-page-review-stage">
+            {activeReview ? (
+              <article
+                key={`${activeReview.id}-${reviewAnimationKey}`}
+                className="product-page-review-card product-page-review-card-animated"
+              >
+                {activeReview.product_image_url ? (
+                  <div className="product-page-review-image-shell">
+                    <img
+                      src={activeReview.product_image_url}
+                      alt={activeReview.product_title || activeReview.title || 'Reviewed product'}
+                      className="product-page-review-image"
+                    />
+                  </div>
+                ) : null}
+                <div className="product-page-review-content">
+                  <p className="product-page-review-rating">{Number(activeReview.rating || 0)}/5</p>
+                  <p className="product-page-review-title">{activeReview.title || 'Customer review'}</p>
+                  <p className="product-page-review-body">{activeReview.body || ''}</p>
+                  <p className="product-page-review-meta">
+                    {(activeReview.first_name || '').trim()} {(activeReview.last_name || '').trim()}
+                  </p>
+                </div>
+              </article>
+            ) : null}
+          </div>
+        )}
+      </section>
     </div>
   )
 }

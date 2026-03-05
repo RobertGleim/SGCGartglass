@@ -18,6 +18,7 @@ import {
 
 const ProductPage = lazy(() => import('./pages/shop/ProductPage'))
 const ProductDetail = lazy(() => import('./pages/shop/ProductDetail'))
+const ReviewsPage = lazy(() => import('./pages/shop/ReviewsPage'))
 const CheckoutPage = lazy(() => import('./pages/shop/CheckoutPage'))
 const UnifiedLogin = lazy(() => import('./pages/auth/UnifiedLogin'))
 const CustomerResetPassword = lazy(() => import('./pages/auth/CustomerResetPassword'))
@@ -161,6 +162,10 @@ function App() {
 
         {route.path === '/product' && !route.params?.id && (
           <ProductPage products={allProducts} />
+        )}
+
+        {route.path === '/reviews' && (
+          <ReviewsPage />
         )}
 
         {route.path === '/product' && route.params?.id && (

@@ -38,6 +38,9 @@ const getRoute = () => {
   if (parts[0] === 'checkout') {
     return { path: '/checkout', params: {} }
   }
+  if (parts[0] === 'reviews') {
+    return { path: '/reviews', params: {} }
+  }
   if (parts[0] === 'diagnostics') {
     return { path: '/diagnostics', params: {} }
   }

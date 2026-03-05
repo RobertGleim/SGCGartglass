@@ -42,7 +42,14 @@ export const fetchCustomerOrderItems = (orderId) => api.get(`/customer/orders/${
 export const fetchAdminRecentOrders = (params = {}) => api.get('/admin/orders/recent', { params });
 export const markAdminOrderSeen = (orderId) => api.put(`/admin/orders/${orderId}/seen`);
 export const fetchCustomerReviews = () => api.get('/customer/reviews');
+export const fetchCustomerReviewOptions = () => api.get('/customer/review-options');
 export const createCustomerReview = (review) => api.post('/customer/reviews', review);
+export const updateCustomerReview = (reviewId, payload) => api.put(`/customer/reviews/${reviewId}`, payload);
+export const fetchProductReviews = (params) => api.get('/reviews', { params });
+export const fetchRecentReviews = (params = {}) => api.get('/reviews/recent', { params });
+export const fetchAdminReviews = (params = {}) => api.get('/admin/reviews', { params });
+export const updateAdminReview = (reviewId, payload) => api.put(`/admin/reviews/${reviewId}`, payload);
+export const deleteAdminReview = (reviewId) => api.delete(`/admin/reviews/${reviewId}`);
 const extractAuthToken = (payload) => {
   if (!payload) return '';
   if (typeof payload === 'string') return payload;
@@ -91,9 +98,21 @@ import { getAuthToken, isValidToken, cleanupCorruptedTokens } from '../utils/aut
 // Clean up any corrupted tokens on module load
 cleanupCorruptedTokens();
 
-const configuredBaseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+const configuredBaseURL = String(import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const isLocalDevHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-const baseURL = isLocalDevHost ? '/api' : configuredBaseURL;
+const normalizeBaseURL = (value) => {
+  if (!value || value === '/') return '/api';
+  if (/^https?:\/\//i.test(value)) {
+    const withoutTrailingSlash = value.replace(/\/+$/, '');
+    return /\/api$/i.test(withoutTrailingSlash)
+      ? withoutTrailingSlash
+      : `${withoutTrailingSlash}/api`;
+  }
+  const normalized = `/${value.replace(/^\/+|\/+$/g, '')}`;
+  return normalized.startsWith('/api') ? normalized : '/api';
+};
+
+const baseURL = isLocalDevHost ? '/api' : normalizeBaseURL(configuredBaseURL);
 const api = axios.create({
   baseURL,
   withCredentials: false,
@@ -186,6 +205,27 @@ api.interceptors.response.use(
       console.error('[API] Request URL:', error.config?.url);
       console.error('[API] Request method:', error.config?.method);
       console.error('[API] Status:', error.response?.status);
+
+      const requestUrl = String(originalConfig.url || '');
+      const originalBaseURL = String(originalConfig.baseURL || '');
+      const shouldRetryWithApiPrefix =
+        error.response?.status === 404
+        && requestUrl.startsWith('/')
+        && !requestUrl.startsWith('/api/')
+        && !requestUrl.startsWith('/api')
+        && !originalConfig.__apiPrefixRetry
+        && !originalBaseURL.includes('/api');
+
+      if (shouldRetryWithApiPrefix) {
+        const retryConfig = {
+          ...originalConfig,
+          baseURL: '',
+          url: `/api${requestUrl}`,
+          __apiPrefixRetry: true,
+        };
+        console.warn('[API] Retrying once with /api prefix:', retryConfig.url);
+        return api.request(retryConfig);
+      }
     }
     
     // Don't log 401s for auth endpoints (expected during unified login flow)

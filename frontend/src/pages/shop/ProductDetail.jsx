@@ -6,9 +6,19 @@ import {
   addCustomerFavorite,
   fetchCustomerFavorites,
   fetchManualProduct,
+  fetchProductReviews,
   removeCustomerFavorite,
 } from '../../services/api'
 import { findWishlistEntry, resolveWishlistTarget } from '../../utils/wishlist'
+
+const formatReviewDate = (value) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Number(rating) || 0)))
 
 export default function ProductDetail({ product }) {
   const [selectedImage, setSelectedImage] = useState(0)
@@ -17,6 +27,7 @@ export default function ProductDetail({ product }) {
   const [wishlistStatus, setWishlistStatus] = useState('')
   const [manualProductDetails, setManualProductDetails] = useState(null)
   const [favorites, setFavorites] = useState([])
+  const [productReviews, setProductReviews] = useState([])
   const { customerToken } = useCustomerAuth()
 
   const wishlistTarget = useMemo(() => resolveWishlistTarget(product), [product])
@@ -81,6 +92,69 @@ export default function ProductDetail({ product }) {
       isActive = false
     }
   }, [customerToken])
+
+  useEffect(() => {
+    const resolvedProductType = product?.isManual ? 'manual' : 'etsy'
+    const resolvedProductId = product?.isManual
+      ? String(product?.originalData?.id || '').trim()
+      : String(product?.id || '').trim()
+
+    let isActive = true
+    if (!resolvedProductId) {
+      setProductReviews([])
+      return () => {
+        isActive = false
+      }
+    }
+
+    fetchProductReviews({ product_type: resolvedProductType, product_id: resolvedProductId })
+      .then((response) => {
+        if (!isActive) return
+        setProductReviews(Array.isArray(response) ? response : [])
+      })
+      .catch(() => {
+        if (!isActive) return
+        setProductReviews([])
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [product])
+
+  const itemReviewSummary = useMemo(() => {
+    const total = productReviews.length
+    if (total === 0) {
+      return {
+        total: 0,
+        average: 0,
+        breakdown: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      }
+    }
+    const breakdown = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    let sum = 0
+    productReviews.forEach((review) => {
+      const rating = Math.max(1, Math.min(5, Number(review.rating) || 0))
+      const bucket = Math.round(rating)
+      breakdown[bucket] += 1
+      sum += rating
+    })
+    return {
+      total,
+      average: sum / total,
+      breakdown,
+    }
+  }, [productReviews])
+
+  const itemReviewPhotos = useMemo(() => {
+    const uniqueByUrl = new Map()
+    productReviews.forEach((review) => {
+      const imageUrl = String(review.product_image_url || '').trim()
+      if (!imageUrl || uniqueByUrl.has(imageUrl)) return
+      uniqueByUrl.set(imageUrl, review)
+    })
+    return Array.from(uniqueByUrl.values()).slice(0, 10)
+  }, [productReviews])
   
   // Get images from originalData (for manual products) or use image_url
   const images = useMemo(() => {
@@ -371,6 +445,79 @@ export default function ProductDetail({ product }) {
 
       {/* Related Products Section */}
       <div className="related-section">
+        <h2>Reviews for this item ({itemReviewSummary.total})</h2>
+        {itemReviewSummary.total === 0 ? (
+          <p className="related-placeholder">No reviews for this item yet.</p>
+        ) : (
+          <>
+            <section className="detail-review-summary-card">
+              <div className="detail-review-summary-average-wrap">
+                <p className="detail-review-summary-average">{itemReviewSummary.average.toFixed(1)}/5</p>
+                <p className="detail-review-summary-count">item average</p>
+              </div>
+              <div className="detail-review-summary-breakdown">
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const count = itemReviewSummary.breakdown[star]
+                  const percentage = itemReviewSummary.total > 0
+                    ? Math.round((count / itemReviewSummary.total) * 100)
+                    : 0
+                  return (
+                    <div key={star} className="detail-review-breakdown-row">
+                      <span>{star} star</span>
+                      <div className="detail-review-breakdown-bar">
+                        <span style={{ width: `${percentage}%` }} />
+                      </div>
+                      <span>{percentage}%</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+
+            <div className="detail-review-list">
+              {productReviews.map((review) => (
+                <article key={review.id} className="detail-review-list-card">
+                  <div className="detail-review-list-head">
+                    <p className="detail-review-stars">{renderStars(review.rating)} <span>{Number(review.rating || 0)}/5</span></p>
+                    {(Number(review.rating) || 0) >= 4 ? <p className="detail-review-recommends">✓ Recommends</p> : null}
+                  </div>
+                  <div className="detail-review-list-meta">
+                    <strong>{(review.first_name || '').trim()} {(review.last_name || '').trim()}</strong>
+                    {review.created_at ? <span>{formatReviewDate(review.created_at)}</span> : null}
+                  </div>
+                  <div className="detail-review-list-body-row">
+                    <div>
+                      <p className="detail-review-title">{review.title || 'Customer review'}</p>
+                      <p className="detail-review-body">{review.body || ''}</p>
+                    </div>
+                    {review.product_image_url ? (
+                      <img
+                        src={review.product_image_url}
+                        alt={review.product_title || review.title || 'Reviewed item'}
+                        className="detail-review-inline-image"
+                      />
+                    ) : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {itemReviewPhotos.length > 0 ? (
+              <section className="detail-review-photos-section">
+                <h3>Photos from reviews</h3>
+                <div className="detail-review-photos-strip">
+                  {itemReviewPhotos.map((review) => (
+                    <img
+                      key={`${review.id}-${review.product_image_url}`}
+                      src={review.product_image_url}
+                      alt={review.product_title || 'Review photo'}
+                    />
+                  ))}
+                </div>
+              </section>
+            ) : null}
+          </>
+        )}
         <h2>More from this shop</h2>
         <p className="related-placeholder">Related products will appear here</p>
       </div>

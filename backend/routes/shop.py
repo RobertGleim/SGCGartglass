@@ -61,9 +61,15 @@ from ..db import (
     append_customer_order_event,
     list_customer_order_events,
     has_verified_purchase,
+    list_customer_review_options,
     list_reviews_for_product,
+    list_recent_reviews,
     list_customer_reviews,
     create_customer_review,
+    update_customer_review,
+    list_admin_reviews,
+    update_admin_review,
+    delete_admin_review,
     update_customer_admin,
     delete_customer_admin,
 )
@@ -1084,6 +1090,14 @@ def customer_reviews():
     return jsonify(list_customer_reviews(customer_id))
 
 
+@api.get("/customer/review-options")
+@require_customer
+def customer_review_options():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    return jsonify(list_customer_review_options(customer_id))
+
+
 @api.get("/reviews")
 def product_reviews():
     init_db()
@@ -1094,17 +1108,35 @@ def product_reviews():
     return jsonify(list_reviews_for_product(product_type, str(product_id)))
 
 
+@api.get("/reviews/recent")
+def recent_reviews():
+    init_db()
+    limit = request.args.get("limit", 10)
+    return jsonify(list_recent_reviews(limit=limit))
+
+
 @api.post("/customer/reviews")
 @require_customer
 def customer_create_review():
     init_db()
     customer_id = g.auth_payload.get("customer_id")
     payload = request.get_json(silent=True) or {}
-    product_type = payload.get("product_type")
-    product_id = payload.get("product_id")
+    product_type = str(payload.get("product_type") or "").strip().lower()
+    product_id = str(payload.get("product_id") or "").strip()
     rating = payload.get("rating")
     if not product_type or not product_id or not rating:
         return jsonify({"error": "missing_fields"}), 400
+
+    try:
+        numeric_rating = int(rating)
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid_rating"}), 400
+    if numeric_rating < 1 or numeric_rating > 5:
+        return jsonify({"error": "invalid_rating"}), 400
+
+    payload["product_type"] = product_type
+    payload["product_id"] = product_id
+    payload["rating"] = numeric_rating
 
     verified = has_verified_purchase(customer_id, product_type, str(product_id))
     if not verified:
@@ -1112,6 +1144,87 @@ def customer_create_review():
 
     review_id = create_customer_review(customer_id, payload, verified)
     return jsonify({"id": review_id}), 201
+
+
+@api.put("/customer/reviews/<int:review_id>")
+@require_customer
+def customer_update_review(review_id):
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    payload = request.get_json(silent=True) or {}
+
+    normalized = {}
+    if "rating" in payload:
+      try:
+          rating = int(payload.get("rating"))
+      except (TypeError, ValueError):
+          return jsonify({"error": "invalid_rating"}), 400
+      if rating < 1 or rating > 5:
+          return jsonify({"error": "invalid_rating"}), 400
+      normalized["rating"] = rating
+
+    if "title" in payload:
+        normalized["title"] = payload.get("title")
+    if "body" in payload:
+        normalized["body"] = payload.get("body")
+
+    if not normalized:
+        return jsonify({"error": "missing_fields"}), 400
+
+    updated = update_customer_review(customer_id, review_id, normalized)
+    if not updated:
+        return jsonify({"error": "not_found_or_forbidden"}), 404
+    return jsonify({"success": True, "status": "pending"}), 200
+
+
+@api.get("/admin/reviews")
+@require_auth
+def admin_reviews():
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    limit = request.args.get("limit", 200)
+    status = request.args.get("status")
+    return jsonify(list_admin_reviews(limit=limit, status=status))
+
+
+@api.put("/admin/reviews/<int:review_id>")
+@require_auth
+def admin_update_review(review_id):
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    allowed_statuses = {"approved", "pending", "hidden", "rejected"}
+    if "status" in payload and str(payload.get("status") or "").strip().lower() not in allowed_statuses:
+        return jsonify({"error": "invalid_status"}), 400
+    if "rating" in payload:
+        try:
+            rating = int(payload.get("rating"))
+        except (TypeError, ValueError):
+            return jsonify({"error": "invalid_rating"}), 400
+        if rating < 1 or rating > 5:
+            return jsonify({"error": "invalid_rating"}), 400
+
+    updated = update_admin_review(review_id, payload)
+    if not updated:
+        return jsonify({"error": "not_found_or_no_changes"}), 404
+    return jsonify({"success": True}), 200
+
+
+@api.delete("/admin/reviews/<int:review_id>")
+@require_auth
+def admin_delete_review(review_id):
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    deleted = delete_admin_review(review_id)
+    if not deleted:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify({"success": True}), 200
 
 
 @api.get("/items")

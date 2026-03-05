@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from "react";
 // import AddEtsyListingForm from "../../components/forms/AddEtsyListingForm";
 import {
   createAdminTemplate,
+  deleteAdminReview,
   deleteCustomer,
   fetchAdminRecentOrders,
+  fetchAdminReviews,
   fetchCustomers,
   getCustomerDetails,
   publishManualProductToFacebook,
@@ -11,6 +13,7 @@ import {
   markAdminOrderSeen,
   sendTemplateToCustomerWorkOrder,
   uploadAdminTemplateImage,
+  updateAdminReview,
   updateCustomer,
 } from "../../services/api.js";
 import TemplateManagement from "./TemplateManagement";
@@ -140,6 +143,9 @@ export default function AdminDashboard({
   const [recentOrders, setRecentOrders] = useState([]);
   const [unseenOrderCount, setUnseenOrderCount] = useState(0);
   const [expandedOrderTimelines, setExpandedOrderTimelines] = useState({});
+  const [adminReviews, setAdminReviews] = useState([]);
+  const [adminReviewStatusFilter, setAdminReviewStatusFilter] = useState("all");
+  const [adminReviewStatus, setAdminReviewStatus] = useState("");
 
   useEffect(() => {
     if (activeTab === "customers") {
@@ -148,6 +154,17 @@ export default function AdminDashboard({
         .catch(() => setCustomers([]));
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== "reviews") return;
+
+    fetchAdminReviews({
+      limit: 300,
+      ...(adminReviewStatusFilter !== "all" ? { status: adminReviewStatusFilter } : {}),
+    })
+      .then((res) => setAdminReviews(Array.isArray(res) ? res : []))
+      .catch(() => setAdminReviews([]));
+  }, [activeTab, adminReviewStatusFilter]);
 
   useEffect(() => {
     let active = true;
@@ -209,6 +226,40 @@ export default function AdminDashboard({
       ...prev,
       [orderId]: !prev[orderId],
     }));
+  };
+
+  const handleAdminReviewFieldChange = (reviewId, field, value) => {
+    setAdminReviews((prev) => prev.map((entry) => (
+      entry.id === reviewId
+        ? { ...entry, [field]: value }
+        : entry
+    )));
+  };
+
+  const handleSaveAdminReview = async (review) => {
+    setAdminReviewStatus("");
+    try {
+      await updateAdminReview(review.id, {
+        rating: Number(review.rating),
+        title: review.title || "",
+        body: review.body || "",
+        status: review.status || "pending",
+      });
+      setAdminReviewStatus("Review updated.");
+    } catch (error) {
+      setAdminReviewStatus(error?.response?.data?.error || error?.message || "Failed to update review.");
+    }
+  };
+
+  const handleDeleteAdminReview = async (reviewId) => {
+    setAdminReviewStatus("");
+    try {
+      await deleteAdminReview(reviewId);
+      setAdminReviews((prev) => prev.filter((entry) => entry.id !== reviewId));
+      setAdminReviewStatus("Review deleted.");
+    } catch (error) {
+      setAdminReviewStatus(error?.response?.data?.error || error?.message || "Failed to delete review.");
+    }
   };
   // eslint-disable-next-line no-unused-vars
   const [status, setStatus] = useState("");
@@ -1124,6 +1175,12 @@ export default function AdminDashboard({
         >
           Photo Gallery
         </button>
+        <button
+          className={`tab ${activeTab === "reviews" ? "active" : ""}`}
+          onClick={() => setActiveTab("reviews")}
+        >
+          Reviews
+        </button>
         {/*
         <button
           className={`tab ${activeTab === 'etsy' ? 'active' : ''}`}
@@ -1452,6 +1509,96 @@ export default function AdminDashboard({
                         ) : (
                           <span className="form-note" style={{ margin: 0 }}>Seen</span>
                         )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "reviews" && (
+          <div className="tab-panel">
+            <div className="panel-section">
+              <h3>Review Management</h3>
+              <div style={{ display: "flex", gap: "0.65rem", alignItems: "center", marginBottom: "0.85rem" }}>
+                <label htmlFor="review-status-filter">Status</label>
+                <select
+                  id="review-status-filter"
+                  value={adminReviewStatusFilter}
+                  onChange={(event) => setAdminReviewStatusFilter(event.target.value)}
+                >
+                  <option value="all">All</option>
+                  <option value="approved">Show on review page</option>
+                  <option value="hidden">Hidden</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+              {adminReviewStatus ? <p className="form-note">{adminReviewStatus}</p> : null}
+              {adminReviews.length === 0 ? (
+                <p className="form-note">No reviews found.</p>
+              ) : (
+                <div className="product-list">
+                  {adminReviews.map((review) => (
+                    <div key={review.id} className="product-row" style={{ alignItems: "flex-start" }}>
+                      <div className="product-details" style={{ width: "100%" }}>
+                        <h4>
+                          {(review.first_name || "").trim()} {(review.last_name || "").trim()} · {review.product_type} #{review.product_id}
+                        </h4>
+                        <div style={{ display: "grid", gap: "0.55rem", marginTop: "0.5rem" }}>
+                          <label>
+                            Rating
+                            <input
+                              type="number"
+                              min="1"
+                              max="5"
+                              value={review.rating || 5}
+                              onChange={(event) => handleAdminReviewFieldChange(review.id, "rating", event.target.value)}
+                            />
+                          </label>
+                          <label>
+                            Title
+                            <input
+                              type="text"
+                              value={review.title || ""}
+                              onChange={(event) => handleAdminReviewFieldChange(review.id, "title", event.target.value)}
+                            />
+                          </label>
+                          <label>
+                            Body
+                            <textarea
+                              value={review.body || ""}
+                              onChange={(event) => handleAdminReviewFieldChange(review.id, "body", event.target.value)}
+                              rows={3}
+                            />
+                          </label>
+                          <label>
+                            Visibility
+                            <select
+                              value={review.status || "pending"}
+                              onChange={(event) => handleAdminReviewFieldChange(review.id, "status", event.target.value)}
+                            >
+                              <option value="approved">Show on review page</option>
+                              <option value="hidden">Hidden</option>
+                              <option value="pending">Pending</option>
+                              <option value="rejected">Rejected</option>
+                            </select>
+                          </label>
+                        </div>
+                      </div>
+                      <div className="product-actions" style={{ minWidth: "170px", alignItems: "stretch" }}>
+                        <button type="button" className="button" onClick={() => handleSaveAdminReview(review)}>
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          className="button"
+                          onClick={() => handleDeleteAdminReview(review.id)}
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
                   ))}

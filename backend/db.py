@@ -1740,6 +1740,32 @@ def has_verified_purchase(customer_id, product_type, product_id):
     return bool(row)
 
 
+def list_customer_review_options(customer_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"""
+        SELECT
+            oi.product_type,
+            oi.product_id,
+            MAX(o.created_at) AS last_purchased_at,
+            MAX(COALESCE(oi.title, '')) AS title,
+            MAX(COALESCE(oi.image_url, '')) AS image_url
+        FROM customer_order_items oi
+        JOIN customer_orders o ON o.id = oi.order_id
+        WHERE o.customer_id = {placeholder}
+        GROUP BY oi.product_type, oi.product_id
+        ORDER BY last_purchased_at DESC
+        """,
+        (customer_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
 def list_reviews_for_product(product_type, product_id):
     conn = get_db()
     cursor = conn.cursor()
@@ -1747,7 +1773,26 @@ def list_reviews_for_product(product_type, product_id):
     placeholder = "%s" if is_mysql else "?"
     cursor.execute(
         f"""
-        SELECT r.*, c.first_name, c.last_name
+                SELECT
+                        r.*, c.first_name, c.last_name,
+                        (
+                                SELECT COALESCE(oi.image_url, '')
+                                FROM customer_order_items oi
+                                WHERE oi.product_type = r.product_type
+                                    AND oi.product_id = r.product_id
+                                    AND COALESCE(oi.image_url, '') <> ''
+                                ORDER BY oi.id DESC
+                                LIMIT 1
+                        ) AS product_image_url,
+                        (
+                                SELECT COALESCE(oi.title, '')
+                                FROM customer_order_items oi
+                                WHERE oi.product_type = r.product_type
+                                    AND oi.product_id = r.product_id
+                                    AND COALESCE(oi.title, '') <> ''
+                                ORDER BY oi.id DESC
+                                LIMIT 1
+                        ) AS product_title
         FROM customer_reviews r
         JOIN customers c ON c.id = r.customer_id
         WHERE r.product_type = {placeholder}
@@ -1756,6 +1801,47 @@ def list_reviews_for_product(product_type, product_id):
         ORDER BY r.created_at DESC
         """,
         (product_type, product_id),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def list_recent_reviews(limit=10):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    safe_limit = max(1, min(int(limit or 10), 50))
+    cursor.execute(
+        f"""
+                SELECT
+                        r.*, c.first_name, c.last_name,
+                        (
+                                SELECT COALESCE(oi.image_url, '')
+                                FROM customer_order_items oi
+                                WHERE oi.product_type = r.product_type
+                                    AND oi.product_id = r.product_id
+                                    AND COALESCE(oi.image_url, '') <> ''
+                                ORDER BY oi.id DESC
+                                LIMIT 1
+                        ) AS product_image_url,
+                        (
+                                SELECT COALESCE(oi.title, '')
+                                FROM customer_order_items oi
+                                WHERE oi.product_type = r.product_type
+                                    AND oi.product_id = r.product_id
+                                    AND COALESCE(oi.title, '') <> ''
+                                ORDER BY oi.id DESC
+                                LIMIT 1
+                        ) AS product_title
+        FROM customer_reviews r
+        JOIN customers c ON c.id = r.customer_id
+        WHERE r.status = 'approved'
+        ORDER BY r.created_at DESC
+        LIMIT {placeholder}
+        """,
+        (safe_limit,),
     )
     rows = cursor.fetchall()
     conn.close()
@@ -1774,6 +1860,103 @@ def list_customer_reviews(customer_id):
     rows = cursor.fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+
+def list_admin_reviews(limit=200, status=None):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    safe_limit = max(1, min(int(limit or 200), 500))
+    status_filter = str(status or "").strip().lower()
+
+    if status_filter:
+        cursor.execute(
+            f"""
+            SELECT r.*, c.first_name, c.last_name
+            FROM customer_reviews r
+            JOIN customers c ON c.id = r.customer_id
+            WHERE r.status = {placeholder}
+            ORDER BY r.created_at DESC
+            LIMIT {placeholder}
+            """,
+            (status_filter, safe_limit),
+        )
+    else:
+        cursor.execute(
+            f"""
+            SELECT r.*, c.first_name, c.last_name
+            FROM customer_reviews r
+            JOIN customers c ON c.id = r.customer_id
+            ORDER BY r.created_at DESC
+            LIMIT {placeholder}
+            """,
+            (safe_limit,),
+        )
+
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def update_admin_review(review_id, payload):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    updates = []
+    values = []
+
+    if "rating" in payload:
+        updates.append(f"rating = {placeholder}")
+        values.append(int(payload.get("rating") or 0))
+    if "title" in payload:
+        updates.append(f"title = {placeholder}")
+        values.append(payload.get("title"))
+    if "body" in payload:
+        updates.append(f"body = {placeholder}")
+        values.append(payload.get("body"))
+    if "status" in payload:
+        updates.append(f"status = {placeholder}")
+        values.append(str(payload.get("status") or "").strip().lower())
+
+    if not updates:
+        conn.close()
+        return False
+
+    updates.append(f"updated_at = {placeholder}")
+    values.append(now)
+    values.append(review_id)
+
+    cursor.execute(
+        f"""
+        UPDATE customer_reviews
+        SET {", ".join(updates)}
+        WHERE id = {placeholder}
+        """,
+        tuple(values),
+    )
+    updated = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return updated
+
+
+def delete_admin_review(review_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"DELETE FROM customer_reviews WHERE id = {placeholder}",
+        (review_id,),
+    )
+    deleted = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted
 
 
 def create_customer_review(customer_id, payload, verified_purchase):
@@ -1823,3 +2006,47 @@ def create_customer_review(customer_id, payload, verified_purchase):
     conn.commit()
     conn.close()
     return review_id
+
+
+def update_customer_review(customer_id, review_id, payload):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    updates = []
+    values = []
+
+    if "rating" in payload:
+        updates.append(f"rating = {placeholder}")
+        values.append(int(payload.get("rating") or 0))
+    if "title" in payload:
+        updates.append(f"title = {placeholder}")
+        values.append(payload.get("title"))
+    if "body" in payload:
+        updates.append(f"body = {placeholder}")
+        values.append(payload.get("body"))
+
+    if not updates:
+        conn.close()
+        return False
+
+    updates.append(f"status = {placeholder}")
+    values.append("pending")
+    updates.append(f"updated_at = {placeholder}")
+    values.append(now)
+    values.extend([review_id, customer_id])
+
+    cursor.execute(
+        f"""
+        UPDATE customer_reviews
+        SET {", ".join(updates)}
+        WHERE id = {placeholder} AND customer_id = {placeholder}
+        """,
+        tuple(values),
+    )
+    updated = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return updated

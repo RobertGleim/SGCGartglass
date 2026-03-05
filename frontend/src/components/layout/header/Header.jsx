@@ -63,6 +63,7 @@ export default function Header({ brandName, authToken, customerToken }) {
       <nav className={`nav-links${menuOpen ? ' open' : ''}`}>
         <a href="#/" onClick={handleNavClick}>Home</a>
         <a href="#/product" onClick={handleNavClick}>Product</a>
+        <a href="#/reviews" onClick={handleNavClick}>Reviews</a>
         <a href="#/designer" onClick={handleNavClick}>Designer</a>
         <a href="#/gallery" onClick={handleNavClick}>Photo Gallery</a>
         {authToken ? (

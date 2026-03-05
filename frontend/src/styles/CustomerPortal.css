@@ -213,6 +213,18 @@
   background: #1a438c;
 }
 
+.portal-form button.secondary {
+  background: #ffffff;
+  color: #1f4ea1;
+  border: 1px solid #9baecc;
+}
+
+.portal-form button.secondary:hover {
+  background: #eef3fb;
+  color: #14366e;
+  border-color: #6f89b4;
+}
+
 .portal-subtabs {
   display: flex;
   flex-wrap: wrap;
