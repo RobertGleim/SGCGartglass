@@ -98,6 +98,7 @@ def _serialize_list(query, include_admin_fields=False):
 def list_gallery_photos():
     category = (request.args.get("category") or "").strip()
     template_id = request.args.get("template_id", type=int)
+    photo_id = request.args.get("photo_id", type=int)
 
     query = GalleryPhoto.query.filter(
         GalleryPhoto.is_hidden.is_(False),
@@ -107,6 +108,13 @@ def list_gallery_photos():
         query = query.filter(GalleryPhoto.category.ilike(category))
     if template_id:
         query = query.filter(GalleryPhoto.template_id == template_id)
+    if photo_id:
+        anchor = query.filter(GalleryPhoto.id == photo_id).first()
+        if anchor:
+            group_id = anchor.submission_group_id or str(anchor.id)
+            query = query.filter(GalleryPhoto.submission_group_id == group_id)
+        else:
+            query = query.filter(GalleryPhoto.id == photo_id)
 
     return jsonify(_serialize_list(query, include_admin_fields=False))
 

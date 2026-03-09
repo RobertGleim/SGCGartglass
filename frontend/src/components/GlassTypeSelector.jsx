@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import useGlassTypes from '../hooks/useGlassTypes';
+import LoadingMessage from './LoadingMessage';
 import styles from './GlassTypeSelector.module.css';
 
 export default function GlassTypeSelector({ onSelect }) {
@@ -85,7 +86,7 @@ export default function GlassTypeSelector({ onSelect }) {
           aria-label="Glass type dropdown"
         >
           {loading ? (
-            <div className={styles.loading}>Loading...</div>
+            <LoadingMessage label="Loading" className={styles.loading} />
           ) : (
             glassTypes.map((glassType) => (
               <div

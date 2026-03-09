@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
-import SpecificationsTable from '../../components/admin/SpecificationsTable';
+import SpecificationsTable from './components/SpecificationsTable';
+import LoadingMessage from '../../components/LoadingMessage';
 import styles from './WorkOrderDetail.module.css';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 
@@ -39,7 +40,7 @@ export default function WorkOrderDetail({ match }) {
     window.toast && window.toast('Notes updated', { type: 'success' });
   };
 
-  if (loading || !order) return <div>Loading...</div>;
+  if (loading || !order) return <LoadingMessage label="Loading" />;
 
   return (
     <div className={styles.page}>

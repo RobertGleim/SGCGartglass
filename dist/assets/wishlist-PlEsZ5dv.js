@@ -1,0 +1,1 @@
+const s=r=>{const i=!!r?.isManual,t=i?String(r?.originalData?.id||"").trim():String(r?.id||"").trim();return t?{product_type:i?"manual":"etsy",product_id:t}:null},n=(r,i)=>!r||!i?!1:String(r.product_type||"")===String(i.product_type||"")&&String(r.product_id||"")===String(i.product_id||""),d=(r,i)=>Array.isArray(r)?r.find(t=>n(t,i)):void 0;export{d as f,s as r};

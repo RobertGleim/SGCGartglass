@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import '../../styles/forms/woodwork_form.css'
+import '../../pages/admin/styles/forms/woodwork_form.css'
 
 export default function WoodworkForm({
   editingProduct,

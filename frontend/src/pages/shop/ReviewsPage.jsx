@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
+import LoadingMessage from '../../components/LoadingMessage'
 import { fetchRecentReviews } from '../../services/api'
-import '../../styles/ReviewsPage.css'
+import './ReviewsPage.css'
 
 const formatReviewDate = (value) => {
   if (!value) return ''
@@ -88,7 +89,7 @@ export default function ReviewsPage() {
        
 
         {loading ? (
-          <p className="reviews-page-empty">Loading reviews...</p>
+          <LoadingMessage label="Loading reviews" className="reviews-page-empty" />
         ) : normalizedReviews.length === 0 ? (
           <p className="reviews-page-empty">No reviews available yet.</p>
         ) : (

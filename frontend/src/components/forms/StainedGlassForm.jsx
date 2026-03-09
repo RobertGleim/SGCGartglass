@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import '../../styles/forms/stainedglass_form.css'
+import '../../pages/admin/styles/forms/stainedglass_form.css'
 
 export default function StainedGlassForm({
   editingProduct,

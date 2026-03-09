@@ -1,5 +1,6 @@
 import os
 import threading
+import json
 from datetime import datetime
 
 try:
@@ -33,6 +34,43 @@ def _is_postgres_backend():
 
 def _placeholder():
     return "%s" if _use_mysql() else "?"
+
+
+def _serialize_related_links(value):
+    if not isinstance(value, dict):
+        return None
+
+    payload = {}
+    allowed = {
+        "template_id",
+        "template_name",
+        "pattern_product_id",
+        "pattern_product_name",
+        "gallery_photo_id",
+        "gallery_panel_name",
+        "gallery_template_id",
+    }
+    for key in allowed:
+        raw = value.get(key)
+        if raw in (None, "", []):
+            continue
+        payload[key] = raw
+
+    if not payload:
+        return None
+    return json.dumps(payload)
+
+
+def _deserialize_related_links(value):
+    if not value:
+        return None
+    if isinstance(value, dict):
+        return value
+    try:
+        parsed = json.loads(value)
+        return parsed if isinstance(parsed, dict) else None
+    except Exception:
+        return None
 
 
 def list_all_customers():
@@ -114,6 +152,7 @@ def init_db(force=False):
             price REAL NOT NULL,
             quantity INTEGER NOT NULL,
             is_featured INTEGER DEFAULT 0,
+            related_links TEXT,
             created_at VARCHAR(50),
             updated_at VARCHAR(50)
         )
@@ -294,6 +333,7 @@ def init_db(force=False):
     conn.commit()
 
     if is_postgres:
+        cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS related_links TEXT")
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS subtotal_amount REAL")
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS shipping_amount REAL")
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS tax_amount REAL")
@@ -434,7 +474,6 @@ def fetch_item(item_id):
 
 
 def create_manual_product(payload):
-    import json
     conn = get_db()
     cursor = conn.cursor()
     now = datetime.utcnow().isoformat()
@@ -462,6 +501,7 @@ def create_manual_product(payload):
         payload["price"],
         payload["quantity"],
         1 if payload.get("is_featured") else 0,
+        _serialize_related_links(payload.get("related_links")),
         now,
         now,
     )
@@ -471,10 +511,11 @@ def create_manual_product(payload):
             INSERT INTO manual_products (
                 name, description, category, materials,
                 width, height, depth, price, quantity, is_featured,
+                related_links,
                 created_at, updated_at
             ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder},
                       {placeholder}, {placeholder}, {placeholder}, {placeholder},
-                      {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             RETURNING id
             """,
             insert_values,
@@ -486,10 +527,11 @@ def create_manual_product(payload):
             INSERT INTO manual_products (
                 name, description, category, materials,
                 width, height, depth, price, quantity, is_featured,
+                related_links,
                 created_at, updated_at
             ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder},
                       {placeholder}, {placeholder}, {placeholder}, {placeholder},
-                      {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             """,
             insert_values,
         )
@@ -512,7 +554,6 @@ def create_manual_product(payload):
 
 
 def fetch_manual_products():
-    import json
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute(
@@ -553,6 +594,7 @@ def fetch_manual_products():
                     pass
 
             product["images"] = []
+            product["related_links"] = _deserialize_related_links(product.get("related_links"))
             by_id[product_id] = product
             products.append(product)
 
@@ -570,7 +612,6 @@ def fetch_manual_products():
 
 
 def fetch_manual_products_catalog():
-    import json
     conn = get_db()
     cursor = conn.cursor()
 
@@ -588,6 +629,7 @@ def fetch_manual_products_catalog():
             p.price,
             p.quantity,
             p.is_featured,
+            p.related_links,
             p.created_at,
             p.updated_at,
             (
@@ -621,6 +663,7 @@ def fetch_manual_products_catalog():
 
         preview_image_url = product.pop("preview_image_url", None)
         product["images"] = [{"image_url": preview_image_url, "media_type": "image"}] if preview_image_url else []
+        product["related_links"] = _deserialize_related_links(product.get("related_links"))
         products.append(product)
 
     conn.close()
@@ -628,7 +671,6 @@ def fetch_manual_products_catalog():
 
 
 def fetch_manual_product(product_id):
-    import json
     conn = get_db()
     cursor = conn.cursor()
     is_mysql = _use_mysql()
@@ -665,13 +707,13 @@ def fetch_manual_product(product_id):
     )
     images = cursor.fetchall()
     product["images"] = [dict(img) for img in images]
+    product["related_links"] = _deserialize_related_links(product.get("related_links"))
     
     conn.close()
     return product
 
 
 def update_manual_product(product_id, payload):
-    import json
     conn = get_db()
     cursor = conn.cursor()
     now = datetime.utcnow().isoformat()
@@ -692,7 +734,7 @@ def update_manual_product(product_id, payload):
         UPDATE manual_products
         SET name = {placeholder}, description = {placeholder}, category = {placeholder}, materials = {placeholder},
             width = {placeholder}, height = {placeholder}, depth = {placeholder}, price = {placeholder}, quantity = {placeholder},
-            is_featured = {placeholder}, updated_at = {placeholder}
+            is_featured = {placeholder}, related_links = {placeholder}, updated_at = {placeholder}
         WHERE id = {placeholder}
         """,
         (
@@ -706,6 +748,7 @@ def update_manual_product(product_id, payload):
             payload["price"],
             payload["quantity"],
             1 if payload.get("is_featured") else 0,
+            _serialize_related_links(payload.get("related_links")),
             now,
             product_id,
         ),

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
-import TemplateFormModal from '../../components/admin/TemplateFormModal';
+import LoadingMessage from '../../components/LoadingMessage';
+import TemplateFormModal from './components/TemplateFormModal';
 import styles from './TemplateManagement.module.css';
 
 const PAGE_SIZE = 20;
@@ -104,7 +105,7 @@ export default function TemplateManagement() {
         <button className={styles.bulkBtn} onClick={() => handleBulk(true)}>Activate Selected</button>
         <button className={styles.bulkBtn} onClick={() => handleBulk(false)}>Deactivate Selected</button>
       </div>
-      {loading ? <div>Loading...</div> : (
+      {loading ? <LoadingMessage label="Loading" /> : (
         <table className={styles.table}>
           <thead>
             <tr>

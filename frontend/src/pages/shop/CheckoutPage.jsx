@@ -7,7 +7,8 @@ import {
   removeCustomerCartItem,
   updateCustomerCartItem,
 } from '../../services/api'
-import '../../styles/CheckoutPage.css'
+import LoadingMessage from '../../components/LoadingMessage'
+import './CheckoutPage.css'
 
 const EMPTY_ADDRESS = {
   line1: '',
@@ -197,7 +198,7 @@ export default function CheckoutPage() {
         {status && <div className={`checkout-status ${isSingleItemWarning ? 'warning' : ''}`.trim()}>{status}</div>}
 
         {loading ? (
-          <div className="checkout-card"><p>Loading checkout…</p></div>
+          <div className="checkout-card"><LoadingMessage label="Loading checkout" /></div>
         ) : (
           <div className="checkout-layout">
             <div className="checkout-left">

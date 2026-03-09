@@ -1,9 +1,8 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import './styles/App.css'
-import FeaturedCarousel from './components/product/FeaturedCarousel'
 import Footer from './components/layout/footer/Footer'
 import Header from './components/layout/header/Header'
-import HeroSection from './components/layout/hero/HeroSection'
+import LoadingMessage from './components/LoadingMessage'
 import useHashRoute from './hooks/useHashRoute'
 import useAuth from './hooks/useAuth'
 import useCustomerAuth from './hooks/useCustomerAuth'
@@ -15,6 +14,8 @@ import {
   fetchItems,
   fetchManualProducts
 } from './services/api'
+
+const HomePage = lazy(() => import('./pages/home/HomePage'))
 
 const ProductPage = lazy(() => import('./pages/shop/ProductPage'))
 const ProductDetail = lazy(() => import('./pages/shop/ProductDetail'))
@@ -146,18 +147,9 @@ function App() {
         route={route}
       />
 
-      <Suspense fallback={<main className="admin-page"><p style={{ padding: '1.5rem' }}>Loading…</p></main>}>
+      <Suspense fallback={<main className="admin-page"><div style={{ padding: '1.5rem' }}><LoadingMessage label="Loading" /></div></main>}>
         {route.path === '/' && (
-          <main>
-            <HeroSection />
-
-            <section className="featured" style={{ margin: '0 auto' }}>
-              <div className="section-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80px' }}>
-                <h2 style={{ margin: 0, textAlign: 'center' }}>Featured items</h2>
-              </div>
-              <FeaturedCarousel items={featuredItems} itemsLoading={itemsLoading} />
-            </section>
-          </main>
+          <HomePage featuredItems={featuredItems} itemsLoading={itemsLoading} />
         )}
 
         {route.path === '/product' && !route.params?.id && (

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import '../../styles/ProductDetail.css'
-import ProductCard from '../../components/product/ProductCard'
+import './ProductDetail.css'
+import ProductCard from './components/ProductCard'
 import useCustomerAuth from '../../hooks/useCustomerAuth'
 import {
   addCustomerCartItem,
@@ -257,6 +257,72 @@ export default function ProductDetail({ product, products = [] }) {
 
   const mainImage = images.length > 0 ? images[selectedImage]?.image_url || null : null
   const showThumbnails = images.length > 1
+  const currentManualProductId = useMemo(
+    () => String(product?.originalData?.id || '').trim(),
+    [product],
+  )
+
+  const relatedLinks = useMemo(() => {
+    const directSource = manualProductDetails?.related_links || product?.originalData?.related_links
+    if (directSource && typeof directSource === 'object') {
+      return directSource
+    }
+
+    if (!product?.isManual || !currentManualProductId) {
+      return null
+    }
+
+    const reverseLinkedProduct = (Array.isArray(products) ? products : []).find((entry) => {
+      if (!entry?.isManual) return false
+      const source = entry?.originalData?.related_links
+      if (!source || typeof source !== 'object') return false
+      return String(source.pattern_product_id || '').trim() === currentManualProductId
+    })
+
+    const reverseSource = reverseLinkedProduct?.originalData?.related_links
+    if (!reverseSource || typeof reverseSource !== 'object') {
+      return null
+    }
+
+    return {
+      ...reverseSource,
+      pattern_product_id: reverseSource.pattern_product_id || currentManualProductId,
+      pattern_product_name:
+        reverseSource.pattern_product_name
+        || product?.title
+        || product?.originalData?.name
+        || '',
+    }
+  }, [currentManualProductId, manualProductDetails, product, products])
+
+  const shouldShowPatternLink = useMemo(() => {
+    if (!relatedLinks?.pattern_product_id) return false
+    const patternId = String(relatedLinks.pattern_product_id).trim()
+    return !currentManualProductId || patternId !== currentManualProductId
+  }, [relatedLinks, currentManualProductId])
+
+  const relatedQuerySuffix = useMemo(() => {
+    if (!relatedLinks || typeof relatedLinks !== 'object') return ''
+    const params = new URLSearchParams()
+    if (relatedLinks.template_id) params.set('template', String(relatedLinks.template_id))
+    if (relatedLinks.pattern_product_id) params.set('pattern_product_id', String(relatedLinks.pattern_product_id))
+    if (relatedLinks.gallery_photo_id) params.set('gallery_photo_id', String(relatedLinks.gallery_photo_id))
+    if (relatedLinks.gallery_template_id) params.set('gallery_template_id', String(relatedLinks.gallery_template_id))
+    const query = params.toString()
+    return query ? `&${query}` : ''
+  }, [relatedLinks])
+
+  const galleryHref = useMemo(() => {
+    if (!relatedLinks?.gallery_photo_id) return ''
+    const params = new URLSearchParams()
+    params.set('photo_id', String(relatedLinks.gallery_photo_id))
+    const templateId = relatedLinks.gallery_template_id || relatedLinks.template_id
+    if (templateId) params.set('template_id', String(templateId))
+    if (relatedLinks.pattern_product_id) params.set('pattern_product_id', String(relatedLinks.pattern_product_id))
+    if (relatedLinks.template_id) params.set('template', String(relatedLinks.template_id))
+    const query = params.toString()
+    return query ? `#/gallery?${query}` : '#/gallery'
+  }, [relatedLinks])
 
   useEffect(() => {
     if (images.length === 0) {
@@ -495,6 +561,35 @@ export default function ProductDetail({ product, products = [] }) {
               )}
             </ul>
           </div>
+
+          {!!relatedLinks && (
+            <div className="related-links-section">
+              <h3>Design Resources</h3>
+              <ul>
+                {relatedLinks.template_id && (
+                  <li>
+                    <a href={`#/designer?template=${relatedLinks.template_id}${relatedQuerySuffix}`}>
+                      View linked template{relatedLinks.template_name ? `: ${relatedLinks.template_name}` : ''}
+                    </a>
+                  </li>
+                )}
+                {shouldShowPatternLink && (
+                  <li>
+                    <a href={`#/product/m-${relatedLinks.pattern_product_id}${relatedQuerySuffix ? `?${relatedQuerySuffix.slice(1)}` : ''}`}>
+                      View related pattern{relatedLinks.pattern_product_name ? `: ${relatedLinks.pattern_product_name}` : ''}
+                    </a>
+                  </li>
+                )}
+                {relatedLinks.gallery_photo_id && (
+                  <li>
+                    <a href={galleryHref || '#/gallery'}>
+                      View photo gallery example{relatedLinks.gallery_panel_name ? `: ${relatedLinks.gallery_panel_name}` : ''}
+                    </a>
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
 
           {/* Quantity & Add to Cart */}
           <div className="purchase-section">

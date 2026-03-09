@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { getTemplate, updateAdminWorkOrderDesign } from '../../services/api';
-import ColoredDesignPreview from '../../components/admin/ColoredDesignPreview';
+import LoadingMessage from '../../components/LoadingMessage';
+import ColoredDesignPreview from './components/ColoredDesignPreview';
 import styles from './WorkOrderDashboard.module.css';
 
 const STATUS_OPTIONS = ['pending', 'review', 'revision_requested', 'revision_submitted', 'quote', 'approved', 'production', 'completed', 'cancelled'];
@@ -243,7 +244,7 @@ export default function WorkOrderDashboard() {
         </select>
         <button onClick={fetchOrders} disabled={loading}>Refresh</button>
       </div>
-      {loading ? <div>Loading...</div> : (
+      {loading ? <LoadingMessage label="Loading" /> : (
         <table className={styles.table}>
           <thead>
             <tr>

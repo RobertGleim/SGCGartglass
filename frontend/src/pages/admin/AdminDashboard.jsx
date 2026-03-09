@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 // import AddEtsyListingForm from "../../components/forms/AddEtsyListingForm";
 import {
   createAdminTemplate,
@@ -6,6 +6,7 @@ import {
   deleteCustomer,
   fetchAdminRecentOrders,
   fetchAdminReviews,
+  getAdminGalleryPhotos,
   fetchCustomers,
   getCustomerDetails,
   publishManualProductToFacebook,
@@ -20,9 +21,9 @@ import TemplateManagement from "./TemplateManagement";
 import GlassTypeManagement from "./GlassTypeManagement";
 import WorkOrderDashboard from "./WorkOrderDashboard";
 import GalleryManagement from "./GalleryManagement";
-import "../../styles/AdminDashboard.css";
-import "../../styles/forms/stainedglass_form.css";
-import "../../styles/forms/woodwork_form.css";
+import "./styles/AdminDashboard.css";
+import "./styles/forms/stainedglass_form.css";
+import "./styles/forms/woodwork_form.css";
 
 const toSearchableText = (value) => {
   if (Array.isArray(value)) {
@@ -62,6 +63,31 @@ const canUseTemplateForCustomer = (template, customerId) => {
 
 const FACEBOOK_POSTED_STORAGE_KEY = "adminFbPostedManualProducts";
 const STAR_SCALE = [1, 2, 3, 4, 5];
+
+const createDefaultRelatedLinks = () => ({
+  template_id: "",
+  template_name: "",
+  pattern_product_id: "",
+  pattern_product_name: "",
+  gallery_photo_id: "",
+  gallery_panel_name: "",
+  gallery_template_id: "",
+});
+
+const createEmptyManualProduct = () => ({
+  name: "",
+  images: [],
+  description: "",
+  category: [],
+  materials: [],
+  width: "",
+  height: "",
+  depth: "",
+  price: "",
+  quantity: "",
+  is_featured: false,
+  related_links: createDefaultRelatedLinks(),
+});
 
 export default function AdminDashboard({
   items = [],
@@ -141,6 +167,8 @@ export default function AdminDashboard({
   const [sendTemplateStatus, setSendTemplateStatus] = useState("");
   const [isSendingTemplate, setIsSendingTemplate] = useState(false);
   const [adminTemplateOptions, setAdminTemplateOptions] = useState([]);
+  const [productTemplateOptions, setProductTemplateOptions] = useState([]);
+  const [productGalleryOptions, setProductGalleryOptions] = useState([]);
   const [recentOrders, setRecentOrders] = useState([]);
   const [unseenOrderCount, setUnseenOrderCount] = useState(0);
   const [expandedOrderTimelines, setExpandedOrderTimelines] = useState({});
@@ -344,19 +372,7 @@ export default function AdminDashboard({
       stainedGlassPanels: legacyMaterials,
     };
   });
-  const [manualProduct, setManualProduct] = useState({
-    name: "",
-    images: [],
-    description: "",
-    category: [],
-    materials: [],
-    width: "",
-    height: "",
-    depth: "",
-    price: "",
-    quantity: "",
-    is_featured: false,
-  });
+  const [manualProduct, setManualProduct] = useState(createEmptyManualProduct());
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
   const categoryDropdownRef = useRef(null);
@@ -460,6 +476,92 @@ export default function AdminDashboard({
     return "stainedGlassPanels";
   };
 
+  const patternProductOptions = useMemo(() => {
+    const inferred = manualProducts
+      .filter((entry) => inferProductType(entry) === "patterns")
+      .map((entry) => ({
+        id: entry.id,
+        name: (entry.name || `Pattern #${entry.id}`).trim(),
+      }))
+      .filter((entry) => entry.id);
+
+    const source = inferred.length > 0
+      ? inferred
+      : manualProducts
+        .map((entry) => ({
+          id: entry.id,
+          name: (entry.name || `Product #${entry.id}`).trim(),
+        }))
+        .filter((entry) => entry.id);
+
+    const seen = new Set();
+    return source.filter((entry) => {
+      const key = String(entry.id);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [manualProducts]);
+
+  const loadManualProductLinkOptions = async () => {
+    try {
+      const [templatesResponse, galleryResponse] = await Promise.all([
+        getTemplates(),
+        getAdminGalleryPhotos(),
+      ]);
+
+      const rawTemplateItems = Array.isArray(templatesResponse?.items)
+        ? templatesResponse.items
+        : Array.isArray(templatesResponse)
+          ? templatesResponse
+          : [];
+      const seenTemplateIds = new Set();
+      const templateItems = rawTemplateItems
+        .filter((entry) => entry?.id)
+        .map((entry) => ({
+          id: entry.id,
+          name: String(entry.name || `Template #${entry.id}`).trim(),
+        }))
+        .filter((entry) => {
+          const key = String(entry.id);
+          if (seenTemplateIds.has(key)) return false;
+          seenTemplateIds.add(key);
+          return true;
+        });
+      setProductTemplateOptions(templateItems);
+
+      const rawGalleryItems = Array.isArray(galleryResponse?.items)
+        ? galleryResponse.items
+        : Array.isArray(galleryResponse)
+          ? galleryResponse
+          : [];
+      const seenGalleryIds = new Set();
+      const galleryItems = rawGalleryItems
+        .filter((entry) => entry?.id)
+        .map((entry) => ({
+          id: entry.id,
+          panel_name: String(entry.panel_name || `Photo #${entry.id}`).trim(),
+          template_id: entry.template_id || null,
+        }))
+        .filter((entry) => {
+          const key = String(entry.id);
+          if (seenGalleryIds.has(key)) return false;
+          seenGalleryIds.add(key);
+          return true;
+        });
+      setProductGalleryOptions(galleryItems);
+    } catch (error) {
+      console.error("Failed to load product link options:", error);
+      setProductTemplateOptions([]);
+      setProductGalleryOptions([]);
+    }
+  };
+
+  useEffect(() => {
+    if (!showManualProductModal) return;
+    loadManualProductLinkOptions();
+  }, [showManualProductModal]);
+
   const normalizeTypeFromCategory = (value) => {
     const normalized = String(value || "")
       .toLowerCase()
@@ -486,6 +588,9 @@ export default function AdminDashboard({
     manualProduct.category
       .map((entry) => normalizeTypeFromCategory(entry))
       .find(Boolean) || productType;
+  const templateOptionCount = productTemplateOptions.length;
+  const patternOptionCount = patternProductOptions.length;
+  const galleryOptionCount = productGalleryOptions.length;
 
   const closeFavoriteDropdowns = () => {
     setShowCategoryDropdown(false);
@@ -696,6 +801,23 @@ export default function AdminDashboard({
         price: parseFloat(manualProduct.price),
         quantity: parseInt(manualProduct.quantity, 10),
         is_featured: manualProduct.is_featured,
+        related_links: {
+          template_id: manualProduct.related_links?.template_id
+            ? Number(manualProduct.related_links.template_id)
+            : null,
+          template_name: manualProduct.related_links?.template_name || null,
+          pattern_product_id: manualProduct.related_links?.pattern_product_id
+            ? Number(manualProduct.related_links.pattern_product_id)
+            : null,
+          pattern_product_name: manualProduct.related_links?.pattern_product_name || null,
+          gallery_photo_id: manualProduct.related_links?.gallery_photo_id
+            ? Number(manualProduct.related_links.gallery_photo_id)
+            : null,
+          gallery_panel_name: manualProduct.related_links?.gallery_panel_name || null,
+          gallery_template_id: manualProduct.related_links?.gallery_template_id
+            ? Number(manualProduct.related_links.gallery_template_id)
+            : null,
+        },
         images: processedImages,
       };
 
@@ -710,19 +832,7 @@ export default function AdminDashboard({
       // Close modal and reset state
       setShowManualProductModal(false);
       setEditingProduct(null);
-      setManualProduct({
-        name: "",
-        images: [],
-        description: "",
-        category: [],
-        materials: [],
-        width: "",
-        height: "",
-        depth: "",
-        price: "",
-        quantity: "",
-        is_featured: false,
-      });
+      setManualProduct(createEmptyManualProduct());
       setImagePreviews([]);
       setEnableWatermark(true); // Always reset to true after submission
       setWatermarkText("SGCG ART GLASS"); // Reset to default text
@@ -739,7 +849,7 @@ export default function AdminDashboard({
     }
   };
 
-  const handleEditProduct = (product) => {
+  const handleEditProduct = async (product) => {
     const inferredType = inferProductType(product);
     const existingCategories = Array.isArray(product.category)
       ? product.category
@@ -752,6 +862,7 @@ export default function AdminDashboard({
       ...removeTypeCategories(existingCategories),
     ];
 
+    await loadManualProductLinkOptions();
     setProductType(inferredType);
     setEditingProduct(product);
     const existingImages = (product.images || []).map((img, idx) => ({
@@ -761,6 +872,11 @@ export default function AdminDashboard({
       isExisting: true,
     }));
     setImagePreviews(existingImages);
+    const existingRelatedLinks =
+      product?.related_links && typeof product.related_links === "object"
+        ? product.related_links
+        : createDefaultRelatedLinks();
+
     setManualProduct({
       name: product.name || "",
       images: product.images || [],
@@ -777,6 +893,14 @@ export default function AdminDashboard({
       price: product.price?.toString() || "",
       quantity: product.quantity?.toString() || "",
       is_featured: product.is_featured === 1 || product.is_featured === true,
+      related_links: {
+        ...createDefaultRelatedLinks(),
+        ...existingRelatedLinks,
+        template_id: existingRelatedLinks?.template_id ? String(existingRelatedLinks.template_id) : "",
+        pattern_product_id: existingRelatedLinks?.pattern_product_id ? String(existingRelatedLinks.pattern_product_id) : "",
+        gallery_photo_id: existingRelatedLinks?.gallery_photo_id ? String(existingRelatedLinks.gallery_photo_id) : "",
+        gallery_template_id: existingRelatedLinks?.gallery_template_id ? String(existingRelatedLinks.gallery_template_id) : "",
+      },
     });
     setCategoryInput("");
     setMaterialInput("");
@@ -893,19 +1017,7 @@ export default function AdminDashboard({
   const handleCloseModal = () => {
     setShowManualProductModal(false);
     setEditingProduct(null);
-    setManualProduct({
-      name: "",
-      images: [],
-      description: "",
-      category: [],
-      materials: [],
-      width: "",
-      height: "",
-      depth: "",
-      price: "",
-      quantity: "",
-      is_featured: false,
-    });
+    setManualProduct(createEmptyManualProduct());
     setCategoryInput("");
     setMaterialInput("");
     setImagePreviews([]);
@@ -1249,7 +1361,18 @@ export default function AdminDashboard({
                     type="button"
                     onClick={() => {
                       setProductType(typeEntry.key);
-                      setPrimaryTypeCategory(typeEntry.key);
+                      setManualProduct((prev) => ({
+                        ...createEmptyManualProduct(),
+                        category: [
+                          PRODUCT_TYPE_LABEL_BY_KEY[typeEntry.key]
+                          || PRODUCT_TYPE_LABEL_BY_KEY.stainedGlassPanels,
+                        ],
+                      }));
+                      setCategoryInput("");
+                      setMaterialInput("");
+                      setImagePreviews([]);
+                      setEditingProduct(null);
+                      loadManualProductLinkOptions();
                       setShowManualProductModal(true);
                     }}
                   >
@@ -2301,6 +2424,103 @@ export default function AdminDashboard({
                   />
                   <span>Feature this product on the home page</span>
                 </label>
+
+                <div className="product-linking-section">
+                  <h4>Related Customer Links</h4>
+                  <p className="form-note">
+                    Link this product to a template, pattern, or gallery entry so customers can jump straight to inspiration.
+                  </p>
+
+                  <label>
+                    {`Linked Template (${templateOptionCount})`}
+                    <select
+                      value={manualProduct.related_links?.template_id || ""}
+                      onChange={(e) => {
+                        const nextId = e.target.value;
+                        const selectedTemplate = productTemplateOptions.find(
+                          (entry) => String(entry.id) === String(nextId),
+                        );
+                        setManualProduct({
+                          ...manualProduct,
+                          related_links: {
+                            ...createDefaultRelatedLinks(),
+                            ...manualProduct.related_links,
+                            template_id: nextId,
+                            template_name: selectedTemplate?.name || "",
+                          },
+                        });
+                      }}
+                    >
+                      <option value="">None</option>
+                      {productTemplateOptions.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label>
+                    {`Linked Pattern Product (${patternOptionCount})`}
+                    <select
+                      value={manualProduct.related_links?.pattern_product_id || ""}
+                      onChange={(e) => {
+                        const nextId = e.target.value;
+                        const selectedPattern = patternProductOptions.find(
+                          (entry) => String(entry.id) === String(nextId),
+                        );
+                        setManualProduct({
+                          ...manualProduct,
+                          related_links: {
+                            ...createDefaultRelatedLinks(),
+                            ...manualProduct.related_links,
+                            pattern_product_id: nextId,
+                            pattern_product_name: selectedPattern?.name || "",
+                          },
+                        });
+                      }}
+                    >
+                      <option value="">None</option>
+                      {patternProductOptions.map((pattern) => (
+                        <option key={pattern.id} value={pattern.id}>
+                          {pattern.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label>
+                    {`Linked Photo Gallery Entry (${galleryOptionCount})`}
+                    <select
+                      value={manualProduct.related_links?.gallery_photo_id || ""}
+                      onChange={(e) => {
+                        const nextId = e.target.value;
+                        const selectedPhoto = productGalleryOptions.find(
+                          (entry) => String(entry.id) === String(nextId),
+                        );
+                        setManualProduct({
+                          ...manualProduct,
+                          related_links: {
+                            ...createDefaultRelatedLinks(),
+                            ...manualProduct.related_links,
+                            gallery_photo_id: nextId,
+                            gallery_panel_name: selectedPhoto?.panel_name || "",
+                            gallery_template_id: selectedPhoto?.template_id
+                              ? String(selectedPhoto.template_id)
+                              : "",
+                          },
+                        });
+                      }}
+                    >
+                      <option value="">None</option>
+                      {productGalleryOptions.map((photo) => (
+                        <option key={photo.id} value={photo.id}>
+                          {photo.panel_name || `Photo #${photo.id}`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
 
                 <div className="modal-actions">
                   <button

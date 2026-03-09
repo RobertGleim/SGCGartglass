@@ -1,1 +1,1 @@
-export { default } from './MyWorkOrders';
+export { default } from './my-work-orders/MyWorkOrders';

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
-import GlassTypeFormModal from '../../components/admin/GlassTypeFormModal';
+import LoadingMessage from '../../components/LoadingMessage';
+import GlassTypeFormModal from './components/GlassTypeFormModal';
 import styles from './GlassTypeManagement.module.css';
 
 export default function GlassTypeManagement() {
@@ -72,7 +73,7 @@ export default function GlassTypeManagement() {
       <h1>Glass Type Management</h1>
       <p className={styles.helpText}>Use ↑ and ↓ to set display order. Top items appear first in Designer mode.</p>
       <button className={styles.addBtn} onClick={() => { setEditType(null); setShowModal(true); }}>Add New Glass Type</button>
-      {loading ? <div>Loading...</div> : (
+      {loading ? <LoadingMessage label="Loading" /> : (
         <table className={styles.table}>
           <thead>
             <tr>

@@ -6,6 +6,7 @@ import {
   submitGalleryPhoto,
   updateAdminGalleryPhoto,
 } from '../../services/api';
+import LoadingMessage from '../../components/LoadingMessage';
 import styles from './GalleryManagement.module.css';
 
 const ADMIN_DEFAULT_DISPLAY_NAME = 'SGCG Art';
@@ -410,7 +411,7 @@ export default function GalleryManagement() {
           </button>
         </div>
         {loading ? (
-          <p>Loading photos…</p>
+          <LoadingMessage label="Loading photos" />
         ) : sortedGroups.length === 0 ? (
           <p>No gallery photos yet.</p>
         ) : (
