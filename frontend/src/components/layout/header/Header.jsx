@@ -16,6 +16,11 @@ export default function Header({ brandName, authToken, customerToken }) {
     setMenuOpen(false)
   }
 
+  const handleOpenBarginBasement = () => {
+    window.sessionStorage.setItem('sgcg_shop_tab', 'bargin-basement')
+    handleNavClick()
+  }
+
   useEffect(() => {
     let active = true
 
@@ -71,6 +76,7 @@ export default function Header({ brandName, authToken, customerToken }) {
         ) : customerToken ? (
           <>
             <a href="#/my-projects" onClick={handleNavClick}>My Projects</a>
+            <a href="#/product" onClick={handleOpenBarginBasement} className="nav-bargin-basement">Bargin Basement</a>
             <a
               href="#/checkout"
               onClick={handleNavClick}

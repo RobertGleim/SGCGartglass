@@ -63,6 +63,7 @@ const toAlphaBucket = (value) => {
 
 const normalizeTypeKeyFromCategory = (value) => CATEGORY_TYPE_ALIASES[normalizeCategoryValue(value)] || null
 const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Math.round(Number(rating) || 0))))
+const isOnSale = (product) => Number(product?.old_price || 0) > Number(product?.price_amount || 0)
 
 const isTypeCategory = (value) => Boolean(normalizeTypeKeyFromCategory(value))
 
@@ -213,6 +214,10 @@ export default function ProductPage({ products }) {
   }, [recentReviews.length])
 
   const sectionProducts = useMemo(() => {
+    if (activeTab === 'bargin-basement') {
+      return products.filter((product) => isOnSale(product))
+    }
+
     return products.filter((product) => {
       const categories = toCategoryArray(product.category)
       const normalizedTypes = categories
@@ -228,12 +233,23 @@ export default function ProductPage({ products }) {
     })
   }, [products, activeTab])
 
-  const sectionLabel = PRODUCT_TABS.find((tab) => tab.key === activeTab)?.label || 'Products'
+  const sectionLabel = activeTab === 'bargin-basement'
+    ? 'Bargin Basement'
+    : PRODUCT_TABS.find((tab) => tab.key === activeTab)?.label || 'Products'
+
+  useEffect(() => {
+    const requestedTab = window.sessionStorage.getItem('sgcg_shop_tab')
+    if (requestedTab === 'bargin-basement') {
+      setActiveTab('bargin-basement')
+      setSelectedCategory('All')
+      window.sessionStorage.removeItem('sgcg_shop_tab')
+    }
+  }, [])
 
   const categoryCounts = useMemo(() => {
     const counts = { 
       All: sectionProducts.length,
-      'On sale': sectionProducts.filter(p => p.old_price && p.old_price > p.price_amount).length
+      'On sale': sectionProducts.filter((p) => isOnSale(p)).length
     }
     sectionProducts.forEach((product) => {
       const categories = removeTypeCategories(toCategoryArray(product.category))
@@ -256,7 +272,7 @@ export default function ProductPage({ products }) {
       if (selectedCategory === 'All') {
         matchesCategory = true
       } else if (selectedCategory === 'On sale') {
-        matchesCategory = product.old_price && product.old_price > product.price_amount
+        matchesCategory = isOnSale(product)
       } else {
         const categories = removeTypeCategories(toCategoryArray(product.category))
         matchesCategory = categories.includes(selectedCategory)

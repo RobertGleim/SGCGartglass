@@ -121,6 +121,38 @@
   color: #1f4ea1;
 }
 
+.nav-bargin-basement {
+  position: relative;
+  color: #000 !important;
+  font-weight: 700;
+  text-transform: none !important;
+  letter-spacing: 0.02em !important;
+  padding: 0.15rem 0.25rem !important;
+  isolation: isolate;
+}
+
+.nav-bargin-basement::before {
+  content: '';
+  position: absolute;
+  inset: -0.22rem -0.55rem;
+  z-index: -1;
+  background: radial-gradient(circle at center, #ffe57a 0%, #ffcb4f 58%, #ff9241 100%);
+  clip-path: polygon(
+    50% 0%, 58% 16%, 74% 6%, 68% 23%,
+    88% 19%, 76% 35%, 100% 40%, 79% 50%,
+    100% 60%, 76% 65%, 88% 81%, 68% 77%,
+    74% 94%, 58% 84%, 50% 100%, 42% 84%,
+    26% 94%, 32% 77%, 12% 81%, 24% 65%,
+    0% 60%, 21% 50%, 0% 40%, 24% 35%,
+    12% 19%, 32% 23%, 26% 6%, 42% 16%
+  );
+  opacity: 0.86;
+}
+
+.nav-bargin-basement:hover {
+  color: #000 !important;
+}
+
 /* Small phones (375px+) */
 @media (min-width: 375px) {
   .logo-block img {
