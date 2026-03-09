@@ -8,6 +8,89 @@ const toArrayResponse = (res) => {
   return [];
 };
 
+const PUBLIC_CACHE_PREFIX = 'sgcg_public_get_cache_v2';
+const DEFAULT_PUBLIC_CACHE_TTL_MS = 5 * 60 * 1000;
+
+const isEffectivelyEmpty = (value) => {
+  if (value == null) return true;
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === 'object') {
+    if (Array.isArray(value.items)) return value.items.length === 0;
+    if (Array.isArray(value.data)) return value.data.length === 0;
+    if (Array.isArray(value.results)) return value.results.length === 0;
+    if (Array.isArray(value.products)) return value.products.length === 0;
+  }
+  return false;
+};
+
+const stableSerialize = (value) => {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableSerialize(entry)).join(',')}]`;
+  }
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value)
+      .filter(([, entry]) => entry !== undefined)
+      .sort(([a], [b]) => a.localeCompare(b));
+    return `{${entries.map(([key, entry]) => `${key}:${stableSerialize(entry)}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+};
+
+const buildPublicCacheKey = (path, params) => `${PUBLIC_CACHE_PREFIX}:${path}:${stableSerialize(params || {})}`;
+
+const readPublicCache = (key) => {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (typeof parsed.expiresAt !== 'number') return null;
+    if (!('data' in parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+const writePublicCache = (key, data, ttlMs) => {
+  try {
+    const expiresAt = Date.now() + Math.max(1000, Number(ttlMs) || DEFAULT_PUBLIC_CACHE_TTL_MS);
+    window.localStorage.setItem(key, JSON.stringify({ data, expiresAt }));
+  } catch {
+    // Ignore cache write failures and continue with network data.
+  }
+};
+
+const fetchWithPublicCache = async ({
+  path,
+  params,
+  ttlMs = DEFAULT_PUBLIC_CACHE_TTL_MS,
+  forceFresh = false,
+  preferNetworkWhenEmpty = false,
+  fetcher,
+}) => {
+  const cacheKey = buildPublicCacheKey(path, params);
+  const cached = readPublicCache(cacheKey);
+  const now = Date.now();
+
+  const shouldBypassFreshCache = preferNetworkWhenEmpty && isEffectivelyEmpty(cached?.data);
+  if (!forceFresh && cached && cached.expiresAt > now && !shouldBypassFreshCache) {
+    return cached.data;
+  }
+
+  try {
+    const fresh = await fetcher();
+    writePublicCache(cacheKey, fresh, ttlMs);
+    return fresh;
+  } catch (error) {
+    // If network fails, fall back to stale cache to keep pages usable.
+    if (cached && 'data' in cached) {
+      return cached.data;
+    }
+    throw error;
+  }
+};
+
 export const fetchCustomers = async () => toArrayResponse(await api.get('/customers'));
 export const updateCustomer = (id, payload) => api.put(`/customers/${id}`, payload);
 export const deleteCustomer = (id) => api.delete(`/customers/${id}`);
@@ -49,6 +132,15 @@ export const createCustomerReview = (review) => api.post('/customer/reviews', re
 export const updateCustomerReview = (reviewId, payload) => api.put(`/customer/reviews/${reviewId}`, payload);
 export const fetchProductReviews = (params) => api.get('/reviews', { params });
 export const fetchRecentReviews = (params = {}) => api.get('/reviews/recent', { params });
+export const fetchRecentReviewsCached = (params = {}, options = {}) =>
+  fetchWithPublicCache({
+    path: '/reviews/recent',
+    params,
+    ttlMs: options.ttlMs || 2 * 60 * 1000,
+    forceFresh: Boolean(options.forceFresh),
+    preferNetworkWhenEmpty: true,
+    fetcher: () => api.get('/reviews/recent', { params }),
+  });
 export const submitShopCustomOrderRequest = (payload) => api.post('/shop/custom-order-request', payload);
 export const submitShopContactRequest = (payload) => api.post('/shop/contact-request', payload);
 export const fetchAdminReviews = (params = {}) => api.get('/admin/reviews', { params });
@@ -269,6 +361,23 @@ api.interceptors.response.use(
 
 export const getTemplates = (filters) => api.get('/templates', { params: filters });
 export const getTemplate = (id) => api.get(`/templates/${id}`);
+export const getTemplatesCached = (filters = {}, options = {}) =>
+  fetchWithPublicCache({
+    path: '/templates',
+    params: filters,
+    ttlMs: options.ttlMs || DEFAULT_PUBLIC_CACHE_TTL_MS,
+    forceFresh: Boolean(options.forceFresh),
+    preferNetworkWhenEmpty: true,
+    fetcher: () => api.get('/templates', { params: filters }),
+  });
+export const getTemplateCached = (id, options = {}) =>
+  fetchWithPublicCache({
+    path: `/templates/${id}`,
+    params: {},
+    ttlMs: options.ttlMs || DEFAULT_PUBLIC_CACHE_TTL_MS,
+    forceFresh: Boolean(options.forceFresh),
+    fetcher: () => api.get(`/templates/${id}`),
+  });
 export const saveProject = (data) => api.post('/projects/save', data);
 export const getProject = (id) => api.get(`/projects/${id}`);
 export const deleteProject = (id) => api.delete(`/projects/${id}`);
@@ -301,11 +410,40 @@ export const createAdminRevision = (id, design_data, notes, sendForReview = fals
   api.post(`/admin/work-orders/${id}/revisions`, { design_data, notes, send_for_review: sendForReview });
 
 export const getGalleryPhotos = (filters) => api.get('/gallery/photos', { params: filters });
+export const getGalleryPhotosCached = (filters = {}, options = {}) =>
+  fetchWithPublicCache({
+    path: '/gallery/photos',
+    params: filters,
+    ttlMs: options.ttlMs || 2 * 60 * 1000,
+    forceFresh: Boolean(options.forceFresh),
+    preferNetworkWhenEmpty: true,
+    fetcher: () => api.get('/gallery/photos', { params: filters }),
+  });
 export const submitGalleryPhoto = (formData) => api.post('/gallery/photos', formData, {
   headers: { 'Content-Type': 'multipart/form-data' },
 });
 export const getAdminGalleryPhotos = (filters) => api.get('/admin/gallery/photos', { params: filters });
 export const updateAdminGalleryPhoto = (id, payload) => api.put(`/admin/gallery/photos/${id}`, payload);
 export const deleteAdminGalleryPhoto = (id) => api.delete(`/admin/gallery/photos/${id}`);
+
+export const fetchManualProductsCached = async (params = {}, options = {}) =>
+  toArrayResponse(await fetchWithPublicCache({
+    path: '/manual-products',
+    params,
+    ttlMs: options.ttlMs || DEFAULT_PUBLIC_CACHE_TTL_MS,
+    forceFresh: Boolean(options.forceFresh),
+    preferNetworkWhenEmpty: true,
+    fetcher: () => api.get('/manual-products', { params }),
+  }));
+
+export const getPublicGlassTypesCached = (options = {}) =>
+  fetchWithPublicCache({
+    path: '/glass-types',
+    params: {},
+    ttlMs: options.ttlMs || DEFAULT_PUBLIC_CACHE_TTL_MS,
+    forceFresh: Boolean(options.forceFresh),
+    preferNetworkWhenEmpty: true,
+    fetcher: () => api.get('/glass-types'),
+  });
 
 export default api;

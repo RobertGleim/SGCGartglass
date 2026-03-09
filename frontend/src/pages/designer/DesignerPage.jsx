@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import api, { fetchManualProducts, getTemplates, saveProject, submitWorkOrder, getProject, getTemplate,
+import api, { fetchManualProductsCached, getTemplatesCached, saveProject, submitWorkOrder, getProject, getTemplate,
   getWorkOrder, getAdminWorkOrder, createCustomerRevision, createAdminRevision,
-  approveWorkOrder as apiApproveWorkOrder, getWorkOrderRevisions, getAdminWorkOrderRevisions
+  approveWorkOrder as apiApproveWorkOrder, getWorkOrderRevisions, getAdminWorkOrderRevisions,
+  getTemplateCached, getPublicGlassTypesCached
 } from '../../services/api';
 import useCustomerAuth from '../../hooks/useCustomerAuth';
 import useAuth from '../../hooks/useAuth';
@@ -298,7 +299,7 @@ export default function DesignerPage() {
   // ── Load templates ───────────────────────────────────────────
   useEffect(() => {
     setTemplatesLoading(true);
-    getTemplates()
+    getTemplatesCached()
       .then(res => {
         const items = res?.items || res || [];
         setTemplates(Array.isArray(items) ? items : []);
@@ -311,7 +312,7 @@ export default function DesignerPage() {
   }, []);
 
   useEffect(() => {
-    fetchManualProducts({ summary: 1 })
+    fetchManualProductsCached({ summary: 1 })
       .then((items) => {
         setManualProducts(Array.isArray(items) ? items : []);
       })
@@ -843,7 +844,7 @@ export default function DesignerPage() {
   // ── Load glass types when entering design step ───────────────
   useEffect(() => {
     if (step !== STEP.DESIGN) return;
-    api.get('/glass-types')
+    getPublicGlassTypesCached()
       .then(res => {
         const items = res?.items || res || [];
         glassTypesRef.current = Array.isArray(items) ? items : [];
@@ -3103,7 +3104,7 @@ export default function DesignerPage() {
                       // Fetch full template (with svg_content / image_url) before entering designer
                       console.log('[DesignerPage] Template clicked:', t.id, t.name);
                       try {
-                        const full = await api.get(`/templates/${t.id}`);
+                        const full = await getTemplateCached(t.id);
                         console.log('[DesignerPage] Full template fetched:', full);
                         // API response interceptor already extracts .data, so full IS the data
                         setSelectedTemplate(full);

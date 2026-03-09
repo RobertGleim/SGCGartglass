@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import LoadingMessage from '../../components/LoadingMessage'
-import { fetchRecentReviews } from '../../services/api'
+import { fetchRecentReviewsCached } from '../../services/api'
 import './ReviewsPage.css'
 
 const formatReviewDate = (value) => {
@@ -20,7 +20,7 @@ export default function ReviewsPage() {
 
   useEffect(() => {
     let isActive = true
-    fetchRecentReviews({ limit: 50 })
+    fetchRecentReviewsCached({ limit: 50 })
       .then((response) => {
         if (!isActive) return
         setReviews(Array.isArray(response) ? response : [])

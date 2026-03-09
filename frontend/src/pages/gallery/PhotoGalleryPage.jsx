@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import useAuth from '../../hooks/useAuth';
 import useCustomerAuth from '../../hooks/useCustomerAuth';
-import { fetchCustomerProfile, fetchManualProducts, getGalleryPhotos, getTemplates, submitGalleryPhoto } from '../../services/api';
+import {
+  fetchCustomerProfile,
+  fetchManualProductsCached,
+  getGalleryPhotosCached,
+  getTemplatesCached,
+  submitGalleryPhoto,
+} from '../../services/api';
 import styles from './PhotoGalleryPage.module.css';
 
 const getInitialTemplateIdFromHash = () => {
@@ -103,7 +109,7 @@ export default function PhotoGalleryPage() {
     setLoading(true);
     setError('');
     try {
-      const response = await getGalleryPhotos({
+      const response = await getGalleryPhotosCached({
         category: selectedCategory || undefined,
         template_id: selectedTemplateId || undefined,
         photo_id: selectedPhotoId || undefined,
@@ -119,7 +125,7 @@ export default function PhotoGalleryPage() {
         let targetPhoto = items.find((entry) => String(entry?.id) === linkedId);
 
         if (!targetPhoto) {
-          const fallbackResponse = await getGalleryPhotos();
+          const fallbackResponse = await getGalleryPhotosCached();
           const fallbackItems = Array.isArray(fallbackResponse?.items) ? fallbackResponse.items : [];
           targetPhoto = fallbackItems.find((entry) => String(entry?.id) === linkedId);
           if (targetPhoto) {
@@ -156,7 +162,7 @@ export default function PhotoGalleryPage() {
   };
 
   useEffect(() => {
-    getTemplates()
+    getTemplatesCached()
       .then((res) => {
         const items = Array.isArray(res?.items) ? res.items : [];
         if (items.length > 0) {
@@ -167,7 +173,7 @@ export default function PhotoGalleryPage() {
   }, []);
 
   useEffect(() => {
-    fetchManualProducts({ summary: 1 })
+    fetchManualProductsCached({ summary: 1 })
       .then((items) => {
         setManualProducts(Array.isArray(items) ? items : []);
       })

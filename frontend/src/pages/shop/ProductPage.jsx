@@ -5,7 +5,7 @@ import SearchBar from './components/SearchBar';
 import './ProductPage.css';
 import {
   fetchFavoritesSummary,
-  fetchRecentReviews,
+  fetchRecentReviewsCached,
   submitShopContactRequest,
   submitShopCustomOrderRequest,
 } from '../../services/api';
@@ -182,7 +182,7 @@ export default function ProductPage({ products }) {
 
   useEffect(() => {
     let isActive = true
-    fetchRecentReviews({ limit: 10 })
+    fetchRecentReviewsCached({ limit: 10 })
       .then((response) => {
         if (!isActive) return
         setRecentReviews(Array.isArray(response) ? response : [])

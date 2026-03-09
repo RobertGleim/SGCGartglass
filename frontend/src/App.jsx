@@ -33,6 +33,40 @@ const DiagnosticsPage = lazy(() => import('./pages/DiagnosticsPage'))
 const PhotoGalleryPage = lazy(() => import('./pages/PhotoGalleryPage'))
 
 const BRAND_NAME = 'SGCG Art'
+const CATALOG_CACHE_KEY = 'sgcg_catalog_cache_v2'
+const CATALOG_CACHE_TTL_MS = 5 * 60 * 1000
+
+const readCatalogCache = () => {
+  try {
+    const raw = window.localStorage.getItem(CATALOG_CACHE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    const items = Array.isArray(parsed.items) ? parsed.items : []
+    const manualProducts = Array.isArray(parsed.manualProducts) ? parsed.manualProducts : []
+    const ts = Number(parsed.ts || 0)
+    const isFresh = Number.isFinite(ts) && Date.now() - ts < CATALOG_CACHE_TTL_MS
+    const hasContent = items.length > 0 || manualProducts.length > 0
+    return { items, manualProducts, ts, isFresh, hasContent }
+  } catch {
+    return null
+  }
+}
+
+const writeCatalogCache = (items, manualProducts) => {
+  try {
+    window.localStorage.setItem(
+      CATALOG_CACHE_KEY,
+      JSON.stringify({
+        ts: Date.now(),
+        items: Array.isArray(items) ? items : [],
+        manualProducts: Array.isArray(manualProducts) ? manualProducts : [],
+      }),
+    )
+  } catch {
+    // Ignore quota/private mode errors.
+  }
+}
 
 function App() {
   const route = useHashRoute()
@@ -40,6 +74,7 @@ function App() {
   const [itemsLoading, setItemsLoading] = useState(false)
   const [manualProducts, setManualProducts] = useState([])
   const [catalogLoaded, setCatalogLoaded] = useState(false)
+  const [catalogRetryTick, setCatalogRetryTick] = useState(0)
   const { authToken, login: loginWithCredentials, logout } = useAuth()
   const {
     customerToken,
@@ -56,25 +91,60 @@ function App() {
     }
 
     let isActive = true
-    setItemsLoading(true)
+    let retryTimerId = null
+    const cached = readCatalogCache()
+
+    if (cached?.hasContent) {
+      setItems(cached.items)
+      setManualProducts(cached.manualProducts)
+      setCatalogLoaded(true)
+      setItemsLoading(false)
+    } else {
+      setItemsLoading(true)
+    }
+
+    if (cached?.isFresh && cached?.hasContent) {
+      return () => {
+        isActive = false
+      }
+    }
 
     Promise.allSettled([fetchItems(), fetchManualProducts({ summary: 1 })])
       .then(([itemsResult, manualResult]) => {
         if (!isActive) return
 
-        if (itemsResult.status === 'fulfilled') {
-          setItems(Array.isArray(itemsResult.value) ? itemsResult.value : [])
+        const nextItems = itemsResult.status === 'fulfilled'
+          ? (Array.isArray(itemsResult.value) ? itemsResult.value : [])
+          : null
+        const nextManual = manualResult.status === 'fulfilled'
+          ? (Array.isArray(manualResult.value) ? manualResult.value : [])
+          : null
+
+        if (nextItems !== null) {
+          setItems(nextItems)
         } else {
           console.error('Error fetching items:', itemsResult.reason)
         }
 
-        if (manualResult.status === 'fulfilled') {
-          setManualProducts(Array.isArray(manualResult.value) ? manualResult.value : [])
+        if (nextManual !== null) {
+          setManualProducts(nextManual)
         } else {
           console.error('Error fetching manual products:', manualResult.reason)
         }
 
-        setCatalogLoaded(true)
+        const hasAnySuccess = nextItems !== null || nextManual !== null
+        if (hasAnySuccess) {
+          const cacheItems = nextItems !== null ? nextItems : (cached?.items || [])
+          const cacheManual = nextManual !== null ? nextManual : (cached?.manualProducts || [])
+          writeCatalogCache(cacheItems, cacheManual)
+          setCatalogLoaded(true)
+        } else {
+          // Avoid getting stuck on an empty page after transient proxy/network failures.
+          setCatalogLoaded(false)
+          retryTimerId = window.setTimeout(() => {
+            if (isActive) setCatalogRetryTick((prev) => prev + 1)
+          }, 1200)
+        }
       })
       .finally(() => {
         if (isActive) {
@@ -84,8 +154,16 @@ function App() {
 
     return () => {
       isActive = false
+      if (retryTimerId) {
+        window.clearTimeout(retryTimerId)
+      }
     }
-  }, [route.path, catalogLoaded])
+  }, [route.path, catalogLoaded, catalogRetryTick])
+
+  useEffect(() => {
+    if (!catalogLoaded) return
+    writeCatalogCache(items, manualProducts)
+  }, [items, manualProducts, catalogLoaded])
 
   // Scroll to top whenever route changes
   useEffect(() => {
@@ -140,6 +218,34 @@ function App() {
     }
   }
 
+  const handleRefreshCatalog = async () => {
+    setItemsLoading(true)
+    try {
+      const [itemsResult, manualResult] = await Promise.allSettled([
+        fetchItems(),
+        fetchManualProducts({ summary: 1 }),
+      ])
+
+      if (itemsResult.status !== 'fulfilled') {
+        throw itemsResult.reason || new Error('Unable to refresh linked items.')
+      }
+      if (manualResult.status !== 'fulfilled') {
+        throw manualResult.reason || new Error('Unable to refresh manual products.')
+      }
+
+      const nextItems = Array.isArray(itemsResult.value) ? itemsResult.value : []
+      const nextManual = Array.isArray(manualResult.value) ? manualResult.value : []
+
+      setItems(nextItems)
+      setManualProducts(nextManual)
+      writeCatalogCache(nextItems, nextManual)
+      setCatalogLoaded(true)
+      return { items: nextItems, manualProducts: nextManual }
+    } finally {
+      setItemsLoading(false)
+    }
+  }
+
   return (
     <div className="page">
       <Header
@@ -190,6 +296,7 @@ function App() {
               <AdminDashboard
                 items={items}
                 manualProducts={manualProducts}
+                onRefreshCatalog={handleRefreshCatalog}
                 onAddItem={handleAddItem}
                 onAddManualProduct={async (productData) => {
                   const created = await createManualProduct(productData)

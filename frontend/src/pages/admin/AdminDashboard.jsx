@@ -99,6 +99,7 @@ const createEmptyManualProduct = () => ({
 export default function AdminDashboard({
   items = [],
   manualProducts = [],
+  onRefreshCatalog,
   onAddItem,
   onAddManualProduct,
   onUpdateManualProduct,
@@ -299,6 +300,7 @@ export default function AdminDashboard({
   };
   // eslint-disable-next-line no-unused-vars
   const [status, setStatus] = useState("");
+  const [isRefreshingCatalog, setIsRefreshingCatalog] = useState(false);
   const [manualProductSearch, setManualProductSearch] = useState("");
   const [manualProductTypeFilter, setManualProductTypeFilter] = useState("all");
   const [facebookPostedProductIds, setFacebookPostedProductIds] = useState(() => {
@@ -1327,6 +1329,21 @@ export default function AdminDashboard({
     }
   };
 
+  const handleRefreshCatalog = async () => {
+    if (typeof onRefreshCatalog !== "function") return;
+    setIsRefreshingCatalog(true);
+    setStatus("Refreshing catalog...");
+    try {
+      await onRefreshCatalog();
+      setStatus("Catalog refreshed.");
+    } catch (error) {
+      const message = error?.message || "Unable to refresh catalog right now.";
+      setStatus(`Error: ${message}`);
+    } finally {
+      setIsRefreshingCatalog(false);
+    }
+  };
+
   return (
     <div className="admin-dashboard">
       <div className="dashboard-header">
@@ -1511,7 +1528,17 @@ export default function AdminDashboard({
             */}
 
             <div className="panel-section">
-              <h3>Manual Products ({manualProducts.length})</h3>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
+                <h3 style={{ margin: 0 }}>Manual Products ({manualProducts.length})</h3>
+                <button
+                  type="button"
+                  className="button"
+                  onClick={handleRefreshCatalog}
+                  disabled={isRefreshingCatalog}
+                >
+                  {isRefreshingCatalog ? "Refreshing..." : "Refresh Catalog"}
+                </button>
+              </div>
               <div
                 style={{
                   display: "flex",
