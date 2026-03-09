@@ -90,6 +90,7 @@ const createEmptyManualProduct = () => ({
   height: "",
   depth: "",
   price: "",
+  discount_percent: "",
   quantity: "",
   is_featured: false,
   related_links: createDefaultRelatedLinks(),
@@ -844,6 +845,7 @@ export default function AdminDashboard({
       }
 
       const productData = {
+        // price field stores sale price when discount is present.
         name: manualProduct.name.trim(),
         description: manualProduct.description.trim(),
         category:
@@ -853,7 +855,26 @@ export default function AdminDashboard({
         width: manualProduct.width ? parseFloat(manualProduct.width) : null,
         height: manualProduct.height ? parseFloat(manualProduct.height) : null,
         depth: manualProduct.depth ? parseFloat(manualProduct.depth) : null,
-        price: parseFloat(manualProduct.price),
+        price: (() => {
+          const basePrice = Number(manualProduct.price || 0);
+          const discountPercent = Number(manualProduct.discount_percent || 0);
+          if (!Number.isFinite(basePrice) || basePrice <= 0) return 0;
+          if (!Number.isFinite(discountPercent) || discountPercent <= 0) return Number(basePrice.toFixed(2));
+          const bounded = Math.min(100, Math.max(0, discountPercent));
+          return Number((basePrice * (1 - bounded / 100)).toFixed(2));
+        })(),
+        old_price: (() => {
+          const basePrice = Number(manualProduct.price || 0);
+          const discountPercent = Number(manualProduct.discount_percent || 0);
+          if (!Number.isFinite(basePrice) || basePrice <= 0) return null;
+          if (!Number.isFinite(discountPercent) || discountPercent <= 0) return null;
+          return Number(basePrice.toFixed(2));
+        })(),
+        discount_percent: (() => {
+          const discountPercent = Number(manualProduct.discount_percent || 0);
+          if (!Number.isFinite(discountPercent) || discountPercent <= 0) return null;
+          return Number(Math.min(100, Math.max(0, discountPercent)).toFixed(2));
+        })(),
         quantity: parseInt(manualProduct.quantity, 10),
         is_featured: manualProduct.is_featured,
         related_links: {
@@ -945,7 +966,20 @@ export default function AdminDashboard({
       width: product.width?.toString() || "",
       height: product.height?.toString() || "",
       depth: product.depth?.toString() || "",
-      price: product.price?.toString() || "",
+      price: (() => {
+        const regular = Number(product.old_price || product.price || 0);
+        return Number.isFinite(regular) && regular > 0 ? regular.toString() : "";
+      })(),
+      discount_percent: (() => {
+        const explicit = Number(product.discount_percent || 0);
+        if (Number.isFinite(explicit) && explicit > 0) return explicit.toString();
+        const regular = Number(product.old_price || 0);
+        const sale = Number(product.price || 0);
+        if (regular > 0 && sale > 0 && regular > sale) {
+          return Number((((regular - sale) / regular) * 100).toFixed(2)).toString();
+        }
+        return "";
+      })(),
       quantity: product.quantity?.toString() || "",
       is_featured: product.is_featured === 1 || product.is_featured === true,
       related_links: {
@@ -2436,7 +2470,7 @@ export default function AdminDashboard({
 
                 <div className="price-quantity-inputs">
                   <label>
-                    Price *
+                    Price (regular) *
                     <input
                       type="number"
                       step="0.01"
@@ -2451,6 +2485,39 @@ export default function AdminDashboard({
                       placeholder="0.00"
                       style={{ width: "130px" }}
                       required
+                    />
+                  </label>
+                  <label>
+                    Discount %
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={manualProduct.discount_percent || ""}
+                      onChange={(e) =>
+                        setManualProduct({
+                          ...manualProduct,
+                          discount_percent: e.target.value,
+                        })
+                      }
+                      placeholder="0"
+                    />
+                  </label>
+                  <label>
+                    Sale Price (auto)
+                    <input
+                      type="text"
+                      value={(() => {
+                        const base = Number(manualProduct.price || 0);
+                        const discount = Number(manualProduct.discount_percent || 0);
+                        if (!Number.isFinite(base) || base <= 0) return "";
+                        const bounded = Number.isFinite(discount) ? Math.min(100, Math.max(0, discount)) : 0;
+                        const sale = base * (1 - bounded / 100);
+                        return sale > 0 ? sale.toFixed(2) : "0.00";
+                      })()}
+                      placeholder="0.00"
+                      readOnly
                     />
                   </label>
                   <label>

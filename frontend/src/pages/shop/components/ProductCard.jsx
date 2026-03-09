@@ -11,6 +11,7 @@ export default function ProductCard({ product }) {
     <a href={`#/product/${product.id}`} className="product-card-link">
       <article className="product-card">
         <div className="card-image">
+          {hasDiscount && <span className="sale-badge">On Sale</span>}
           {product.image_url ? (
             <img src={product.image_url} alt={product.title || 'Glass art'} />
           ) : (
@@ -21,12 +22,18 @@ export default function ProductCard({ product }) {
           <h3 className="card-title">{product.title || 'Untitled piece'}</h3>
           <div className="card-pricing">
             <div className="price-row">
-              <span className="price">
-                ${product.price_amount || '0'}
-              </span>
+              {hasDiscount ? (
+                <>
+                  <span className="sale-price">Sale price ${product.price_amount || '0'}</span>
+                  <span className="regular-price">(reg ${product.old_price || '0'})</span>
+                </>
+              ) : (
+                <span className="price">
+                  ${product.price_amount || '0'}
+                </span>
+              )}
               {hasDiscount && (
                 <>
-                  <span className="old-price">${product.old_price}</span>
                   <span className="discount">({discountPercent}% off)</span>
                 </>
               )}

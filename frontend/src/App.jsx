@@ -98,6 +98,8 @@ function App() {
       title: p.name,
       description: p.description,
       price_amount: p.price,
+      old_price: p.old_price,
+      discount_percent: p.discount_percent,
       price_currency: 'USD',
       image_url: p.images?.[0]?.image_url,
       category: p.category,

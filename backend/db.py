@@ -150,6 +150,8 @@ def init_db(force=False):
             height REAL,
             depth REAL,
             price REAL NOT NULL,
+            old_price REAL,
+            discount_percent REAL,
             quantity INTEGER NOT NULL,
             is_featured INTEGER DEFAULT 0,
             related_links TEXT,
@@ -334,6 +336,8 @@ def init_db(force=False):
 
     if is_postgres:
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS related_links TEXT")
+        cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS old_price REAL")
+        cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS discount_percent REAL")
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS subtotal_amount REAL")
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS shipping_amount REAL")
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS tax_amount REAL")
@@ -499,6 +503,8 @@ def create_manual_product(payload):
         payload.get("height"),
         payload.get("depth"),
         payload["price"],
+        payload.get("old_price"),
+        payload.get("discount_percent"),
         payload["quantity"],
         1 if payload.get("is_featured") else 0,
         _serialize_related_links(payload.get("related_links")),
@@ -510,12 +516,12 @@ def create_manual_product(payload):
             f"""
             INSERT INTO manual_products (
                 name, description, category, materials,
-                width, height, depth, price, quantity, is_featured,
+                width, height, depth, price, old_price, discount_percent, quantity, is_featured,
                 related_links,
                 created_at, updated_at
             ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder},
                       {placeholder}, {placeholder}, {placeholder}, {placeholder},
-                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             RETURNING id
             """,
             insert_values,
@@ -526,12 +532,12 @@ def create_manual_product(payload):
             f"""
             INSERT INTO manual_products (
                 name, description, category, materials,
-                width, height, depth, price, quantity, is_featured,
+                width, height, depth, price, old_price, discount_percent, quantity, is_featured,
                 related_links,
                 created_at, updated_at
             ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder},
                       {placeholder}, {placeholder}, {placeholder}, {placeholder},
-                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             """,
             insert_values,
         )
@@ -627,6 +633,8 @@ def fetch_manual_products_catalog():
             p.height,
             p.depth,
             p.price,
+            p.old_price,
+            p.discount_percent,
             p.quantity,
             p.is_featured,
             p.related_links,
@@ -733,7 +741,8 @@ def update_manual_product(product_id, payload):
         f"""
         UPDATE manual_products
         SET name = {placeholder}, description = {placeholder}, category = {placeholder}, materials = {placeholder},
-            width = {placeholder}, height = {placeholder}, depth = {placeholder}, price = {placeholder}, quantity = {placeholder},
+            width = {placeholder}, height = {placeholder}, depth = {placeholder}, price = {placeholder},
+            old_price = {placeholder}, discount_percent = {placeholder}, quantity = {placeholder},
             is_featured = {placeholder}, related_links = {placeholder}, updated_at = {placeholder}
         WHERE id = {placeholder}
         """,
@@ -746,6 +755,8 @@ def update_manual_product(product_id, payload):
             payload.get("height"),
             payload.get("depth"),
             payload["price"],
+            payload.get("old_price"),
+            payload.get("discount_percent"),
             payload["quantity"],
             1 if payload.get("is_featured") else 0,
             _serialize_related_links(payload.get("related_links")),

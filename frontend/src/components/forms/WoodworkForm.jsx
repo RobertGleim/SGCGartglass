@@ -499,7 +499,7 @@ export default function WoodworkForm({
 
           <div className="woodwork-price-quantity-inputs">
             <label>
-              Price *
+              Price (regular) *
               <input
                 type="number"
                 step="0.01"
@@ -508,6 +508,33 @@ export default function WoodworkForm({
                 onChange={(e) => setManualProduct({...manualProduct, price: e.target.value})}
                 placeholder="0.00"
                 required
+              />
+            </label>
+            <label>
+              Discount %
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                value={manualProduct.discount_percent || ''}
+                onChange={(e) => setManualProduct({...manualProduct, discount_percent: e.target.value})}
+                placeholder="0"
+              />
+            </label>
+            <label>
+              Sale Price (auto)
+              <input
+                type="text"
+                value={(() => {
+                  const base = Number(manualProduct.price || 0)
+                  const discount = Number(manualProduct.discount_percent || 0)
+                  if (!Number.isFinite(base) || base <= 0) return ''
+                  const bounded = Number.isFinite(discount) ? Math.min(100, Math.max(0, discount)) : 0
+                  return (base * (1 - bounded / 100)).toFixed(2)
+                })()}
+                placeholder="0.00"
+                readOnly
               />
             </label>
             <label>

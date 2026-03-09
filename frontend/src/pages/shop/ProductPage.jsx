@@ -429,6 +429,22 @@ export default function ProductPage({ products }) {
           <div className="nav-search">
             <SearchBar search={search} setSearch={setSearch} totalItems={sectionProducts.length} />
           </div>
+          <div className="shop-mobile-actions" aria-label="Quick actions">
+            <button
+              type="button"
+              className="shop-mobile-action-btn primary"
+              onClick={openCustomOrderModal}
+            >
+              Request Custom Order
+            </button>
+            <button
+              type="button"
+              className="shop-mobile-action-btn"
+              onClick={openContactModal}
+            >
+              Contact shop owner
+            </button>
+          </div>
         </div>
       </div>
 
