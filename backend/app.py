@@ -10,6 +10,7 @@ from urllib.error import URLError, HTTPError
 from urllib.parse import urlparse
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
+from werkzeug.exceptions import RequestEntityTooLarge
 try:
     from flask_mail import Mail
 except Exception:  # pragma: no cover
@@ -99,6 +100,13 @@ def create_app(config_name=None):
     @app.route("/api/health", methods=["GET"])
     def health():
         return jsonify({"status": "ok"})
+
+    @app.errorhandler(RequestEntityTooLarge)
+    def handle_request_entity_too_large(_error):
+        return jsonify({
+            "error": "file_too_large",
+            "detail": "Upload is too large. Please reduce the number of photos/videos or upload smaller files.",
+        }), 413
 
     # Proxy external texture URLs through backend so frontend canvas can load same-origin assets.
     @app.route("/api/texture-proxy", methods=["GET"])
@@ -299,6 +307,7 @@ def create_app(config_name=None):
                     "image_data":    "BYTEA",
                     "image_mime":    "VARCHAR(50)",
                     "default_design_data": "JSON",
+                    "related_links": "JSON",
                     "is_private": "BOOLEAN DEFAULT FALSE",
                     "assigned_customer_id": "INTEGER",
                 }

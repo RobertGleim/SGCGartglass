@@ -1,26 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { adminLogin } from '../services/api'
 import { AuthContext } from './AuthContext'
 import { isValidToken, cleanupCorruptedTokens } from '../utils/auth'
-
-const INACTIVITY_TIMEOUT = 60 * 60 * 1000 // 1 hour in milliseconds
-const CHECK_INTERVAL = 60 * 1000 // Check every minute
 
 // Clean up any corrupted tokens on module load
 cleanupCorruptedTokens();
 
 export function AuthProvider({ children }) {
   const [authToken, setAuthToken] = useState(() => {
-    const sessionToken = window.sessionStorage.getItem('sgcg_token') || '';
-    const persistedToken = window.localStorage.getItem('sgcg_token') || '';
-    const token = sessionToken || persistedToken;
-    if (!sessionToken && persistedToken) {
-      window.localStorage.removeItem('sgcg_token');
-    }
-    return isValidToken(token) ? token : '';
+    const sessionToken = window.sessionStorage.getItem('sgcg_token') || ''
+    // Force admin auth to be tab/session scoped only.
+    window.localStorage.removeItem('sgcg_token')
+    return isValidToken(sessionToken) ? sessionToken : ''
   })
-  const lastActivityRef = useRef(Date.now())
-  const checkIntervalRef = useRef(null)
 
   const logout = useCallback(() => {
     setAuthToken('')
@@ -37,65 +29,12 @@ export function AuthProvider({ children }) {
     if (isValidToken(token)) {
       setAuthToken(token)
       window.sessionStorage.setItem('sgcg_token', token)
-      window.localStorage.setItem('sgcg_token', token)
       console.log('[Auth] Admin login successful')
     } else {
       throw new Error('Invalid authentication response from server')
     }
-    lastActivityRef.current = Date.now()
     return token
   }, [])
-
-  // Update last activity time on user interaction
-  const updateActivity = useCallback(() => {
-    if (authToken) {
-      lastActivityRef.current = Date.now()
-    }
-  }, [authToken])
-
-  // Set up activity listeners and inactivity checker
-  useEffect(() => {
-    if (!authToken) {
-      // Clear interval if not authenticated
-      if (checkIntervalRef.current) {
-        clearInterval(checkIntervalRef.current)
-        checkIntervalRef.current = null
-      }
-      return
-    }
-
-    // Reset activity timestamp when admin logs in
-    lastActivityRef.current = Date.now()
-
-    // Activity event listeners
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
-    
-    events.forEach(event => {
-      document.addEventListener(event, updateActivity, { passive: true })
-    })
-
-    // Check for inactivity periodically
-    checkIntervalRef.current = setInterval(() => {
-      const now = Date.now()
-      const timeSinceLastActivity = now - lastActivityRef.current
-
-      if (timeSinceLastActivity >= INACTIVITY_TIMEOUT) {
-        console.log('[Auth] Auto-logout due to inactivity')
-        logout()
-      }
-    }, CHECK_INTERVAL)
-
-    // Cleanup
-    return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, updateActivity)
-      })
-      if (checkIntervalRef.current) {
-        clearInterval(checkIntervalRef.current)
-        checkIntervalRef.current = null
-      }
-    }
-  }, [authToken, updateActivity, logout])
 
   const value = useMemo(
     () => ({

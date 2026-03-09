@@ -163,6 +163,27 @@ def validate_template_data(data: Any) -> tuple[bool, dict[str, Any], str]:
     if default_design_data is not None:
         if not isinstance(default_design_data, dict):
             return False, {}, "default_design_data must be an object"
+        normalized_default_design_data = {}
+
+        if "floodFill" in default_design_data:
+            normalized_default_design_data["floodFill"] = bool(default_design_data.get("floodFill"))
+
+        data_url = default_design_data.get("dataUrl")
+        if data_url is not None:
+            if not isinstance(data_url, str):
+                return False, {}, "default_design_data.dataUrl must be a string"
+            data_url = data_url.strip()
+            if data_url:
+                normalized_default_design_data["dataUrl"] = data_url
+
+        preview_url = default_design_data.get("preview_url")
+        if preview_url is not None:
+            if not isinstance(preview_url, str):
+                return False, {}, "default_design_data.preview_url must be a string"
+            preview_url = preview_url.strip()
+            if preview_url:
+                normalized_default_design_data["preview_url"] = preview_url
+
         sections = default_design_data.get("sections")
         if sections is not None and not isinstance(sections, dict):
             return False, {}, "default_design_data.sections must be an object"
@@ -192,7 +213,12 @@ def validate_template_data(data: Any) -> tuple[bool, dict[str, Any], str]:
                         return False, {}, f"default_design_data.sections[{section_id!r}].sectionNum must be an integer"
                 normalized_entry["locked"] = bool(section_value.get("locked", False))
                 normalized_sections[section_id.strip()] = normalized_entry
-            default_design_data = {"sections": normalized_sections}
+            normalized_default_design_data["sections"] = normalized_sections
+
+        if normalized_default_design_data:
+            default_design_data = normalized_default_design_data
+        else:
+            default_design_data = None
 
     is_private = payload.get("is_private")
     if is_private is not None:
@@ -219,6 +245,41 @@ def validate_template_data(data: Any) -> tuple[bool, dict[str, Any], str]:
     if not is_private:
         assigned_customer_id = None
 
+    related_links = payload.get("related_links")
+    if related_links is not None:
+        if not isinstance(related_links, dict):
+            return False, {}, "related_links must be an object"
+
+        def _parse_optional_int(value: Any, field_name: str) -> Optional[int]:
+            if value in (None, ""):
+                return None
+            try:
+                parsed = int(value)
+            except (ValueError, TypeError):
+                raise ValueError(f"related_links.{field_name} must be an integer")
+            if parsed <= 0:
+                raise ValueError(f"related_links.{field_name} must be a positive integer")
+            return parsed
+
+        try:
+            normalized_related_links = {
+                "template_id": _parse_optional_int(related_links.get("template_id"), "template_id"),
+                "template_name": str(related_links.get("template_name") or "").strip() or None,
+                "pattern_product_id": _parse_optional_int(related_links.get("pattern_product_id"), "pattern_product_id"),
+                "pattern_product_name": str(related_links.get("pattern_product_name") or "").strip() or None,
+                "gallery_photo_id": _parse_optional_int(related_links.get("gallery_photo_id"), "gallery_photo_id"),
+                "gallery_panel_name": str(related_links.get("gallery_panel_name") or "").strip() or None,
+                "gallery_template_id": _parse_optional_int(related_links.get("gallery_template_id"), "gallery_template_id"),
+            }
+        except ValueError as exc:
+            return False, {}, str(exc)
+
+        has_any_related_value = any(
+            value not in (None, "")
+            for value in normalized_related_links.values()
+        )
+        related_links = normalized_related_links if has_any_related_value else None
+
     normalized = {
         "name": name,
         "description": description,
@@ -231,6 +292,7 @@ def validate_template_data(data: Any) -> tuple[bool, dict[str, Any], str]:
         "template_type": template_type,
         "image_url": image_url,
         "default_design_data": default_design_data,
+        "related_links": related_links,
         "is_private": is_private,
         "assigned_customer_id": assigned_customer_id,
     }

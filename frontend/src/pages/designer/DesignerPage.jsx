@@ -47,6 +47,32 @@ const normalizeSectionFills = (input) => {
   return out;
 };
 
+const looksLikeSectionFillEntry = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return (
+    'color' in value
+    || 'locked' in value
+    || 'sectionNum' in value
+    || 'glassType' in value
+    || 'glassTypeId' in value
+  );
+};
+
+const extractSectionsFromDesignData = (designData) => {
+  if (!designData || typeof designData !== 'object') return {};
+
+  if (designData.sections && typeof designData.sections === 'object' && !Array.isArray(designData.sections)) {
+    return normalizeSectionFills(designData.sections);
+  }
+
+  const legacySections = {};
+  Object.entries(designData).forEach(([key, value]) => {
+    if (!looksLikeSectionFillEntry(value)) return;
+    legacySections[key] = value;
+  });
+  return normalizeSectionFills(legacySections);
+};
+
 const isSectionLocked = (sectionFills, sectionId, sectionNumber) => {
   if (!sectionFills || typeof sectionFills !== 'object') return false;
   if (sectionId && toBool(sectionFills[sectionId]?.locked)) return true;
@@ -175,9 +201,11 @@ export default function DesignerPage() {
 
   // Glass types
   const [glassTypes, setGlassTypes] = useState([]);
+  const glassTypesRef = useRef([]);
   const [activeGlassType, setActiveGlassType] = useState(null);
   const activeGlassTypeRef = useRef(null);
   useEffect(() => { activeGlassTypeRef.current = activeGlassType; }, [activeGlassType]);
+  useEffect(() => { glassTypesRef.current = Array.isArray(glassTypes) ? glassTypes : []; }, [glassTypes]);
   const colorToolBoxRef = useRef(null);
   const [syncedToolBoxHeight, setSyncedToolBoxHeight] = useState(null);
   // Preloaded texture images keyed by glass type id
@@ -223,6 +251,7 @@ export default function DesignerPage() {
   const [showRevisionHistory, setShowRevisionHistory] = useState(false);
   const isAdmin = !!authToken && !customerToken; // admin token but no customer token
   const [templateDefaultsMode, setTemplateDefaultsMode] = useState(false);
+  const [bulkLockNotice, setBulkLockNotice] = useState('');
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [isEraseMode, setIsEraseMode] = useState(false);
   const isEraseModeRef = useRef(false);
@@ -508,10 +537,11 @@ export default function DesignerPage() {
   // Apply design data to canvas
   const applyDesignData = async (designData) => {
     if (!designData || typeof designData !== 'object') return;
-    
-    // Restore section fills from saved data
-    if (designData.sections && typeof designData.sections === 'object') {
-      sectionFillsRef.current = normalizeSectionFills(designData.sections);
+    const normalizedIncomingSections = extractSectionsFromDesignData(designData);
+
+    // Restore section fills from saved data (supports legacy and current payload shapes).
+    if (Object.keys(normalizedIncomingSections).length > 0) {
+      sectionFillsRef.current = normalizedIncomingSections;
       setFillVersion(v => v + 1);
     }
     
@@ -550,9 +580,11 @@ export default function DesignerPage() {
         return;
       }
 
-      const sectionDataMap = (designData.sections && typeof designData.sections === 'object')
-        ? designData.sections
-        : designData;
+      const sectionDataMap = Object.keys(normalizedIncomingSections).length > 0
+        ? normalizedIncomingSections
+        : ((designData.sections && typeof designData.sections === 'object')
+          ? designData.sections
+          : designData);
       if (!sectionDataMap || typeof sectionDataMap !== 'object') {
         return;
       }
@@ -644,9 +676,11 @@ export default function DesignerPage() {
 
     // For SVG templates with Fabric.js (only when a real Fabric canvas exists)
     if (fabricRef.current && typeof fabricRef.current.getObjects === 'function') {
-      const sectionDataMap = (designData.sections && typeof designData.sections === 'object')
-        ? designData.sections
-        : designData;
+      const sectionDataMap = Object.keys(normalizedIncomingSections).length > 0
+        ? normalizedIncomingSections
+        : ((designData.sections && typeof designData.sections === 'object')
+          ? designData.sections
+          : designData);
 
       const createTexturedTile = (color, textureImg, tileSize = 120) => {
         const tile = document.createElement('canvas');
@@ -732,6 +766,8 @@ export default function DesignerPage() {
         PatternCtor = null;
       }
 
+      const availableGlassTypes = Array.isArray(glassTypesRef.current) ? glassTypesRef.current : [];
+
       fabricRef.current.getObjects().forEach(obj => {
         const sectionId = obj._sectionId || obj.id || obj.regionId;
         const fallbackSectionId = obj._sectionNumber ? `sec-${obj._sectionNumber}` : null;
@@ -743,9 +779,10 @@ export default function DesignerPage() {
         if (!regionData || !regionData.color) return;
 
         const gtId = Number(regionData.glassTypeId);
+        const gtName = String(regionData.glassType || '').trim().toLowerCase();
         const gt = Number.isFinite(gtId)
-          ? glassTypes.find(g => Number(g.id) === gtId)
-          : null;
+          ? availableGlassTypes.find(g => Number(g.id) === gtId) || null
+          : availableGlassTypes.find((g) => String(g?.name || '').trim().toLowerCase() === gtName) || null;
         const texImg = gt ? textureCacheRef.current.get(gt.id) : null;
         const isBeveled = !!(gt && (gt.name || '').toLowerCase().includes('bevel'));
 
@@ -809,7 +846,12 @@ export default function DesignerPage() {
     api.get('/glass-types')
       .then(res => {
         const items = res?.items || res || [];
+        glassTypesRef.current = Array.isArray(items) ? items : [];
         setGlassTypes(items);
+
+        if (woDesignDataRef.current && step === STEP.DESIGN) {
+          applyDesignData(woDesignDataRef.current);
+        }
 
         // Preload texture images into cache
         items.forEach(gt => {
@@ -1606,7 +1648,7 @@ export default function DesignerPage() {
             // Block coloring of border/frame regions
             if (borderRegionsRef.current && borderRegionsRef.current.has(regionId)) return;
             const lockedSection = sectionFillsRef.current?.[regionId];
-            if (!isAdmin && toBool(lockedSection?.locked)) return;
+            if (toBool(lockedSection?.locked)) return;
             const color = selectedColorRef.current;
             const gt = activeGlassTypeRef.current;
             const cachedTexture = gt ? textureCacheRef.current.get(gt.id) : null;
@@ -2016,7 +2058,7 @@ export default function DesignerPage() {
             hit?._sectionNumber
             || String(hit?._sectionId || '').replace(/^sec-/, '')
           );
-          if (!isAdmin && isSectionLocked(sectionFillsRef.current, sectionIdCandidate, sectionNumCandidate)) {
+          if (isSectionLocked(sectionFillsRef.current, sectionIdCandidate, sectionNumCandidate)) {
             return;
           }
           
@@ -2153,6 +2195,14 @@ export default function DesignerPage() {
       if (!ctx) return;
       const regionPixels = regionPixelsRef.current;
       if (!regionPixels) return;
+      const sectionNumByRegionId = new Map(
+        (sectionLabels || []).map((label) => [Number(label?.id), Number(label?.num)])
+      );
+      const unlockedRegionIds = [...regionPixels.keys()].filter((regionId) => {
+        const sectionNum = Number(sectionNumByRegionId.get(Number(regionId)));
+        return !isSectionLocked(sectionFillsRef.current, regionId, sectionNum);
+      });
+      if (unlockedRegionIds.length === 0) return;
       const w = ctx.canvas.width;
       const h = ctx.canvas.height;
       const [fR, fG, fB] = [
@@ -2163,7 +2213,9 @@ export default function DesignerPage() {
       // Flat-fill all regions at once
       const imageData = ctx.getImageData(0, 0, w, h);
       const data = imageData.data;
-      for (const [, pixels] of regionPixels) {
+      for (const regionId of unlockedRegionIds) {
+        const pixels = regionPixels.get(regionId);
+        if (!pixels) continue;
         for (const pi of pixels) {
           const ci = pi * 4;
           data[ci] = fR; data[ci+1] = fG; data[ci+2] = fB; data[ci+3] = 255;
@@ -2176,7 +2228,7 @@ export default function DesignerPage() {
       const texImg = cachedTexture && cachedTexture._supportsReadback !== false ? cachedTexture : null;
       const isBeveled = !!(gt && (gt.name || '').toLowerCase().includes('bevel'));
       if (isBeveled) {
-        for (const [regionId] of regionPixels) {
+        for (const regionId of unlockedRegionIds) {
           fillRegionBeveled(ctx, regionId, selectedColor, w, h);
         }
       } else if (texImg) {
@@ -2186,7 +2238,9 @@ export default function DesignerPage() {
         const maskCtx = maskCvs.getContext('2d');
         const maskImg = maskCtx.createImageData(w, h);
         const mPx = maskImg.data;
-        for (const [, pixels] of regionPixels) {
+        for (const regionId of unlockedRegionIds) {
+          const pixels = regionPixels.get(regionId);
+          if (!pixels) continue;
           for (const pi of pixels) {
             const ci = pi * 4;
             mPx[ci] = mPx[ci+1] = mPx[ci+2] = mPx[ci+3] = 255;
@@ -2211,7 +2265,7 @@ export default function DesignerPage() {
         texCtx.globalCompositeOperation = 'source-over';
         ctx.drawImage(texCvs, 0, 0);
       } else {
-        for (const [regionId] of regionPixels) {
+        for (const regionId of unlockedRegionIds) {
           fillRegionGlossy(ctx, regionId, selectedColor, w, h);
         }
       }
@@ -2280,6 +2334,14 @@ export default function DesignerPage() {
           await applyFill(child);
         }
       } else if (obj.selectable !== false) {
+        const sectionIdCandidate = obj?._sectionId || obj?.id || obj?.regionId;
+        const sectionNumCandidate = Number(
+          obj?._sectionNumber
+          || String(obj?._sectionId || '').replace(/^sec-/, '')
+        );
+        if (isSectionLocked(sectionFillsRef.current, sectionIdCandidate, sectionNumCandidate)) {
+          return;
+        }
         if (isBeveled) {
           await applyBeveledEffect(obj, selectedColor);
         } else {
@@ -2297,7 +2359,7 @@ export default function DesignerPage() {
     
     canvas.requestRenderAll();
     pushHistory(canvas);
-  }, [selectedColor, activeGlassType, pushHistory]);
+  }, [selectedColor, activeGlassType, pushHistory, sectionLabels]);
 
   // ── Undo ──────────────────────────────────────────────────────
   const undo = useCallback(async () => {
@@ -2334,26 +2396,117 @@ export default function DesignerPage() {
   // ── Reset (remove all colour & texture) ───────────────────────
   const resetCanvas = useCallback(async () => {
     if (historyRef.current.length === 0) return;
+    const cleanSnapshot = historyRef.current[0];
+    const currentFills = normalizeSectionFills(sectionFillsRef.current);
+    const lockedEntries = Object.fromEntries(
+      Object.entries(currentFills).filter(([, fill]) => toBool(fill?.locked))
+    );
+
     if (isFloodFillMode.current) {
       const ctx = floodCtxRef.current;
       if (!ctx) return;
-      // Restore the very first (clean) snapshot
-      ctx.putImageData(historyRef.current[0], 0, 0);
+      const hasLocked = Object.keys(lockedEntries).length > 0;
+
+      if (!hasLocked) {
+        // Fully restore the very first (clean) snapshot.
+        ctx.putImageData(cleanSnapshot, 0, 0);
+      } else {
+        const regionPixels = regionPixelsRef.current;
+        const baseImage = initialImageRef.current;
+        const labelIdByNum = new Map((sectionLabels || []).map((label) => [Number(label?.num), Number(label?.id)]));
+
+        if (!regionPixels || !baseImage) {
+          return;
+        }
+
+        const resolveRegionId = (sectionId, fill) => {
+          const direct = Number(sectionId);
+          if (Number.isFinite(direct) && direct > 0 && regionPixels.has(direct)) {
+            return direct;
+          }
+
+          const idMatch = String(sectionId || '').match(/^sec-(\d+)$/);
+          const byIdNum = idMatch ? Number(idMatch[1]) : null;
+          const byFillNum = Number(fill?.sectionNum);
+          const sectionNumber =
+            (Number.isFinite(byFillNum) && byFillNum > 0 ? byFillNum : null)
+            || (Number.isFinite(byIdNum) && byIdNum > 0 ? byIdNum : null);
+
+          if (sectionNumber != null) {
+            const mappedRegionId = Number(labelIdByNum.get(sectionNumber));
+            if (Number.isFinite(mappedRegionId) && mappedRegionId > 0 && regionPixels.has(mappedRegionId)) {
+              return mappedRegionId;
+            }
+          }
+
+          return null;
+        };
+
+        const lockedRegionIds = new Set(
+          Object.entries(lockedEntries)
+            .map(([sectionId, fill]) => resolveRegionId(sectionId, fill))
+            .filter((regionId) => Number.isFinite(regionId) && regionId > 0)
+        );
+
+        const currentImage = ctx.getImageData(0, 0, CANVAS_BASE_W, CANVAS_BASE_H);
+        const currentPixels = currentImage.data;
+        const basePixels = baseImage.data;
+
+        Object.entries(currentFills).forEach(([sectionId, fill]) => {
+          const regionId = resolveRegionId(sectionId, fill);
+          if (!regionId || lockedRegionIds.has(regionId)) return;
+          const pixels = regionPixels.get(regionId);
+          if (!pixels || pixels.length === 0) return;
+
+          for (const pixelIndex of pixels) {
+            const colorIndex = pixelIndex * 4;
+            currentPixels[colorIndex] = basePixels[colorIndex];
+            currentPixels[colorIndex + 1] = basePixels[colorIndex + 1];
+            currentPixels[colorIndex + 2] = basePixels[colorIndex + 2];
+            currentPixels[colorIndex + 3] = basePixels[colorIndex + 3];
+          }
+        });
+
+        ctx.putImageData(currentImage, 0, 0);
+      }
     } else {
       const canvas = fabricRef.current;
       if (!canvas) return;
       // Restore the original uncoloured SVG state
-      await canvas.loadFromJSON(historyRef.current[0]);
+      await canvas.loadFromJSON(cleanSnapshot);
       canvas.renderAll();
     }
-    // Reset history to only the clean state
-    historyRef.current = [historyRef.current[0]];
-    historyIdxRef.current = 0;
-    sectionFillsRef.current = {};
+
+    if (Object.keys(lockedEntries).length > 0) {
+      // Re-apply only locked sections so reset clears only unlocked fills.
+      sectionFillsRef.current = lockedEntries;
+
+      if (isFloodFillMode.current) {
+        const ctx = floodCtxRef.current;
+        if (ctx) {
+          const currentSnap = ctx.getImageData(0, 0, CANVAS_BASE_W, CANVAS_BASE_H);
+          historyRef.current = [cleanSnapshot, currentSnap];
+          historyIdxRef.current = 1;
+        }
+      } else {
+        await applyDesignData({ sections: lockedEntries });
+        const canvas = fabricRef.current;
+        if (canvas) {
+          historyRef.current = [cleanSnapshot, canvas.toJSON()];
+          historyIdxRef.current = 1;
+        }
+      }
+    } else {
+      // No locks to preserve: fully reset to clean state.
+      historyRef.current = [cleanSnapshot];
+      historyIdxRef.current = 0;
+      sectionFillsRef.current = {};
+    }
+
     setSelectedObj(null);
     setSelectedLegendNumber(null);
     setFillVersion(v => v + 1);
-  }, []);
+  }, [applyDesignData, sectionLabels]);
 
   // ── Save project ──────────────────────────────────────────────
   const handleSave = useCallback(async () => {
@@ -2484,10 +2637,22 @@ export default function DesignerPage() {
     setSaving(true);
     try {
       const designData = getCurrentDesignData();
+      const normalizedSections = normalizeSectionFills(designData.sections || {});
+      const payloadDefaultDesignData = {
+        sections: normalizedSections,
+      };
+
+      // Preserve image-template visual defaults exactly (including glass texture look).
+      if (isFloodFillMode.current && typeof designData?.dataUrl === 'string' && designData.dataUrl.length > 0) {
+        payloadDefaultDesignData.floodFill = true;
+        payloadDefaultDesignData.dataUrl = designData.dataUrl;
+        if (typeof designData?.preview_url === 'string' && designData.preview_url.length > 0) {
+          payloadDefaultDesignData.preview_url = designData.preview_url;
+        }
+      }
+
       const payload = {
-        default_design_data: {
-          sections: normalizeSectionFills(designData.sections || {}),
-        },
+        default_design_data: payloadDefaultDesignData,
       };
       await api.put(`/admin/templates/${selectedTemplate.id}`, payload);
       alert('Template defaults saved. New customer designs will use these pre-colors and locks.');
@@ -2498,6 +2663,52 @@ export default function DesignerPage() {
       setSaving(false);
     }
   }, [isAdmin, selectedTemplate, getCurrentDesignData]);
+
+  const coloredSectionCount = useMemo(() => {
+    const values = Object.values(sectionFillsRef.current || {});
+    return values.filter((entry) => (
+      entry
+      && typeof entry === 'object'
+      && typeof entry.color === 'string'
+      && entry.color.trim().length > 0
+    )).length;
+  }, [fillVersion]);
+
+  const setBulkLockForColoredSections = useCallback((nextLocked) => {
+    if (!isAdmin) return;
+
+    const current = sectionFillsRef.current || {};
+    const next = { ...current };
+    let updatedCount = 0;
+
+    Object.entries(current).forEach(([sectionId, sectionValue]) => {
+      if (!sectionValue || typeof sectionValue !== 'object') return;
+      const hasColor = typeof sectionValue.color === 'string' && sectionValue.color.trim().length > 0;
+      if (!hasColor) return;
+      next[sectionId] = {
+        ...sectionValue,
+        locked: !!nextLocked,
+      };
+      updatedCount += 1;
+    });
+
+    if (updatedCount === 0) {
+      alert('No colored sections found to update.');
+      return;
+    }
+
+    sectionFillsRef.current = next;
+    setFillVersion((v) => v + 1);
+    setBulkLockNotice(nextLocked ? 'All colors locked.' : 'All colors unlocked.');
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!bulkLockNotice) return undefined;
+    const timer = window.setTimeout(() => {
+      setBulkLockNotice('');
+    }, 2200);
+    return () => window.clearTimeout(timer);
+  }, [bulkLockNotice]);
 
   const handleSaveRevision = useCallback(async (sendForReview = false) => {
     if (!workOrderId) return;
@@ -2609,15 +2820,29 @@ export default function DesignerPage() {
     };
   }, [linkedParams, linkedProductByTemplateId, selectedTemplate]);
 
-  const activeLinkedDesignerHref = useMemo(() => {
-    if (!activeLinkedResources.template_id) return '';
-    const params = new URLSearchParams();
-    params.set('template', activeLinkedResources.template_id);
-    if (activeLinkedResources.pattern_product_id) params.set('pattern_product_id', activeLinkedResources.pattern_product_id);
-    if (activeLinkedResources.gallery_photo_id) params.set('gallery_photo_id', activeLinkedResources.gallery_photo_id);
-    if (activeLinkedResources.gallery_template_id) params.set('gallery_template_id', activeLinkedResources.gallery_template_id);
-    return `#/designer?${params.toString()}`;
-  }, [activeLinkedResources]);
+  const activeTemplateRelatedProducts = useMemo(() => {
+    const contextTemplateId = String(activeLinkedResources.template_id || '').trim();
+    if (!contextTemplateId) return [];
+
+    const dedup = new Map();
+    manualProducts.forEach((entry) => {
+      const source = entry?.related_links;
+      if (!source || typeof source !== 'object') return;
+      if (String(source.template_id || '').trim() !== contextTemplateId) return;
+
+      const productId = String(entry?.id || source.pattern_product_id || '').trim();
+      if (!productId || dedup.has(productId)) return;
+
+      const productName = String(entry?.name || source.pattern_product_name || '').trim();
+      dedup.set(productId, {
+        id: productId,
+        name: productName,
+        href: `#/product/m-${productId}`,
+      });
+    });
+
+    return [...dedup.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true }));
+  }, [activeLinkedResources.template_id, manualProducts]);
 
   const activeLinkedGalleryHref = useMemo(() => {
     if (!activeLinkedResources.gallery_photo_id) return '';
@@ -2632,6 +2857,11 @@ export default function DesignerPage() {
   const activeLinkedPatternHref = activeLinkedResources.pattern_product_id
     ? `#/product/m-${activeLinkedResources.pattern_product_id}`
     : '';
+
+  const shouldShowPatternHeaderLink = useMemo(() => {
+    if (!activeLinkedPatternHref) return false;
+    return !activeTemplateRelatedProducts.some((product) => product.href === activeLinkedPatternHref);
+  }, [activeLinkedPatternHref, activeTemplateRelatedProducts]);
 
   const sectionLegendItems = useMemo(() => {
     const sectionNumbers = new Set();
@@ -2674,6 +2904,10 @@ export default function DesignerPage() {
         locked: lockBySection.get(number) || false,
       }));
   }, [sectionLabels, fillVersion]);
+
+  const isClearGlassSelected = !isEraseMode
+    && !activeGlassType
+    && selectedColor === CLEAR_GLASS_COLOR;
 
   useEffect(() => {
     if (selectedLegendNumber == null) return;
@@ -3009,12 +3243,12 @@ export default function DesignerPage() {
             : selectedTemplate?.name}
         </span>
         <div className={styles.relatedResourceSwitch}>
-          {activeLinkedDesignerHref && (
-            <a href={activeLinkedDesignerHref} className={styles.relatedGalleryLink}>
-              View linked template{activeLinkedResources.template_name ? `: ${activeLinkedResources.template_name}` : ''}
+          {activeTemplateRelatedProducts.map((product) => (
+            <a key={product.id} href={product.href} className={styles.relatedGalleryLink}>
+              View related product{product.name ? `: ${product.name}` : ''}
             </a>
-          )}
-          {activeLinkedPatternHref && (
+          ))}
+          {shouldShowPatternHeaderLink && (
             <a href={activeLinkedPatternHref} className={styles.relatedGalleryLink}>
               View related pattern{activeLinkedResources.pattern_product_name ? `: ${activeLinkedResources.pattern_product_name}` : ''}
             </a>
@@ -3030,7 +3264,7 @@ export default function DesignerPage() {
         <button className={styles.toolBtn} onClick={fillAll} title="Fill all pieces with current color">
           Fill All
         </button>
-        <button className={styles.toolBtn} onClick={resetCanvas} title="Remove all colour and texture">
+        <button className={styles.toolBtn} onClick={resetCanvas} title="Remove all non-locked colour and texture">
           ↺ Reset
         </button>
         <div className={styles.spacer} />
@@ -3072,14 +3306,37 @@ export default function DesignerPage() {
             )}
           </>
         ) : isAdmin ? (
-          <button
-            className={`${styles.toolBtn} ${styles.save}`}
-            onClick={handleSaveTemplateDefaults}
-            disabled={saving || !selectedTemplate?.id}
-            title={!selectedTemplate?.id ? 'Select a template first' : 'Save template defaults and locks'}
-          >
-            {saving ? 'Saving…' : '💾 Save'}
-          </button>
+          <>
+            <button
+              className={`${styles.toolBtn} ${styles.save}`}
+              onClick={handleSaveTemplateDefaults}
+              disabled={saving || !selectedTemplate?.id}
+              title={!selectedTemplate?.id ? 'Select a template first' : 'Save template defaults and locks'}
+            >
+              {saving ? 'Saving…' : '💾 Save'}
+            </button>
+            <button
+              className={styles.toolBtn}
+              onClick={() => setBulkLockForColoredSections(true)}
+              disabled={coloredSectionCount === 0}
+              title="Lock all currently colored sections"
+            >
+              Lock All Colored Sections
+            </button>
+            <button
+              className={styles.toolBtn}
+              onClick={() => setBulkLockForColoredSections(false)}
+              disabled={coloredSectionCount === 0}
+              title="Unlock all currently colored sections"
+            >
+              Unlock All Colored Sections
+            </button>
+            {bulkLockNotice && (
+              <span className={styles.bulkLockNotice} role="status" aria-live="polite">
+                {bulkLockNotice}
+              </span>
+            )}
+          </>
         ) : customerToken ? (
           <>
             <button
@@ -3214,11 +3471,7 @@ export default function DesignerPage() {
               </div>
             </div>
 
-            {selectedTemplate?.template_type === 'image' ? (
-              <div className={styles.hint}>Pick a color, then click any white section to fill it in</div>
-            ) : (
-              <div className={styles.hint}>Pick a color from the palette, then click any section to fill it</div>
-            )}
+
           </div>
 
           <div className={styles.zoomRail}>
@@ -3293,7 +3546,7 @@ export default function DesignerPage() {
                 </button>
                 <button
                   type="button"
-                  className={`${styles.paletteActionBtn} ${styles.clearGlassActionBtn}`}
+                  className={`${styles.paletteActionBtn} ${styles.clearGlassActionBtn} ${isClearGlassSelected ? styles.clearGlassActionBtnActive : ''}`}
                   onClick={() => {
                     setIsEraseMode(false);
                     selectedColorRef.current = CLEAR_GLASS_COLOR;
@@ -3460,38 +3713,45 @@ export default function DesignerPage() {
                       >
                         <span className={styles.sectionLegendNumber}>{item.number}.</span>
                         <span
-                          role={isAdmin ? 'button' : undefined}
-                          tabIndex={isAdmin ? 0 : -1}
-                          className={`${styles.sectionLegendLockControl} ${isAdmin ? styles.sectionLegendLockControlInteractive : ''} ${item.locked ? styles.sectionLegendLockControlLocked : ''}`}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setSelectedLegendNumber(item.number);
-                            if (isAdmin) {
-                              toggleSelectedSectionLock(item.number);
-                            }
-                          }}
-                          onKeyDown={(event) => {
-                            if (!isAdmin) return;
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              setSelectedLegendNumber(item.number);
-                              toggleSelectedSectionLock(item.number);
-                            }
-                          }}
-                          title={
-                            isAdmin
-                              ? (item.locked ? `Unlock section ${item.number}` : `Lock section ${item.number}`)
-                              : (item.locked ? `Section ${item.number} locked` : `Section ${item.number} unlocked`)
-                          }
-                          aria-label={item.locked ? `Section ${item.number} locked` : `Section ${item.number} unlocked`}
-                        >
-                          {item.locked ? '🔒' : '🔓'}
-                        </span>
-                        <span
                           className={styles.sectionLegendColor}
                           style={item.color ? { background: item.color } : undefined}
                         />
+                        {(isAdmin || item.locked) ? (
+                          <span
+                            role={isAdmin ? 'button' : undefined}
+                            tabIndex={isAdmin ? 0 : -1}
+                            className={`${styles.sectionLegendLockControl} ${isAdmin ? styles.sectionLegendLockControlInteractive : ''} ${item.locked ? styles.sectionLegendLockControlLocked : ''}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedLegendNumber(item.number);
+                              if (isAdmin) {
+                                toggleSelectedSectionLock(item.number);
+                              }
+                            }}
+                            onKeyDown={(event) => {
+                              if (!isAdmin) return;
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                setSelectedLegendNumber(item.number);
+                                toggleSelectedSectionLock(item.number);
+                              }
+                            }}
+                            title={
+                              isAdmin
+                                ? (item.locked ? `Unlock section ${item.number}` : `Lock section ${item.number}`)
+                                : `Section ${item.number} locked`
+                            }
+                            aria-label={item.locked ? `Section ${item.number} locked` : `Section ${item.number} unlocked`}
+                          >
+                            {item.locked ? '🔒' : '🔓'}
+                          </span>
+                        ) : (
+                          <span
+                            className={`${styles.sectionLegendLockControl} ${styles.sectionLegendLockPlaceholder}`}
+                            aria-hidden="true"
+                          />
+                        )}
                       </button>
                     ))}
                   </div>

@@ -10,6 +10,9 @@ import LoadingMessage from '../../components/LoadingMessage';
 import styles from './GalleryManagement.module.css';
 
 const ADMIN_DEFAULT_DISPLAY_NAME = 'SGCG Art';
+const GALLERY_MAX_PHOTOS = 10;
+const GALLERY_MAX_SINGLE_FILE_BYTES = 20 * 1024 * 1024;
+const GALLERY_MAX_TOTAL_BYTES = 120 * 1024 * 1024;
 
 const getApiOrigin = () => {
   const configuredBase = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -46,6 +49,8 @@ export default function GalleryManagement() {
     is_hidden: false,
   });
   const [modalPhotos, setModalPhotos] = useState([]);
+  const [isQuickEditMode, setIsQuickEditMode] = useState(false);
+  const [selectedGroupIds, setSelectedGroupIds] = useState([]);
 
   const [form, setForm] = useState({
     panel_name: '',
@@ -73,10 +78,24 @@ export default function GalleryManagement() {
   const mergeIncomingFiles = (incomingFiles) => {
     const safeFiles = Array.from(incomingFiles || []).filter(Boolean);
     if (!safeFiles.length) return;
+
+    const firstOversized = safeFiles.find((file) => file.size > GALLERY_MAX_SINGLE_FILE_BYTES);
+    if (firstOversized) {
+      setStatus(`${firstOversized.name} is too large to upload. Please use a smaller file.`);
+      return;
+    }
+
     setUploadFiles((prev) => {
-      const merged = [...prev, ...safeFiles].slice(0, 5);
-      if (prev.length + safeFiles.length > 5) {
-        setStatus('You can upload up to 5 photos per submission.');
+      const next = [...prev, ...safeFiles];
+      const totalBytes = next.reduce((sum, file) => sum + (file?.size || 0), 0);
+      if (totalBytes > GALLERY_MAX_TOTAL_BYTES) {
+        setStatus('This upload is too large. Please reduce the number of photos or file sizes.');
+        return prev;
+      }
+
+      const merged = next.slice(0, GALLERY_MAX_PHOTOS);
+      if (next.length > GALLERY_MAX_PHOTOS) {
+        setStatus(`You can upload up to ${GALLERY_MAX_PHOTOS} photos per submission. Please reduce the number of photos.`);
       }
       return merged;
     });
@@ -308,6 +327,73 @@ export default function GalleryManagement() {
     }
   };
 
+  const toggleQuickEditMode = () => {
+    setIsQuickEditMode((prev) => {
+      const next = !prev;
+      if (!next) {
+        setSelectedGroupIds([]);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectedGroupId = (groupId) => {
+    setSelectedGroupIds((prev) => (
+      prev.includes(groupId)
+        ? prev.filter((id) => id !== groupId)
+        : [...prev, groupId]
+    ));
+  };
+
+  const quickDeleteSelected = async () => {
+    const selectedGroups = sortedGroups.filter((group) => selectedGroupIds.includes(group.id));
+    if (!selectedGroups.length) {
+      setStatus('Select at least one photo row to delete.');
+      return;
+    }
+
+    const totalPhotos = selectedGroups.reduce((sum, group) => sum + group.photos.length, 0);
+    const shouldDelete = window.confirm(
+      `Delete ${totalPhotos} photo${totalPhotos === 1 ? '' : 's'} across ${selectedGroups.length} selected row${selectedGroups.length === 1 ? '' : 's'}? This cannot be undone.`,
+    );
+    if (!shouldDelete) return;
+
+    setStatus('');
+    try {
+      const photoIds = selectedGroups.flatMap((group) => group.photos.map((photo) => photo.id));
+      await Promise.all(photoIds.map((photoId) => deleteAdminGalleryPhoto(photoId)));
+      await loadData();
+      setSelectedGroupIds([]);
+      setStatus(`Deleted ${totalPhotos} photo${totalPhotos === 1 ? '' : 's'}.`);
+    } catch (err) {
+      setStatus(err?.response?.data?.detail || err?.message || 'Failed to delete selected photos.');
+    }
+  };
+
+  const quickGroupSelected = async () => {
+    const selectedGroups = sortedGroups.filter((group) => selectedGroupIds.includes(group.id));
+    if (selectedGroups.length < 2) {
+      setStatus('Select at least two photo rows to group together.');
+      return;
+    }
+
+    const newGroupId = `quick-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const photosToGroup = selectedGroups.flatMap((group) => group.photos);
+
+    setStatus('');
+    try {
+      await Promise.all(photosToGroup.map((photo, index) => updateAdminGalleryPhoto(photo.id, {
+        submission_group_id: newGroupId,
+        is_cover: index === 0,
+      })));
+      await loadData();
+      setSelectedGroupIds([]);
+      setStatus(`Grouped ${photosToGroup.length} photo${photosToGroup.length === 1 ? '' : 's'} together.`);
+    } catch (err) {
+      setStatus(err?.response?.data?.detail || err?.message || 'Failed to group selected photos.');
+    }
+  };
+
   const saveModalChanges = async () => {
     if (!selectedGroup) return;
     setIsSavingModal(true);
@@ -378,7 +464,16 @@ export default function GalleryManagement() {
       </div>
 
       <div className={styles.section}>
-        <h3>Manage Photos</h3>
+        <div className={styles.manageHeaderRow}>
+          <h3>Manage Photos</h3>
+          <button
+            type="button"
+            className={`${styles.button} ${styles.primary}`}
+            onClick={toggleQuickEditMode}
+          >
+            {isQuickEditMode ? 'Save' : 'Quick Edit'}
+          </button>
+        </div>
         <p>Showing pending submissions first for faster approvals.</p>
         <div className={styles.quickFilters}>
           <button
@@ -410,6 +505,27 @@ export default function GalleryManagement() {
             Rejected
           </button>
         </div>
+        {isQuickEditMode && (
+          <div className={styles.quickActionsRow}>
+            <span>{selectedGroupIds.length} selected</span>
+            <button
+              type="button"
+              className={`${styles.button} ${styles.danger}`}
+              onClick={quickDeleteSelected}
+              disabled={selectedGroupIds.length === 0}
+            >
+              Delete Selected
+            </button>
+            <button
+              type="button"
+              className={`${styles.button} ${styles.primary}`}
+              onClick={quickGroupSelected}
+              disabled={selectedGroupIds.length < 2}
+            >
+              Group Selected
+            </button>
+          </div>
+        )}
         {loading ? (
           <LoadingMessage label="Loading photos" />
         ) : sortedGroups.length === 0 ? (
@@ -420,9 +536,27 @@ export default function GalleryManagement() {
               <button
                 type="button"
                 key={group.id}
-                className={styles.compactRow}
-                onClick={() => openGroupModal(group)}
+                className={`${styles.compactRow} ${isQuickEditMode ? styles.compactRowEditing : ''}`}
+                onClick={() => {
+                  if (isQuickEditMode) {
+                    toggleSelectedGroupId(group.id);
+                    return;
+                  }
+                  openGroupModal(group);
+                }}
               >
+                {isQuickEditMode && (
+                  <label
+                    className={styles.rowCheckboxWrap}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedGroupIds.includes(group.id)}
+                      onChange={() => toggleSelectedGroupId(group.id)}
+                    />
+                  </label>
+                )}
                 <img
                   src={resolveGalleryImageUrl((group.photos.find((photo) => photo.is_cover) || group.photos[0])?.image_url)}
                   alt={group.panel_name}
@@ -519,7 +653,7 @@ export default function GalleryManagement() {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleUploadDrop}
               >
-                <p>Drag and drop up to 5 photos here</p>
+                <p>Drag and drop up to 10 photos here</p>
                 <p>or</p>
                 <button type="button" className={styles.button} onClick={() => fileInputRef.current?.click()}>
                   Browse Computer
@@ -538,6 +672,7 @@ export default function GalleryManagement() {
                   }}
                 />
                 <span className={styles.fileName}>{uploadFiles.length ? `${uploadFiles.length} selected` : 'No file chosen'}</span>
+                <span className={styles.fileName}>If upload is too large, reduce the number of photos or file sizes.</span>
               </div>
               {!!uploadPreviewUrls.length && (
                 <div className={styles.previewWrap}>

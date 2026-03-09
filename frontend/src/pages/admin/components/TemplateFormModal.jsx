@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import api from '../../../services/api';
 import styles from './TemplateFormModal.module.css';
 
@@ -31,6 +31,100 @@ const resolveImageUrl = (url) => {
 
 const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 const ACCEPTED_TYPES = '.svg,.pdf,.jpg,.jpeg,.png';
+const TEMPLATE_MAX_FILE_BYTES = 50 * 1024 * 1024;
+
+const createDefaultRelatedLinks = () => ({
+  template_id: '',
+  template_name: '',
+  pattern_product_id: '',
+  pattern_product_name: '',
+  gallery_photo_id: '',
+  gallery_panel_name: '',
+  gallery_template_id: '',
+});
+
+const CATEGORY_TYPE_ALIASES = {
+  pattern: 'patterns',
+  patterns: 'patterns',
+  stainedglasspanels: 'stainedGlassPanels',
+  stainedglass: 'stainedGlassPanels',
+  glass: 'stainedGlassPanels',
+  fusedart: 'fusedArt',
+  laserandsandblasting: 'laserAndSandblasting',
+  laser: 'laserAndSandblasting',
+  sandblast: 'laserAndSandblasting',
+  sandblasting: 'laserAndSandblasting',
+  woodart: 'woodArt',
+  woodwork: 'woodArt',
+  woodworking: 'woodArt',
+  wood: 'woodArt',
+};
+
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
+const normalizeRelatedLinksForForm = (value) => ({
+  ...createDefaultRelatedLinks(),
+  ...(value && typeof value === 'object' ? value : {}),
+  template_id: value?.template_id ? String(value.template_id) : '',
+  pattern_product_id: value?.pattern_product_id ? String(value.pattern_product_id) : '',
+  gallery_photo_id: value?.gallery_photo_id ? String(value.gallery_photo_id) : '',
+  gallery_template_id: value?.gallery_template_id ? String(value.gallery_template_id) : '',
+});
+
+const buildRelatedLinksPayload = (relatedLinks) => {
+  if (!relatedLinks || typeof relatedLinks !== 'object') {
+    return null;
+  }
+
+  const payload = {
+    template_id: relatedLinks.template_id ? Number(relatedLinks.template_id) : null,
+    template_name: relatedLinks.template_name?.trim() || null,
+    pattern_product_id: relatedLinks.pattern_product_id ? Number(relatedLinks.pattern_product_id) : null,
+    pattern_product_name: relatedLinks.pattern_product_name?.trim() || null,
+    gallery_photo_id: relatedLinks.gallery_photo_id ? Number(relatedLinks.gallery_photo_id) : null,
+    gallery_panel_name: relatedLinks.gallery_panel_name?.trim() || null,
+    gallery_template_id: relatedLinks.gallery_template_id ? Number(relatedLinks.gallery_template_id) : null,
+  };
+
+  const hasLinkedValue = Object.values(payload).some((entry) => entry !== null && entry !== '');
+  return hasLinkedValue ? payload : null;
+};
+
+const inferProductType = (product) => {
+  const categories = Array.isArray(product?.category)
+    ? product.category
+    : product?.category
+      ? [product.category]
+      : [];
+
+  const explicitType = categories
+    .map((entry) => CATEGORY_TYPE_ALIASES[
+      String(entry || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+    ])
+    .find(Boolean);
+
+  if (explicitType) return explicitType;
+
+  const combined = [
+    String(product?.category || '').toLowerCase(),
+    String(product?.materials || '').toLowerCase(),
+    String(product?.name || '').toLowerCase(),
+    String(product?.description || '').toLowerCase(),
+  ].join(' ');
+
+  if (/pattern|template|svg|line\s*art|trace/.test(combined)) {
+    return 'patterns';
+  }
+  return 'stainedGlassPanels';
+};
 
 function countSVGPaths(svgText) {
   try {
@@ -94,7 +188,11 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
     image_url: template?.image_url || '',
     template_type: template?.template_type || 'svg',
     piece_count: template?.piece_count ?? 0,
+    related_links: normalizeRelatedLinksForForm(template?.related_links),
   });
+  const [templateOptions, setTemplateOptions] = useState([]);
+  const [galleryOptions, setGalleryOptions] = useState([]);
+  const [manualProducts, setManualProducts] = useState([]);
   const [fileType, setFileType] = useState(null); // 'svg' | 'image' | null (null = not yet chosen)
   const [previewUrl, setPreviewUrl] = useState(resolveImageUrl(template?.thumbnail_url || template?.image_url || ''));
   const [uploading, setUploading] = useState(false);
@@ -103,6 +201,116 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
   const [loading, setLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fileInputRef = useRef();
+
+  const patternProductOptions = useMemo(() => {
+    const inferred = manualProducts
+      .filter((entry) => inferProductType(entry) === 'patterns')
+      .map((entry) => ({
+        id: entry.id,
+        name: (entry.name || `Pattern #${entry.id}`).trim(),
+      }))
+      .filter((entry) => entry.id);
+
+    const source = inferred.length > 0
+      ? inferred
+      : manualProducts
+        .map((entry) => ({
+          id: entry.id,
+          name: (entry.name || `Product #${entry.id}`).trim(),
+        }))
+        .filter((entry) => entry.id);
+
+    const seen = new Set();
+    return source.filter((entry) => {
+      const key = String(entry.id);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [manualProducts]);
+
+  const templateOptionCount = templateOptions.length;
+  const patternOptionCount = patternProductOptions.length;
+  const galleryOptionCount = galleryOptions.length;
+
+  useEffect(() => {
+    setForm({
+      name: template?.name || '',
+      category: template?.category || '',
+      difficulty: template?.difficulty || DIFFICULTY_OPTIONS[0],
+      dimensions: template?.dimensions || '',
+      svg_content: template?.svg_content || '',
+      image_url: template?.image_url || '',
+      template_type: template?.template_type || 'svg',
+      piece_count: template?.piece_count ?? 0,
+      related_links: normalizeRelatedLinksForForm(template?.related_links),
+    });
+    setPreviewUrl(resolveImageUrl(template?.thumbnail_url || template?.image_url || ''));
+    setFileType(null);
+    setError('');
+    setConfirmDelete(false);
+  }, [template, open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let isMounted = true;
+    const loadLinkOptions = async () => {
+      try {
+        const [templatesResponse, galleryResponse, manualProductsResponse] = await Promise.all([
+          api.get('/templates'),
+          api.get('/admin/gallery/photos'),
+          api.get('/manual-products'),
+        ]);
+
+        if (!isMounted) return;
+
+        const seenTemplateIds = new Set();
+        const nextTemplateOptions = toArray(templatesResponse)
+          .filter((entry) => entry?.id)
+          .map((entry) => ({
+            id: entry.id,
+            name: String(entry.name || `Template #${entry.id}`).trim(),
+          }))
+          .filter((entry) => {
+            const key = String(entry.id);
+            if (seenTemplateIds.has(key)) return false;
+            seenTemplateIds.add(key);
+            return true;
+          });
+
+        const seenGalleryIds = new Set();
+        const nextGalleryOptions = toArray(galleryResponse)
+          .filter((entry) => entry?.id)
+          .map((entry) => ({
+            id: entry.id,
+            panel_name: String(entry.panel_name || `Photo #${entry.id}`).trim(),
+            template_id: entry.template_id || null,
+          }))
+          .filter((entry) => {
+            const key = String(entry.id);
+            if (seenGalleryIds.has(key)) return false;
+            seenGalleryIds.add(key);
+            return true;
+          });
+
+        setTemplateOptions(nextTemplateOptions);
+        setGalleryOptions(nextGalleryOptions);
+        setManualProducts(toArray(manualProductsResponse));
+      } catch (loadError) {
+        console.error('Failed to load related link options for template form:', loadError);
+        if (!isMounted) return;
+        setTemplateOptions([]);
+        setGalleryOptions([]);
+        setManualProducts([]);
+      }
+    };
+
+    loadLinkOptions();
+    return () => {
+      isMounted = false;
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -124,8 +332,8 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
       setError('Unsupported file type. Use SVG, PDF, JPEG, or PNG.');
       return;
     }
-    if (file.size > 20 * 1024 * 1024) {
-      setError('File too large (max 20 MB)');
+    if (file.size > TEMPLATE_MAX_FILE_BYTES) {
+      setError('File too large to upload (max 50 MB). Please use a smaller file.');
       return;
     }
 
@@ -217,6 +425,7 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
         dimensions: form.dimensions.trim(),
         is_active: true,
         template_type: form.template_type,
+        related_links: buildRelatedLinksPayload(form.related_links),
       };
       if (hasSVG) payload.svg_content = form.svg_content;
       if (hasImage) {
@@ -271,6 +480,103 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
             />
           </label>
 
+          <div className={styles.productLinkingSection}>
+            <h4>Related Customer Links</h4>
+            <p className={styles.formNote}>
+              Link this template to a template, pattern, or gallery entry so customers can jump straight to inspiration.
+            </p>
+
+            <label>
+              {`Linked Template (${templateOptionCount})`}
+              <select
+                value={form.related_links?.template_id || ''}
+                onChange={(e) => {
+                  const nextId = e.target.value;
+                  const selectedTemplate = templateOptions.find(
+                    (entry) => String(entry.id) === String(nextId),
+                  );
+                  setForm((prev) => ({
+                    ...prev,
+                    related_links: {
+                      ...createDefaultRelatedLinks(),
+                      ...prev.related_links,
+                      template_id: nextId,
+                      template_name: selectedTemplate?.name || '',
+                    },
+                  }));
+                }}
+              >
+                <option value="">None</option>
+                {templateOptions.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              {`Linked Pattern Product (${patternOptionCount})`}
+              <select
+                value={form.related_links?.pattern_product_id || ''}
+                onChange={(e) => {
+                  const nextId = e.target.value;
+                  const selectedPattern = patternProductOptions.find(
+                    (entry) => String(entry.id) === String(nextId),
+                  );
+                  setForm((prev) => ({
+                    ...prev,
+                    related_links: {
+                      ...createDefaultRelatedLinks(),
+                      ...prev.related_links,
+                      pattern_product_id: nextId,
+                      pattern_product_name: selectedPattern?.name || '',
+                    },
+                  }));
+                }}
+              >
+                <option value="">None</option>
+                {patternProductOptions.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              {`Linked Photo Gallery Entry (${galleryOptionCount})`}
+              <select
+                value={form.related_links?.gallery_photo_id || ''}
+                onChange={(e) => {
+                  const nextId = e.target.value;
+                  const selectedPhoto = galleryOptions.find(
+                    (entry) => String(entry.id) === String(nextId),
+                  );
+                  setForm((prev) => ({
+                    ...prev,
+                    related_links: {
+                      ...createDefaultRelatedLinks(),
+                      ...prev.related_links,
+                      gallery_photo_id: nextId,
+                      gallery_panel_name: selectedPhoto?.panel_name || '',
+                      gallery_template_id: selectedPhoto?.template_id
+                        ? String(selectedPhoto.template_id)
+                        : '',
+                    },
+                  }));
+                }}
+              >
+                <option value="">None</option>
+                {galleryOptions.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.panel_name || `Photo #${entry.id}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           {/* File upload zone */}
           <div className={styles.uploadSection}>
             <div className={styles.uploadLabel}>
@@ -304,7 +610,7 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
                 <div className={styles.dropZoneContent}>
                   <span className={styles.uploadIcon}>📁</span>
                   <span>Drag & drop or <strong>click to browse</strong></span>
-                  <span className={styles.uploadTypes}>SVG · PDF · JPEG · PNG (max 20 MB)</span>
+                  <span className={styles.uploadTypes}>SVG · PDF · JPEG · PNG (max 50 MB)</span>
                 </div>
               )}
             </div>

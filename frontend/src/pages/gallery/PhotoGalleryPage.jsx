@@ -48,6 +48,10 @@ const resolveGalleryImageUrl = (value) => {
   return `${getApiOrigin()}/${value}`;
 };
 
+const GALLERY_MAX_PHOTOS = 10;
+const GALLERY_MAX_SINGLE_FILE_BYTES = 20 * 1024 * 1024;
+const GALLERY_MAX_TOTAL_BYTES = 120 * 1024 * 1024;
+
 export default function PhotoGalleryPage() {
   const { authToken } = useAuth();
   const { customerToken } = useCustomerAuth();
@@ -247,10 +251,24 @@ export default function PhotoGalleryPage() {
   const mergeIncomingFiles = (incomingFiles) => {
     const safeFiles = Array.from(incomingFiles || []).filter(Boolean);
     if (!safeFiles.length) return;
+
+    const firstOversized = safeFiles.find((file) => file.size > GALLERY_MAX_SINGLE_FILE_BYTES);
+    if (firstOversized) {
+      setSubmitError(`${firstOversized.name} is too large to upload. Please use a smaller file.`);
+      return;
+    }
+
     setPhotoFiles((prev) => {
-      const merged = [...prev, ...safeFiles].slice(0, 5);
-      if (prev.length + safeFiles.length > 5) {
-        setSubmitError('You can upload up to 5 photos per submission.');
+      const next = [...prev, ...safeFiles];
+      const totalBytes = next.reduce((sum, file) => sum + (file?.size || 0), 0);
+      if (totalBytes > GALLERY_MAX_TOTAL_BYTES) {
+        setSubmitError('This upload is too large. Please reduce the number of photos or file sizes.');
+        return prev;
+      }
+
+      const merged = next.slice(0, GALLERY_MAX_PHOTOS);
+      if (next.length > GALLERY_MAX_PHOTOS) {
+        setSubmitError(`You can upload up to ${GALLERY_MAX_PHOTOS} photos per submission. Please reduce the number of photos.`);
       } else {
         setSubmitError('');
       }
@@ -676,7 +694,7 @@ export default function PhotoGalleryPage() {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleDrop}
               >
-                <p>Drag and drop a photo here</p>
+                <p>Drag and drop photos here</p>
                 <p>or</p>
                 <button
                   type="button"
@@ -696,6 +714,7 @@ export default function PhotoGalleryPage() {
                 {!!photoFiles.length && (
                   <>
                     <span className={styles.fileName}>{photoFiles.length} selected</span>
+                    <span className={styles.fileName}>Up to 10 photos. If upload is too large, reduce the number of photos or file sizes.</span>
                     <div className={styles.uploadPreviewGrid}>
                       {photoPreviewUrls.map((previewUrl, index) => (
                         <div key={`${previewUrl}-${index}`} className={styles.previewItem}>

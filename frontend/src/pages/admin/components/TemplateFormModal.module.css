@@ -170,6 +170,30 @@
   margin-top: -0.5rem;
 }
 
+.productLinkingSection {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid #d7dfef;
+  border-radius: 10px;
+  background: #f7f9fe;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.productLinkingSection h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #23417a;
+}
+
+.formNote {
+  margin: 0;
+  color: #5e6f8f;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
 /* Danger zone — permanent delete */
 .dangerZone {
   margin-top: 1.5rem;

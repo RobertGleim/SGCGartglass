@@ -1288,6 +1288,20 @@ def list_customer_favorites(customer_id):
     return [dict(row) for row in rows]
 
 
+def count_customer_favorites_total():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) AS total FROM customer_favorites")
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return 0
+    if isinstance(row, dict):
+        return int(row.get("total") or 0)
+    return int(row[0] or 0)
+
+
 def add_customer_favorite(customer_id, product_type, product_id):
     conn = get_db()
     cursor = conn.cursor()

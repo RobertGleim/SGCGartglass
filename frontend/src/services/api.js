@@ -28,6 +28,8 @@ export const addCustomerAddress = (address) => api.post('/customer/addresses', a
 export const upsertCustomerPrimaryAddress = (address) => api.put('/customer/addresses/primary', address);
 export const changeCustomerPassword = (payload) => api.put('/customer/password', payload);
 export const fetchCustomerFavorites = () => api.get('/customer/favorites');
+export const fetchFavoritesSummary = () => api.get('/favorites/summary');
+export const fetchEtsyShopSummary = (params = {}) => api.get('/etsy/shop-summary', { params });
 export const addCustomerFavorite = (payload) => api.post('/customer/favorites', payload);
 export const removeCustomerFavorite = (id) => api.delete(`/customer/favorites/${id}`);
 export const fetchCustomerCart = () => api.get('/customer/cart');
@@ -47,6 +49,8 @@ export const createCustomerReview = (review) => api.post('/customer/reviews', re
 export const updateCustomerReview = (reviewId, payload) => api.put(`/customer/reviews/${reviewId}`, payload);
 export const fetchProductReviews = (params) => api.get('/reviews', { params });
 export const fetchRecentReviews = (params = {}) => api.get('/reviews/recent', { params });
+export const submitShopCustomOrderRequest = (payload) => api.post('/shop/custom-order-request', payload);
+export const submitShopContactRequest = (payload) => api.post('/shop/contact-request', payload);
 export const fetchAdminReviews = (params = {}) => api.get('/admin/reviews', { params });
 export const updateAdminReview = (reviewId, payload) => api.put(`/admin/reviews/${reviewId}`, payload);
 export const deleteAdminReview = (reviewId) => api.delete(`/admin/reviews/${reviewId}`);

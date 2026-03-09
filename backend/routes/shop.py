@@ -45,6 +45,7 @@ from ..db import (
     create_customer_address,
     upsert_customer_primary_address,
     list_customer_favorites,
+    count_customer_favorites_total,
     add_customer_favorite,
     remove_customer_favorite,
     list_customer_cart_items,
@@ -73,7 +74,7 @@ from ..db import (
     update_customer_admin,
     delete_customer_admin,
 )
-from ..etsy import extract_listing_id, fetch_listing
+from ..etsy import extract_listing_id, fetch_listing, fetch_shop_favorers_count
 from ..utils.email import send_email
 
 
@@ -363,6 +364,141 @@ def _send_admin_order_email(order_number, total_amount, customer_name):
         </html>
         """,
     )
+
+
+def _safe_text(value, max_len=1000):
+    return str(value or "").strip()[:max_len]
+
+
+def _list_to_text(value):
+    if isinstance(value, list):
+        return ", ".join([str(entry).strip() for entry in value if str(entry or "").strip()])
+    return _safe_text(value, 1000)
+
+
+def _resolve_shop_contact_emails():
+    # Deliver to the configured support inbox and send from the authenticated mailbox.
+    inbox_email = (
+        os.environ.get("SHOP_CONTACT_INBOX")
+        or os.environ.get("SUPPORT_EMAIL")
+        or "customersupport@sgcgart.com"
+    ).strip().lower()
+    sender_email = (
+        os.environ.get("MAIL_DEFAULT_SENDER")
+        or os.environ.get("SUPPORT_EMAIL")
+        or os.environ.get("MAIL_USERNAME")
+        or inbox_email
+    ).strip().lower()
+    return inbox_email, sender_email
+
+
+def _normalize_shop_request_tag(value, fallback):
+    normalized = _safe_text(value, 40).upper().replace(" ", "_")
+    return normalized or fallback
+
+
+@api.post("/shop/custom-order-request")
+def submit_custom_order_request():
+    payload = request.get_json(silent=True) or {}
+
+    customer_name = _safe_text(payload.get("name"), 120)
+    email = _safe_text(payload.get("email"), 255).lower()
+    phone = _safe_text(payload.get("phone"), 50)
+    project_name = _safe_text(payload.get("project_name"), 180)
+    description = _safe_text(payload.get("description"), 4000)
+    category = _list_to_text(payload.get("category"))
+    materials = _list_to_text(payload.get("materials"))
+    width = _safe_text(payload.get("width"), 40)
+    height = _safe_text(payload.get("height"), 40)
+    depth = _safe_text(payload.get("depth"), 40)
+    budget = _safe_text(payload.get("budget"), 60)
+    quantity = _safe_text(payload.get("quantity"), 60)
+    request_tag = _normalize_shop_request_tag(payload.get("tag") or payload.get("request_type"), "CUSTOM_ORDER")
+
+    if not customer_name or not email or not description:
+        return jsonify({"error": "missing_required_fields"}), 400
+
+    support_email, sender_email = _resolve_shop_contact_emails()
+    subject = f"[{request_tag}] Custom Order Request - {customer_name}"
+    html_body = f"""
+    <html>
+      <body>
+        <h2>New Custom Order Request</h2>
+                <p><b>Flag:</b> {request_tag}</p>
+        <p><b>Name:</b> {customer_name}</p>
+        <p><b>Email:</b> {email}</p>
+        <p><b>Phone:</b> {phone or 'N/A'}</p>
+        <p><b>Project Name:</b> {project_name or 'N/A'}</p>
+        <p><b>Category:</b> {category or 'N/A'}</p>
+        <p><b>Materials:</b> {materials or 'N/A'}</p>
+        <p><b>Dimensions (W x H x D):</b> {width or 'N/A'} x {height or 'N/A'} x {depth or 'N/A'}</p>
+        <p><b>Budget:</b> {budget or 'N/A'}</p>
+        <p><b>Quantity:</b> {quantity or 'N/A'}</p>
+        <hr />
+        <p><b>Description:</b></p>
+        <p>{description.replace(chr(10), '<br />')}</p>
+      </body>
+    </html>
+    """
+
+    sent = send_email(
+        support_email,
+        subject,
+        html_body,
+        sender=sender_email,
+        reply_to=email or sender_email,
+    )
+
+    if not sent:
+        current_app.logger.warning("Custom order request accepted but email delivery failed for %s", email)
+        return jsonify({"success": True, "delivery": "pending", "tag": request_tag}), 202
+    return jsonify({"success": True, "tag": request_tag}), 201
+
+
+@api.post("/shop/contact-request")
+def submit_contact_request():
+    payload = request.get_json(silent=True) or {}
+
+    customer_name = _safe_text(payload.get("name"), 120)
+    phone = _safe_text(payload.get("phone"), 50)
+    email = _safe_text(payload.get("email"), 255).lower()
+    reason = _safe_text(payload.get("reason"), 120)
+    message = _safe_text(payload.get("message"), 4000)
+    request_tag = _normalize_shop_request_tag(payload.get("tag") or payload.get("request_type"), "QUESTION")
+
+    if not customer_name or not email or not reason or not message:
+        return jsonify({"error": "missing_required_fields"}), 400
+
+    support_email, sender_email = _resolve_shop_contact_emails()
+    subject = f"[{request_tag}] Shop Contact Request - {reason}"
+    html_body = f"""
+    <html>
+      <body>
+        <h2>New Shop Contact Request</h2>
+                <p><b>Flag:</b> {request_tag}</p>
+        <p><b>Name:</b> {customer_name}</p>
+        <p><b>Email:</b> {email}</p>
+        <p><b>Phone:</b> {phone or 'N/A'}</p>
+        <p><b>Reason:</b> {reason}</p>
+        <hr />
+        <p><b>Message:</b></p>
+        <p>{message.replace(chr(10), '<br />')}</p>
+      </body>
+    </html>
+    """
+
+    sent = send_email(
+        support_email,
+        subject,
+        html_body,
+        sender=sender_email,
+        reply_to=email or sender_email,
+    )
+
+    if not sent:
+        current_app.logger.warning("Contact request accepted but email delivery failed for %s", email)
+        return jsonify({"success": True, "delivery": "pending", "tag": request_tag}), 202
+    return jsonify({"success": True, "tag": request_tag}), 201
 
 
 @api.post("/stripe/webhook")
@@ -833,6 +969,28 @@ def customer_favorites():
     init_db()
     customer_id = g.auth_payload.get("customer_id")
     return jsonify(list_customer_favorites(customer_id))
+
+
+@api.get("/favorites/summary")
+def favorites_summary():
+    init_db()
+    return jsonify({"total": count_customer_favorites_total()})
+
+
+@api.get("/etsy/shop-summary")
+def etsy_shop_summary():
+    # Public summary endpoint used by storefront sidebar.
+    force_refresh = str(request.args.get("refresh") or "").strip().lower() in {"1", "true", "yes"}
+    try:
+        summary = fetch_shop_favorers_count(force_refresh=force_refresh)
+        return jsonify(summary)
+    except Exception as exc:
+        return jsonify({
+            "total": 0,
+            "source_url": "https://www.etsy.com/shop/SGCGArtGlass/favoriters?ref=shop_home",
+            "cached": False,
+            "error": str(exc),
+        }), 200
 
 
 @api.post("/customer/favorites")

@@ -21,6 +21,7 @@ admin_templates_bp = Blueprint("admin_templates", __name__)
 
 DEFAULT_LIMIT = 12
 MAX_LIMIT = 50
+MAX_TEMPLATE_UPLOAD_BYTES = 50 * 1024 * 1024
 
 
 def _require_admin(handler):
@@ -196,6 +197,11 @@ def upload_template_image():
 
         # Read file bytes for DB persistence (Render ephemeral FS)
         file_bytes = f.read()
+        if len(file_bytes) > MAX_TEMPLATE_UPLOAD_BYTES:
+            return jsonify({
+                "error": "validation_error",
+                "detail": "File is too large to upload. Please use a file smaller than 50 MB.",
+            }), 400
         mime_type = f.content_type or f"image/{ext.lstrip('.')}"
 
         # Also save to disk as a cache
@@ -279,6 +285,7 @@ def create_template():
             image_mime=image_mime,
             template_type=template_type,
             default_design_data=data.get("default_design_data"),
+            related_links=data.get("related_links"),
             is_private=data.get("is_private", False),
             assigned_customer_id=data.get("assigned_customer_id"),
             thumbnail_url=data.get("thumbnail_url"),
@@ -325,6 +332,7 @@ def update_template(template_id):
             "image_url": template.image_url,
             "template_type": template.template_type,
             "default_design_data": template.default_design_data,
+            "related_links": template.related_links,
             "is_private": template.is_private,
             "assigned_customer_id": template.assigned_customer_id,
             "thumbnail_url": template.thumbnail_url,
@@ -333,7 +341,7 @@ def update_template(template_id):
         # Only include existing svg_content if it's non-empty (skip for image templates)
         if template.svg_content:
             merged["svg_content"] = template.svg_content
-        merged.update({k: v for k, v in payload.items() if k in merged or k in ("is_active", "difficulty", "dimensions", "piece_count", "svg_content", "image_url", "default_design_data", "is_private", "assigned_customer_id")})
+        merged.update({k: v for k, v in payload.items() if k in merged or k in ("is_active", "difficulty", "dimensions", "piece_count", "svg_content", "image_url", "default_design_data", "related_links", "is_private", "assigned_customer_id")})
         ok, data, err = validate_template_data(merged)
         if not ok:
             return jsonify({"error": "validation_error", "detail": err}), 400
@@ -347,6 +355,8 @@ def update_template(template_id):
             template.piece_count = data["piece_count"]
         if "default_design_data" in data:
             template.default_design_data = data.get("default_design_data")
+        if "related_links" in data:
+            template.related_links = data.get("related_links")
         if "is_private" in data:
             template.is_private = bool(data.get("is_private"))
         if "assigned_customer_id" in data:

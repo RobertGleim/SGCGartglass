@@ -13,6 +13,9 @@ admin_gallery_bp = Blueprint("admin_gallery", __name__)
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_PHOTOS_PER_SUBMISSION = 10
+MAX_SINGLE_PHOTO_BYTES = 20 * 1024 * 1024
+MAX_TOTAL_PHOTO_BYTES = 120 * 1024 * 1024
 
 
 def _extract_payload_from_request():
@@ -143,8 +146,11 @@ def create_gallery_photo():
     valid_files = [file for file in files if file and file.filename]
     if not valid_files:
         return jsonify({"error": "validation_error", "detail": "At least one photo file is required."}), 400
-    if len(valid_files) > 5:
-        return jsonify({"error": "validation_error", "detail": "You can upload up to 5 photos per submission."}), 400
+    if len(valid_files) > MAX_PHOTOS_PER_SUBMISSION:
+        return jsonify({
+            "error": "validation_error",
+            "detail": f"You can upload up to {MAX_PHOTOS_PER_SUBMISSION} photos per submission. Please reduce the number of photos.",
+        }), 400
 
     if template_id:
         exists = Template.query.filter(Template.id == template_id).first()
@@ -169,6 +175,7 @@ def create_gallery_photo():
 
     submission_group_id = uuid.uuid4().hex
     created_photos = []
+    total_bytes = 0
     for index, file in enumerate(valid_files):
         original_name = secure_filename(file.filename)
         ext = os.path.splitext(original_name)[1].lower()
@@ -177,6 +184,19 @@ def create_gallery_photo():
             return jsonify({"error": "validation_error", "detail": f"Unsupported image type: {ext or 'unknown'}"}), 400
 
         file_bytes = file.read()
+        file_size = len(file_bytes)
+        if file_size > MAX_SINGLE_PHOTO_BYTES:
+            return jsonify({
+                "error": "validation_error",
+                "detail": f"{original_name or 'A photo'} is too large to upload. Please use a smaller file.",
+            }), 400
+        total_bytes += file_size
+        if total_bytes > MAX_TOTAL_PHOTO_BYTES:
+            return jsonify({
+                "error": "validation_error",
+                "detail": "This upload is too large to process. Please reduce the number of photos or file sizes.",
+            }), 400
+
         unique_name = f"{uuid.uuid4().hex}{ext}"
         saved_path = os.path.join(uploads_dir, unique_name)
         with open(saved_path, "wb") as output:
@@ -240,6 +260,23 @@ def admin_update_gallery_photo(photo_id):
     if not photo:
         return jsonify({"error": "not_found"}), 404
 
+    original_group_id = photo.submission_group_id or str(photo.id)
+
+    def _ensure_group_has_cover(group_id):
+        if not group_id:
+            return
+        has_cover = GalleryPhoto.query.filter(
+            GalleryPhoto.submission_group_id == group_id,
+            GalleryPhoto.is_cover.is_(True),
+        ).first()
+        if has_cover:
+            return
+        fallback = GalleryPhoto.query.filter(
+            GalleryPhoto.submission_group_id == group_id,
+        ).order_by(GalleryPhoto.created_at.asc(), GalleryPhoto.id.asc()).first()
+        if fallback:
+            fallback.is_cover = True
+
     if "panel_name" in payload:
         panel_name = (payload.get("panel_name") or "").strip()
         if not panel_name:
@@ -268,6 +305,11 @@ def admin_update_gallery_photo(photo_id):
             if not template:
                 return jsonify({"error": "validation_error", "detail": "Template not found."}), 400
             photo.template_id = template.id
+    if "submission_group_id" in payload:
+        group_id = str(payload.get("submission_group_id") or "").strip()
+        if not group_id:
+            return jsonify({"error": "validation_error", "detail": "submission_group_id cannot be empty."}), 400
+        photo.submission_group_id = group_id[:64]
     if "display_name" in payload:
         photo.display_name = _normalize_display_name(payload.get("display_name"))
     if "hide_submitter_name" in payload:
@@ -282,17 +324,10 @@ def admin_update_gallery_photo(photo_id):
             ).update({"is_cover": False}, synchronize_session=False)
         photo.is_cover = is_cover
 
-    group_id = photo.submission_group_id or str(photo.id)
-    has_cover = GalleryPhoto.query.filter(
-        GalleryPhoto.submission_group_id == group_id,
-        GalleryPhoto.is_cover.is_(True),
-    ).first()
-    if not has_cover:
-        fallback = GalleryPhoto.query.filter(
-            GalleryPhoto.submission_group_id == group_id,
-        ).order_by(GalleryPhoto.created_at.asc(), GalleryPhoto.id.asc()).first()
-        if fallback:
-            fallback.is_cover = True
+    current_group_id = photo.submission_group_id or str(photo.id)
+    _ensure_group_has_cover(current_group_id)
+    if original_group_id != current_group_id:
+        _ensure_group_has_cover(original_group_id)
 
     db.session.commit()
     return jsonify(_with_absolute_image_url(photo.to_dict(include_admin_fields=True)))

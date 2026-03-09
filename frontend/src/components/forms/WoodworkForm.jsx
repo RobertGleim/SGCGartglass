@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react'
 import '../../pages/admin/styles/forms/woodwork_form.css'
 
+const MAX_PHOTOS = 10
+const MAX_VIDEOS = 1
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024
+const MAX_VIDEO_BYTES = 80 * 1024 * 1024
+const MAX_TOTAL_BYTES = 120 * 1024 * 1024
+
 export default function WoodworkForm({
   editingProduct,
   manualProduct,
@@ -15,6 +21,7 @@ export default function WoodworkForm({
   const [categoryInput, setCategoryInput] = useState('')
   const [materialInput, setMaterialInput] = useState('')
   const [imagePreviews, setImagePreviews] = useState([])
+  const [uploadWarning, setUploadWarning] = useState('')
   // Persist watermark settings for Woodwork in localStorage
   const WOODWORK_WATERMARK_KEY = 'woodwork_enable_watermark';
   const WOODWORK_WATERMARK_TEXT_KEY = 'woodwork_watermark_text';
@@ -76,9 +83,49 @@ export default function WoodworkForm({
   }
 
   const handleAddImages = async (files) => {
+    const incomingFiles = Array.from(files || []).filter(Boolean)
+    if (!incomingFiles.length) return
+
+    const existingPhotoCount = imagePreviews.filter((preview) => preview.type !== 'video').length
+    const existingVideoCount = imagePreviews.filter((preview) => preview.type === 'video').length
+    const incomingPhotoCount = incomingFiles.filter((file) => !file.type.startsWith('video')).length
+    const incomingVideoCount = incomingFiles.filter((file) => file.type.startsWith('video')).length
+
+    if (existingPhotoCount + incomingPhotoCount > MAX_PHOTOS) {
+      setUploadWarning(`Upload is too large. Please reduce the number of photos to ${MAX_PHOTOS} or fewer.`)
+      return
+    }
+
+    if (existingVideoCount + incomingVideoCount > MAX_VIDEOS) {
+      setUploadWarning(`Only ${MAX_VIDEOS} video is allowed per listing.`)
+      return
+    }
+
+    const tooLargeImage = incomingFiles.find(
+      (file) => file.type.startsWith('image/') && file.size > MAX_IMAGE_BYTES,
+    )
+    if (tooLargeImage) {
+      setUploadWarning(`${tooLargeImage.name} is too large to upload. Please use a smaller image.`)
+      return
+    }
+
+    const tooLargeVideo = incomingFiles.find(
+      (file) => file.type.startsWith('video/') && file.size > MAX_VIDEO_BYTES,
+    )
+    if (tooLargeVideo) {
+      setUploadWarning(`${tooLargeVideo.name} is too large to upload. Please trim or compress the video.`)
+      return
+    }
+
+    const incomingTotalBytes = incomingFiles.reduce((sum, file) => sum + (file?.size || 0), 0)
+    if (incomingTotalBytes > MAX_TOTAL_BYTES) {
+      setUploadWarning('This upload is too large. Reduce the number of photos/videos or file sizes.')
+      return
+    }
+
     const newPreviews = []
     
-    for (const file of Array.from(files)) {
+    for (const file of incomingFiles) {
       const isVideo = file.type.startsWith('video')
       let processedFile = file
       
@@ -95,12 +142,13 @@ export default function WoodworkForm({
           type: isVideo ? 'video' : 'image'
         })
         
-        if (newPreviews.length === Array.from(files).length) {
+        if (newPreviews.length === incomingFiles.length) {
           setImagePreviews((prev) => [...prev, ...newPreviews])
           setManualProduct((prev) => ({
             ...prev,
             images: [...(prev.images || []), ...newPreviews.map(p => p.file)]
           }))
+          setUploadWarning('')
         }
       }
       reader.readAsDataURL(processedFile)
@@ -111,6 +159,7 @@ export default function WoodworkForm({
     const remainingPreviews = imagePreviews.filter((img) => img.id !== id)
     
     setImagePreviews(remainingPreviews)
+    setUploadWarning('')
     setManualProduct((prev) => {
       const remainingImages = prev.images.filter((img) => {
         if (img instanceof File) {
@@ -203,7 +252,8 @@ export default function WoodworkForm({
                 <label htmlFor="woodwork-image-input" className="woodwork-upload-button">
                   + Add Images/Video
                 </label>
-                <span className="woodwork-form-note">Click to add multiple images or a video</span>
+                <span className="woodwork-form-note">Add up to 10 photos and 1 video. If upload is too large, reduce the number of photos/videos.</span>
+                {uploadWarning && <span className="woodwork-form-note" style={{ color: '#c62828' }}>{uploadWarning}</span>}
               </div>
 
               {imagePreviews.length > 0 && (

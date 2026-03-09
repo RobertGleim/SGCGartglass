@@ -3,8 +3,12 @@ import Sidebar from './components/Sidebar';
 import ProductCard from './components/ProductCard';
 import SearchBar from './components/SearchBar';
 import './ProductPage.css';
-import useAuth from '../../hooks/useAuth';
-import { fetchRecentReviews } from '../../services/api';
+import {
+  fetchFavoritesSummary,
+  fetchRecentReviews,
+  submitShopContactRequest,
+  submitShopCustomOrderRequest,
+} from '../../services/api';
 
 const normalizeText = (value) => {
   if (Array.isArray(value)) {
@@ -41,6 +45,15 @@ const CATEGORY_TYPE_ALIASES = {
 }
 
 const ALPHABET_FILTERS = ['all', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''), '#']
+const CONTACT_REASONS = [
+  'General Question',
+  'Custom Order',
+  'Existing Order',
+  'Shipping',
+  'Returns',
+  'Pricing',
+  'Other',
+]
 
 const toAlphaBucket = (value) => {
   const firstChar = String(value || '').trim().charAt(0).toUpperCase()
@@ -110,19 +123,61 @@ const inferLegacyType = (product) => {
 export default function ProductPage({ products }) {
   const PRODUCTS_PER_PAGE = 12
   const titleCollator = useMemo(() => new Intl.Collator(undefined, { sensitivity: 'base', numeric: true }), [])
-  // eslint-disable-next-line no-unused-vars
-  const { authToken } = useAuth();
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [priceFilter, setPriceFilter] = useState('any')
   const [alphaFilter, setAlphaFilter] = useState('all')
   const [activeTab, setActiveTab] = useState('stained-glass-panels')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
   const [recentReviews, setRecentReviews] = useState([])
+  const [favoritesTotal, setFavoritesTotal] = useState(0)
   const [activeReviewIndex, setActiveReviewIndex] = useState(0)
   const [reviewAnimationKey, setReviewAnimationKey] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
+  const [showCustomOrderModal, setShowCustomOrderModal] = useState(false)
+  const [showContactModal, setShowContactModal] = useState(false)
+  const [customOrderSubmitting, setCustomOrderSubmitting] = useState(false)
+  const [contactSubmitting, setContactSubmitting] = useState(false)
+  const [customOrderStatus, setCustomOrderStatus] = useState('')
+  const [contactStatus, setContactStatus] = useState('')
+  const [customOrderForm, setCustomOrderForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    project_name: '',
+    category: '',
+    materials: '',
+    width: '',
+    height: '',
+    depth: '',
+    budget: '',
+    quantity: '',
+    description: '',
+  })
+  const [contactForm, setContactForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    reason: CONTACT_REASONS[0],
+    message: '',
+  })
+
+  useEffect(() => {
+    let isActive = true
+    fetchFavoritesSummary()
+      .then((response) => {
+        if (!isActive) return
+        const total = Number(response?.total)
+        setFavoritesTotal(Number.isFinite(total) && total > 0 ? total : 0)
+      })
+      .catch(() => {
+        if (!isActive) return
+        setFavoritesTotal(0)
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [])
 
   useEffect(() => {
     let isActive = true
@@ -174,13 +229,6 @@ export default function ProductPage({ products }) {
   }, [products, activeTab])
 
   const sectionLabel = PRODUCT_TABS.find((tab) => tab.key === activeTab)?.label || 'Products'
-
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 720)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
 
   const categoryCounts = useMemo(() => {
     const counts = { 
@@ -268,6 +316,93 @@ export default function ProductPage({ products }) {
 
   const activeReview = recentReviews[activeReviewIndex] || null
 
+  const panelLikesCount = useMemo(() => {
+    return Number.isFinite(Number(favoritesTotal)) ? Number(favoritesTotal) : 0
+  }, [favoritesTotal])
+
+  const averageStarReview = useMemo(() => {
+    if (!Array.isArray(recentReviews) || recentReviews.length === 0) return null
+    const ratings = recentReviews
+      .map((review) => Number(review?.rating))
+      .filter((rating) => Number.isFinite(rating) && rating > 0)
+    if (ratings.length === 0) return null
+    const avg = ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
+    return Number(avg.toFixed(1))
+  }, [recentReviews])
+
+  const openCustomOrderModal = () => {
+    setCustomOrderStatus('')
+    setCustomOrderForm((prev) => ({
+      ...prev,
+      project_name: prev.project_name || sectionLabel,
+    }))
+    setShowCustomOrderModal(true)
+  }
+
+  const openContactModal = () => {
+    setContactStatus('')
+    setShowContactModal(true)
+  }
+
+  const handleSubmitCustomOrder = async (event) => {
+    event.preventDefault()
+    setCustomOrderStatus('')
+    setCustomOrderSubmitting(true)
+    try {
+      await submitShopCustomOrderRequest({
+        ...customOrderForm,
+        tag: 'CUSTOM_ORDER',
+        request_type: 'custom_order',
+        category: customOrderForm.category,
+        materials: customOrderForm.materials,
+      })
+      setCustomOrderStatus('Custom order request sent. We will contact you shortly.')
+      setCustomOrderForm({
+        name: '',
+        email: '',
+        phone: '',
+        project_name: sectionLabel,
+        category: '',
+        materials: '',
+        width: '',
+        height: '',
+        depth: '',
+        budget: '',
+        quantity: '',
+        description: '',
+      })
+    } catch {
+      setCustomOrderStatus('Unable to send request right now. Please try again.')
+    } finally {
+      setCustomOrderSubmitting(false)
+    }
+  }
+
+  const handleSubmitContact = async (event) => {
+    event.preventDefault()
+    setContactStatus('')
+    setContactSubmitting(true)
+    try {
+      await submitShopContactRequest({
+        ...contactForm,
+        tag: 'QUESTION',
+        request_type: 'question',
+      })
+      setContactStatus('Message sent. Our customer service team will reply soon.')
+      setContactForm({
+        name: '',
+        phone: '',
+        email: '',
+        reason: CONTACT_REASONS[0],
+        message: '',
+      })
+    } catch {
+      setContactStatus('Unable to send message right now. Please try again.')
+    } finally {
+      setContactSubmitting(false)
+    }
+  }
+
   return (
     <div className="product-page-wrapper">
       {/* Navigation Tabs */}
@@ -316,33 +451,17 @@ export default function ProductPage({ products }) {
 
       {/* Main Content Area */}
       <div className="product-page-layout">
-        {/* Sidebar for desktop only */}
-        {!isMobile && (
-          <Sidebar
-            categories={categories}
-            categoryCounts={categoryCounts}
-            selectedCategory={selectedCategory}
-            setSelectedCategory={setSelectedCategory}
-            totalProducts={products.length}
-          />
-        )}
-        {/* Dropdown sidebar for mobile only */}
-        {isMobile && (
-          <button className="sidebar-toggle" onClick={() => setSidebarOpen(v => !v)} aria-label="Toggle categories">
-            <span className="sidebar-toggle-icon">☰ Categories</span>
-          </button>
-        )}
-        {isMobile && sidebarOpen && (
-          <div className="sidebar-dropdown">
-            <Sidebar
-              categories={categories}
-              categoryCounts={categoryCounts}
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-              totalProducts={sectionProducts.length}
-            />
-          </div>
-        )}
+        <Sidebar
+          categories={categories}
+          categoryCounts={categoryCounts}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+          totalProducts={products.length}
+          panelLikesCount={panelLikesCount}
+          averageStarReview={averageStarReview}
+          onOpenCustomOrder={openCustomOrderModal}
+          onOpenContactOwner={openContactModal}
+        />
         
         {/* Product List Area */}
         <main className="product-list-area">
@@ -440,6 +559,65 @@ export default function ProductPage({ products }) {
           </div>
         )}
       </section>
+
+      {showCustomOrderModal && (
+        <div className="shop-form-modal-overlay" onClick={() => setShowCustomOrderModal(false)}>
+          <div className="shop-form-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="shop-form-modal-header">
+              <h3>Request Custom Order</h3>
+              <button type="button" onClick={() => setShowCustomOrderModal(false)}>×</button>
+            </div>
+            <form className="shop-form-grid" onSubmit={handleSubmitCustomOrder}>
+              <input required placeholder="Name" value={customOrderForm.name} onChange={(event) => setCustomOrderForm((prev) => ({ ...prev, name: event.target.value }))} />
+              <input required type="email" placeholder="Email" value={customOrderForm.email} onChange={(event) => setCustomOrderForm((prev) => ({ ...prev, email: event.target.value }))} />
+              <input placeholder="Phone" value={customOrderForm.phone} onChange={(event) => setCustomOrderForm((prev) => ({ ...prev, phone: event.target.value }))} />
+              <input placeholder="Project Name" value={customOrderForm.project_name} onChange={(event) => setCustomOrderForm((prev) => ({ ...prev, project_name: event.target.value }))} />
+              <input placeholder="Category (example: Geometric)" value={customOrderForm.category} onChange={(event) => setCustomOrderForm((prev) => ({ ...prev, category: event.target.value }))} />
+              <input placeholder="Materials (example: bevel, clear glass)" value={customOrderForm.materials} onChange={(event) => setCustomOrderForm((prev) => ({ ...prev, materials: event.target.value }))} />
+              <div className="shop-form-row-3">
+                <input placeholder="Width" value={customOrderForm.width} onChange={(event) => setCustomOrderForm((prev) => ({ ...prev, width: event.target.value }))} />
+                <input placeholder="Height" value={customOrderForm.height} onChange={(event) => setCustomOrderForm((prev) => ({ ...prev, height: event.target.value }))} />
+                <input placeholder="Depth" value={customOrderForm.depth} onChange={(event) => setCustomOrderForm((prev) => ({ ...prev, depth: event.target.value }))} />
+              </div>
+              <div className="shop-form-row-2">
+                <input placeholder="Budget" value={customOrderForm.budget} onChange={(event) => setCustomOrderForm((prev) => ({ ...prev, budget: event.target.value }))} />
+                <input placeholder="Quantity" value={customOrderForm.quantity} onChange={(event) => setCustomOrderForm((prev) => ({ ...prev, quantity: event.target.value }))} />
+              </div>
+              <textarea required rows={5} placeholder="Describe your custom order request" value={customOrderForm.description} onChange={(event) => setCustomOrderForm((prev) => ({ ...prev, description: event.target.value }))} />
+              {customOrderStatus && <p className="shop-form-status">{customOrderStatus}</p>}
+              <button type="submit" className="shop-form-submit" disabled={customOrderSubmitting}>
+                {customOrderSubmitting ? 'Sending...' : 'Send Request'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showContactModal && (
+        <div className="shop-form-modal-overlay" onClick={() => setShowContactModal(false)}>
+          <div className="shop-form-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="shop-form-modal-header">
+              <h3>Contact Shop Owner</h3>
+              <button type="button" onClick={() => setShowContactModal(false)}>×</button>
+            </div>
+            <form className="shop-form-grid" onSubmit={handleSubmitContact}>
+              <input required placeholder="Name" value={contactForm.name} onChange={(event) => setContactForm((prev) => ({ ...prev, name: event.target.value }))} />
+              <input placeholder="Phone" value={contactForm.phone} onChange={(event) => setContactForm((prev) => ({ ...prev, phone: event.target.value }))} />
+              <input required type="email" placeholder="Email" value={contactForm.email} onChange={(event) => setContactForm((prev) => ({ ...prev, email: event.target.value }))} />
+              <select value={contactForm.reason} onChange={(event) => setContactForm((prev) => ({ ...prev, reason: event.target.value }))}>
+                {CONTACT_REASONS.map((reason) => (
+                  <option key={reason} value={reason}>{reason}</option>
+                ))}
+              </select>
+              <textarea required rows={6} placeholder="Write your message" value={contactForm.message} onChange={(event) => setContactForm((prev) => ({ ...prev, message: event.target.value }))} />
+              {contactStatus && <p className="shop-form-status">{contactStatus}</p>}
+              <button type="submit" className="shop-form-submit" disabled={contactSubmitting}>
+                {contactSubmitting ? 'Sending...' : 'Send Message'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

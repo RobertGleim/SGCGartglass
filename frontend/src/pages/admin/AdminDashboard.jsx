@@ -63,6 +63,12 @@ const canUseTemplateForCustomer = (template, customerId) => {
 
 const FACEBOOK_POSTED_STORAGE_KEY = "adminFbPostedManualProducts";
 const STAR_SCALE = [1, 2, 3, 4, 5];
+const MAX_MANUAL_UPLOAD_PHOTOS = 10;
+const MAX_MANUAL_UPLOAD_VIDEOS = 1;
+const MAX_MANUAL_IMAGE_BYTES = 20 * 1024 * 1024;
+const MAX_MANUAL_VIDEO_BYTES = 80 * 1024 * 1024;
+const MAX_MANUAL_TOTAL_BYTES = 120 * 1024 * 1024;
+const MAX_TEMPLATE_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 const createDefaultRelatedLinks = () => ({
   template_id: "",
@@ -696,9 +702,57 @@ export default function AdminDashboard({
   };
 
   const handleAddImages = async (files) => {
+    const incomingFiles = Array.from(files || []).filter(Boolean);
+    if (!incomingFiles.length) return;
+
+    const existingPhotoCount = imagePreviews.filter((preview) => preview.type !== "video").length;
+    const existingVideoCount = imagePreviews.filter((preview) => preview.type === "video").length;
+    const incomingPhotoCount = incomingFiles.filter((file) => !file.type.startsWith("video")).length;
+    const incomingVideoCount = incomingFiles.filter((file) => file.type.startsWith("video")).length;
+
+    if (existingPhotoCount + incomingPhotoCount > MAX_MANUAL_UPLOAD_PHOTOS) {
+      setStatus(`Upload is too large. Please reduce the number of photos to ${MAX_MANUAL_UPLOAD_PHOTOS} or fewer.`);
+      return;
+    }
+
+    if (existingVideoCount + incomingVideoCount > MAX_MANUAL_UPLOAD_VIDEOS) {
+      setStatus(`Only ${MAX_MANUAL_UPLOAD_VIDEOS} video is allowed per listing.`);
+      return;
+    }
+
+    const invalidType = incomingFiles.find(
+      (file) => !file.type.startsWith("image/") && !file.type.startsWith("video/"),
+    );
+    if (invalidType) {
+      setStatus(`Unsupported file type: ${invalidType.name}`);
+      return;
+    }
+
+    const tooLargeImage = incomingFiles.find(
+      (file) => file.type.startsWith("image/") && file.size > MAX_MANUAL_IMAGE_BYTES,
+    );
+    if (tooLargeImage) {
+      setStatus(`${tooLargeImage.name} is too large to upload. Please use a smaller image file.`);
+      return;
+    }
+
+    const tooLargeVideo = incomingFiles.find(
+      (file) => file.type.startsWith("video/") && file.size > MAX_MANUAL_VIDEO_BYTES,
+    );
+    if (tooLargeVideo) {
+      setStatus(`${tooLargeVideo.name} is too large to upload. Please trim or compress the video.`);
+      return;
+    }
+
+    const incomingTotalBytes = incomingFiles.reduce((sum, file) => sum + (file?.size || 0), 0);
+    if (incomingTotalBytes > MAX_MANUAL_TOTAL_BYTES) {
+      setStatus("This upload is too large. Please reduce the number of photos/videos or file sizes.");
+      return;
+    }
+
     const newPreviews = [];
 
-    for (const file of Array.from(files)) {
+    for (const file of incomingFiles) {
       // Skip watermark for videos
       const isVideo = file.type.startsWith("video");
       let processedFile = file;
@@ -722,12 +776,13 @@ export default function AdminDashboard({
         });
 
         // Only update when all previews are loaded
-        if (newPreviews.length === Array.from(files).length) {
+        if (newPreviews.length === incomingFiles.length) {
           setImagePreviews((prev) => [...prev, ...newPreviews]);
           setManualProduct((prev) => ({
             ...prev,
             images: [...(prev.images || []), ...newPreviews.map((p) => p.file)],
           }));
+          setStatus('');
         }
       };
       reader.readAsDataURL(processedFile);
@@ -1126,6 +1181,11 @@ export default function AdminDashboard({
       if (!templateId) {
         if (!sendTemplateForm.uploaded_file) {
           setSendTemplateStatus("Select a template from the list or upload a new one.");
+          setIsSendingTemplate(false);
+          return;
+        }
+        if (sendTemplateForm.uploaded_file.size > MAX_TEMPLATE_UPLOAD_BYTES) {
+          setSendTemplateStatus("Uploaded file is too large (max 50 MB). Please use a smaller file.");
           setIsSendingTemplate(false);
           return;
         }
@@ -1888,7 +1948,7 @@ export default function AdminDashboard({
                         + Add Images/Video
                       </label>
                       <span className="form-note">
-                        Click to add multiple images or a video
+                        Add up to 10 photos and 1 video. If upload is too large, reduce the number of photos/videos.
                       </span>
                     </div>
 
@@ -2591,7 +2651,10 @@ export default function AdminDashboard({
                   />
                 </label>
                 {sendTemplateForm.uploaded_file && (
-                  <div className="form-note">Selected file: {sendTemplateForm.uploaded_file.name}</div>
+                  <>
+                    <div className="form-note">Selected file: {sendTemplateForm.uploaded_file.name}</div>
+                    <div className="form-note">If upload is too large, reduce file size (max 50 MB).</div>
+                  </>
                 )}
                 <label>
                   New Template Name (required for upload)
