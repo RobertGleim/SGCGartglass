@@ -555,7 +555,7 @@ def login():
     email = payload.get("email", "").strip().lower()
     password = payload.get("password", "")
 
-    admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com").strip().lower()
+    admin_email = os.environ.get("ADMIN_EMAIL", "sgcgartglass@gmail.com").strip().lower()
     admin_hash = os.environ.get("ADMIN_PASSWORD_HASH")
     if not admin_hash:
         return jsonify({"error": "admin_not_configured"}), 500
@@ -617,6 +617,7 @@ def _password_reset_link(token):
 
 
 def _password_reset_email_body(reset_link):
+    support_email = (os.environ.get("SUPPORT_EMAIL") or "customersupport@sgcgart.com").strip()
     return f"""
     <html>
     <body>
@@ -625,6 +626,7 @@ def _password_reset_email_body(reset_link):
       <p><a href=\"{reset_link}\">Click here to reset your password</a></p>
       <p>This link expires in 30 minutes and can only be used once.</p>
       <p>If you did not request this, you can ignore this email.</p>
+        <p>Need help? Contact us at <a href=\"mailto:{support_email}\">{support_email}</a>.</p>
       <hr>
       <p>SGCG Art Glass Team</p>
     </body>
@@ -648,31 +650,52 @@ def customer_forgot_password():
 
     customer = fetch_customer_by_email(email)
     if not customer:
+        current_app.logger.info("Password reset requested for non-customer email.")
         return jsonify(generic_response), 200
 
-    now = datetime.utcnow()
-    one_hour_ago = (now - timedelta(hours=1)).isoformat()
-    request_ip = (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip() or None
-    user_agent = (request.headers.get("User-Agent") or "")[:255] or None
-    limits = count_recent_password_reset_requests(customer["id"], request_ip, one_hour_ago)
+    try:
+        now = datetime.utcnow()
+        one_hour_ago = (now - timedelta(hours=1)).isoformat()
+        request_ip = (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip() or None
+        user_agent = (request.headers.get("User-Agent") or "")[:255] or None
+        limits = count_recent_password_reset_requests(customer["id"], request_ip, one_hour_ago)
 
-    if limits["customer_count"] >= 5 or limits["ip_count"] >= 20:
-        return jsonify(generic_response), 200
+        max_per_customer = int((os.environ.get("PASSWORD_RESET_MAX_PER_CUSTOMER_PER_HOUR") or "5").strip())
+        max_per_ip = int((os.environ.get("PASSWORD_RESET_MAX_PER_IP_PER_HOUR") or "20").strip())
 
-    reset_token = secrets.token_urlsafe(48)
-    token_hash = hashlib.sha256(reset_token.encode("utf-8")).hexdigest()
-    expires_at = (now + timedelta(minutes=30)).isoformat()
-    create_customer_password_reset(customer["id"], token_hash, expires_at, request_ip=request_ip, user_agent=user_agent)
+        if limits["customer_count"] >= max_per_customer or limits["ip_count"] >= max_per_ip:
+            current_app.logger.info(
+                "Password reset throttled for customer_id=%s (customer_count=%s/%s, ip_count=%s/%s)",
+                customer["id"],
+                limits["customer_count"],
+                max_per_customer,
+                limits["ip_count"],
+                max_per_ip,
+            )
+            return jsonify(generic_response), 200
 
-    reset_link = _password_reset_link(reset_token)
-    sent = send_email(
-        email,
-        "SGCG Password Reset",
-        _password_reset_email_body(reset_link),
-    )
-    if not sent:
-        # Keep response generic for security; log delivery failure for operators.
-        current_app.logger.warning("Password reset email was not delivered for customer_id=%s", customer["id"])
+        reset_token = secrets.token_urlsafe(48)
+        token_hash = hashlib.sha256(reset_token.encode("utf-8")).hexdigest()
+        expires_at = (now + timedelta(minutes=30)).isoformat()
+        create_customer_password_reset(customer["id"], token_hash, expires_at, request_ip=request_ip, user_agent=user_agent)
+
+        reset_link = _password_reset_link(reset_token)
+        support_email = (os.environ.get("SUPPORT_EMAIL") or "customersupport@sgcgart.com").strip().lower()
+        sent = send_email(
+            email,
+            "SGCG Password Reset",
+            _password_reset_email_body(reset_link),
+            sender=support_email,
+            reply_to=support_email,
+        )
+        if not sent:
+            # Keep response generic for security; log delivery failure for operators.
+            current_app.logger.warning("Password reset email was not delivered for customer_id=%s", customer["id"])
+        else:
+            current_app.logger.info("Password reset email accepted by SMTP for customer_id=%s", customer["id"])
+    except Exception as exc:
+        # Never leak account/reset internals to clients.
+        current_app.logger.exception("Forgot-password flow failed for customer_id=%s: %s", customer.get("id"), exc)
 
     return jsonify(generic_response), 200
 

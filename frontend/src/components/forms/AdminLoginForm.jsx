@@ -28,7 +28,7 @@ export default function AdminLoginForm({ onLogin }) {
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            placeholder="admin@example.com"
+            placeholder="sgcgartglass@gmail.com"
             required
           />
         </label>

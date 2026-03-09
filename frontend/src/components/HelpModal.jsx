@@ -48,7 +48,7 @@ export default function HelpModal({ open, onClose, onReplayTutorial }) {
           ))}
         </div>
         <button className={styles.replayBtn} onClick={onReplayTutorial}>Replay Tutorial</button>
-        <a className={styles.support} href="mailto:support@sgcg.com">Contact Support</a>
+        <a className={styles.support} href="mailto:customersupport@sgcgart.com">Contact Support</a>
       </div>
     </div>
   );

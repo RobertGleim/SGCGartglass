@@ -5,7 +5,7 @@ try:
 except Exception:  # optional dependency in some local envs
     Message = None
 
-def send_email(to, subject, html_body):
+def send_email(to, subject, html_body, sender=None, reply_to=None):
     if Message is None:
         current_app.logger.warning('Flask-Mail not installed; skipping email send to %s', to)
         return False
@@ -14,7 +14,13 @@ def send_email(to, subject, html_body):
         current_app.logger.warning('Flask-Mail not configured; skipping email send to %s', to)
         return False
     try:
-        msg = Message(subject, recipients=[to], html=html_body)
+        msg = Message(
+            subject,
+            recipients=[to],
+            html=html_body,
+            sender=sender,
+            reply_to=reply_to,
+        )
         mail.send(msg)
         return True
     except Exception as exc:

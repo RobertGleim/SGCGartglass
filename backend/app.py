@@ -70,10 +70,16 @@ def create_app(config_name=None):
 
     mail_server = (app.config.get("MAIL_SERVER") or "").strip()
     mail_sender = (app.config.get("MAIL_DEFAULT_SENDER") or "").strip()
+    mail_username = (app.config.get("MAIL_USERNAME") or "").strip()
+    mail_password = app.config.get("MAIL_PASSWORD")
     if not mail_server:
         app.logger.warning("MAIL_SERVER is not configured; password reset emails will not be delivered.")
     if not mail_sender:
         app.logger.warning("MAIL_DEFAULT_SENDER is not configured; password reset emails may fail.")
+    if not mail_username:
+        app.logger.warning("MAIL_USERNAME is not configured; SMTP authentication may fail.")
+    if not mail_password:
+        app.logger.warning("MAIL_PASSWORD is not configured; SMTP authentication may fail.")
 
     # CORS: allow frontend (Vite/Hostinger) to call API
     allowed_origins = _get_allowed_origins(app.config.get("CORS_ORIGINS", "*"))

@@ -34,6 +34,13 @@ def _sqlalchemy_database_uri():
     return normalized
 
 
+def _env_bool(name, default=False):
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 class BaseConfig:
     PORT = int(os.environ.get('PORT', '5000'))
     SECRET_KEY = os.environ.get('SECRET_KEY') or os.environ.get('JWT_SECRET', 'dev-secret')
@@ -54,13 +61,14 @@ class BaseConfig:
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER') or str(Path(__file__).parent / 'uploads')
 
     # Email (for password reset + notifications)
-    MAIL_SERVER = os.environ.get('MAIL_SERVER')
-    MAIL_PORT = int(os.environ.get('MAIL_PORT', '587'))
-    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
-    MAIL_USE_SSL = os.environ.get('MAIL_USE_SSL', 'false').lower() == 'true'
+    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.hostinger.com')
+    MAIL_PORT = int(os.environ.get('MAIL_PORT', '465'))
+    MAIL_USE_TLS = _env_bool('MAIL_USE_TLS', False)
+    MAIL_USE_SSL = _env_bool('MAIL_USE_SSL', True)
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
-    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or os.environ.get('MAIL_USERNAME')
+    SUPPORT_EMAIL = os.environ.get('SUPPORT_EMAIL', 'customersupport@sgcgart.com')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or SUPPORT_EMAIL or os.environ.get('MAIL_USERNAME')
 
 
 class DevelopmentConfig(BaseConfig):

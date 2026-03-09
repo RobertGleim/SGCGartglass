@@ -10,6 +10,7 @@ from backend.utils.email import send_email
 from backend.auth import decode_token
 from datetime import datetime
 import jwt
+import os
 from backend.db import fetch_customer_by_id
 
 work_orders_bp = Blueprint('work_orders', __name__)
@@ -107,8 +108,10 @@ def submit_work_order_route():
     work_order, err = submit_work_order(user_id, project_id, data, db.session, template)
     if err:
         return jsonify({'error': err}), 400
-    # Send emails (replace with real emails)
-    send_work_order_emails(work_order, 'customer@example.com', 'admin@example.com')
+    customer_email = str(g.auth_payload.get('sub') or '').strip().lower()
+    admin_email = os.environ.get('ADMIN_EMAIL', 'sgcgartglass@gmail.com').strip().lower()
+    if customer_email and admin_email:
+        send_work_order_emails(work_order, customer_email, admin_email)
     return jsonify({'work_order': work_order.to_dict(), 'project_id': project_id}), 201
 
 @work_orders_bp.route('/api/work-orders', methods=['GET'])
