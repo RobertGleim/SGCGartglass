@@ -69,7 +69,7 @@ class BaseConfig:
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     SUPPORT_EMAIL = os.environ.get('SUPPORT_EMAIL', 'customersupport@sgcgart.com')
-    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or SUPPORT_EMAIL or os.environ.get('MAIL_USERNAME')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or os.environ.get('MAIL_USERNAME') or SUPPORT_EMAIL
 
 
 class DevelopmentConfig(BaseConfig):

@@ -5,6 +5,41 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn backend.wsgi:app
+    envVars:
+      - key: APP_ENV
+        value: production
+      # Public URL of the frontend — used to build password-reset links in emails
+      - key: FRONTEND_BASE_URL
+        value: https://sgcgartglass.onrender.com
+      # Allow the production frontend to call the API (CORS)
+      - key: CORS_ORIGINS
+        value: https://sgcgartglass.onrender.com
+      # Hostinger SMTP settings
+      - key: MAIL_SERVER
+        value: smtp.hostinger.com
+      - key: MAIL_PORT
+        value: 465
+      - key: MAIL_USE_SSL
+        value: true
+      - key: MAIL_USE_TLS
+        value: false
+      - key: SUPPORT_EMAIL
+        value: customersupport@sgcgart.com
+      - key: SHOP_CONTACT_INBOX
+        value: customersupport@sgcgart.com
+      - key: MAIL_DEFAULT_SENDER
+        sync: false
+      # --- Secrets: set these in the Render dashboard, not in source control ---
+      - key: SECRET_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
 
   - type: web
     name: sgcg-frontend

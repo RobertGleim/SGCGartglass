@@ -385,8 +385,8 @@ def _resolve_shop_contact_emails():
     ).strip().lower()
     sender_email = (
         os.environ.get("MAIL_DEFAULT_SENDER")
-        or os.environ.get("SUPPORT_EMAIL")
         or os.environ.get("MAIL_USERNAME")
+        or os.environ.get("SUPPORT_EMAIL")
         or inbox_email
     ).strip().lower()
     return inbox_email, sender_email
@@ -817,11 +817,17 @@ def customer_forgot_password():
 
         reset_link = _password_reset_link(reset_token)
         support_email = (os.environ.get("SUPPORT_EMAIL") or "customersupport@sgcgart.com").strip().lower()
+        # Sender must be the authenticated SMTP mailbox (Hostinger enforces sender ownership).
+        sender_email = (
+            current_app.config.get("MAIL_DEFAULT_SENDER")
+            or os.environ.get("MAIL_USERNAME")
+            or support_email
+        ).strip().lower()
         sent = send_email(
             email,
             "SGCG Password Reset",
             _password_reset_email_body(reset_link),
-            sender=support_email,
+            sender=sender_email,
             reply_to=support_email,
         )
         if not sent:

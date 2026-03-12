@@ -1,9 +1,19 @@
 from flask import current_app
+import os
 
 try:
     from flask_mail import Message
 except Exception:  # optional dependency in some local envs
     Message = None
+
+def _admin_work_order_url(work_order_id):
+    base = (
+        os.environ.get('ADMIN_BASE_URL')
+        or os.environ.get('FRONTEND_BASE_URL')
+        or 'https://sgcgartglass.onrender.com'
+    ).rstrip('/')
+    return f"{base}/admin/work-orders/{work_order_id}"
+
 
 def send_email(to, subject, html_body, sender=None, reply_to=None):
     if Message is None:
@@ -59,7 +69,7 @@ def work_order_notification_email(work_order, admin_email):
         <p>Project: <b>{project_name}</b></p>
         <p>Submitted: {submitted_text}</p>
         <hr>
-        <p><a href='https://your-admin-url.com/admin/work-orders/{work_order.id}'>View in Admin Panel</a></p>
+        <p><a href='{_admin_work_order_url(work_order.id)}'>View in Admin Panel</a></p>
     </body>
     </html>
     """
