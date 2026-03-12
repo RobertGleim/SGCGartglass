@@ -20,7 +20,7 @@ WORK_ORDER_STATUSES = (
 
 class WorkOrder(db.Model):
     """
-    Customer work order submission. work_order_number format: WO-YYYY-####.
+    Customer work order submission. work_order_number format: WO-YYYY-#### (regular) or CWO-YYYY-#### (admin-created).
     """
 
     __tablename__ = "work_orders"
@@ -62,7 +62,7 @@ class WorkOrder(db.Model):
     @staticmethod
     def validate_work_order_number(value: str) -> tuple[bool, str]:
         """
-        Validate format WO-YYYY-#### (e.g. WO-2025-0001).
+        Validate format WO-YYYY-#### (e.g. WO-2025-0001) or CWO-YYYY-#### (e.g. CWO-2026-0001).
         Returns (ok: bool, error_message: str).
         """
         if not value or not isinstance(value, str):
@@ -71,8 +71,8 @@ class WorkOrder(db.Model):
         if len(s) > 20:
             return False, "work_order_number must be at most 20 characters"
         import re
-        if not re.match(r"^WO-\d{4}-\d{1,6}$", s):
-            return False, "work_order_number must match WO-YYYY-#### (e.g. WO-2025-0001)"
+        if not re.match(r"^(WO|CWO)-\d{4}-\d{1,6}$", s):
+            return False, "work_order_number must match WO-YYYY-#### or CWO-YYYY-#### (e.g. WO-2025-0001 or CWO-2026-0001)"
         return True, ""
 
     def to_dict(

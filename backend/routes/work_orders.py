@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, g
 from backend.services.work_order_service import (
-    submit_work_order, generate_work_order_number, send_work_order_emails, update_work_order_status, validate_design_completion
+    submit_work_order, generate_work_order_number, generate_custom_work_order_number, send_work_order_emails, update_work_order_status, validate_design_completion
 )
 from backend.models import db, WorkOrder, WorkOrderStatusHistory
 from backend.models.revision import WorkOrderRevision
@@ -11,7 +11,14 @@ from backend.auth import decode_token
 from datetime import datetime
 import jwt
 import os
-from backend.db import fetch_customer_by_id
+from backend.db import (
+    fetch_customer_by_id,
+    create_customer_invoice,
+    peek_next_custom_work_order_number,
+    list_customer_invoices,
+    get_invoice_by_id,
+    upsert_customer_cart_item,
+)
 
 work_orders_bp = Blueprint('work_orders', __name__)
 admin_work_orders_bp = Blueprint('admin_work_orders', __name__)
@@ -271,6 +278,13 @@ def admin_list_work_orders():
         ]
     }), 200
 
+@admin_work_orders_bp.route('/api/admin/next-custom-work-order-number', methods=['GET'])
+@admin_required
+def admin_get_next_custom_wo_number():
+    """Get the next custom work order number (CWO-YYYY-####)."""
+    next_number = peek_next_custom_work_order_number()
+    return jsonify({'next_cwo_number': next_number}), 200
+
 @admin_work_orders_bp.route('/api/admin/work-orders/<int:order_id>/status', methods=['PUT'])
 @admin_required
 def admin_update_work_order_status(order_id):
@@ -445,7 +459,7 @@ def admin_send_template_to_customer(customer_id):
         db.session.flush()
 
         work_order = WorkOrder(
-            work_order_number=generate_work_order_number(db.session),
+            work_order_number=generate_custom_work_order_number(db.session),
             project_id=project.id,
             user_id=customer_id,
             status='Pending Review',

@@ -73,6 +73,7 @@ from ..db import (
     delete_admin_review,
     update_customer_admin,
     delete_customer_admin,
+    get_invoice_by_id,
 )
 from ..etsy import extract_listing_id, fetch_listing, fetch_shop_favorers_count
 from ..utils.email import send_email
@@ -137,6 +138,33 @@ def _resolve_cart_product_snapshot(item):
             "currency": "USD",
             "image_url": image_url,
             "product_type": "manual",
+            "product_id": product_id,
+        }
+
+    if product_type == "invoice":
+        # Invoice cart items are stored as product_id like "inv-123".
+        invoice_id_raw = product_id
+        if invoice_id_raw.lower().startswith("inv-"):
+            invoice_id_raw = invoice_id_raw[4:]
+        if not invoice_id_raw.isdigit():
+            return None
+
+        invoice = get_invoice_by_id(int(invoice_id_raw))
+        if not invoice:
+            return None
+
+        invoice_number = str(invoice.get("invoice_number") or f"Invoice #{invoice_id_raw}")
+        work_order_id = invoice.get("work_order_id")
+        title = invoice_number
+        if work_order_id:
+            title = f"{invoice_number} (Work Order #{work_order_id})"
+
+        return {
+            "title": title,
+            "price": _as_money(invoice.get("amount")),
+            "currency": "USD",
+            "image_url": None,
+            "product_type": "invoice",
             "product_id": product_id,
         }
 

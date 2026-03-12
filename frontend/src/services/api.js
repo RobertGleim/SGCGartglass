@@ -387,6 +387,7 @@ export const getMyWorkOrders = () => api.get('/work-orders');
 export const getAdminTemplates = () => api.get('/admin/templates');
 export const getAdminGlassTypes = () => api.get('/admin/glass-types');
 export const getAdminWorkOrders = () => api.get('/admin/work-orders');
+export const getNextCustomWorkOrderNumber = () => api.get('/admin/next-custom-work-order-number');
 export const getAdminWorkOrder = (id) => api.get(`/admin/work-orders/${id}`);
 export const updateWorkOrderStatus = (id, status, notes) => api.put(`/admin/work-orders/${id}/status`, { new_status: status, notes });
 export const updateAdminWorkOrderDesign = (id, design_data) => api.put(`/admin/work-orders/${id}/design-data`, { design_data });
@@ -404,6 +405,30 @@ export const createCustomerRevision = (id, design_data, notes) =>
   api.post(`/work-orders/${id}/revisions`, { design_data, notes });
 export const approveWorkOrder = (id) => api.put(`/work-orders/${id}/approve`);
 export const getWorkOrder = (id) => api.get(`/work-orders/${id}`);
+
+// Invoice endpoints
+export const generateInvoice = (workOrderId, payload) =>
+  api.post(`/admin/work-orders/${workOrderId}/generate-invoice`, payload);
+export const getWorkOrderInvoices = (workOrderId) =>
+  api.get(`/admin/work-orders/${workOrderId}/invoices`);
+export const getAdminInvoices = (params = {}) =>
+  api.get('/admin/invoices', { params });
+export const createAdminInvoice = (payload) =>
+  api.post('/admin/invoices', payload);
+export const updateAdminInvoice = (invoiceId, payload) =>
+  api.put(`/admin/invoices/${invoiceId}`, payload);
+export const deleteAdminInvoice = (invoiceId) =>
+  api.delete(`/admin/invoices/${invoiceId}`);
+export const getCustomerInvoices = (status) =>
+  api.get('/customer/invoices', { params: status ? { status } : {} });
+export const getCustomerInvoice = (invoiceId) =>
+  api.get(`/customer/invoices/${invoiceId}`);
+export const addInvoiceToCart = (invoiceId) =>
+  api.post(`/customer/invoices/${invoiceId}/add-to-cart`);
+export const updateInvoiceStatus = (invoiceId, status) =>
+  api.put(`/customer/invoices/${invoiceId}/update-status`, { status });
+export const deleteCustomerInvoice = (invoiceId) =>
+  api.delete(`/customer/invoices/${invoiceId}`);
 
 export const getAdminWorkOrderRevisions = (id) => api.get(`/admin/work-orders/${id}/revisions`);
 export const createAdminRevision = (id, design_data, notes, sendForReview = false) =>

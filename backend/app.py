@@ -263,6 +263,13 @@ def create_app(config_name=None):
     except ImportError:
         pass
 
+    # Invoices API (user + admin)
+    try:
+        from .routes.invoices import invoices_bp
+        app.register_blueprint(invoices_bp)
+    except ImportError:
+        pass
+
     # Legacy shop API (optional; comment out for Designer-only backend)
     try:
         from .routes import api

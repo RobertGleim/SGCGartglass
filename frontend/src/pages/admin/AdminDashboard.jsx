@@ -20,6 +20,7 @@ import {
 import TemplateManagement from "./TemplateManagement";
 import GlassTypeManagement from "./GlassTypeManagement";
 import WorkOrderDashboard from "./WorkOrderDashboard";
+import AdminInvoicesDashboard from "./AdminInvoicesDashboard";
 import GalleryManagement from "./GalleryManagement";
 import "./styles/AdminDashboard.css";
 import "./styles/forms/stainedglass_form.css";
@@ -1394,6 +1395,12 @@ export default function AdminDashboard({
           Work Orders
         </button>
         <button
+          className={`tab ${activeTab === "invoices" ? "active" : ""}`}
+          onClick={() => setActiveTab("invoices")}
+        >
+          Invoices
+        </button>
+        <button
           className={`tab ${activeTab === "gallery" ? "active" : ""}`}
           onClick={() => setActiveTab("gallery")}
         >
@@ -1910,6 +1917,12 @@ export default function AdminDashboard({
         {activeTab === "work-orders" && (
           <div className="tab-panel">
             <WorkOrderDashboard />
+          </div>
+        )}
+
+        {activeTab === "invoices" && (
+          <div className="tab-panel">
+            <AdminInvoicesDashboard />
           </div>
         )}
 

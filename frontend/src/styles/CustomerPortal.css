@@ -282,6 +282,153 @@
   margin-bottom: 1rem;
 }
 
+.invoice-view-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(19, 25, 36, 0.62);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.invoice-view-modal {
+  width: min(980px, 100%);
+  max-height: 92vh;
+  overflow: auto;
+  background: #f7f3ea;
+  border-radius: 16px;
+  border: 1px solid #ddd0ba;
+  padding: 1rem;
+  box-shadow: 0 24px 64px rgba(21, 16, 10, 0.28);
+}
+
+.invoice-view-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.invoice-view-kicker {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.17em;
+  color: #9d7d58;
+  font-weight: 700;
+}
+
+.invoice-view-header h2 {
+  margin: 0.15rem 0 0;
+  color: #2f2415;
+  font-size: 1.9rem;
+}
+
+.invoice-status-pill {
+  padding: 0.38rem 0.72rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.invoice-status-pill.open {
+  background: #fff6dd;
+  color: #7a4c00;
+}
+
+.invoice-status-pill.paid {
+  background: #dcf7e2;
+  color: #135c28;
+}
+
+.invoice-status-pill.overdue,
+.invoice-status-pill.cancelled {
+  background: #ffe3e3;
+  color: #8b2a2a;
+}
+
+.invoice-view-actions-top {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.invoice-view-actions-top button {
+  border: 1px solid #1f4ea1;
+  background: #1f4ea1;
+  color: #fff;
+  padding: 0.5rem 0.95rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.invoice-view-actions-top button.secondary {
+  background: #fff;
+  color: #1f4ea1;
+  border-color: #9baecc;
+}
+
+.invoice-view-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: 1fr;
+  margin-bottom: 0.85rem;
+}
+
+.invoice-view-card {
+  border: 1px solid #d8c7ad;
+  border-radius: 14px;
+  background: #fffdf8;
+  padding: 0.9rem;
+}
+
+.invoice-view-card h3 {
+  margin: 0 0 0.65rem;
+  color: #5c3f18;
+  font-size: 1.15rem;
+}
+
+.invoice-view-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 0.7rem;
+  margin-bottom: 0.35rem;
+}
+
+.invoice-view-row strong {
+  color: #392a16;
+}
+
+.invoice-view-row span {
+  color: #222;
+}
+
+.invoice-view-notes p {
+  margin: 0;
+  color: #4a3b27;
+  white-space: pre-wrap;
+}
+
+.invoice-view-preview {
+  margin-bottom: 0.85rem;
+}
+
+.invoice-preview-image {
+  width: 100%;
+  display: block;
+  border-radius: 10px;
+  border: 1px solid #d8c7ad;
+  background: #fff;
+  object-fit: contain;
+  max-height: 360px;
+}
+
 /* Mobile-first Responsive Breakpoints */
 
 /* Small phones (375px+) */
@@ -297,6 +444,16 @@
 
   .portal-card {
     padding: 1.1rem;
+  }
+}
+
+@media (min-width: 760px) {
+  .invoice-view-modal {
+    padding: 1.35rem;
+  }
+
+  .invoice-view-grid {
+    grid-template-columns: 1fr 1fr;
   }
 }
 

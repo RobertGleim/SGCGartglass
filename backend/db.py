@@ -1,6 +1,7 @@
 import os
 import threading
 import json
+import secrets
 from datetime import datetime
 
 try:
@@ -310,6 +311,32 @@ def init_db(force=False):
             payload TEXT,
             created_at VARCHAR(50),
             FOREIGN KEY (order_id) REFERENCES customer_orders(id) ON DELETE CASCADE
+        )
+        """
+    )
+    cursor.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS customer_invoices (
+            id {id_column},
+            work_order_id INTEGER,
+            customer_id INTEGER NOT NULL,
+            invoice_number VARCHAR(50),
+            status VARCHAR(30) DEFAULT 'open',
+            amount REAL,
+            due_date VARCHAR(50),
+            notes TEXT,
+            created_at VARCHAR(50),
+            updated_at VARCHAR(50),
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+            FOREIGN KEY (work_order_id) REFERENCES work_orders(id) ON DELETE SET NULL
+        )
+        """
+    )
+    cursor.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS custom_work_order_sequences (
+            year INTEGER PRIMARY KEY,
+            next_value INTEGER NOT NULL
         )
         """
     )
@@ -1914,6 +1941,298 @@ def list_recent_reviews(limit=10):
     rows = cursor.fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+
+def create_customer_invoice(customer_id, work_order_id, invoice_number, amount, due_date=None, notes=None):
+    """Create a new invoice for a customer."""
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    is_postgres = _is_postgres_backend()
+    now = datetime.utcnow().isoformat()
+
+    insert_values = [
+        work_order_id,
+        customer_id,
+        invoice_number or f"INV-{datetime.utcnow().strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}",
+        "open",
+        amount,
+        due_date,
+        notes,
+        now,
+        now,
+    ]
+
+    if is_postgres:
+        cursor.execute(
+            f"""
+            INSERT INTO customer_invoices (
+                work_order_id, customer_id, invoice_number, status, amount, due_date, notes, created_at, updated_at
+            ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+            RETURNING id
+            """,
+            insert_values,
+        )
+        invoice_id = cursor.fetchone()["id"]
+    else:
+        cursor.execute(
+            f"""
+            INSERT INTO customer_invoices (
+                work_order_id, customer_id, invoice_number, status, amount, due_date, notes, created_at, updated_at
+            ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+            """,
+            insert_values,
+        )
+        invoice_id = cursor.lastrowid
+
+    conn.commit()
+    conn.close()
+    return invoice_id
+
+
+def peek_next_custom_work_order_number():
+    """Return the next CWO-YYYY-#### value without reserving it."""
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    year = datetime.utcnow().year
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS custom_work_order_sequences (
+            year INTEGER PRIMARY KEY,
+            next_value INTEGER NOT NULL
+        )
+        """
+    )
+
+    cursor.execute(
+        f"SELECT next_value FROM custom_work_order_sequences WHERE year = {placeholder}",
+        (year,),
+    )
+    row = cursor.fetchone()
+    conn.close()
+
+    next_value = int((row or {}).get("next_value") or 1)
+    return f"CWO-{year}-{next_value:04d}"
+
+
+def reserve_next_custom_work_order_number():
+    """Atomically reserve and return the next CWO-YYYY-#### value."""
+    conn = get_db()
+    cursor = conn.cursor()
+    year = datetime.utcnow().year
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS custom_work_order_sequences (
+            year INTEGER PRIMARY KEY,
+            next_value INTEGER NOT NULL
+        )
+        """
+    )
+
+    cursor.execute(
+        """
+        INSERT INTO custom_work_order_sequences (year, next_value)
+        VALUES (%s, 2)
+        ON CONFLICT (year)
+        DO UPDATE SET next_value = custom_work_order_sequences.next_value + 1
+        RETURNING next_value - 1 AS reserved_value
+        """,
+        (year,),
+    )
+    row = cursor.fetchone() or {}
+    conn.commit()
+    conn.close()
+
+    reserved_value = int(row.get("reserved_value") or 1)
+    return f"CWO-{year}-{reserved_value:04d}"
+
+
+def list_customer_invoices(customer_id, status_filter=None):
+    """List invoices for a customer, optionally filtered by status."""
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    if status_filter:
+        cursor.execute(
+            f"""
+            SELECT * FROM customer_invoices
+            WHERE customer_id = {placeholder} AND status = {placeholder}
+            ORDER BY created_at DESC
+            """,
+            (customer_id, status_filter),
+        )
+    else:
+        cursor.execute(
+            f"""
+            SELECT * FROM customer_invoices
+            WHERE customer_id = {placeholder}
+            ORDER BY created_at DESC
+            """,
+            (customer_id,),
+        )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_invoice_by_id(invoice_id, customer_id=None):
+    """Get a specific invoice by ID, optionally verify it belongs to a customer."""
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    if customer_id:
+        cursor.execute(
+            f"""
+            SELECT * FROM customer_invoices
+            WHERE id = {placeholder} AND customer_id = {placeholder}
+            """,
+            (invoice_id, customer_id),
+        )
+    else:
+        cursor.execute(
+            f"SELECT * FROM customer_invoices WHERE id = {placeholder}",
+            (invoice_id,),
+        )
+
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_invoice_status(invoice_id, new_status):
+    """Update the status of an invoice."""
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    now = datetime.utcnow().isoformat()
+
+    cursor.execute(
+        f"""
+        UPDATE customer_invoices
+        SET status = {placeholder}, updated_at = {placeholder}
+        WHERE id = {placeholder}
+        """,
+        (new_status, now, invoice_id),
+    )
+    updated = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return updated
+
+
+def list_admin_invoices(status_filter=None, customer_id=None):
+    """List invoices across all customers for admin management."""
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    where = []
+    params = []
+
+    if status_filter:
+        where.append(f"i.status = {placeholder}")
+        params.append(status_filter)
+    if customer_id:
+        where.append(f"i.customer_id = {placeholder}")
+        params.append(customer_id)
+
+    where_sql = f"WHERE {' AND '.join(where)}" if where else ""
+    cursor.execute(
+        f"""
+        SELECT
+            i.*,
+            c.first_name,
+            c.last_name,
+            c.email
+        FROM customer_invoices i
+        LEFT JOIN customers c ON c.id = i.customer_id
+        {where_sql}
+        ORDER BY i.created_at DESC
+        """,
+        tuple(params),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def update_admin_invoice(invoice_id, *, status=None, amount=None, due_date=None, notes=None):
+    """Update editable invoice fields from admin tools."""
+    updates = []
+    values = []
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    now = datetime.utcnow().isoformat()
+
+    if status is not None:
+        updates.append(f"status = {placeholder}")
+        values.append(status)
+    if amount is not None:
+        updates.append(f"amount = {placeholder}")
+        values.append(amount)
+    if due_date is not None:
+        updates.append(f"due_date = {placeholder}")
+        values.append(due_date)
+    if notes is not None:
+        updates.append(f"notes = {placeholder}")
+        values.append(notes)
+
+    if not updates:
+        return False
+
+    updates.append(f"updated_at = {placeholder}")
+    values.append(now)
+    values.append(invoice_id)
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        f"""
+        UPDATE customer_invoices
+        SET {', '.join(updates)}
+        WHERE id = {placeholder}
+        """,
+        tuple(values),
+    )
+    updated = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return updated
+
+
+def delete_invoice(invoice_id):
+    """Hard-delete an invoice for admin cleanup."""
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    is_postgres = _is_postgres_backend()
+    placeholder = "%s" if is_mysql else "?"
+    if is_postgres:
+        cursor.execute(
+            f"DELETE FROM customer_invoices WHERE id = {placeholder} RETURNING id",
+            (invoice_id,),
+        )
+        deleted = cursor.fetchone() is not None
+    else:
+        cursor.execute(
+            f"DELETE FROM customer_invoices WHERE id = {placeholder}",
+            (invoice_id,),
+        )
+        deleted = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted
 
 
 def list_customer_reviews(customer_id):

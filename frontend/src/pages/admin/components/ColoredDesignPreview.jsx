@@ -30,7 +30,7 @@ const getColorName = (hex) => {
   return HEX_COLOR_NAMES[h] || h;
 };
 
-export default function ColoredDesignPreview({ designData, template, editable = false, locked = false, onDesignDataChange }) {
+export default function ColoredDesignPreview({ designData, template, editable = false, locked = false, showExportBar = false, onDesignDataChange }) {
   const svgContainerRef = useRef(null);
   const [popover, setPopover] = useState(null); // { sectionId, x, y, color, glassType }
   const [sectionCenters, setSectionCenters] = useState([]); // [{ id, cx, cy }]
@@ -47,7 +47,7 @@ export default function ColoredDesignPreview({ designData, template, editable = 
   const sections = workingSections || {};
   const hasSvg = !!template?.svg_content;
   const isEditingEnabled = editable && hasSvg && !locked;
-  const showEditableSvgGuard = editable && !hasSvg;
+  const showEditableSvgGuard = editable && !hasSvg && !showExportBar;
 
   const downloadBlob = (blob, fileName) => {
     const url = URL.createObjectURL(blob);
@@ -547,6 +547,15 @@ export default function ColoredDesignPreview({ designData, template, editable = 
   if (!hasSvg) {
     return (
       <div className={styles.container}>
+        {showExportBar && (
+          <div className={styles.exportBar}>
+            <button className={styles.exportButton} onClick={handleDownloadSvg} disabled={!hasSvg}>Download SVG</button>
+            <button className={styles.exportButton} onClick={handleDownloadPng}>Download PNG</button>
+            <button className={styles.exportButton} onClick={handleDownloadJpeg}>Download JPEG</button>
+            <button className={styles.exportButton} onClick={handleDownloadPdf}>Download PDF</button>
+            <button className={styles.exportButton} onClick={handlePrint}>Send to Printer</button>
+          </div>
+        )}
         <div className={styles.noPreview}>No SVG preview available</div>
         {hasSections && (
           <div className={styles.sectionList}>
@@ -576,7 +585,7 @@ export default function ColoredDesignPreview({ designData, template, editable = 
       {editable && locked && (
         <div className={styles.lockedNotice}>Final revision is locked. Editing is disabled.</div>
       )}
-      {editable && locked && (
+      {(showExportBar || (editable && locked)) && (
         <div className={styles.exportBar}>
           <button className={styles.exportButton} onClick={handleDownloadSvg} disabled={!hasSvg}>Download SVG</button>
           <button className={styles.exportButton} onClick={handleDownloadPng}>Download PNG</button>

@@ -19,6 +19,10 @@ import {
   fetchCustomerReviewOptions,
   createCustomerReview,
   updateCustomerReview,
+  getCustomerInvoices,
+  getCustomerInvoice,
+  addInvoiceToCart,
+  deleteCustomerInvoice,
 } from '../../services/api'
 import { findWishlistEntry } from '../../utils/wishlist'
 
@@ -47,6 +51,10 @@ export default function CustomerPortal({ manualProducts }) {
   const [cartItems, setCartItems] = useState([])
   const [orders, setOrders] = useState([])
   const [orderItems, setOrderItems] = useState({})
+  const [invoices, setInvoices] = useState([])
+  const [selectedInvoice, setSelectedInvoice] = useState(null)
+  const [invoiceViewLoading, setInvoiceViewLoading] = useState(false)
+  const [invoiceViewLoadingId, setInvoiceViewLoadingId] = useState(null)
   const [reviews, setReviews] = useState([])
   const [reviewOptions, setReviewOptions] = useState([])
   const [status, setStatus] = useState('')
@@ -95,13 +103,14 @@ export default function CustomerPortal({ manualProducts }) {
     let isActive = true
     const loadData = async () => {
       try {
-        const [profileData, addressData, favoriteData, cartData, orderData, reviewData, reviewOptionData] =
+        const [profileData, addressData, favoriteData, cartData, orderData, invoiceData, reviewData, reviewOptionData] =
           await Promise.all([
             fetchCustomerProfile(),
             fetchCustomerAddresses(),
             fetchCustomerFavorites(),
             fetchCustomerCart(),
             fetchCustomerOrders(),
+            getCustomerInvoices('open'),
             fetchCustomerReviews(),
             fetchCustomerReviewOptions(),
           ])
@@ -131,6 +140,7 @@ export default function CustomerPortal({ manualProducts }) {
         setFavorites(Array.isArray(favoriteData) ? favoriteData : [])
         setCartItems(Array.isArray(cartData) ? cartData : [])
         setOrders(Array.isArray(orderData) ? orderData : [])
+        setInvoices(Array.isArray(invoiceData) ? invoiceData : [])
         setReviews(Array.isArray(reviewData) ? reviewData : [])
         const normalizedReviewOptions = Array.isArray(reviewOptionData) ? reviewOptionData : []
         setReviewOptions(normalizedReviewOptions)
@@ -379,6 +389,48 @@ export default function CustomerPortal({ manualProducts }) {
     setStatus('')
   }
 
+  const handleAddInvoiceToCart = async (invoiceId) => {
+    setStatus('')
+    try {
+      await addInvoiceToCart(invoiceId)
+      setStatus('Invoice added to cart.')
+      window.dispatchEvent(new Event('cart-updated'))
+    } catch (error) {
+      setStatus(error?.response?.data?.message || error?.response?.data?.error || error.message || 'Unable to add invoice to cart.')
+    }
+  }
+
+  const handleDeleteInvoice = async (invoiceId) => {
+    setStatus('')
+    try {
+      await deleteCustomerInvoice(invoiceId)
+      setInvoices((prev) => prev.filter((invoice) => invoice.id !== invoiceId))
+      setStatus('Invoice removed from your list.')
+    } catch (error) {
+      setStatus(error?.response?.data?.message || error?.response?.data?.error || error.message || 'Unable to remove invoice.')
+    }
+  }
+
+  const handleViewInvoice = async (invoiceId) => {
+    setStatus('')
+    setInvoiceViewLoading(true)
+    setInvoiceViewLoadingId(invoiceId)
+    try {
+      const response = await getCustomerInvoice(invoiceId)
+      const invoice = response?.data || response || null
+      if (!invoice) {
+        setStatus('Unable to load invoice details.')
+        return
+      }
+      setSelectedInvoice(invoice)
+    } catch (error) {
+      setStatus(error?.response?.data?.error || error.message || 'Unable to load invoice details.')
+    } finally {
+      setInvoiceViewLoading(false)
+      setInvoiceViewLoadingId(null)
+    }
+  }
+
   const renderReviewOptionLabel = (item) => {
     const fallbackLabel = renderProductLabel(item?.product_type, item?.product_id)
     const title = String(item?.title || '').trim()
@@ -386,6 +438,11 @@ export default function CustomerPortal({ manualProducts }) {
   }
 
   const renderProductLabel = (productType, productId) => {
+    if (productType === 'invoice') {
+      const raw = String(productId || '').trim()
+      const idPart = raw.toLowerCase().startsWith('inv-') ? raw.slice(4) : raw
+      return idPart ? `Invoice #${idPart}` : 'Invoice'
+    }
     if (productType === 'manual') {
       const product = manualProductMap.get(String(productId))
       return product ? product.name : `Manual product #${productId}`
@@ -475,33 +532,91 @@ export default function CustomerPortal({ manualProducts }) {
       )}
 
       {activeTab === 'orders' && (
-        <div className="portal-card">
-          <h3>Order history</h3>
-          {orders.length === 0 ? (
-            <p className="portal-muted">No orders yet. Your manual orders will appear here.</p>
-          ) : (
-            <div className="portal-list">
-              {orders.map((order) => (
-                <div key={order.id} className="portal-list-item">
-                  <strong>{order.order_number || `Order #${order.id}`}</strong>
-                  <span className="portal-muted">Status: {order.status}</span>
-                  <span className="portal-muted">
-                    Total: {order.total_amount ? `$${order.total_amount}` : 'TBD'} {order.currency || ''}
-                  </span>
-                  {(orderItems[order.id] || []).length > 0 && (
-                    <div className="portal-list">
-                      {orderItems[order.id].map((item) => (
-                        <div key={item.id} className="portal-list-item">
-                          <strong>{renderProductLabel(item.product_type, item.product_id)}</strong>
-                          <span className="portal-muted">Qty: {item.quantity}</span>
-                        </div>
-                      ))}
+        <div className="portal-grid">
+          <div className="portal-card">
+            <h3>Order history</h3>
+            {orders.length === 0 ? (
+              <p className="portal-muted">No orders yet. Your manual orders will appear here.</p>
+            ) : (
+              <div className="portal-list">
+                {orders.map((order) => (
+                  <div key={order.id} className="portal-list-item">
+                    <strong>{order.order_number || `Order #${order.id}`}</strong>
+                    <span className="portal-muted">Status: {order.status}</span>
+                    <span className="portal-muted">
+                      Total: {order.total_amount ? `$${order.total_amount}` : 'TBD'} {order.currency || ''}
+                    </span>
+                    {(orderItems[order.id] || []).length > 0 && (
+                      <div className="portal-list">
+                        {orderItems[order.id].map((item) => (
+                          <div key={item.id} className="portal-list-item">
+                            <strong>{renderProductLabel(item.product_type, item.product_id)}</strong>
+                            <span className="portal-muted">Qty: {item.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="portal-card">
+            <h3>Open invoices</h3>
+            {invoices.length === 0 ? (
+              <p className="portal-muted">No invoices at this time. Invoices from work orders will appear here.</p>
+            ) : (
+              <div className="portal-list">
+                {invoices.map((invoice) => {
+                  const invoiceAmount = parseFloat(invoice.amount || 0);
+                  const invoiceDate = new Date(invoice.created_at || '').toLocaleDateString();
+                  const dueDate = invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : 'Not specified';
+                  return (
+                    <div key={invoice.id} className="portal-list-item">
+                      <strong>{invoice.invoice_number || `Invoice #${invoice.id}`}</strong>
+                      <span className="portal-muted">Status: {invoice.status}</span>
+                      <span className="portal-muted">
+                        Amount: ${invoiceAmount.toFixed(2)}
+                      </span>
+                      <span className="portal-muted">
+                        Created: {invoiceDate}
+                      </span>
+                      <span className="portal-muted">
+                        Due: {dueDate}
+                      </span>
+                      {invoice.notes && (
+                        <span className="portal-muted" style={{ fontStyle: 'italic' }}>
+                          Notes: {invoice.notes}
+                        </span>
+                      )}
+                      <div className="portal-actions">
+                        <button
+                          className="secondary"
+                          onClick={() => handleViewInvoice(invoice.id)}
+                          disabled={invoiceViewLoading}
+                        >
+                          {invoiceViewLoadingId === invoice.id ? 'Loading...' : 'View invoice'}
+                        </button>
+                        <button 
+                          className="secondary" 
+                          onClick={() => handleAddInvoiceToCart(invoice.id)}
+                        >
+                          Add to cart
+                        </button>
+                        <button
+                          className="secondary"
+                          onClick={() => handleDeleteInvoice(invoice.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -813,6 +928,61 @@ export default function CustomerPortal({ manualProducts }) {
               <button type="submit">Change password</button>
             </form>
           )}
+        </div>
+      )}
+
+      {selectedInvoice && (
+        <div className="invoice-view-overlay" onClick={() => setSelectedInvoice(null)}>
+          <div className="invoice-view-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="invoice-view-header">
+              <div>
+                <p className="invoice-view-kicker">SGCG ART GLASS INVOICE</p>
+                <h2>{selectedInvoice.invoice_number || `Invoice #${selectedInvoice.id}`}</h2>
+              </div>
+              <span className={`invoice-status-pill ${String(selectedInvoice.status || 'open').toLowerCase()}`}>
+                {selectedInvoice.status || 'open'}
+              </span>
+            </div>
+
+            <div className="invoice-view-actions-top">
+              <button onClick={() => handleAddInvoiceToCart(selectedInvoice.id)}>Add to cart</button>
+              <button className="secondary" onClick={() => setSelectedInvoice(null)}>Close</button>
+            </div>
+
+            <div className="invoice-view-grid">
+              <section className="invoice-view-card">
+                <h3>Customer</h3>
+                <div className="invoice-view-row"><strong>Name</strong><span>{`${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 'Customer'}</span></div>
+                <div className="invoice-view-row"><strong>Email</strong><span>{profile?.email || 'Not available'}</span></div>
+              </section>
+
+              <section className="invoice-view-card">
+                <h3>Invoice Details</h3>
+                <div className="invoice-view-row"><strong>Work Order</strong><span>{selectedInvoice.work_order_number || (selectedInvoice.work_order_id ? `WO-${selectedInvoice.work_order_id}` : 'N/A')}</span></div>
+                <div className="invoice-view-row"><strong>Amount</strong><span>${Number(selectedInvoice.amount || 0).toFixed(2)}</span></div>
+                <div className="invoice-view-row"><strong>Created</strong><span>{selectedInvoice.created_at ? new Date(selectedInvoice.created_at).toLocaleDateString() : 'N/A'}</span></div>
+                <div className="invoice-view-row"><strong>Due Date</strong><span>{selectedInvoice.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString() : 'Not specified'}</span></div>
+              </section>
+            </div>
+
+            <section className="invoice-view-card invoice-view-preview">
+              <h3>Approved Design Preview</h3>
+              {selectedInvoice.work_order_preview_url ? (
+                <img
+                  src={selectedInvoice.work_order_preview_url}
+                  alt="Approved work order design preview"
+                  className="invoice-preview-image"
+                />
+              ) : (
+                <p className="portal-muted">No preview image available for this work order yet.</p>
+              )}
+            </section>
+
+            <section className="invoice-view-card invoice-view-notes">
+              <h3>Notes</h3>
+              <p>{selectedInvoice.notes || 'No additional notes provided for this invoice.'}</p>
+            </section>
+          </div>
         </div>
       )}
     </div>
