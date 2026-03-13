@@ -120,8 +120,8 @@ export const addCustomerCartItem = (payload) => api.post('/customer/cart/items',
 export const updateCustomerCartItem = (itemId, data) => api.put(`/customer/cart/items/${itemId}`, data);
 export const removeCustomerCartItem = (itemId) => api.delete(`/customer/cart/items/${itemId}`);
 export const fetchCustomerCartSummary = () => api.get('/customer/cart/summary');
-export const createCheckoutIntent = (payload) => api.post('/customer/checkout/intent', payload);
-export const placeCustomerOrder = (payload) => api.post('/customer/checkout/place-order', payload);
+export const createCheckoutSession = () => api.post('/customer/checkout/session');
+export const confirmCheckoutSession = (sessionId) => api.post('/customer/checkout/session/confirm', { session_id: sessionId });
 export const fetchCustomerOrders = () => api.get('/customer/orders');
 export const fetchCustomerOrderItems = (orderId) => api.get(`/customer/orders/${orderId}/items`);
 export const fetchAdminRecentOrders = (params = {}) => api.get('/admin/orders/recent', { params });

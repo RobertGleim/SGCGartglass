@@ -329,39 +329,6 @@ def _post_manual_product_to_facebook_page(*, product, product_link, page_id, acc
         }
 
 
-def _create_stripe_payment_intent(total_amount, metadata=None):
-    stripe_secret = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
-    if not stripe_secret:
-        return {
-            "mode": "mock",
-            "provider": "stripe",
-            "payment_intent_id": f"mock_intent_{int(datetime.utcnow().timestamp())}_{secrets.token_hex(4)}",
-            "client_secret": None,
-        }
-
-    import stripe
-
-    stripe.api_key = stripe_secret
-    intent = stripe.PaymentIntent.create(
-        amount=max(50, int(round(total_amount * 100))),
-        currency="usd",
-        automatic_payment_methods={"enabled": True},
-        metadata=metadata or {},
-    )
-    return {
-        "mode": "live",
-        "provider": "stripe",
-        "payment_intent_id": intent.get("id"),
-        "client_secret": intent.get("client_secret"),
-    }
-
-
-def _validate_shipping_address(payload):
-    required_fields = ["line1", "city", "state", "postal_code", "country"]
-    missing = [field for field in required_fields if not str(payload.get(field, "")).strip()]
-    return missing
-
-
 def _map_payment_to_order_status(payment_status):
     normalized = str(payment_status or "").strip().lower()
     if normalized in {"paid", "processing"}:
@@ -555,6 +522,29 @@ def stripe_webhook():
 
     event_type = str(event.get("type") or "")
     data_object = (event.get("data") or {}).get("object") or {}
+
+    # checkout.session.completed — hosted Checkout Session paid successfully
+    if event_type == "checkout.session.completed":
+        session_payment_status = str(data_object.get("payment_status") or "").lower()
+        pi_id = str(data_object.get("payment_intent") or "").strip()
+        if pi_id and session_payment_status == "paid":
+            order_status = "confirmed"
+            updated = update_customer_order_payment_by_reference(pi_id, "paid", order_status=order_status)
+            order_id = get_customer_order_id_by_payment_reference(pi_id)
+            if order_id:
+                try:
+                    append_customer_order_event(
+                        order_id,
+                        event_type=event_type,
+                        event_detail=f"payment_status=paid, mapped_order_status={order_status}",
+                        payload=json.dumps({"event_id": event.get("id"), "type": event_type}),
+                    )
+                except Exception as exc:
+                    current_app.logger.warning("failed to append order event for %s: %s", pi_id, exc)
+            return jsonify({"received": True, "event_type": event_type, "payment_intent_id": pi_id, "updated": updated})
+        return jsonify({"received": True, "event_type": event_type, "ignored": True})
+
+    # payment_intent.* events
     payment_intent_id = str(data_object.get("id") or "").strip()
     if not payment_intent_id:
         return jsonify({"received": True})
@@ -1122,121 +1112,179 @@ def customer_remove_cart_item(item_id):
     return jsonify({"success": True})
 
 
-@api.post("/customer/checkout/intent")
+@api.post("/customer/checkout/session")
 @require_customer
-def customer_checkout_intent():
+def customer_checkout_session():
+    """Create a Stripe Checkout Session (hosted payment page) and return the redirect URL."""
     init_db()
     customer_id = g.auth_payload.get("customer_id")
+    customer = fetch_customer_by_id(customer_id) or {}
     summary = _build_checkout_summary(customer_id)
-    totals = summary.get("totals") or {}
 
     if not summary.get("items"):
         return jsonify({"error": "cart_empty"}), 400
 
-    payload = request.get_json(silent=True) or {}
-    shipping_address = payload.get("shipping_address") if isinstance(payload.get("shipping_address"), dict) else {}
-    missing_shipping = _validate_shipping_address(shipping_address)
-    if missing_shipping:
-        return jsonify({"error": "missing_shipping_fields", "fields": missing_shipping}), 400
+    stripe_secret = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
+    if not stripe_secret:
+        return jsonify({"error": "stripe_not_configured", "detail": "STRIPE_SECRET_KEY is not set"}), 503
 
-    customer = fetch_customer_by_id(customer_id) or {}
+    import stripe
+
+    stripe.api_key = stripe_secret
+
+    frontend_url = _resolve_frontend_public_url()
+    # {CHECKOUT_SESSION_ID} is a Stripe template variable substituted server-side
+    success_url = f"{frontend_url}/#/checkout/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{frontend_url}/#/checkout"
+
+    line_items = []
+    for item in summary["items"]:
+        unit_amount = max(50, int(round(float(item.get("price") or 0) * 100)))
+        product_data = {"name": str(item.get("title") or "Item")[:500]}
+        image_url = str(item.get("image_url") or "").strip()
+        if image_url.startswith("https://"):
+            product_data["images"] = [image_url]
+        line_items.append({
+            "price_data": {
+                "currency": "usd",
+                "unit_amount": unit_amount,
+                "product_data": product_data,
+            },
+            "quantity": max(1, int(item.get("quantity") or 1)),
+        })
+
+    session_params = {
+        "line_items": line_items,
+        "mode": "payment",
+        "success_url": success_url,
+        "cancel_url": cancel_url,
+        "shipping_address_collection": {"allowed_countries": ["US", "CA"]},
+        "metadata": {
+            "customer_id": str(customer_id),
+            "customer_email": customer.get("email") or "",
+        },
+        "payment_intent_data": {
+            "metadata": {"customer_id": str(customer_id)},
+        },
+    }
+    customer_email = (customer.get("email") or "").strip()
+    if customer_email:
+        session_params["customer_email"] = customer_email
 
     try:
-        intent = _create_stripe_payment_intent(
-            totals.get("total", 0),
-            metadata={
-                "customer_id": str(customer_id),
-                "customer_email": customer.get("email") or "",
-                "cart_items": str(totals.get("item_count", 0)),
-            },
-        )
+        session = stripe.checkout.Session.create(**session_params)
     except Exception as exc:
-        current_app.logger.error("checkout intent failed: %s", exc)
-        return jsonify({"error": "payment_intent_failed"}), 502
+        current_app.logger.error("checkout session creation failed: %s", exc)
+        return jsonify({"error": "checkout_session_failed"}), 502
 
     return jsonify({
-        "intent": intent,
-        "totals": totals,
+        "session_id": session.get("id"),
+        "url": session.get("url"),
     })
 
 
-@api.post("/customer/checkout/place-order")
+@api.post("/customer/checkout/session/confirm")
 @require_customer
-def customer_place_order():
+def customer_checkout_session_confirm():
+    """After Stripe redirects back, verify the session and record the order in the DB."""
     init_db()
     customer_id = g.auth_payload.get("customer_id")
-    customer = fetch_customer_by_id(customer_id) or {}
     payload = request.get_json(silent=True) or {}
+    session_id = str(payload.get("session_id") or "").strip()
 
-    shipping_address = payload.get("shipping_address") if isinstance(payload.get("shipping_address"), dict) else {}
-    billing_address = payload.get("billing_address") if isinstance(payload.get("billing_address"), dict) else shipping_address
-    missing_shipping = _validate_shipping_address(shipping_address)
-    if missing_shipping:
-        return jsonify({"error": "missing_shipping_fields", "fields": missing_shipping}), 400
-
-    summary = _build_checkout_summary(customer_id)
-    if not summary.get("items"):
-        return jsonify({"error": "cart_empty"}), 400
-
-    totals = summary.get("totals") or {}
-    payment_intent_id = str(payload.get("payment_intent_id") or "").strip()
-    payment_status = "pending"
-    payment_provider = "stripe"
+    if not session_id:
+        return jsonify({"error": "missing_session_id"}), 400
 
     stripe_secret = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
-    if payment_intent_id:
-        if stripe_secret:
-            try:
-                import stripe
+    if not stripe_secret:
+        return jsonify({"error": "stripe_not_configured"}), 503
 
-                stripe.api_key = stripe_secret
-                intent = stripe.PaymentIntent.retrieve(payment_intent_id)
-                stripe_status = str(intent.get("status") or "").lower()
-                if stripe_status not in {"succeeded", "processing", "requires_capture"}:
-                    return jsonify({"error": "payment_not_ready", "payment_status": stripe_status}), 400
-                payment_status = "paid" if stripe_status == "succeeded" else "processing"
-            except Exception as exc:
-                current_app.logger.error("stripe verify failed: %s", exc)
-                return jsonify({"error": "payment_verification_failed"}), 502
-        else:
-            payment_status = "paid" if payment_intent_id.startswith("mock_intent_") else "pending"
+    import stripe
+
+    stripe.api_key = stripe_secret
+
+    try:
+        session = stripe.checkout.Session.retrieve(
+            session_id,
+            expand=["line_items", "shipping_details", "customer_details"],
+        )
+    except Exception as exc:
+        current_app.logger.error("checkout session retrieve failed: %s", exc)
+        return jsonify({"error": "session_retrieval_failed"}), 502
+
+    # Verify ownership: customer_id embedded in session metadata must match caller
+    session_customer_id = str((session.get("metadata") or {}).get("customer_id") or "").strip()
+    if session_customer_id and session_customer_id != str(customer_id):
+        return jsonify({"error": "forbidden"}), 403
+
+    if session.get("status") != "complete" or session.get("payment_status") != "paid":
+        return jsonify({
+            "error": "payment_not_complete",
+            "status": session.get("status"),
+            "payment_status": session.get("payment_status"),
+        }), 400
+
+    # Idempotent: if order already exists for this payment intent, return it
+    payment_intent_id = str(session.get("payment_intent") or "").strip()
+    if payment_intent_id:
+        existing_order_id = get_customer_order_id_by_payment_reference(payment_intent_id)
+        if existing_order_id:
+            orders = list_customer_orders(customer_id)
+            order = next((o for o in orders if o.get("id") == existing_order_id), None)
+            if order:
+                return jsonify({"success": True, "order": order, "already_placed": True}), 200
+
+    # Extract shipping + customer details collected by Stripe
+    shipping_details = session.get("shipping_details") or {}
+    shipping_address_raw = shipping_details.get("address") or {}
+    shipping_address = {
+        "line1": shipping_address_raw.get("line1") or "",
+        "line2": shipping_address_raw.get("line2") or "",
+        "city": shipping_address_raw.get("city") or "",
+        "state": shipping_address_raw.get("state") or "",
+        "postal_code": shipping_address_raw.get("postal_code") or "",
+        "country": shipping_address_raw.get("country") or "US",
+    }
+    customer_details = session.get("customer_details") or {}
+    customer_name_raw = (
+        shipping_details.get("name")
+        or customer_details.get("name")
+        or ""
+    ).strip()
+    customer_email_raw = (customer_details.get("email") or "").strip()
+
+    summary = _build_checkout_summary(customer_id)
+    totals = summary.get("totals") or {}
 
     order_number = f"SGCG-{datetime.utcnow().strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}"
-    customer_name = (
-        str(payload.get("customer_name") or "").strip()
-        or f"{customer.get('first_name') or ''} {customer.get('last_name') or ''}".strip()
-        or "Customer"
-    )
-    customer_email = str(payload.get("customer_email") or "").strip() or customer.get("email")
-
     order_payload = {
         "order_number": order_number,
-        "status": "confirmed" if payment_status in {"paid", "processing"} else "pending",
+        "status": "confirmed",
         "subtotal_amount": totals.get("subtotal"),
         "shipping_amount": totals.get("shipping"),
         "tax_amount": totals.get("tax"),
         "total_amount": totals.get("total"),
         "currency": totals.get("currency") or "USD",
-        "payment_status": payment_status,
-        "payment_provider": payment_provider,
+        "payment_status": "paid",
+        "payment_provider": "stripe",
         "payment_reference": payment_intent_id or None,
-        "customer_name": customer_name,
-        "customer_email": customer_email,
+        "customer_name": customer_name_raw or "Customer",
+        "customer_email": customer_email_raw,
         "shipping_address": json.dumps(shipping_address),
-        "billing_address": json.dumps(billing_address),
-        "notes": str(payload.get("notes") or "").strip() or None,
+        "billing_address": json.dumps(shipping_address),
+        "notes": None,
     }
 
     order_id = create_customer_order_with_items(customer_id, order_payload, summary.get("items") or [])
-    _send_admin_order_email(order_number, totals.get("total", 0), customer_name)
+    _send_admin_order_email(order_number, totals.get("total", 0), customer_name_raw)
 
     return jsonify({
         "success": True,
         "order": {
             "id": order_id,
             "order_number": order_number,
-            "status": order_payload["status"],
-            "payment_status": payment_status,
+            "status": "confirmed",
+            "payment_status": "paid",
             "total_amount": totals.get("total"),
             "currency": totals.get("currency") or "USD",
         },

@@ -21,6 +21,7 @@ const ProductPage = lazy(() => import('./pages/shop/ProductPage'))
 const ProductDetail = lazy(() => import('./pages/shop/ProductDetail'))
 const ReviewsPage = lazy(() => import('./pages/shop/ReviewsPage'))
 const CheckoutPage = lazy(() => import('./pages/shop/CheckoutPage'))
+const CheckoutSuccessPage = lazy(() => import('./pages/shop/CheckoutSuccessPage'))
 const UnifiedLogin = lazy(() => import('./pages/auth/UnifiedLogin'))
 const CustomerResetPassword = lazy(() => import('./pages/auth/CustomerResetPassword'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
@@ -365,6 +366,12 @@ function App() {
             ) : (
               <CheckoutPage />
             )}
+          </main>
+        )}
+
+        {route.path === '/checkout/success' && (
+          <main>
+            <CheckoutSuccessPage />
           </main>
         )}
 

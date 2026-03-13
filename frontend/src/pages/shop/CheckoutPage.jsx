@@ -1,23 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import useCustomerAuth from '../../hooks/useCustomerAuth'
 import {
-  createCheckoutIntent,
+  createCheckoutSession,
   fetchCustomerCartSummary,
-  placeCustomerOrder,
   removeCustomerCartItem,
   updateCustomerCartItem,
 } from '../../services/api'
 import LoadingMessage from '../../components/LoadingMessage'
 import './CheckoutPage.css'
-
-const EMPTY_ADDRESS = {
-  line1: '',
-  line2: '',
-  city: '',
-  state: '',
-  postal_code: '',
-  country: 'US',
-}
 
 const SINGLE_ITEM_WARNING = 'Items are sold per piece. Please contact customer service if you need more than one of the same item.'
 
@@ -40,22 +30,42 @@ const computeLocalTotals = (items) => {
   }
 }
 
+function ProductCard({ item, onRemove }) {
+  return (
+    <div className="checkout-product">
+      {item.image_url && (
+        <img
+          className="checkout-product-img"
+          src={item.image_url}
+          alt={item.title || 'Product image'}
+        />
+      )}
+      <div className="checkout-product-info">
+        <h3 className="checkout-product-name">{item.title}</h3>
+        <p className="checkout-product-price">${Number(item.price || 0).toFixed(2)}</p>
+        {item.quantity > 1 && (
+          <p className="checkout-product-qty">Qty: {item.quantity}</p>
+        )}
+      </div>
+      <button
+        className="checkout-product-remove"
+        onClick={() => onRemove(item.id)}
+        aria-label={`Remove ${item.title}`}
+      >
+        &times;
+      </button>
+    </div>
+  )
+}
+
 export default function CheckoutPage() {
   const { customerToken } = useCustomerAuth()
   const [summary, setSummary] = useState({ items: [], totals: null })
   const [loading, setLoading] = useState(true)
-  const [step, setStep] = useState('cart')
   const [status, setStatus] = useState('')
-  const [shippingAddress, setShippingAddress] = useState(EMPTY_ADDRESS)
-  const [billingAddress, setBillingAddress] = useState(EMPTY_ADDRESS)
-  const [sameBillingAsShipping, setSameBillingAsShipping] = useState(true)
-  const [customerName, setCustomerName] = useState('')
-  const [customerEmail, setCustomerEmail] = useState('')
-  const [orderNotes, setOrderNotes] = useState('')
-  const [intentInfo, setIntentInfo] = useState(null)
-  const [orderSuccess, setOrderSuccess] = useState(null)
+  const [redirecting, setRedirecting] = useState(false)
 
-  const canProceedFromCart = (summary.items || []).length > 0
+  const canCheckout = (summary.items || []).length > 0
   const isSingleItemWarning = status === SINGLE_ITEM_WARNING
 
   const totals = useMemo(
@@ -140,38 +150,18 @@ export default function CheckoutPage() {
     }
   }
 
-  const handleCreateIntent = async () => {
+  const handleStripeCheckout = async () => {
     setStatus('')
+    setRedirecting(true)
     try {
-      const response = await createCheckoutIntent({ shipping_address: shippingAddress })
-      setIntentInfo(response?.intent || null)
-      setStep('review')
-      setStatus('Payment step prepared. Review and place order.')
+      const response = await createCheckoutSession()
+      const url = response?.url
+      if (!url) throw new Error('No checkout URL returned.')
+      window.location.href = url
     } catch (error) {
-      const message = error?.response?.data?.error || error.message || 'Unable to prepare payment.'
+      const message = error?.response?.data?.detail || error?.response?.data?.error || error.message || 'Unable to start Stripe Checkout.'
       setStatus(message)
-    }
-  }
-
-  const handlePlaceOrder = async () => {
-    setStatus('')
-    try {
-      const billing = sameBillingAsShipping ? shippingAddress : billingAddress
-      const response = await placeCustomerOrder({
-        customer_name: customerName,
-        customer_email: customerEmail,
-        shipping_address: shippingAddress,
-        billing_address: billing,
-        payment_intent_id: intentInfo?.payment_intent_id,
-        notes: orderNotes,
-      })
-      setOrderSuccess(response?.order || null)
-      setStep('done')
-      await loadSummary()
-      window.dispatchEvent(new Event('cart-updated'))
-    } catch (error) {
-      const message = error?.response?.data?.error || error.message || 'Unable to place order.'
-      setStatus(message)
+      setRedirecting(false)
     }
   }
 
@@ -191,136 +181,79 @@ export default function CheckoutPage() {
     <main className="checkout-page">
       <section className="checkout-main">
         <header className="checkout-header">
-          <h2>Checkout</h2>
-          <p>Cart → Shipping → Payment → Review</p>
+          <h2>Order Preview</h2>
+          <p className="checkout-header-sub">Review your items before proceeding to payment. Once you continue to Stripe, the order is final.</p>
         </header>
 
-        {status && <div className={`checkout-status ${isSingleItemWarning ? 'warning' : ''}`.trim()}>{status}</div>}
+        {status && (
+          <div className={`checkout-status ${isSingleItemWarning ? 'warning' : ''}`.trim()}>
+            {status}
+          </div>
+        )}
 
         {loading ? (
-          <div className="checkout-card"><LoadingMessage label="Loading checkout" /></div>
+          <div className="checkout-card"><LoadingMessage label="Loading your cart" /></div>
         ) : (
           <div className="checkout-layout">
             <div className="checkout-left">
-              {step === 'cart' && (
-                <div className="checkout-card">
-                  <h3>Cart</h3>
-                  {(summary.items || []).length === 0 ? (
-                    <p>Your cart is empty.</p>
-                  ) : (
-                    <div className="checkout-list">
-                      {summary.items.map((item) => (
-                        <div key={item.id} className="checkout-list-item">
-                          <div>
-                            <strong>{item.title}</strong>
-                            <p>Unit: ${Number(item.price || 0).toFixed(2)}</p>
-                          </div>
-                          <div className="checkout-item-actions">
-                            <button onClick={() => handleUpdateQty(item.id, item.quantity - 1)}>-</button>
-                            <span>{item.quantity}</span>
-                            <button onClick={() => handleUpdateQty(item.id, item.quantity + 1)}>+</button>
-                            <button onClick={() => handleRemoveItem(item.id)}>Remove</button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="checkout-actions-row">
-                    <button disabled={!canProceedFromCart} onClick={() => setStep('shipping')}>Continue to shipping</button>
-                  </div>
+              {(summary.items || []).length === 0 ? (
+                <div className="checkout-card checkout-empty">
+                  <p>Your cart is empty.</p>
+                  <a className="checkout-link" href="#/product">Continue shopping</a>
                 </div>
-              )}
-
-              {step === 'shipping' && (
-                <div className="checkout-card">
-                  <h3>Shipping details</h3>
-                  <div className="checkout-form-grid">
-                    <input placeholder="Full name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-                    <input placeholder="Email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
-                    <input placeholder="Address line 1" value={shippingAddress.line1} onChange={(e) => setShippingAddress((prev) => ({ ...prev, line1: e.target.value }))} />
-                    <input placeholder="Address line 2" value={shippingAddress.line2} onChange={(e) => setShippingAddress((prev) => ({ ...prev, line2: e.target.value }))} />
-                    <input placeholder="City" value={shippingAddress.city} onChange={(e) => setShippingAddress((prev) => ({ ...prev, city: e.target.value }))} />
-                    <input placeholder="State" value={shippingAddress.state} onChange={(e) => setShippingAddress((prev) => ({ ...prev, state: e.target.value }))} />
-                    <input placeholder="Postal code" value={shippingAddress.postal_code} onChange={(e) => setShippingAddress((prev) => ({ ...prev, postal_code: e.target.value }))} />
-                    <input placeholder="Country" value={shippingAddress.country} onChange={(e) => setShippingAddress((prev) => ({ ...prev, country: e.target.value }))} />
-                  </div>
-
-                  <label className="checkout-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={sameBillingAsShipping}
-                      onChange={(e) => setSameBillingAsShipping(e.target.checked)}
-                    />
-                    Billing address same as shipping
-                  </label>
-
-                  {!sameBillingAsShipping && (
-                    <div className="checkout-form-grid">
-                      <input placeholder="Billing line 1" value={billingAddress.line1} onChange={(e) => setBillingAddress((prev) => ({ ...prev, line1: e.target.value }))} />
-                      <input placeholder="Billing city" value={billingAddress.city} onChange={(e) => setBillingAddress((prev) => ({ ...prev, city: e.target.value }))} />
-                      <input placeholder="Billing state" value={billingAddress.state} onChange={(e) => setBillingAddress((prev) => ({ ...prev, state: e.target.value }))} />
-                      <input placeholder="Billing postal code" value={billingAddress.postal_code} onChange={(e) => setBillingAddress((prev) => ({ ...prev, postal_code: e.target.value }))} />
-                      <input placeholder="Billing country" value={billingAddress.country} onChange={(e) => setBillingAddress((prev) => ({ ...prev, country: e.target.value }))} />
-                    </div>
-                  )}
-
-                  <textarea placeholder="Order notes (optional)" value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} />
-
-                  <div className="checkout-actions-row">
-                    <button className="secondary" onClick={() => setStep('cart')}>Back</button>
-                    <button onClick={() => setStep('payment')}>Continue to payment</button>
-                  </div>
-                </div>
-              )}
-
-              {step === 'payment' && (
-                <div className="checkout-card">
-                  <h3>Payment</h3>
-                  <p>
-                    This checkout uses Stripe payment intents.
-                    {intentInfo?.mode === 'mock' ? ' Running in mock mode until STRIPE_SECRET_KEY is configured.' : ''}
-                  </p>
-                  <div className="checkout-actions-row">
-                    <button className="secondary" onClick={() => setStep('shipping')}>Back</button>
-                    <button onClick={handleCreateIntent}>Prepare payment intent</button>
-                  </div>
-                </div>
-              )}
-
-              {step === 'review' && (
-                <div className="checkout-card">
-                  <h3>Review & place order</h3>
-                  <p>Payment intent: {intentInfo?.payment_intent_id || 'N/A'}</p>
-                  <p>Mode: {intentInfo?.mode || 'mock'}</p>
-                  <div className="checkout-actions-row">
-                    <button className="secondary" onClick={() => setStep('payment')}>Back</button>
-                    <button onClick={handlePlaceOrder}>Place order</button>
-                  </div>
-                </div>
-              )}
-
-              {step === 'done' && (
-                <div className="checkout-card">
-                  <h3>Order placed</h3>
-                  <p>Order number: {orderSuccess?.order_number}</p>
-                  <p>Status: {orderSuccess?.status}</p>
-                  <p>Payment: {orderSuccess?.payment_status}</p>
-                  <div className="checkout-actions-row">
-                    <a className="checkout-link" href="#/account">View orders in account</a>
-                    <a className="checkout-link" href="#/product">Continue shopping</a>
-                  </div>
+              ) : (
+                <div className="checkout-products">
+                  {summary.items.map((item) => (
+                    <ProductCard key={item.id} item={item} onRemove={handleRemoveItem} />
+                  ))}
                 </div>
               )}
             </div>
 
             <aside className="checkout-right">
-              <div className="checkout-card sticky">
-                <h3>Order summary</h3>
-                <p>Items: {totals.item_count || 0}</p>
-                <p>Subtotal: ${Number(totals.subtotal || 0).toFixed(2)}</p>
-                <p>Shipping: ${Number(totals.shipping || 0).toFixed(2)}</p>
-                <p>Tax: ${Number(totals.tax || 0).toFixed(2)}</p>
-                <p className="checkout-total">Total: ${Number(totals.total || 0).toFixed(2)}</p>
+              <div className="checkout-summary-card sticky">
+                <h3 className="checkout-summary-title">Order Summary</h3>
+                <div className="checkout-summary-lines">
+                  <div className="checkout-summary-row">
+                    <span>Subtotal ({totals.item_count || 0} {(totals.item_count || 0) === 1 ? 'item' : 'items'})</span>
+                    <span>${Number(totals.subtotal || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="checkout-summary-row">
+                    <span>Shipping</span>
+                    <span>{Number(totals.shipping || 0) === 0 ? 'Free' : `$${Number(totals.shipping).toFixed(2)}`}</span>
+                  </div>
+                  <div className="checkout-summary-row">
+                    <span>Tax</span>
+                    <span>${Number(totals.tax || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+                <div className="checkout-summary-total">
+                  <span>Total</span>
+                  <span>${Number(totals.total || 0).toFixed(2)} {totals.currency || 'USD'}</span>
+                </div>
+
+                <form
+                  onSubmit={(e) => { e.preventDefault(); handleStripeCheckout() }}
+                  className="checkout-form"
+                >
+                  <button
+                    type="submit"
+                    id="checkout-button"
+                    className="checkout-stripe-btn"
+                    disabled={!canCheckout || redirecting}
+                  >
+                    {redirecting ? 'Redirecting…' : 'Checkout'}
+                  </button>
+                </form>
+
+                <p className="checkout-secure-note">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+                  Secure checkout powered by Stripe
+                </p>
+
+                <p className="checkout-contact-note">
+                  Questions? Email <a href="mailto:customersupport@sgcgart.com">customersupport@sgcgart.com</a>
+                </p>
               </div>
             </aside>
           </div>
