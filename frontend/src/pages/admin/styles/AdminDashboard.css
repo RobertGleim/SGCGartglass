@@ -350,6 +350,61 @@
   font-size: 1rem;
 }
 
+.review-invite-form {
+  border: 1px solid #d7dee8;
+  border-radius: 10px;
+  padding: 0.9rem;
+  margin-bottom: 0.85rem;
+  background: #f8fbff;
+}
+
+.review-invite-form h4 {
+  margin: 0 0 0.65rem;
+}
+
+.review-invite-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.review-invite-grid label,
+.review-invite-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.review-invite-list {
+  display: grid;
+  gap: 0.45rem;
+  margin-bottom: 0.8rem;
+}
+
+.review-invite-latest {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px dashed #c7d7ef;
+  border-radius: 8px;
+  background: #f3f8ff;
+  padding: 0.55rem 0.7rem;
+  margin-bottom: 0.6rem;
+}
+
+.review-invite-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  background: #fff;
+}
+
 /* Image Gallery Base Styles */
 .image-gallery {
   display: flex;

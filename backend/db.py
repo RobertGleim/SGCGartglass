@@ -350,6 +350,7 @@ def init_db(force=False):
             rating INTEGER NOT NULL,
             title VARCHAR(200),
             body TEXT,
+            review_image_url VARCHAR(512),
             verified_purchase INTEGER DEFAULT 0,
             status VARCHAR(20) DEFAULT 'pending',
             created_at VARCHAR(50),
@@ -359,12 +360,33 @@ def init_db(force=False):
         )
         """
     )
+    cursor.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS review_invite_codes (
+            id {id_column},
+            code_hash VARCHAR(128) NOT NULL UNIQUE,
+            product_type VARCHAR(20) NOT NULL,
+            product_id VARCHAR(64) NOT NULL,
+            product_name VARCHAR(255),
+            note TEXT,
+            max_uses INTEGER DEFAULT 1,
+            used_count INTEGER DEFAULT 0,
+            expires_at VARCHAR(50),
+            is_active INTEGER DEFAULT 1,
+            created_by VARCHAR(255),
+            created_at VARCHAR(50),
+            updated_at VARCHAR(50)
+        )
+        """
+    )
     conn.commit()
 
     if is_postgres:
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS related_links TEXT")
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS old_price REAL")
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS discount_percent REAL")
+        cursor.execute("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS review_image_url VARCHAR(512)")
+        cursor.execute("ALTER TABLE review_invite_codes ADD COLUMN IF NOT EXISTS product_name VARCHAR(255)")
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS subtotal_amount REAL")
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS shipping_amount REAL")
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS tax_amount REAL")
@@ -394,6 +416,8 @@ def init_db(force=False):
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_order_events_order_created ON customer_order_events(order_id, created_at DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_reviews_product_status_created ON customer_reviews(product_type, product_id, status, created_at DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_reviews_customer_created ON customer_reviews(customer_id, created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_review_invite_codes_active_expires ON review_invite_codes(is_active, expires_at)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_review_invite_codes_product ON review_invite_codes(product_type, product_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_manual_products_created_at ON manual_products(created_at DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_product_images_product_order ON product_images(product_id, display_order)")
 
@@ -1870,7 +1894,9 @@ def list_reviews_for_product(product_type, product_id):
         f"""
                 SELECT
                         r.*, c.first_name, c.last_name,
-                        (
+                        COALESCE(
+                            r.review_image_url,
+                            (
                                 SELECT COALESCE(oi.image_url, '')
                                 FROM customer_order_items oi
                                 WHERE oi.product_type = r.product_type
@@ -1878,6 +1904,7 @@ def list_reviews_for_product(product_type, product_id):
                                     AND COALESCE(oi.image_url, '') <> ''
                                 ORDER BY oi.id DESC
                                 LIMIT 1
+                            )
                         ) AS product_image_url,
                         (
                                 SELECT COALESCE(oi.title, '')
@@ -1912,7 +1939,9 @@ def list_recent_reviews(limit=10):
         f"""
                 SELECT
                         r.*, c.first_name, c.last_name,
-                        (
+                        COALESCE(
+                            r.review_image_url,
+                            (
                                 SELECT COALESCE(oi.image_url, '')
                                 FROM customer_order_items oi
                                 WHERE oi.product_type = r.product_type
@@ -1920,6 +1949,7 @@ def list_recent_reviews(limit=10):
                                     AND COALESCE(oi.image_url, '') <> ''
                                 ORDER BY oi.id DESC
                                 LIMIT 1
+                            )
                         ) AS product_image_url,
                         (
                                 SELECT COALESCE(oi.title, '')
@@ -2360,6 +2390,7 @@ def create_customer_review(customer_id, payload, verified_purchase):
         payload["rating"],
         payload.get("title"),
         payload.get("body"),
+        payload.get("review_image_url"),
         1 if verified_purchase else 0,
         "approved" if verified_purchase else "pending",
         now,
@@ -2370,9 +2401,9 @@ def create_customer_review(customer_id, payload, verified_purchase):
             f"""
             INSERT INTO customer_reviews (
                 customer_id, product_type, product_id, rating, title, body,
-                verified_purchase, status, created_at, updated_at
+                review_image_url, verified_purchase, status, created_at, updated_at
             ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder},
-                      {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             RETURNING id
             """,
             values,
@@ -2383,9 +2414,9 @@ def create_customer_review(customer_id, payload, verified_purchase):
             f"""
             INSERT INTO customer_reviews (
                 customer_id, product_type, product_id, rating, title, body,
-                verified_purchase, status, created_at, updated_at
+                review_image_url, verified_purchase, status, created_at, updated_at
             ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder},
-                      {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             """,
             values,
         )
@@ -2437,3 +2468,137 @@ def update_customer_review(customer_id, review_id, payload):
     conn.commit()
     conn.close()
     return updated
+
+
+def create_review_invite_code(code_hash, payload):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_postgres = _is_postgres_backend()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    values = (
+        code_hash,
+        payload.get("product_type"),
+        payload.get("product_id"),
+        payload.get("product_name"),
+        payload.get("note"),
+        int(payload.get("max_uses") or 1),
+        payload.get("expires_at"),
+        payload.get("created_by"),
+        now,
+        now,
+    )
+
+    if is_postgres:
+        cursor.execute(
+            f"""
+            INSERT INTO review_invite_codes (
+                code_hash, product_type, product_id, product_name, note,
+                max_uses, expires_at, created_by, created_at, updated_at
+            ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder},
+                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+            RETURNING id
+            """,
+            values,
+        )
+        invite_id = cursor.fetchone()["id"]
+    else:
+        cursor.execute(
+            f"""
+            INSERT INTO review_invite_codes (
+                code_hash, product_type, product_id, product_name, note,
+                max_uses, expires_at, created_by, created_at, updated_at
+            ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder},
+                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+            """,
+            values,
+        )
+        invite_id = cursor.lastrowid
+
+    conn.commit()
+    conn.close()
+    return invite_id
+
+
+def list_review_invite_codes(limit=200, active_only=False):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    safe_limit = max(1, min(int(limit or 200), 500))
+
+    where_sql = ""
+    params = [safe_limit]
+    if active_only:
+        now = datetime.utcnow().isoformat()
+        where_sql = f"WHERE is_active = 1 AND (expires_at IS NULL OR expires_at > {placeholder}) AND used_count < max_uses"
+        params = [now, safe_limit]
+
+    cursor.execute(
+        f"""
+        SELECT *
+        FROM review_invite_codes
+        {where_sql}
+        ORDER BY created_at DESC
+        LIMIT {placeholder}
+        """,
+        tuple(params),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_review_invite_code_by_hash(code_hash):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"SELECT * FROM review_invite_codes WHERE code_hash = {placeholder}",
+        (code_hash,),
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def consume_review_invite_code(invite_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    cursor.execute(
+        f"""
+        UPDATE review_invite_codes
+        SET used_count = used_count + 1,
+            updated_at = {placeholder}
+        WHERE id = {placeholder}
+          AND is_active = 1
+          AND (expires_at IS NULL OR expires_at > {placeholder})
+          AND used_count < max_uses
+        """,
+        (now, invite_id, now),
+    )
+    consumed = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return consumed
+
+
+def delete_review_invite_code(invite_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"DELETE FROM review_invite_codes WHERE id = {placeholder}",
+        (invite_id,),
+    )
+    deleted = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted

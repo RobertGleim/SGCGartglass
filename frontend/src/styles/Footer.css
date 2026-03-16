@@ -55,6 +55,25 @@
   display: block;
 }
 
+.footer-legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+}
+
+.footer-legal-links a {
+  color: #1f4ea1;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 600;
+}
+
+.footer-legal-links a:hover {
+  color: #163a78;
+}
+
 /* Large phones (480px+) */
 @media (min-width: 480px) {
   .site-footer {

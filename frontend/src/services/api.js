@@ -141,11 +141,18 @@ export const fetchRecentReviewsCached = (params = {}, options = {}) =>
     preferNetworkWhenEmpty: true,
     fetcher: () => api.get('/reviews/recent', { params }),
   });
+export const validateReviewInviteCode = (code) => api.post('/reviews/invite-codes/validate', { code });
+export const submitReviewWithCode = (formData) => api.post('/reviews/submit-with-code', formData, {
+  headers: { 'Content-Type': 'multipart/form-data' },
+});
 export const submitShopCustomOrderRequest = (payload) => api.post('/shop/custom-order-request', payload);
 export const submitShopContactRequest = (payload) => api.post('/shop/contact-request', payload);
 export const fetchAdminReviews = (params = {}) => api.get('/admin/reviews', { params });
 export const updateAdminReview = (reviewId, payload) => api.put(`/admin/reviews/${reviewId}`, payload);
 export const deleteAdminReview = (reviewId) => api.delete(`/admin/reviews/${reviewId}`);
+export const fetchAdminReviewInviteCodes = (params = {}) => api.get('/admin/review-invite-codes', { params });
+export const createAdminReviewInviteCode = (payload) => api.post('/admin/review-invite-codes', payload);
+export const deleteAdminReviewInviteCode = (inviteId) => api.delete(`/admin/review-invite-codes/${inviteId}`);
 const extractAuthToken = (payload) => {
   if (!payload) return '';
   if (typeof payload === 'string') return payload;

@@ -10,6 +10,7 @@ import os
 import hashlib
 import secrets
 import time
+import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from urllib.parse import quote, urlencode
@@ -18,6 +19,7 @@ from urllib.error import HTTPError, URLError
 
 from flask import Blueprint, jsonify, request, g, current_app
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
 from ..auth import create_token, require_auth, require_customer
 from ..db import (
@@ -71,6 +73,11 @@ from ..db import (
     list_admin_reviews,
     update_admin_review,
     delete_admin_review,
+    create_review_invite_code,
+    list_review_invite_codes,
+    get_review_invite_code_by_hash,
+    consume_review_invite_code,
+    delete_review_invite_code,
     update_customer_admin,
     delete_customer_admin,
     get_invoice_by_id,
@@ -87,6 +94,10 @@ _catalog_cache = {
     "manual_products": {"value": None, "expires_at": 0},
     "manual_products_summary": {"value": None, "expires_at": 0},
 }
+
+ALLOWED_REVIEW_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+ALLOWED_REVIEW_IMAGE_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_REVIEW_IMAGE_BYTES = 20 * 1024 * 1024
 
 
 def _cache_get(key):
@@ -390,6 +401,53 @@ def _resolve_shop_contact_emails():
 def _normalize_shop_request_tag(value, fallback):
     normalized = _safe_text(value, 40).upper().replace(" ", "_")
     return normalized or fallback
+
+
+def _hash_review_invite_code(raw_code):
+    salt = (
+        os.environ.get("REVIEW_CODE_SALT")
+        or os.environ.get("JWT_SECRET")
+        or "sgcg-review-code"
+    )
+    return hashlib.sha256(f"{salt}:{raw_code}".encode("utf-8")).hexdigest()
+
+
+def _split_name(value):
+    full_name = str(value or "").strip()
+    if not full_name:
+        return "Guest", "Reviewer"
+    parts = [entry for entry in full_name.split(" ") if entry]
+    if len(parts) == 1:
+        return parts[0][:120], ""
+    return parts[0][:120], " ".join(parts[1:])[:120]
+
+
+def _normalize_invite_for_public(invite):
+    now = datetime.utcnow().isoformat()
+    expires_at = invite.get("expires_at")
+    is_expired = bool(expires_at and str(expires_at) <= now)
+    max_uses = int(invite.get("max_uses") or 1)
+    used_count = int(invite.get("used_count") or 0)
+    platform = ""
+    if str(invite.get("product_type") or "").strip().lower() == "invite":
+        platform = str(invite.get("product_id") or "").strip().lower()
+    else:
+        platform = str(invite.get("product_type") or "").strip().lower()
+    return {
+        "id": invite.get("id"),
+        "product_type": invite.get("product_type"),
+        "product_id": invite.get("product_id"),
+        "platform": platform,
+        "product_name": invite.get("product_name") or "",
+        "note": invite.get("note") or "",
+        "max_uses": max_uses,
+        "used_count": used_count,
+        "remaining_uses": max(max_uses - used_count, 0),
+        "is_active": bool(invite.get("is_active")),
+        "is_expired": is_expired,
+        "expires_at": expires_at,
+        "created_at": invite.get("created_at"),
+    }
 
 
 @api.post("/shop/custom-order-request")
@@ -1378,6 +1436,119 @@ def recent_reviews():
     return jsonify(list_recent_reviews(limit=limit))
 
 
+@api.post("/reviews/invite-codes/validate")
+def validate_review_invite_code():
+    init_db()
+    payload = request.get_json(silent=True) or {}
+    raw_code = str(payload.get("code") or "").strip().upper()
+    if not raw_code:
+        return jsonify({"error": "missing_code"}), 400
+
+    code_hash = _hash_review_invite_code(raw_code)
+    invite = get_review_invite_code_by_hash(code_hash)
+    if not invite:
+        return jsonify({"error": "invalid_code"}), 404
+
+    normalized = _normalize_invite_for_public(invite)
+    if (not normalized["is_active"]) or normalized["is_expired"] or normalized["remaining_uses"] <= 0:
+        return jsonify({"error": "invalid_code"}), 400
+
+    return jsonify({"invite": normalized}), 200
+
+
+@api.post("/reviews/submit-with-code")
+def submit_review_with_invite_code():
+    init_db()
+    raw_code = str(request.form.get("code") or "").strip().upper()
+    reviewer_name = str(request.form.get("name") or "").strip()
+    review_title = str(request.form.get("title") or "").strip()
+    review_body = str(request.form.get("body") or "").strip()
+    purchased_at = str(request.form.get("purchased_at") or "").strip()
+    purchase_source = str(request.form.get("purchase_source") or "").strip().lower()
+    purchase_source_other = str(request.form.get("purchase_source_other") or "").strip()
+    rating_raw = request.form.get("rating")
+
+    if not raw_code or not reviewer_name or not review_body or not rating_raw or not purchased_at or not purchase_source:
+        return jsonify({"error": "missing_fields"}), 400
+
+    allowed_sources = {"etsy", "ebay", "facebook", "other"}
+    if purchase_source not in allowed_sources:
+        return jsonify({"error": "invalid_purchase_source"}), 400
+    if purchase_source == "other" and not purchase_source_other:
+        return jsonify({"error": "missing_purchase_source_other"}), 400
+
+    try:
+        rating = int(rating_raw)
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid_rating"}), 400
+    if rating < 1 or rating > 5:
+        return jsonify({"error": "invalid_rating"}), 400
+
+    code_hash = _hash_review_invite_code(raw_code)
+    invite = get_review_invite_code_by_hash(code_hash)
+    if not invite:
+        return jsonify({"error": "invalid_code"}), 404
+
+    normalized_invite = _normalize_invite_for_public(invite)
+    if (not normalized_invite["is_active"]) or normalized_invite["is_expired"] or normalized_invite["remaining_uses"] <= 0:
+        return jsonify({"error": "invalid_code"}), 400
+
+    review_image_url = None
+    image_file = request.files.get("photo")
+    if image_file and image_file.filename:
+        filename = secure_filename(image_file.filename or "review-photo")
+        ext = os.path.splitext(filename)[1].lower()
+        mime_type = str(image_file.content_type or "").lower()
+        if ext not in ALLOWED_REVIEW_IMAGE_EXTENSIONS or (mime_type and mime_type not in ALLOWED_REVIEW_IMAGE_MIME):
+            return jsonify({"error": "invalid_image_type"}), 400
+
+        image_bytes = image_file.read()
+        if len(image_bytes) > MAX_REVIEW_IMAGE_BYTES:
+            return jsonify({"error": "image_too_large"}), 400
+
+        uploads_dir = os.path.join(os.path.dirname(__file__), "..", "uploads", "reviews")
+        uploads_dir = os.path.abspath(uploads_dir)
+        os.makedirs(uploads_dir, exist_ok=True)
+
+        unique_name = f"{uuid.uuid4().hex}{ext}"
+        output_path = os.path.join(uploads_dir, unique_name)
+        with open(output_path, "wb") as output:
+            output.write(image_bytes)
+        review_image_url = f"/uploads/reviews/{unique_name}"
+
+    if not consume_review_invite_code(invite.get("id")):
+        return jsonify({"error": "invalid_code"}), 400
+
+    first_name, last_name = _split_name(reviewer_name)
+    guest_email = f"guest-review-{secrets.token_hex(8)}@sgcg.local"
+    guest_customer_id = create_customer({
+        "email": guest_email,
+        "password_hash": generate_password_hash(secrets.token_urlsafe(18)),
+        "first_name": first_name,
+        "last_name": last_name,
+        "phone": None,
+    })
+
+    source_text = purchase_source_other if purchase_source == "other" else purchase_source
+    enriched_body = (
+        f"{review_body}\n\nPurchased At: {purchased_at}\nPurchased Via: {source_text}"
+    )
+
+    review_id = create_customer_review(
+        guest_customer_id,
+        {
+            "product_type": normalized_invite["product_type"],
+            "product_id": str(normalized_invite["product_id"]),
+            "rating": rating,
+            "title": review_title,
+            "body": enriched_body,
+            "review_image_url": review_image_url,
+        },
+        False,
+    )
+    return jsonify({"id": review_id, "status": "pending"}), 201
+
+
 @api.post("/customer/reviews")
 @require_customer
 def customer_create_review():
@@ -1450,6 +1621,89 @@ def admin_reviews():
     limit = request.args.get("limit", 200)
     status = request.args.get("status")
     return jsonify(list_admin_reviews(limit=limit, status=status))
+
+
+@api.get("/admin/review-invite-codes")
+@require_auth
+def admin_list_review_invite_codes():
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    limit = request.args.get("limit", 100)
+    active_only = str(request.args.get("active_only") or "").strip().lower() in {"1", "true", "yes"}
+    rows = list_review_invite_codes(limit=limit, active_only=active_only)
+    return jsonify([_normalize_invite_for_public(row) for row in rows]), 200
+
+
+@api.post("/admin/review-invite-codes")
+@require_auth
+def admin_create_review_invite_code():
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    platform = str(payload.get("platform") or "").strip().lower()
+    product_name = str(payload.get("product_name") or "").strip()
+    note = str(payload.get("note") or "").strip()
+    if not platform:
+        return jsonify({"error": "missing_platform"}), 400
+    allowed_platforms = {"etsy", "facebook", "ebay", "other"}
+    if platform not in allowed_platforms:
+        return jsonify({"error": "invalid_platform"}), 400
+
+    product_type = "invite"
+    product_id = platform
+
+    max_uses = 1
+    expires_at = None
+
+    raw_code = secrets.token_hex(4).upper()
+    code_hash = _hash_review_invite_code(raw_code)
+
+    created_by = str(g.auth_payload.get("sub") or g.auth_payload.get("email") or "admin")
+    invite_id = create_review_invite_code(
+        code_hash,
+        {
+            "product_type": product_type,
+            "product_id": product_id,
+            "product_name": product_name,
+            "note": note,
+            "max_uses": max_uses,
+            "expires_at": expires_at,
+            "created_by": created_by,
+        },
+    )
+
+    created = {
+        "id": invite_id,
+        "product_type": product_type,
+        "product_id": product_id,
+        "platform": platform,
+        "product_name": product_name,
+        "note": note,
+        "max_uses": max_uses,
+        "used_count": 0,
+        "remaining_uses": max_uses,
+        "is_active": True,
+        "is_expired": False,
+        "expires_at": expires_at,
+    }
+    return jsonify({"code": raw_code, "invite": created}), 201
+
+
+@api.delete("/admin/review-invite-codes/<int:invite_id>")
+@require_auth
+def admin_delete_review_invite_code(invite_id):
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    deleted = delete_review_invite_code(invite_id)
+    if not deleted:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify({"success": True}), 200
 
 
 @api.put("/admin/reviews/<int:review_id>")

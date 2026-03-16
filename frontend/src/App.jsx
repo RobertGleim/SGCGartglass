@@ -32,6 +32,9 @@ const MyProjectsPage = lazy(() => import('./pages/MyProjectsPage'))
 const MyWorkOrdersPage = lazy(() => import('./pages/MyWorkOrdersPage'))
 const DiagnosticsPage = lazy(() => import('./pages/DiagnosticsPage'))
 const PhotoGalleryPage = lazy(() => import('./pages/PhotoGalleryPage'))
+const TermsPage = lazy(() => import('./pages/legal/TermsPage'))
+const PrivacyPolicyPage = lazy(() => import('./pages/legal/PrivacyPolicyPage'))
+const FaqPage = lazy(() => import('./pages/legal/FaqPage'))
 
 const BRAND_NAME = 'SGCG Art'
 const CATALOG_CACHE_KEY = 'sgcg_catalog_cache_v2'
@@ -398,6 +401,24 @@ function App() {
         {route.path === '/diagnostics' && (
           <main>
             <DiagnosticsPage />
+          </main>
+        )}
+
+        {route.path === '/terms' && (
+          <main>
+            <TermsPage />
+          </main>
+        )}
+
+        {route.path === '/privacy' && (
+          <main>
+            <PrivacyPolicyPage />
+          </main>
+        )}
+
+        {route.path === '/faq' && (
+          <main>
+            <FaqPage />
           </main>
         )}
       </Suspense>

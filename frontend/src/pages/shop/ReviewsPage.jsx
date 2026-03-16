@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import LoadingMessage from '../../components/LoadingMessage'
-import { fetchRecentReviewsCached } from '../../services/api'
+import { fetchRecentReviewsCached, validateReviewInviteCode, submitReviewWithCode } from '../../services/api'
 import './ReviewsPage.css'
 
 const formatReviewDate = (value) => {
@@ -17,10 +17,27 @@ export default function ReviewsPage() {
   const [loading, setLoading] = useState(true)
   const [sortBy, setSortBy] = useState('suggested')
   const [ratingFilter, setRatingFilter] = useState('all')
+  const [inviteCode, setInviteCode] = useState('')
+  const [inviteInfo, setInviteInfo] = useState(null)
+  const [inviteStatus, setInviteStatus] = useState('')
+  const [isValidatingCode, setIsValidatingCode] = useState(false)
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false)
+  const [isSubmittingInviteReview, setIsSubmittingInviteReview] = useState(false)
+  const [inviteReviewForm, setInviteReviewForm] = useState({
+    name: '',
+    rating: 5,
+    title: '',
+    body: '',
+    purchased_at: '',
+    purchase_source: 'etsy',
+    purchase_source_other: '',
+    photo: null,
+  })
 
-  useEffect(() => {
+  const loadRecentReviews = ({ forceFresh = false } = {}) => {
+    setLoading(true)
     let isActive = true
-    fetchRecentReviewsCached({ limit: 50 })
+    fetchRecentReviewsCached({ limit: 50 }, { forceFresh })
       .then((response) => {
         if (!isActive) return
         setReviews(Array.isArray(response) ? response : [])
@@ -32,11 +49,99 @@ export default function ReviewsPage() {
       .finally(() => {
         if (isActive) setLoading(false)
       })
-
     return () => {
       isActive = false
     }
+  }
+
+  useEffect(() => {
+    return loadRecentReviews()
   }, [])
+
+  const handleValidateInviteCode = async (event) => {
+    event.preventDefault()
+    setInviteStatus('')
+    const nextCode = String(inviteCode || '').trim().toUpperCase()
+    if (!nextCode) {
+      setInviteStatus('Please enter your review code.')
+      return
+    }
+
+    setIsValidatingCode(true)
+    try {
+      const response = await validateReviewInviteCode(nextCode)
+      setInviteInfo(response?.invite || null)
+      setInviteCode(nextCode)
+      setIsSubmitModalOpen(true)
+      setInviteStatus('Code accepted. Complete your review form.')
+    } catch (error) {
+      setInviteInfo(null)
+      setInviteStatus(error?.response?.data?.error || error?.message || 'Invalid review code.')
+    } finally {
+      setIsValidatingCode(false)
+    }
+  }
+
+  const closeInviteModal = () => {
+    setIsSubmitModalOpen(false)
+    setInviteReviewForm({
+      name: '',
+      rating: 5,
+      title: '',
+      body: '',
+      purchased_at: '',
+      purchase_source: 'etsy',
+      purchase_source_other: '',
+      purchased_at: '',
+      purchase_source: 'etsy',
+      purchase_source_other: '',
+      photo: null,
+    })
+  }
+
+  const handleSubmitInviteReview = async (event) => {
+    event.preventDefault()
+    setInviteStatus('')
+
+    const reviewerName = String(inviteReviewForm.name || '').trim()
+    const body = String(inviteReviewForm.body || '').trim()
+    const purchasedAt = String(inviteReviewForm.purchased_at || '').trim()
+    const purchaseSource = String(inviteReviewForm.purchase_source || '').trim().toLowerCase()
+    const purchaseSourceOther = String(inviteReviewForm.purchase_source_other || '').trim()
+    if (!reviewerName || !body || !purchasedAt || !purchaseSource) {
+      setInviteStatus('Name, Purchased At, Purchase Source, and comment are required.')
+      return
+    }
+    if (purchaseSource === 'other' && !purchaseSourceOther) {
+      setInviteStatus('Please enter where you bought it.')
+      return
+    }
+
+    const payload = new FormData()
+    payload.append('code', String(inviteCode || '').trim().toUpperCase())
+    payload.append('name', reviewerName)
+    payload.append('rating', String(Number(inviteReviewForm.rating) || 5))
+    payload.append('title', String(inviteReviewForm.title || '').trim())
+    payload.append('body', body)
+    payload.append('purchased_at', purchasedAt)
+    payload.append('purchase_source', purchaseSource)
+    payload.append('purchase_source_other', purchaseSourceOther)
+    if (inviteReviewForm.photo) {
+      payload.append('photo', inviteReviewForm.photo)
+    }
+
+    setIsSubmittingInviteReview(true)
+    try {
+      await submitReviewWithCode(payload)
+      closeInviteModal()
+      setInviteStatus('Review submitted. It is now pending admin approval.')
+      loadRecentReviews({ forceFresh: true })
+    } catch (error) {
+      setInviteStatus(error?.response?.data?.error || error?.message || 'Unable to submit review.')
+    } finally {
+      setIsSubmittingInviteReview(false)
+    }
+  }
 
   const normalizedReviews = useMemo(
     () => reviews.map((review) => ({
@@ -85,7 +190,25 @@ export default function ReviewsPage() {
   return (
     <main className="reviews-page">
       <section className="reviews-page-inner">
-        <h1>Reviews ({normalizedReviews.length})</h1>
+        <div className="reviews-heading-row">
+          <h1>Reviews ({normalizedReviews.length})</h1>
+          <form className="reviews-code-entry" onSubmit={handleValidateInviteCode}>
+            <label htmlFor="review-invite-code">Have a review code? Enter it here</label>
+            <div className="reviews-code-entry-row">
+              <input
+                id="review-invite-code"
+                type="text"
+                value={inviteCode}
+                onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
+                placeholder="Enter code"
+              />
+              <button type="submit" disabled={isValidatingCode}>
+                {isValidatingCode ? 'Checking...' : 'Enter'}
+              </button>
+            </div>
+          </form>
+        </div>
+        {inviteStatus ? <p className="reviews-invite-status">{inviteStatus}</p> : null}
        
 
         {loading ? (
@@ -171,6 +294,115 @@ export default function ReviewsPage() {
           </>
         )}
       </section>
+
+      {isSubmitModalOpen ? (
+        <div className="reviews-modal-overlay" role="dialog" aria-modal="true" aria-label="Submit review">
+          <div className="reviews-modal-card">
+            <div className="reviews-modal-header">
+              <h2>Submit Your Review</h2>
+              <button type="button" className="reviews-modal-close" onClick={closeInviteModal}>×</button>
+            </div>
+
+            <form className="reviews-modal-form" onSubmit={handleSubmitInviteReview}>
+              <label>
+                Name
+                <input
+                  type="text"
+                  value={inviteReviewForm.name}
+                  onChange={(event) => setInviteReviewForm((prev) => ({ ...prev, name: event.target.value }))}
+                  required
+                />
+              </label>
+
+              <label>
+                Rating
+                <select
+                  value={inviteReviewForm.rating}
+                  onChange={(event) => setInviteReviewForm((prev) => ({ ...prev, rating: Number(event.target.value) }))}
+                >
+                  <option value={5}>5 - Excellent</option>
+                  <option value={4}>4 - Good</option>
+                  <option value={3}>3 - Average</option>
+                  <option value={2}>2 - Fair</option>
+                  <option value={1}>1 - Poor</option>
+                </select>
+              </label>
+
+              <label>
+                Title
+                <input
+                  type="text"
+                  value={inviteReviewForm.title}
+                  onChange={(event) => setInviteReviewForm((prev) => ({ ...prev, title: event.target.value }))}
+                  placeholder="Short review title"
+                />
+              </label>
+
+              <label>
+                Purchased At
+                <input
+                  type="date"
+                  value={inviteReviewForm.purchased_at}
+                  onChange={(event) => setInviteReviewForm((prev) => ({ ...prev, purchased_at: event.target.value }))}
+                  required
+                />
+              </label>
+
+              <label>
+                Purchase Source
+                <select
+                  value={inviteReviewForm.purchase_source}
+                  onChange={(event) => setInviteReviewForm((prev) => ({ ...prev, purchase_source: event.target.value }))}
+                >
+                  <option value="etsy">Etsy</option>
+                  <option value="ebay">eBay</option>
+                  <option value="facebook">Facebook</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
+
+              {inviteReviewForm.purchase_source === 'other' ? (
+                <label>
+                  Where did you buy it?
+                  <input
+                    type="text"
+                    value={inviteReviewForm.purchase_source_other}
+                    onChange={(event) => setInviteReviewForm((prev) => ({ ...prev, purchase_source_other: event.target.value }))}
+                    placeholder="Enter purchase source"
+                    required
+                  />
+                </label>
+              ) : null}
+
+              <label>
+                Comment
+                <textarea
+                  value={inviteReviewForm.body}
+                  onChange={(event) => setInviteReviewForm((prev) => ({ ...prev, body: event.target.value }))}
+                  rows={4}
+                  required
+                />
+              </label>
+
+              <label>
+                Upload Photo (optional)
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => setInviteReviewForm((prev) => ({ ...prev, photo: event.target.files?.[0] || null }))}
+                />
+              </label>
+
+              <div className="reviews-modal-actions">
+                <button type="button" className="reviews-modal-secondary" onClick={closeInviteModal}>Cancel</button>
+                <button type="submit" disabled={isSubmittingInviteReview}>
+                  {isSubmittingInviteReview ? 'Submitting...' : 'Submit Review'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }

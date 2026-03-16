@@ -44,6 +44,15 @@ const getRoute = () => {
   if (parts[0] === 'diagnostics') {
     return { path: '/diagnostics', params: {} }
   }
+  if (parts[0] === 'terms') {
+    return { path: '/terms', params: {} }
+  }
+  if (parts[0] === 'privacy') {
+    return { path: '/privacy', params: {} }
+  }
+  if (parts[0] === 'faq') {
+    return { path: '/faq', params: {} }
+  }
   return { path: '/', params: {} }
 }
 

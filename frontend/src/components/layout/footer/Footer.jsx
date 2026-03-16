@@ -62,7 +62,12 @@ export default function Footer() {
           </a>
         ))}
       </div>
-      <p> ©️ SGCG Art 2026</p>
+      <div className="footer-legal-links" role="navigation" aria-label="Legal links">
+        <a href="#/terms">Terms of Service</a>
+        <a href="#/privacy">Privacy Policy</a>
+        <a href="#/faq">FAQ</a>
+      </div>
+      <p>SGCG Art 2026</p>
     </footer>
   )
 }

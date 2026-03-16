@@ -6,6 +6,7 @@ import {
   deleteCustomer,
   fetchAdminRecentOrders,
   fetchAdminReviews,
+  fetchAdminReviewInviteCodes,
   getAdminGalleryPhotos,
   fetchCustomers,
   getCustomerDetails,
@@ -15,6 +16,8 @@ import {
   sendTemplateToCustomerWorkOrder,
   uploadAdminTemplateImage,
   updateAdminReview,
+  createAdminReviewInviteCode,
+  deleteAdminReviewInviteCode,
   updateCustomer,
 } from "../../services/api.js";
 import TemplateManagement from "./TemplateManagement";
@@ -184,6 +187,14 @@ export default function AdminDashboard({
   const [adminReviews, setAdminReviews] = useState([]);
   const [adminReviewStatusFilter, setAdminReviewStatusFilter] = useState("all");
   const [adminReviewStatus, setAdminReviewStatus] = useState("");
+  const [reviewInviteCodes, setReviewInviteCodes] = useState([]);
+  const [reviewInviteStatus, setReviewInviteStatus] = useState("");
+  const [lastGeneratedReviewCode, setLastGeneratedReviewCode] = useState("");
+  const [reviewInviteForm, setReviewInviteForm] = useState({
+    platform: "etsy",
+    product_name: "",
+    note: "",
+  });
 
   useEffect(() => {
     if (activeTab === "customers") {
@@ -203,6 +214,14 @@ export default function AdminDashboard({
       .then((res) => setAdminReviews(Array.isArray(res) ? res : []))
       .catch(() => setAdminReviews([]));
   }, [activeTab, adminReviewStatusFilter]);
+
+  useEffect(() => {
+    if (activeTab !== "reviews") return;
+
+    fetchAdminReviewInviteCodes({ limit: 100 })
+      .then((res) => setReviewInviteCodes(Array.isArray(res) ? res : []))
+      .catch(() => setReviewInviteCodes([]));
+  }, [activeTab]);
 
   useEffect(() => {
     let active = true;
@@ -297,6 +316,67 @@ export default function AdminDashboard({
       setAdminReviewStatus("Review deleted.");
     } catch (error) {
       setAdminReviewStatus(error?.response?.data?.error || error?.message || "Failed to delete review.");
+    }
+  };
+
+  const handleGenerateReviewCode = async (event) => {
+    event.preventDefault();
+    setReviewInviteStatus("");
+    try {
+      const payload = {
+        platform: String(reviewInviteForm.platform || "").trim().toLowerCase(),
+        product_name: String(reviewInviteForm.product_name || "").trim(),
+        note: reviewInviteForm.note || "",
+      };
+
+      if (!payload.platform) {
+        setReviewInviteStatus("Platform is required.");
+        return;
+      }
+
+      const response = await createAdminReviewInviteCode(payload);
+      const createdCode = String(response?.code || "");
+      const createdInvite = response?.invite;
+
+      if (createdInvite) {
+        setReviewInviteCodes((prev) => [createdInvite, ...prev].slice(0, 100));
+      }
+
+      if (createdCode) {
+        setLastGeneratedReviewCode(createdCode);
+        try {
+          await navigator.clipboard.writeText(createdCode);
+          setReviewInviteStatus(`Review code ${createdCode} generated and copied.`);
+        } catch {
+          setReviewInviteStatus(`Review code generated: ${createdCode}`);
+        }
+      } else {
+        setReviewInviteStatus("Review code generated.");
+      }
+    } catch (error) {
+      setReviewInviteStatus(error?.response?.data?.error || error?.message || "Failed to generate review code.");
+    }
+  };
+
+  const handleCopyReviewCode = async (code) => {
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code);
+      setReviewInviteStatus(`Copied code: ${code}`);
+    } catch {
+      setReviewInviteStatus(`Copy failed. Code: ${code}`);
+    }
+  };
+
+  const handleDeleteReviewCode = async (inviteId) => {
+    if (!inviteId) return;
+    setReviewInviteStatus("");
+    try {
+      await deleteAdminReviewInviteCode(inviteId);
+      setReviewInviteCodes((prev) => prev.filter((entry) => entry.id !== inviteId));
+      setReviewInviteStatus("Review code deleted.");
+    } catch (error) {
+      setReviewInviteStatus(error?.response?.data?.error || error?.message || "Failed to delete review code.");
     }
   };
   // eslint-disable-next-line no-unused-vars
@@ -1774,6 +1854,84 @@ export default function AdminDashboard({
           <div className="tab-panel">
             <div className="panel-section">
               <h3>Review Management</h3>
+              <form className="review-invite-form" onSubmit={handleGenerateReviewCode}>
+                <h4>Create Customer Review Code</h4>
+                <div className="review-invite-grid">
+                  <label>
+                    <span>Platform</span>
+                    <select
+                      value={reviewInviteForm.platform}
+                      onChange={(event) => setReviewInviteForm((prev) => ({ ...prev, platform: event.target.value }))}
+                    >
+                      <option value="etsy">Etsy</option>
+                      <option value="facebook">Facebook</option>
+                      <option value="ebay">eBay</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Product Name</span>
+                    <input
+                      type="text"
+                      value={reviewInviteForm.product_name}
+                      onChange={(event) => setReviewInviteForm((prev) => ({ ...prev, product_name: event.target.value }))}
+                      placeholder="Optional product name"
+                    />
+                  </label>
+                </div>
+                <label className="review-invite-note">
+                  <span>Internal Note</span>
+                  <input
+                    type="text"
+                    value={reviewInviteForm.note}
+                    onChange={(event) => setReviewInviteForm((prev) => ({ ...prev, note: event.target.value }))}
+                    placeholder="Optional customer/order note"
+                  />
+                </label>
+                <button type="submit" className="button">Generate Code</button>
+              </form>
+
+              {reviewInviteStatus ? <p className="form-note">{reviewInviteStatus}</p> : null}
+
+              {lastGeneratedReviewCode ? (
+                <div className="review-invite-latest">
+                  <strong>Latest Code: {lastGeneratedReviewCode}</strong>
+                  <button
+                    type="button"
+                    className="button"
+                    onClick={() => handleCopyReviewCode(lastGeneratedReviewCode)}
+                  >
+                    Copy Latest
+                  </button>
+                </div>
+              ) : null}
+
+              {reviewInviteCodes.length > 0 ? (
+                <div className="review-invite-list">
+                  {reviewInviteCodes.slice(0, 10).map((invite) => (
+                    <div key={invite.id} className="review-invite-item">
+                      <div>
+                        <strong>
+                          {invite.product_name ? `${invite.product_name} ` : ''}
+                          ({invite.platform || invite.product_type || 'unknown'})
+                        </strong>
+                        <p className="form-note" style={{ margin: 0 }}>
+                          Uses: {invite.used_count}/{invite.max_uses} · Remaining: {invite.remaining_uses}
+                          {invite.expires_at ? ` · Expires: ${new Date(invite.expires_at).toLocaleDateString()}` : ""}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="button"
+                        onClick={() => handleDeleteReviewCode(invite.id)}
+                      >
+                        Delete Code
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
               <div className="review-management-toolbar">
                 <label htmlFor="review-status-filter">Status</label>
                 <select
@@ -1797,7 +1955,7 @@ export default function AdminDashboard({
                     <article key={review.id} className="review-row">
                       <div className="review-row-header">
                         <h4 className="review-row-title">
-                          {(review.first_name || "").trim()} {(review.last_name || "").trim()} · {review.product_type} #{review.product_id}
+                          {(review.first_name || "").trim()} {(review.last_name || "").trim()} · {review.product_type === 'invite' ? `Linked to ${String(review.product_id || '').toUpperCase()}` : `${review.product_type} #${review.product_id}`}
                         </h4>
                         <div className="review-row-actions">
                           <button type="button" className="button" onClick={() => handleSaveAdminReview(review)}>
