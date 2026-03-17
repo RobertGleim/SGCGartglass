@@ -376,6 +376,19 @@
   gap: 0.3rem;
 }
 
+.review-invite-grid select,
+.review-invite-grid input,
+.review-invite-note input {
+  width: 100%;
+  min-height: 2.3rem;
+  padding: 0.52rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid #c7cfda;
+  background: #fff;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
 .review-invite-list {
   display: grid;
   gap: 0.45rem;
@@ -403,6 +416,14 @@
   align-items: center;
   gap: 0.6rem;
   background: #fff;
+}
+
+.review-invite-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 /* Image Gallery Base Styles */

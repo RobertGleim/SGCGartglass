@@ -1,13 +1,37 @@
 /**
  * Validates that a token looks like a JWT (not HTML or garbage)
  */
+function decodeJwtPayload(token) {
+  try {
+    const parts = String(token || '').split('.');
+    if (parts.length < 2) return null;
+    const payloadBase64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = payloadBase64 + '='.repeat((4 - (payloadBase64.length % 4)) % 4);
+    const json = atob(padded);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
 export function isValidToken(token) {
   if (!token || typeof token !== 'string') return false;
   // Reject HTML responses
   if (token.startsWith('<!') || token.startsWith('<html')) return false;
   // Basic JWT format check: header.payload.signature
   const parts = token.split('.');
-  return parts.length === 3 && parts.every(p => p.length > 0);
+  if (!(parts.length === 3 && parts.every(p => p.length > 0))) return false;
+
+  // If token has exp, enforce expiry check to avoid repeated 401 polling.
+  const payload = decodeJwtPayload(token);
+  if (!payload) return false;
+  const exp = Number(payload.exp);
+  if (Number.isFinite(exp)) {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    if (exp <= nowSeconds) return false;
+  }
+
+  return true;
 }
 
 /**

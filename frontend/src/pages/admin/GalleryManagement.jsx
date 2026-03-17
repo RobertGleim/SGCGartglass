@@ -31,6 +31,11 @@ const resolveGalleryImageUrl = (value) => {
 
 const normalizeCategory = (value) => String(value || '').trim().toLowerCase();
 
+const buildUngroupSubmissionId = (photoId, seed = Date.now()) => {
+  const raw = `ungroup-${photoId}-${seed}-${Math.floor(Math.random() * 100000)}`;
+  return raw.slice(0, 64);
+};
+
 export default function GalleryManagement() {
   const [photos, setPhotos] = useState([]);
   const [templates, setTemplates] = useState([]);
@@ -210,6 +215,7 @@ export default function GalleryManagement() {
       approval_status: photo.approval_status || 'pending',
       is_cover: Boolean(photo.is_cover),
       created_at: photo.created_at,
+      markUngroup: false,
       markDelete: false,
     })));
   };
@@ -228,6 +234,12 @@ export default function GalleryManagement() {
   const handleModalDeleteToggle = (photoId, markDelete) => {
     setModalPhotos((prev) => prev.map((photo) => (
       photo.id === photoId ? { ...photo, markDelete } : photo
+    )));
+  };
+
+  const handleModalUngroupToggle = (photoId, markUngroup) => {
+    setModalPhotos((prev) => prev.map((photo) => (
+      photo.id === photoId ? { ...photo, markUngroup } : photo
     )));
   };
 
@@ -394,6 +406,72 @@ export default function GalleryManagement() {
     }
   };
 
+  const quickUngroupSelected = async () => {
+    const selectedGroups = sortedGroups.filter((group) => selectedGroupIds.includes(group.id));
+    if (!selectedGroups.length) {
+      setStatus('Select at least one row to ungroup.');
+      return;
+    }
+
+    const photosToUngroup = selectedGroups.flatMap((group) => group.photos);
+    const onlySingles = photosToUngroup.length === selectedGroups.length
+      && selectedGroups.every((group) => group.photos.length === 1);
+    if (onlySingles) {
+      setStatus('Selected rows are already ungrouped.');
+      return;
+    }
+
+    const shouldUngroup = window.confirm(
+      `Ungroup ${photosToUngroup.length} photo${photosToUngroup.length === 1 ? '' : 's'} into separate rows?`,
+    );
+    if (!shouldUngroup) return;
+
+    setStatus('');
+    try {
+      const seed = Date.now();
+      await Promise.all(photosToUngroup.map((photo) => updateAdminGalleryPhoto(photo.id, {
+        submission_group_id: buildUngroupSubmissionId(photo.id, seed),
+        is_cover: true,
+      })));
+      await loadData();
+      setSelectedGroupIds([]);
+      setStatus(`Ungrouped ${photosToUngroup.length} photo${photosToUngroup.length === 1 ? '' : 's'} into separate rows.`);
+    } catch (err) {
+      setStatus(err?.response?.data?.detail || err?.message || 'Failed to ungroup selected photos.');
+    }
+  };
+
+  const ungroupModalSubmission = async () => {
+    if (!selectedGroup || !modalPhotos.length) return;
+
+    if (modalPhotos.length === 1) {
+      setStatus('This submission already has one photo.');
+      return;
+    }
+
+    const shouldUngroup = window.confirm(
+      `Ungroup all ${modalPhotos.length} photos in this submission into separate rows?`,
+    );
+    if (!shouldUngroup) return;
+
+    setIsSavingModal(true);
+    setStatus('');
+    try {
+      const seed = Date.now();
+      await Promise.all(modalPhotos.map((photo) => updateAdminGalleryPhoto(photo.id, {
+        submission_group_id: buildUngroupSubmissionId(photo.id, seed),
+        is_cover: true,
+      })));
+      await loadData();
+      closeGroupModal();
+      setStatus(`Ungrouped ${modalPhotos.length} photos into separate rows.`);
+    } catch (err) {
+      setStatus(err?.response?.data?.detail || err?.message || 'Failed to ungroup submission photos.');
+    } finally {
+      setIsSavingModal(false);
+    }
+  };
+
   const saveModalChanges = async () => {
     if (!selectedGroup) return;
     setIsSavingModal(true);
@@ -427,20 +505,33 @@ export default function GalleryManagement() {
 
       await Promise.all(toDelete.map((photo) => deleteAdminGalleryPhoto(photo.id)));
 
-      await Promise.all(toKeep.map((photo) => updateAdminGalleryPhoto(photo.id, {
-        panel_name: modalGroupFields.panel_name,
-        description: modalGroupFields.description,
-        category: modalGroupFields.category,
-        template_id: modalGroupFields.template_id || null,
-        show_description: Boolean(modalGroupFields.show_description),
-        is_hidden: Boolean(modalGroupFields.is_hidden),
-        approval_status: photo.approval_status || 'pending',
-        is_cover: Boolean(photo.is_cover),
-      })));
+      const ungroupSeed = Date.now();
+      await Promise.all(toKeep.map((photo) => {
+        const shouldUngroup = Boolean(photo.markUngroup);
+        const payload = {
+          panel_name: modalGroupFields.panel_name,
+          description: modalGroupFields.description,
+          category: modalGroupFields.category,
+          template_id: modalGroupFields.template_id || null,
+          show_description: Boolean(modalGroupFields.show_description),
+          is_hidden: Boolean(modalGroupFields.is_hidden),
+          approval_status: photo.approval_status || 'pending',
+          is_cover: shouldUngroup ? true : Boolean(photo.is_cover),
+        };
+        if (shouldUngroup) {
+          payload.submission_group_id = buildUngroupSubmissionId(photo.id, ungroupSeed);
+        }
+        return updateAdminGalleryPhoto(photo.id, payload);
+      }));
 
       await loadData();
       closeGroupModal();
-      setStatus('Submission updated successfully.');
+      const ungroupedCount = toKeep.filter((photo) => photo.markUngroup).length;
+      if (ungroupedCount > 0) {
+        setStatus(`Submission updated. ${ungroupedCount} photo${ungroupedCount === 1 ? '' : 's'} ungrouped.`);
+      } else {
+        setStatus('Submission updated successfully.');
+      }
     } catch (err) {
       setStatus(err?.response?.data?.detail || err?.message || 'Failed to save submission changes.');
     } finally {
@@ -523,6 +614,14 @@ export default function GalleryManagement() {
               disabled={selectedGroupIds.length < 2}
             >
               Group Selected
+            </button>
+            <button
+              type="button"
+              className={styles.button}
+              onClick={quickUngroupSelected}
+              disabled={selectedGroupIds.length === 0}
+            >
+              Ungroup Selected
             </button>
           </div>
         )}
@@ -798,6 +897,14 @@ export default function GalleryManagement() {
                       <label className={styles.deleteToggle}>
                         <input
                           type="checkbox"
+                          checked={Boolean(photo.markUngroup)}
+                          onChange={(e) => handleModalUngroupToggle(photo.id, e.target.checked)}
+                        />
+                        Ungroup this photo
+                      </label>
+                      <label className={styles.deleteToggle}>
+                        <input
+                          type="checkbox"
                           checked={Boolean(photo.markDelete)}
                           onChange={(e) => handleModalDeleteToggle(photo.id, e.target.checked)}
                         />
@@ -823,6 +930,14 @@ export default function GalleryManagement() {
                 disabled={isSavingModal}
               >
                 {isSavingModal ? 'Saving…' : 'Save Changes'}
+              </button>
+              <button
+                type="button"
+                className={styles.button}
+                onClick={ungroupModalSubmission}
+                disabled={isSavingModal || modalPhotos.length <= 1}
+              >
+                Ungroup All Photos
               </button>
               <button
                 type="button"

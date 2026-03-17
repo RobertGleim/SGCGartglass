@@ -4,7 +4,6 @@ import {
   createAdminTemplate,
   deleteAdminReview,
   deleteCustomer,
-  fetchAdminRecentOrders,
   fetchAdminReviews,
   fetchAdminReviewInviteCodes,
   getAdminGalleryPhotos,
@@ -12,7 +11,6 @@ import {
   getCustomerDetails,
   publishManualProductToFacebook,
   getTemplates,
-  markAdminOrderSeen,
   sendTemplateToCustomerWorkOrder,
   uploadAdminTemplateImage,
   updateAdminReview,
@@ -23,7 +21,6 @@ import {
 import TemplateManagement from "./TemplateManagement";
 import GlassTypeManagement from "./GlassTypeManagement";
 import WorkOrderDashboard from "./WorkOrderDashboard";
-import AdminInvoicesDashboard from "./AdminInvoicesDashboard";
 import GalleryManagement from "./GalleryManagement";
 import "./styles/AdminDashboard.css";
 import "./styles/forms/stainedglass_form.css";
@@ -73,6 +70,8 @@ const MAX_MANUAL_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_MANUAL_VIDEO_BYTES = 80 * 1024 * 1024;
 const MAX_MANUAL_TOTAL_BYTES = 120 * 1024 * 1024;
 const MAX_TEMPLATE_UPLOAD_BYTES = 50 * 1024 * 1024;
+const MANUAL_PRODUCTS_PER_PAGE = 10;
+const SECTION_PAGE_SIZE = 10;
 
 const createDefaultRelatedLinks = () => ({
   template_id: "",
@@ -181,9 +180,6 @@ export default function AdminDashboard({
   const [adminTemplateOptions, setAdminTemplateOptions] = useState([]);
   const [productTemplateOptions, setProductTemplateOptions] = useState([]);
   const [productGalleryOptions, setProductGalleryOptions] = useState([]);
-  const [recentOrders, setRecentOrders] = useState([]);
-  const [unseenOrderCount, setUnseenOrderCount] = useState(0);
-  const [expandedOrderTimelines, setExpandedOrderTimelines] = useState({});
   const [adminReviews, setAdminReviews] = useState([]);
   const [adminReviewStatusFilter, setAdminReviewStatusFilter] = useState("all");
   const [adminReviewStatus, setAdminReviewStatus] = useState("");
@@ -193,6 +189,7 @@ export default function AdminDashboard({
   const [reviewInviteForm, setReviewInviteForm] = useState({
     platform: "etsy",
     product_name: "",
+    customer_email: "",
     note: "",
   });
 
@@ -222,68 +219,6 @@ export default function AdminDashboard({
       .then((res) => setReviewInviteCodes(Array.isArray(res) ? res : []))
       .catch(() => setReviewInviteCodes([]));
   }, [activeTab]);
-
-  useEffect(() => {
-    let active = true;
-    let intervalId;
-
-    const loadOrders = async () => {
-      try {
-        const [allOrders, unseenOrders] = await Promise.all([
-          fetchAdminRecentOrders({ limit: 25 }),
-          fetchAdminRecentOrders({ limit: 25, unseen_only: true }),
-        ]);
-        if (!active) return;
-        const normalizedOrders = Array.isArray(allOrders) ? allOrders : [];
-        setRecentOrders(normalizedOrders);
-        setUnseenOrderCount(Array.isArray(unseenOrders) ? unseenOrders.length : 0);
-        setExpandedOrderTimelines((prev) => {
-          const next = {};
-          normalizedOrders.forEach((order) => {
-            const orderId = order?.id;
-            if (!orderId) return;
-            if (Object.prototype.hasOwnProperty.call(prev, orderId)) {
-              next[orderId] = prev[orderId];
-              return;
-            }
-            next[orderId] = !Number(order.admin_seen || 0);
-          });
-          return next;
-        });
-      } catch {
-        if (!active) return;
-        setRecentOrders([]);
-      }
-    };
-
-    loadOrders();
-    intervalId = window.setInterval(loadOrders, 30000);
-    return () => {
-      active = false;
-      window.clearInterval(intervalId);
-    };
-  }, []);
-
-  const handleMarkOrderSeen = async (orderId) => {
-    await markAdminOrderSeen(orderId);
-    setRecentOrders((prev) => prev.map((order) => (
-      order.id === orderId
-        ? { ...order, admin_seen: 1, admin_seen_at: new Date().toISOString() }
-        : order
-    )));
-    setExpandedOrderTimelines((prev) => ({
-      ...prev,
-      [orderId]: false,
-    }));
-    setUnseenOrderCount((prev) => Math.max(0, prev - 1));
-  };
-
-  const handleToggleOrderTimeline = (orderId) => {
-    setExpandedOrderTimelines((prev) => ({
-      ...prev,
-      [orderId]: !prev[orderId],
-    }));
-  };
 
   const handleAdminReviewFieldChange = (reviewId, field, value) => {
     setAdminReviews((prev) => prev.map((entry) => (
@@ -326,6 +261,7 @@ export default function AdminDashboard({
       const payload = {
         platform: String(reviewInviteForm.platform || "").trim().toLowerCase(),
         product_name: String(reviewInviteForm.product_name || "").trim(),
+        customer_email: String(reviewInviteForm.customer_email || "").trim().toLowerCase(),
         note: reviewInviteForm.note || "",
       };
 
@@ -342,13 +278,32 @@ export default function AdminDashboard({
         setReviewInviteCodes((prev) => [createdInvite, ...prev].slice(0, 100));
       }
 
+      const emailSent = Boolean(response?.email_sent);
+      const customerEmail = String(response?.customer_email || payload.customer_email || "").trim();
+
       if (createdCode) {
         setLastGeneratedReviewCode(createdCode);
         try {
           await navigator.clipboard.writeText(createdCode);
-          setReviewInviteStatus(`Review code ${createdCode} generated and copied.`);
+          if (customerEmail) {
+            setReviewInviteStatus(
+              emailSent
+                ? `Review code ${createdCode} generated, copied, and emailed to ${customerEmail}.`
+                : `Review code ${createdCode} generated and copied, but email to ${customerEmail} could not be sent.`,
+            );
+          } else {
+            setReviewInviteStatus(`Review code ${createdCode} generated and copied.`);
+          }
         } catch {
-          setReviewInviteStatus(`Review code generated: ${createdCode}`);
+          if (customerEmail) {
+            setReviewInviteStatus(
+              emailSent
+                ? `Review code generated: ${createdCode}. Email sent to ${customerEmail}.`
+                : `Review code generated: ${createdCode}. Email to ${customerEmail} could not be sent.`,
+            );
+          } else {
+            setReviewInviteStatus(`Review code generated: ${createdCode}`);
+          }
         }
       } else {
         setReviewInviteStatus("Review code generated.");
@@ -379,11 +334,93 @@ export default function AdminDashboard({
       setReviewInviteStatus(error?.response?.data?.error || error?.message || "Failed to delete review code.");
     }
   };
+
+  const regenerateReviewCode = async (invite, options = {}) => {
+    if (!invite) return;
+    setReviewInviteStatus("");
+
+    const shouldCopy = Boolean(options.copy);
+    const shouldRequireEmail = Boolean(options.requireEmail);
+
+    const platform = String(invite.platform || invite.product_id || "other").trim().toLowerCase() || "other";
+    const productName = String(invite.product_name || "").trim();
+    const customerEmail = String(invite.customer_email || "").trim().toLowerCase();
+    const note = String(invite.note || "").trim();
+
+    if (shouldRequireEmail && !customerEmail) {
+      setReviewInviteStatus("This code has no customer email saved. Add one when generating a code first.");
+      return;
+    }
+
+    try {
+      const response = await createAdminReviewInviteCode({
+        platform,
+        product_name: productName,
+        customer_email: customerEmail,
+        note,
+      });
+
+      const replacementCode = String(response?.code || "");
+      const replacementInvite = response?.invite || null;
+
+      if (!replacementCode || !replacementInvite) {
+        setReviewInviteStatus("Replacement code was created but could not be returned.");
+        return;
+      }
+
+      // Retire the previous code so there is only one active code for this invite context.
+      if (invite.id) {
+        try {
+          await deleteAdminReviewInviteCode(invite.id);
+        } catch {
+          // Keep going even if old-code cleanup fails.
+        }
+      }
+
+      setReviewInviteCodes((prev) => [replacementInvite, ...prev.filter((entry) => entry.id !== invite.id)].slice(0, 100));
+      setLastGeneratedReviewCode(replacementCode);
+
+      if (shouldCopy) {
+        try {
+          await navigator.clipboard.writeText(replacementCode);
+        } catch {
+          // Clipboard can fail in some browser privacy modes.
+        }
+      }
+
+      const emailSent = Boolean(response?.email_sent);
+      if (shouldRequireEmail) {
+        if (emailSent) {
+          setReviewInviteStatus(`Replacement code ${replacementCode} generated and resent to ${customerEmail}.`);
+        } else {
+          setReviewInviteStatus(`Replacement code ${replacementCode} generated, but email to ${customerEmail} could not be sent.`);
+        }
+      } else if (shouldCopy) {
+        setReviewInviteStatus(`Replacement code ${replacementCode} generated and copied.`);
+      } else {
+        setReviewInviteStatus(`Replacement code ${replacementCode} generated.`);
+      }
+    } catch (error) {
+      setReviewInviteStatus(error?.response?.data?.error || error?.message || "Failed to regenerate and resend review code.");
+    }
+  };
+
+  const handleRecopyReviewCode = async (invite) => {
+    await regenerateReviewCode(invite, { copy: true, requireEmail: false });
+  };
+
+  const handleResendReviewCode = async (invite) => {
+    await regenerateReviewCode(invite, { copy: false, requireEmail: true });
+  };
   // eslint-disable-next-line no-unused-vars
   const [status, setStatus] = useState("");
   const [isRefreshingCatalog, setIsRefreshingCatalog] = useState(false);
   const [manualProductSearch, setManualProductSearch] = useState("");
   const [manualProductTypeFilter, setManualProductTypeFilter] = useState("all");
+  const [manualProductsPage, setManualProductsPage] = useState(1);
+  const [customersPage, setCustomersPage] = useState(1);
+  const [reviewCodesPage, setReviewCodesPage] = useState(1);
+  const [reviewsPage, setReviewsPage] = useState(1);
   const [facebookPostedProductIds, setFacebookPostedProductIds] = useState(() => {
     try {
       const stored = localStorage.getItem(FACEBOOK_POSTED_STORAGE_KEY);
@@ -592,6 +629,63 @@ export default function AdminDashboard({
       return true;
     });
   }, [manualProducts]);
+
+  const filteredManualProducts = useMemo(() => {
+    const searchLower = manualProductSearch.toLowerCase();
+    return manualProducts.filter((product) => {
+      const name = toSearchableText(product.name);
+      const description = toSearchableText(product.description);
+      const category = toSearchableText(product.category);
+      const materials = toSearchableText(product.materials);
+
+      const matchesType =
+        manualProductTypeFilter === "all"
+        || inferProductType(product) === manualProductTypeFilter;
+
+      return (
+        matchesType
+        && (
+          name.includes(searchLower)
+          || description.includes(searchLower)
+          || category.includes(searchLower)
+          || materials.includes(searchLower)
+        )
+      );
+    });
+  }, [manualProducts, manualProductSearch, manualProductTypeFilter]);
+
+  const totalManualProductPages = Math.max(
+    1,
+    Math.ceil(filteredManualProducts.length / MANUAL_PRODUCTS_PER_PAGE),
+  );
+
+  const currentManualProductsPage = Math.min(manualProductsPage, totalManualProductPages);
+
+  const pagedManualProducts = useMemo(() => {
+    const startIndex = (currentManualProductsPage - 1) * MANUAL_PRODUCTS_PER_PAGE;
+    return filteredManualProducts.slice(startIndex, startIndex + MANUAL_PRODUCTS_PER_PAGE);
+  }, [filteredManualProducts, currentManualProductsPage]);
+
+  const pagedCustomers = useMemo(() => {
+    const startIndex = (customersPage - 1) * SECTION_PAGE_SIZE;
+    return customers.slice(startIndex, startIndex + SECTION_PAGE_SIZE);
+  }, [customers, customersPage]);
+
+  const totalCustomersPages = Math.max(1, Math.ceil(customers.length / SECTION_PAGE_SIZE));
+
+  const pagedReviewInviteCodes = useMemo(() => {
+    const startIndex = (reviewCodesPage - 1) * SECTION_PAGE_SIZE;
+    return reviewInviteCodes.slice(startIndex, startIndex + SECTION_PAGE_SIZE);
+  }, [reviewInviteCodes, reviewCodesPage]);
+
+  const totalReviewCodesPages = Math.max(1, Math.ceil(reviewInviteCodes.length / SECTION_PAGE_SIZE));
+
+  const pagedAdminReviews = useMemo(() => {
+    const startIndex = (reviewsPage - 1) * SECTION_PAGE_SIZE;
+    return adminReviews.slice(startIndex, startIndex + SECTION_PAGE_SIZE);
+  }, [adminReviews, reviewsPage]);
+
+  const totalReviewsPages = Math.max(1, Math.ceil(adminReviews.length / SECTION_PAGE_SIZE));
 
   const loadManualProductLinkOptions = async () => {
     try {
@@ -1187,6 +1281,80 @@ export default function AdminDashboard({
     );
   }, [facebookPostedProductIds]);
 
+  useEffect(() => {
+    setManualProductsPage(1);
+  }, [manualProductSearch, manualProductTypeFilter]);
+
+  useEffect(() => {
+    setCustomersPage(1);
+  }, [customers.length]);
+
+  useEffect(() => {
+    setReviewCodesPage(1);
+  }, [reviewInviteCodes.length]);
+
+  useEffect(() => {
+    setReviewsPage(1);
+  }, [adminReviews.length, adminReviewStatusFilter]);
+
+  useEffect(() => {
+    if (manualProductsPage > totalManualProductPages) {
+      setManualProductsPage(totalManualProductPages);
+    }
+  }, [manualProductsPage, totalManualProductPages]);
+
+  useEffect(() => {
+    if (customersPage > totalCustomersPages) {
+      setCustomersPage(totalCustomersPages);
+    }
+  }, [customersPage, totalCustomersPages]);
+
+  useEffect(() => {
+    if (reviewCodesPage > totalReviewCodesPages) {
+      setReviewCodesPage(totalReviewCodesPages);
+    }
+  }, [reviewCodesPage, totalReviewCodesPages]);
+
+  useEffect(() => {
+    if (reviewsPage > totalReviewsPages) {
+      setReviewsPage(totalReviewsPages);
+    }
+  }, [reviewsPage, totalReviewsPages]);
+
+  const renderSectionPagination = (currentPage, totalPages, setPage) => {
+    if (totalPages <= 1) return null;
+    return (
+      <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", justifyContent: "center", flexWrap: "wrap", marginTop: "0.8rem" }}>
+        <button
+          type="button"
+          className="button"
+          disabled={currentPage <= 1}
+          onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+        >
+          Prev
+        </button>
+        {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
+          <button
+            key={`section-page-${pageNumber}`}
+            type="button"
+            className={`button ${currentPage === pageNumber ? "primary" : ""}`}
+            onClick={() => setPage(pageNumber)}
+          >
+            {pageNumber}
+          </button>
+        ))}
+        <button
+          type="button"
+          className="button"
+          disabled={currentPage >= totalPages}
+          onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+        >
+          Next
+        </button>
+      </div>
+    );
+  };
+
   const handleCloseModal = () => {
     setShowManualProductModal(false);
     setEditingProduct(null);
@@ -1446,12 +1614,6 @@ export default function AdminDashboard({
           Products
         </button>
         <button
-          className={`tab ${activeTab === "sales" ? "active" : ""}`}
-          onClick={() => setActiveTab("sales")}
-        >
-          {`Sales Stats${unseenOrderCount > 0 ? ` (${unseenOrderCount} new)` : ""}`}
-        </button>
-        <button
           className={`tab ${activeTab === "customers" ? "active" : ""}`}
           onClick={() => setActiveTab("customers")}
         >
@@ -1474,12 +1636,6 @@ export default function AdminDashboard({
           onClick={() => setActiveTab("work-orders")}
         >
           Work Orders
-        </button>
-        <button
-          className={`tab ${activeTab === "invoices" ? "active" : ""}`}
-          onClick={() => setActiveTab("invoices")}
-        >
-          Invoices
         </button>
         <button
           className={`tab ${activeTab === "gallery" ? "active" : ""}`}
@@ -1519,7 +1675,7 @@ export default function AdminDashboard({
                   </tr>
                 </thead>
                 <tbody>
-                  {customers.map((c) => (
+                  {pagedCustomers.map((c) => (
                     <tr key={c.id}>
                       <td className="customer-actions-cell">
                         {c.first_name} {c.last_name}
@@ -1540,6 +1696,7 @@ export default function AdminDashboard({
                 </tbody>
               </table>
             )}
+            {renderSectionPagination(customersPage, totalCustomersPages, setCustomersPage)}
           </div>
         </div>
       )}
@@ -1662,51 +1819,18 @@ export default function AdminDashboard({
                   className="search-input"
                 />
               </div>
-              {(() => {
-                const filteredProducts = manualProducts.filter((product) => {
-                  const searchLower = manualProductSearch.toLowerCase();
-                  const name = toSearchableText(product.name);
-                  const description = toSearchableText(product.description);
-                  const category = toSearchableText(product.category);
-                  const materials = toSearchableText(product.materials);
-
-                  const matchesType =
-                    manualProductTypeFilter === "all" ||
-                    inferProductType(product) === manualProductTypeFilter;
-
-                  return (
-                    matchesType &&
-                    (
-                      name.includes(searchLower) ||
-                      description.includes(searchLower) ||
-                      category.includes(searchLower) ||
-                      materials.includes(searchLower)
-                    )
-                  );
-                });
-
-                if (
-                  filteredProducts.length === 0 &&
-                  manualProducts.length === 0
-                ) {
-                  return (
-                    <div className="empty-state">
-                      No manual products added yet.
-                    </div>
-                  );
-                }
-
-                if (filteredProducts.length === 0) {
-                  return (
-                    <div className="empty-state">
-                      No products match your search.
-                    </div>
-                  );
-                }
-
-                return (
+              {manualProducts.length === 0 ? (
+                <div className="empty-state">
+                  No manual products added yet.
+                </div>
+              ) : filteredManualProducts.length === 0 ? (
+                <div className="empty-state">
+                  No products match your search.
+                </div>
+              ) : (
+                <>
                   <div className="product-list">
-                    {filteredProducts.map((product) => (
+                    {pagedManualProducts.map((product) => (
                       <div key={product.id} className="product-row">
                         <div className="product-thumb">
                           {product.images && product.images.length > 0 ? (
@@ -1768,84 +1892,40 @@ export default function AdminDashboard({
                       </div>
                     ))}
                   </div>
-                );
-              })()}
-            </div>
-          </div>
-        )}
 
-        {activeTab === "sales" && (
-          <div className="tab-panel">
-            <div className="panel-section">
-              <h3>Sales Overview</h3>
-              <div className="stats-grid">
-                <div className="stat-card">
-                  <p className="stat-label">Orders</p>
-                  <p className="stat-value">{recentOrders.length}</p>
-                </div>
-                <div className="stat-card">
-                  <p className="stat-label">Revenue</p>
-                  <p className="stat-value">
-                    ${recentOrders.reduce((sum, entry) => sum + Number(entry.total_amount || 0), 0).toFixed(2)}
-                  </p>
-                </div>
-                <div className="stat-card">
-                  <p className="stat-label">New Alerts</p>
-                  <p className="stat-value">{unseenOrderCount}</p>
-                </div>
-              </div>
+                  {filteredManualProducts.length > MANUAL_PRODUCTS_PER_PAGE && (
+                    <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", justifyContent: "center", flexWrap: "wrap", marginTop: "0.9rem" }}>
+                      <button
+                        type="button"
+                        className="button"
+                        disabled={currentManualProductsPage <= 1}
+                        onClick={() => setManualProductsPage((prev) => Math.max(1, prev - 1))}
+                      >
+                        Prev
+                      </button>
 
-              {recentOrders.length === 0 ? (
-                <p className="form-note">No customer orders yet.</p>
-              ) : (
-                <div className="product-list" style={{ marginTop: "0.9rem" }}>
-                  {recentOrders.map((order) => (
-                    <div key={order.id} className="product-row">
-                      <div className="product-details">
-                        <h4>{order.order_number || `Order #${order.id}`}</h4>
-                        <p className="product-meta">
-                          {(order.customer_name || `${order.first_name || ""} ${order.last_name || ""}`.trim() || order.customer_email || order.account_email || "Customer")}
-                          {` · ${order.item_count || 0} items · ${order.status || "pending"} · ${order.payment_status || "pending"}`}
-                        </p>
-                        <div className="order-timeline-actions">
-                          <button
-                            type="button"
-                            className="button"
-                            onClick={() => handleToggleOrderTimeline(order.id)}
-                          >
-                            {expandedOrderTimelines[order.id] ? "Hide timeline" : "Show timeline"}
-                          </button>
-                        </div>
-                        {expandedOrderTimelines[order.id] && (
-                          <div className="order-event-timeline">
-                            {(Array.isArray(order.events) && order.events.length > 0) ? (
-                              order.events.map((event) => (
-                                <div key={event.id} className="order-event-row">
-                                  <strong>{event.event_type}</strong>
-                                  <span>{event.created_at ? new Date(event.created_at).toLocaleString() : "Unknown time"}</span>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="order-event-row">
-                                <span>No events yet.</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <div className="product-actions" style={{ minWidth: "210px", justifyContent: "flex-end", alignItems: "center", gap: "0.5rem" }}>
-                        <strong>${Number(order.total_amount || 0).toFixed(2)}</strong>
-                        {!Number(order.admin_seen || 0) ? (
-                          <button className="button" onClick={() => handleMarkOrderSeen(order.id)}>
-                            Mark seen
-                          </button>
-                        ) : (
-                          <span className="form-note" style={{ margin: 0 }}>Seen</span>
-                        )}
-                      </div>
+                      {Array.from({ length: totalManualProductPages }, (_, index) => index + 1).map((pageNumber) => (
+                        <button
+                          key={`manual-page-${pageNumber}`}
+                          type="button"
+                          className={`button ${currentManualProductsPage === pageNumber ? "primary" : ""}`}
+                          onClick={() => setManualProductsPage(pageNumber)}
+                        >
+                          {pageNumber}
+                        </button>
+                      ))}
+
+                      <button
+                        type="button"
+                        className="button"
+                        disabled={currentManualProductsPage >= totalManualProductPages}
+                        onClick={() => setManualProductsPage((prev) => Math.min(totalManualProductPages, prev + 1))}
+                      >
+                        Next
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -1881,6 +1961,15 @@ export default function AdminDashboard({
                   </label>
                 </div>
                 <label className="review-invite-note">
+                  <span>Customer Email</span>
+                  <input
+                    type="email"
+                    value={reviewInviteForm.customer_email}
+                    onChange={(event) => setReviewInviteForm((prev) => ({ ...prev, customer_email: event.target.value }))}
+                    placeholder="customer@email.com"
+                  />
+                </label>
+                <label className="review-invite-note">
                   <span>Internal Note</span>
                   <input
                     type="text"
@@ -1909,29 +1998,47 @@ export default function AdminDashboard({
 
               {reviewInviteCodes.length > 0 ? (
                 <div className="review-invite-list">
-                  {reviewInviteCodes.slice(0, 10).map((invite) => (
+                  {pagedReviewInviteCodes.map((invite) => (
                     <div key={invite.id} className="review-invite-item">
                       <div>
                         <strong>
-                          {invite.product_name ? `${invite.product_name} ` : ''}
                           ({invite.platform || invite.product_type || 'unknown'})
+                          {invite.product_name ? ` ${invite.product_name}` : ''}
                         </strong>
                         <p className="form-note" style={{ margin: 0 }}>
                           Uses: {invite.used_count}/{invite.max_uses} · Remaining: {invite.remaining_uses}
+                          {invite.note ? ` · Internal Note: ${invite.note}` : ""}
                           {invite.expires_at ? ` · Expires: ${new Date(invite.expires_at).toLocaleDateString()}` : ""}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        className="button"
-                        onClick={() => handleDeleteReviewCode(invite.id)}
-                      >
-                        Delete Code
-                      </button>
+                      <div className="review-invite-actions">
+                        <button
+                          type="button"
+                          className="button"
+                          onClick={() => handleRecopyReviewCode(invite)}
+                        >
+                          Re-copy Code
+                        </button>
+                        <button
+                          type="button"
+                          className="button"
+                          onClick={() => handleResendReviewCode(invite)}
+                        >
+                          Resend Code
+                        </button>
+                        <button
+                          type="button"
+                          className="button"
+                          onClick={() => handleDeleteReviewCode(invite.id)}
+                        >
+                          Delete Code
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : null}
+              {renderSectionPagination(reviewCodesPage, totalReviewCodesPages, setReviewCodesPage)}
 
               <div className="review-management-toolbar">
                 <label htmlFor="review-status-filter">Status</label>
@@ -1952,7 +2059,7 @@ export default function AdminDashboard({
                 <p className="form-note">No reviews found.</p>
               ) : (
                 <div className="review-management-list">
-                  {adminReviews.map((review) => (
+                  {pagedAdminReviews.map((review) => (
                     <article key={review.id} className="review-row">
                       <div className="review-row-header">
                         <h4 className="review-row-title">
@@ -2030,6 +2137,7 @@ export default function AdminDashboard({
                   ))}
                 </div>
               )}
+              {renderSectionPagination(reviewsPage, totalReviewsPages, setReviewsPage)}
             </div>
           </div>
         )}
@@ -2076,12 +2184,6 @@ export default function AdminDashboard({
         {activeTab === "work-orders" && (
           <div className="tab-panel">
             <WorkOrderDashboard />
-          </div>
-        )}
-
-        {activeTab === "invoices" && (
-          <div className="tab-panel">
-            <AdminInvoicesDashboard />
           </div>
         )}
 

@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import LoadingMessage from '../../components/LoadingMessage';
 import GlassTypeFormModal from './components/GlassTypeFormModal';
 import styles from './GlassTypeManagement.module.css';
+
+const PAGE_SIZE = 10;
 
 export default function GlassTypeManagement() {
   const [glassTypes, setGlassTypes] = useState([]);
@@ -10,6 +12,7 @@ export default function GlassTypeManagement() {
   const [editType, setEditType] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingOrder, setSavingOrder] = useState(false);
+  const [page, setPage] = useState(1);
 
   const fetchGlassTypes = async () => {
     setLoading(true);
@@ -68,70 +71,113 @@ export default function GlassTypeManagement() {
     window.toast && window.toast('Status updated', { type: 'success' });
   };
 
+  const totalPages = Math.max(1, Math.ceil(glassTypes.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStartIndex = (currentPage - 1) * PAGE_SIZE;
+
+  const pagedGlassTypes = useMemo(() => {
+    return glassTypes.slice(pageStartIndex, pageStartIndex + PAGE_SIZE);
+  }, [glassTypes, pageStartIndex]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [glassTypes.length]);
+
   return (
     <div className={styles.page}>
-      <h1>Glass Type Management</h1>
-      <p className={styles.helpText}>Use ↑ and ↓ to set display order. Top items appear first in Designer mode.</p>
-      <button className={styles.addBtn} onClick={() => { setEditType(null); setShowModal(true); }}>Add New Glass Type</button>
+      <h1 className={styles.heading}>Glass Type Management</h1>
+      <div className={styles.topBar}>
+        <button className={styles.addBtn} onClick={() => { setEditType(null); setShowModal(true); }}>Add New Glass Type</button>
+        <p className={styles.helpText}>Use ↑ and ↓ to set display order. Top items appear first in Designer mode.</p>
+      </div>
       {loading ? <LoadingMessage label="Loading" /> : (
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Order</th>
-              <th>Texture</th>
-              <th>Name</th>
-              <th>Description</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {glassTypes.map((g, idx) => (
-              <tr key={g.id}>
-                <td>
-                  <div className={styles.orderCell}>
-                    <button
-                      className={styles.orderBtn}
-                      onClick={() => moveGlassType(idx, 'up')}
-                      disabled={idx === 0 || savingOrder}
-                      title="Move up"
-                    >↑</button>
-                    <button
-                      className={styles.orderBtn}
-                      onClick={() => moveGlassType(idx, 'down')}
-                      disabled={idx === glassTypes.length - 1 || savingOrder}
-                      title="Move down"
-                    >↓</button>
-                    <span className={styles.orderIndex}>{idx + 1}</span>
-                  </div>
-                </td>
-                <td><img src={g.texture_url || g.textureUrl} alt={g.name} className={styles.texture} /></td>
-                <td>{g.name}</td>
-                <td>{g.description}</td>
-                <td>
-                  <label className={styles.switch}>
-                    <input type="checkbox" checked={g.is_active ?? g.active} onChange={() => toggleActive(g.id)} />
-                    <span className={styles.slider}></span>
-                  </label>
-                </td>
-                <td>
-                  <button onClick={() => { setEditType(g); setShowModal(true); }}>Edit</button>
-                  <button
-                    onClick={async () => {
-                      try {
-                        await api.delete(`/admin/glass-types/${g.id}`);
-                        window.toast && window.toast('Deleted', { type: 'success' });
-                        await fetchGlassTypes();
-                      } catch {
-                        window.toast && window.toast('Failed to delete', { type: 'error' });
-                      }
-                    }}
-                  >Delete</button>
-                </td>
+        <>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Order</th>
+                <th>Texture</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {pagedGlassTypes.map((g, idx) => {
+                const absoluteIndex = pageStartIndex + idx;
+                return (
+                  <tr key={g.id}>
+                    <td>
+                      <div className={styles.orderCell}>
+                        <button
+                          className={styles.orderBtn}
+                          onClick={() => moveGlassType(absoluteIndex, 'up')}
+                          disabled={absoluteIndex === 0 || savingOrder}
+                          title="Move up"
+                        >↑</button>
+                        <button
+                          className={styles.orderBtn}
+                          onClick={() => moveGlassType(absoluteIndex, 'down')}
+                          disabled={absoluteIndex === glassTypes.length - 1 || savingOrder}
+                          title="Move down"
+                        >↓</button>
+                        <span className={styles.orderIndex}>{absoluteIndex + 1}</span>
+                      </div>
+                    </td>
+                    <td><img src={g.texture_url || g.textureUrl} alt={g.name} className={styles.texture} /></td>
+                    <td>{g.name}</td>
+                    <td>{g.description}</td>
+                    <td>
+                      <label className={styles.switch}>
+                        <input type="checkbox" checked={g.is_active ?? g.active} onChange={() => toggleActive(g.id)} />
+                        <span className={styles.slider}></span>
+                      </label>
+                    </td>
+                    <td className={styles.actionsCell}>
+                      <button className={`${styles.actionBtn} ${styles.editBtn}`} onClick={() => { setEditType(g); setShowModal(true); }}>Edit</button>
+                      <button
+                        className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                        onClick={async () => {
+                          try {
+                            await api.delete(`/admin/glass-types/${g.id}`);
+                            window.toast && window.toast('Deleted', { type: 'success' });
+                            await fetchGlassTypes();
+                          } catch {
+                            window.toast && window.toast('Failed to delete', { type: 'error' });
+                          }
+                        }}
+                      >Delete</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {totalPages > 1 && (
+            <div className={styles.pagination}>
+              <button type="button" onClick={() => setPage((prev) => Math.max(1, prev - 1))} disabled={currentPage <= 1}>Prev</button>
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
+                <button
+                  key={`glass-type-page-${pageNumber}`}
+                  type="button"
+                  onClick={() => setPage(pageNumber)}
+                  className={currentPage === pageNumber ? styles.activePage : ''}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+              <button type="button" onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))} disabled={currentPage >= totalPages}>Next</button>
+            </div>
+          )}
+        </>
       )}
       {showModal && (
         <GlassTypeFormModal

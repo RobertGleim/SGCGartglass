@@ -4,7 +4,7 @@ import LoadingMessage from '../../components/LoadingMessage';
 import TemplateFormModal from './components/TemplateFormModal';
 import styles from './TemplateManagement.module.css';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 
 // Resolve relative URLs to backend origin
@@ -98,7 +98,7 @@ export default function TemplateManagement() {
 
   return (
     <div className={styles.page}>
-      <h1>Template Management</h1>
+      <h1 className={styles.heading}>Template Management</h1>
       <div className={styles.topBar}>
         <button className={styles.addBtn} onClick={() => { setEditTemplate(null); setShowModal(true); }}>Add New Template</button>
         <input className={styles.search} placeholder="Search by name" value={search} onChange={e => setSearch(e.target.value)} />
@@ -109,7 +109,7 @@ export default function TemplateManagement() {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th><input type="checkbox" onChange={e => setSelected(e.target.checked ? paged.map(t => t.id) : [])} /></th>
+              <th><input className={styles.checkbox} type="checkbox" onChange={e => setSelected(e.target.checked ? paged.map(t => t.id) : [])} /></th>
               <th>Thumbnail</th>
               <th>Name</th>
               <th>Category</th>
@@ -123,7 +123,7 @@ export default function TemplateManagement() {
           <tbody>
             {paged.map(t => (
               <tr key={t.id}>
-                <td><input type="checkbox" checked={selected.includes(t.id)} onChange={e => setSelected(e.target.checked ? [...selected, t.id] : selected.filter(id => id !== t.id))} /></td>
+                <td><input className={styles.checkbox} type="checkbox" checked={selected.includes(t.id)} onChange={e => setSelected(e.target.checked ? [...selected, t.id] : selected.filter(id => id !== t.id))} /></td>
                 <td>
                   {(t.thumbnail_url || t.image_url) ? (
                     <img src={resolveImageUrl(t.thumbnail_url || t.image_url)} alt={t.name} className={styles.thumb} />
@@ -138,10 +138,14 @@ export default function TemplateManagement() {
                 <td>{t.difficulty}</td>
                 <td>{t.dimensions}</td>
                 <td>{t.piece_count ?? t.pieceCount}</td>
-                <td>{(t.is_active ?? t.active) ? 'Active' : 'Inactive'}</td>
                 <td>
-                  <button onClick={() => { setEditTemplate(t); setShowModal(true); }}>Edit</button>
-                  <button onClick={() => openTemplateDefaultsDesigner(t.id)}>Pre-color / Lock</button>
+                  <span className={`${styles.statusBadge} ${(t.is_active ?? t.active) ? styles.statusActive : styles.statusInactive}`}>
+                    {(t.is_active ?? t.active) ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td className={styles.actionsCell}>
+                  <button className={`${styles.actionBtn} ${styles.editBtn}`} onClick={() => { setEditTemplate(t); setShowModal(true); }}>Edit</button>
+                  <button className={`${styles.actionBtn} ${styles.linkBtn}`} onClick={() => openTemplateDefaultsDesigner(t.id)}>Pre-color / Lock</button>
                   {(t.is_active ?? t.active) ? (
                     <button className={styles.deactivateBtn} onClick={() => handleToggleActive(t.id, true)}>Deactivate</button>
                   ) : (

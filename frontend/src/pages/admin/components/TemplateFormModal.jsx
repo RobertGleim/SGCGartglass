@@ -488,22 +488,43 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
       <div className={styles.backdrop} onClick={onClose} />
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close">×</button>
-        <h2>{template ? 'Edit Template' : 'Add New Template'}</h2>
+        <h2 className={styles.title}>{template ? 'Edit Template' : 'Add New Template'}</h2>
 
-        <form onSubmit={handleSubmit}>
-          <label>Name *
-            <input type="text" value={form.name} onChange={e => handleChange('name', e.target.value)} required />
+        <form className={styles.form} onSubmit={handleSubmit}>
+          <label className={styles.field}>
+            <span className={styles.labelText}>Name *</span>
+            <input
+              className={styles.textInput}
+              type="text"
+              value={form.name}
+              onChange={e => handleChange('name', e.target.value)}
+              required
+            />
           </label>
-          <label>Category *
-            <input type="text" value={form.category} onChange={e => handleChange('category', e.target.value)} required />
+          <label className={styles.field}>
+            <span className={styles.labelText}>Category *</span>
+            <input
+              className={styles.textInput}
+              type="text"
+              value={form.category}
+              onChange={e => handleChange('category', e.target.value)}
+              required
+            />
           </label>
-          <label>Difficulty *
-            <select value={form.difficulty} onChange={e => handleChange('difficulty', e.target.value)}>
+          <label className={styles.field}>
+            <span className={styles.labelText}>Difficulty *</span>
+            <select
+              className={styles.selectInput}
+              value={form.difficulty}
+              onChange={e => handleChange('difficulty', e.target.value)}
+            >
               {DIFFICULTY_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
           </label>
-          <label>Dimensions *
+          <label className={styles.field}>
+            <span className={styles.labelText}>Dimensions *</span>
             <input
+              className={styles.textInput}
               type="text"
               placeholder="e.g. 12×16 inches"
               value={form.dimensions}
@@ -511,17 +532,20 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
               required
             />
           </label>
-          <label>
+          <label className={styles.checkboxField}>
             <input
+              className={styles.checkboxInput}
               type="checkbox"
               checked={Boolean(form.is_digital_download)}
               onChange={e => handleChange('is_digital_download', e.target.checked)}
             />
-            {' '}Sell as digital pattern download
+            <span className={styles.checkboxText}>Sell as digital pattern download</span>
           </label>
           {form.is_digital_download && (
-            <label>Download price (USD) *
+            <label className={styles.field}>
+              <span className={styles.labelText}>Download price (USD) *</span>
               <input
+                className={styles.textInput}
                 type="number"
                 min="0.5"
                 step="0.01"
@@ -539,9 +563,10 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
               Link this template to a template, pattern, or gallery entry so customers can jump straight to inspiration.
             </p>
 
-            <label>
-              {`Linked Template (${templateOptionCount})`}
+            <label className={styles.field}>
+              <span className={styles.labelText}>{`Linked Template (${templateOptionCount})`}</span>
               <select
+                className={styles.selectInput}
                 value={form.related_links?.template_id || ''}
                 onChange={(e) => {
                   const nextId = e.target.value;
@@ -568,9 +593,10 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
               </select>
             </label>
 
-            <label>
-              {`Linked Pattern Product (${patternOptionCount})`}
+            <label className={styles.field}>
+              <span className={styles.labelText}>{`Linked Pattern Product (${patternOptionCount})`}</span>
               <select
+                className={styles.selectInput}
                 value={form.related_links?.pattern_product_id || ''}
                 onChange={(e) => {
                   const nextId = e.target.value;
@@ -597,9 +623,10 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
               </select>
             </label>
 
-            <label>
-              {`Linked Photo Gallery Entry (${galleryOptionCount})`}
+            <label className={styles.field}>
+              <span className={styles.labelText}>{`Linked Photo Gallery Entry (${galleryOptionCount})`}</span>
               <select
+                className={styles.selectInput}
                 value={form.related_links?.gallery_photo_id || ''}
                 onChange={(e) => {
                   const nextId = e.target.value;

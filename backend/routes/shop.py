@@ -110,6 +110,35 @@ ALLOWED_REVIEW_IMAGE_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif
 MAX_REVIEW_IMAGE_BYTES = 20 * 1024 * 1024
 
 
+def _resolve_stripe_secret_key():
+    """Resolve and validate Stripe secret key from environment."""
+    stripe_secret = (
+        os.environ.get("STRIPE_SECRET_KEY")
+        or os.environ.get("STRIPE_API_SECRET")
+        or os.environ.get("STRIPE_SECRET")
+        or ""
+    ).strip()
+    if not stripe_secret:
+        return None, {
+            "error": "stripe_not_configured",
+            "detail": "Set STRIPE_SECRET_KEY to your Stripe secret key (starts with sk_test_ or sk_live_).",
+        }
+
+    lower_key = stripe_secret.lower()
+    if lower_key.startswith(("pk_", "rk_", "mk_")):
+        return None, {
+            "error": "stripe_invalid_key_type",
+            "detail": "STRIPE_SECRET_KEY must be a secret key (sk_test_ / sk_live_), not a publishable or restricted key.",
+        }
+    if not lower_key.startswith("sk_"):
+        return None, {
+            "error": "stripe_invalid_key_format",
+            "detail": "STRIPE_SECRET_KEY format is invalid. Expected a key starting with sk_test_ or sk_live_.",
+        }
+
+    return stripe_secret, None
+
+
 def _cache_get(key):
     slot = _catalog_cache.get(key) or {}
     if slot.get("value") is None:
@@ -678,6 +707,7 @@ def _normalize_invite_for_public(invite):
         "product_id": invite.get("product_id"),
         "platform": platform,
         "product_name": invite.get("product_name") or "",
+        "customer_email": invite.get("customer_email") or "",
         "note": invite.get("note") or "",
         "max_uses": max_uses,
         "used_count": used_count,
@@ -1019,7 +1049,7 @@ def login():
     if email != admin_email or not check_password_hash(admin_hash, password):
         return jsonify({"error": "invalid_credentials"}), 401
 
-    token = create_token(email)
+    token = create_token(email, role="admin")
     return jsonify({"token": token})
 
 @api.post("/customer/signup")
@@ -1432,9 +1462,9 @@ def customer_checkout_session():
     if not summary.get("items"):
         return jsonify({"error": "cart_empty"}), 400
 
-    stripe_secret = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
-    if not stripe_secret:
-        return jsonify({"error": "stripe_not_configured", "detail": "STRIPE_SECRET_KEY is not set"}), 503
+    stripe_secret, stripe_key_error = _resolve_stripe_secret_key()
+    if stripe_key_error:
+        return jsonify(stripe_key_error), 503
 
     import stripe
 
@@ -1496,7 +1526,13 @@ def customer_checkout_session():
         session = stripe.checkout.Session.create(**session_params)
     except Exception as exc:
         current_app.logger.error("checkout session creation failed: %s", exc)
-        return jsonify({"error": "checkout_session_failed"}), 502
+        message = str(exc)
+        if "Invalid API Key provided" in message:
+            return jsonify({
+                "error": "stripe_invalid_key",
+                "detail": "Stripe key authentication failed. Set STRIPE_SECRET_KEY to a valid sk_test_ or sk_live_ key.",
+            }), 503
+        return jsonify({"error": "checkout_session_failed", "detail": message}), 502
 
     create_customer_checkout_session_snapshot(
         session.get("id"),
@@ -1527,9 +1563,9 @@ def customer_checkout_session_confirm():
     if not session_id:
         return jsonify({"error": "missing_session_id"}), 400
 
-    stripe_secret = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
-    if not stripe_secret:
-        return jsonify({"error": "stripe_not_configured"}), 503
+    stripe_secret, stripe_key_error = _resolve_stripe_secret_key()
+    if stripe_key_error:
+        return jsonify(stripe_key_error), 503
 
     import stripe
 
@@ -1957,12 +1993,15 @@ def admin_create_review_invite_code():
     payload = request.get_json(silent=True) or {}
     platform = str(payload.get("platform") or "").strip().lower()
     product_name = str(payload.get("product_name") or "").strip()
+    customer_email = str(payload.get("customer_email") or "").strip().lower()
     note = str(payload.get("note") or "").strip()
     if not platform:
         return jsonify({"error": "missing_platform"}), 400
     allowed_platforms = {"etsy", "facebook", "ebay", "other"}
     if platform not in allowed_platforms:
         return jsonify({"error": "invalid_platform"}), 400
+    if customer_email and ("@" not in customer_email or "." not in customer_email.split("@")[-1]):
+        return jsonify({"error": "invalid_customer_email"}), 400
 
     product_type = "invite"
     product_id = platform
@@ -1993,6 +2032,7 @@ def admin_create_review_invite_code():
         "product_id": product_id,
         "platform": platform,
         "product_name": product_name,
+        "customer_email": customer_email,
         "note": note,
         "max_uses": max_uses,
         "used_count": 0,
@@ -2001,7 +2041,43 @@ def admin_create_review_invite_code():
         "is_expired": False,
         "expires_at": expires_at,
     }
-    return jsonify({"code": raw_code, "invite": created}), 201
+
+    email_sent = False
+    if customer_email:
+        sender_email = (
+            current_app.config.get("MAIL_DEFAULT_SENDER")
+            or os.environ.get("MAIL_USERNAME")
+            or current_app.config.get("SUPPORT_EMAIL")
+        )
+        review_page_url = (
+            os.environ.get("FRONTEND_BASE_URL")
+            or os.environ.get("APP_BASE_URL")
+            or "https://www.sgcgart.com"
+        ).rstrip("/") + "/#/reviews"
+        email_subject = "Your SGCG Review Code"
+        email_body = f"""
+        <html>
+          <body>
+            <h2>Your SGCG review code</h2>
+            <p>Hi there,</p>
+            <p>Use the code below to submit your verified review:</p>
+            <p style=\"font-size: 1.2rem; font-weight: 700; letter-spacing: 0.05em;\">{raw_code}</p>
+            <p><strong>Platform:</strong> {platform.upper()}</p>
+            {f"<p><strong>Product:</strong> {product_name}</p>" if product_name else ""}
+            <p>Submit your review here: <a href=\"{review_page_url}\">{review_page_url}</a></p>
+            <p>Thanks for supporting SGCG Art Glass.</p>
+          </body>
+        </html>
+        """
+        email_sent = send_email(
+            customer_email,
+            email_subject,
+            email_body,
+            sender=sender_email,
+            reply_to=sender_email,
+        )
+
+    return jsonify({"code": raw_code, "invite": created, "email_sent": bool(email_sent), "customer_email": customer_email}), 201
 
 
 @api.delete("/admin/review-invite-codes/<int:invite_id>")
