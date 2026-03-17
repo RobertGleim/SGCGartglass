@@ -707,6 +707,21 @@ def _resolve_frontend_public_url():
     return request.host_url.rstrip("/")
 
 
+def _resolve_api_public_url():
+    configured = (
+        os.environ.get("API_PUBLIC_URL")
+        or os.environ.get("BACKEND_PUBLIC_URL")
+        or os.environ.get("BACKEND_BASE_URL")
+        or ""
+    ).strip().rstrip("/")
+    if configured:
+        if configured.endswith("/api"):
+            return configured
+        return f"{configured}/api"
+
+    return f"{request.host_url.rstrip('/')}/api"
+
+
 def _build_manual_product_public_link(product_id):
     return f"{_resolve_frontend_public_url()}/#/product/m-{product_id}"
 
@@ -814,8 +829,8 @@ def _send_admin_order_email(order_number, total_amount, customer_name):
 
 
 def _resolve_pattern_download_url(download_token):
-    frontend_url = _resolve_frontend_public_url()
-    return f"{frontend_url}/api/pattern-downloads/{quote(download_token)}"
+    api_url = _resolve_api_public_url()
+    return f"{api_url}/pattern-downloads/{quote(download_token)}"
 
 
 def _send_customer_pattern_download_email(customer_email, customer_name, downloads):

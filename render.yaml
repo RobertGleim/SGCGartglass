@@ -46,6 +46,11 @@ services:
         sync: false
       - key: CHECKOUT_TAX_RATE
         value: "0.0825"
+      # Public backend API origin used for direct file download links
+      - key: API_PUBLIC_URL
+        value: https://sgcgartglass.onrender.com/api
+      - key: BACKEND_PUBLIC_URL
+        value: https://sgcgartglass.onrender.com
 
   - type: web
     name: sgcg-frontend
