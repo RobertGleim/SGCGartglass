@@ -481,22 +481,22 @@ def init_db(force=False):
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS related_links TEXT")
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS old_price REAL")
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS discount_percent REAL")
-                cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS is_digital_download INTEGER DEFAULT 0")
-                cursor.execute(
-                        """
-                        UPDATE manual_products
-                        SET is_digital_download = 1
-                        WHERE COALESCE(is_digital_download, 0) = 0
-                            AND (
-                                LOWER(COALESCE(category, '')) LIKE '%pattern%'
-                                OR LOWER(COALESCE(name, '')) LIKE '%pattern%'
-                                OR LOWER(COALESCE(description, '')) LIKE '%pattern%'
-                                OR LOWER(COALESCE(description, '')) LIKE '%svg%'
-                                OR LOWER(COALESCE(description, '')) LIKE '%line art%'
-                                OR LOWER(COALESCE(description, '')) LIKE '%trace%'
-                            )
-                        """
-                )
+        cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS is_digital_download INTEGER DEFAULT 0")
+        cursor.execute(
+            """
+            UPDATE manual_products
+            SET is_digital_download = 1
+            WHERE COALESCE(is_digital_download, 0) = 0
+              AND (
+                LOWER(COALESCE(category, '')) LIKE '%pattern%'
+                OR LOWER(COALESCE(name, '')) LIKE '%pattern%'
+                OR LOWER(COALESCE(description, '')) LIKE '%pattern%'
+                OR LOWER(COALESCE(description, '')) LIKE '%svg%'
+                OR LOWER(COALESCE(description, '')) LIKE '%line art%'
+                OR LOWER(COALESCE(description, '')) LIKE '%trace%'
+              )
+            """
+        )
         cursor.execute("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS review_image_url VARCHAR(512)")
         cursor.execute("ALTER TABLE review_invite_codes ADD COLUMN IF NOT EXISTS product_name VARCHAR(255)")
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS subtotal_amount REAL")
