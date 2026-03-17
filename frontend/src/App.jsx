@@ -365,11 +365,7 @@ function App() {
 
         {route.path === '/checkout' && (
           <main>
-            {!customerToken ? (
-              <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
-            ) : (
-              <CheckoutPage />
-            )}
+            <CheckoutPage />
           </main>
         )}
 

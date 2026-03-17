@@ -16,7 +16,9 @@ import {
   updateAdminReview,
   createAdminReviewInviteCode,
   deleteAdminReviewInviteCode,
+  fetchAdminDigitalCheckoutSessions,
   recoverAdminCheckoutSession,
+  resendAdminCheckoutDownloadEmail,
   updateCustomer,
 } from "../../services/api.js";
 import TemplateManagement from "./TemplateManagement";
@@ -187,9 +189,13 @@ export default function AdminDashboard({
   const [reviewInviteCodes, setReviewInviteCodes] = useState([]);
   const [reviewInviteStatus, setReviewInviteStatus] = useState("");
   const [lastGeneratedReviewCode, setLastGeneratedReviewCode] = useState("");
-  const [checkoutRecoverySessionId, setCheckoutRecoverySessionId] = useState("");
+  const [digitalCheckoutSessions, setDigitalCheckoutSessions] = useState([]);
+  const [digitalSessionEmailSearch, setDigitalSessionEmailSearch] = useState("");
+  const [digitalSessionsPage, setDigitalSessionsPage] = useState(1);
+  const [isLoadingDigitalSessions, setIsLoadingDigitalSessions] = useState(false);
   const [checkoutRecoveryStatus, setCheckoutRecoveryStatus] = useState("");
-  const [isRecoveringCheckout, setIsRecoveringCheckout] = useState(false);
+  const [activeRecoverySessionId, setActiveRecoverySessionId] = useState("");
+  const [activeResendSessionId, setActiveResendSessionId] = useState("");
   const [reviewInviteForm, setReviewInviteForm] = useState({
     platform: "etsy",
     product_name: "",
@@ -222,6 +228,28 @@ export default function AdminDashboard({
     fetchAdminReviewInviteCodes({ limit: 100 })
       .then((res) => setReviewInviteCodes(Array.isArray(res) ? res : []))
       .catch(() => setReviewInviteCodes([]));
+  }, [activeTab]);
+
+  const loadDigitalCheckoutSessions = async () => {
+    setIsLoadingDigitalSessions(true);
+    try {
+      const response = await fetchAdminDigitalCheckoutSessions({ limit: 250 });
+      const items = Array.isArray(response?.items)
+        ? response.items
+        : Array.isArray(response)
+          ? response
+          : [];
+      setDigitalCheckoutSessions(items);
+    } catch {
+      setDigitalCheckoutSessions([]);
+    } finally {
+      setIsLoadingDigitalSessions(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== "products") return;
+    loadDigitalCheckoutSessions();
   }, [activeTab]);
 
   const handleAdminReviewFieldChange = (reviewId, field, value) => {
@@ -676,6 +704,21 @@ export default function AdminDashboard({
   }, [customers, customersPage]);
 
   const totalCustomersPages = Math.max(1, Math.ceil(customers.length / SECTION_PAGE_SIZE));
+
+  const filteredDigitalCheckoutSessions = useMemo(() => {
+    const needle = String(digitalSessionEmailSearch || "").trim().toLowerCase();
+    if (!needle) return digitalCheckoutSessions;
+    return digitalCheckoutSessions.filter((entry) =>
+      String(entry?.customer_email || "").toLowerCase().includes(needle),
+    );
+  }, [digitalCheckoutSessions, digitalSessionEmailSearch]);
+
+  const pagedDigitalCheckoutSessions = useMemo(() => {
+    const startIndex = (digitalSessionsPage - 1) * SECTION_PAGE_SIZE;
+    return filteredDigitalCheckoutSessions.slice(startIndex, startIndex + SECTION_PAGE_SIZE);
+  }, [filteredDigitalCheckoutSessions, digitalSessionsPage]);
+
+  const totalDigitalSessionsPages = Math.max(1, Math.ceil(filteredDigitalCheckoutSessions.length / SECTION_PAGE_SIZE));
 
   const pagedReviewInviteCodes = useMemo(() => {
     const startIndex = (reviewCodesPage - 1) * SECTION_PAGE_SIZE;
@@ -1294,6 +1337,14 @@ export default function AdminDashboard({
   }, [customers.length]);
 
   useEffect(() => {
+    setDigitalSessionsPage(1);
+  }, [digitalCheckoutSessions.length]);
+
+  useEffect(() => {
+    setDigitalSessionsPage(1);
+  }, [digitalSessionEmailSearch]);
+
+  useEffect(() => {
     setReviewCodesPage(1);
   }, [reviewInviteCodes.length]);
 
@@ -1312,6 +1363,12 @@ export default function AdminDashboard({
       setCustomersPage(totalCustomersPages);
     }
   }, [customersPage, totalCustomersPages]);
+
+  useEffect(() => {
+    if (digitalSessionsPage > totalDigitalSessionsPages) {
+      setDigitalSessionsPage(totalDigitalSessionsPages);
+    }
+  }, [digitalSessionsPage, totalDigitalSessionsPages]);
 
   useEffect(() => {
     if (reviewCodesPage > totalReviewCodesPages) {
@@ -1598,28 +1655,42 @@ export default function AdminDashboard({
     }
   };
 
-  const handleRecoverCheckoutSession = async (event) => {
-    event?.preventDefault?.();
-    const sessionId = String(checkoutRecoverySessionId || "").trim();
-    if (!sessionId) {
-      setCheckoutRecoveryStatus("Enter a Stripe checkout session ID.");
-      return;
-    }
+  const handleRecoverCheckoutSession = async (sessionIdRaw) => {
+    const sessionId = String(sessionIdRaw || "").trim();
+    if (!sessionId) return;
 
-    setIsRecoveringCheckout(true);
+    setActiveRecoverySessionId(sessionId);
     setCheckoutRecoveryStatus("");
     try {
       const result = await recoverAdminCheckoutSession(sessionId);
       const orderNumber = result?.order?.order_number;
       const alreadyPlaced = Boolean(result?.already_placed);
       const downloadsCount = Array.isArray(result?.downloads) ? result.downloads.length : 0;
+      const downloadsCreatedCount = Math.max(0, Number(result?.downloads_created_count) || 0);
+      const emailSent = result?.downloads_email_sent;
+      const emailTarget = String(result?.downloads_email_target || "").trim();
       const base = alreadyPlaced
-        ? `Session recovered: order already existed${orderNumber ? ` (${orderNumber})` : ""}.`
-        : `Session finalized successfully${orderNumber ? ` (${orderNumber})` : ""}.`;
+        ? `Recovered ${sessionId}: order already existed${orderNumber ? ` (${orderNumber})` : ""}.`
+        : `Recovered ${sessionId}: order finalized${orderNumber ? ` (${orderNumber})` : ""}.`;
       const downloadsInfo = downloadsCount > 0
-        ? ` ${downloadsCount} download${downloadsCount === 1 ? "" : "s"} unlocked.`
+        ? ` ${downloadsCount} download${downloadsCount === 1 ? "" : "s"} available.`
         : "";
-      setCheckoutRecoveryStatus(`${base}${downloadsInfo}`);
+      let emailInfo = "";
+      if (downloadsCreatedCount > 0) {
+        if (emailSent === true) {
+          emailInfo = emailTarget
+            ? ` Download email sent to ${emailTarget}.`
+            : " Download email sent.";
+        } else if (emailSent === false) {
+          emailInfo = emailTarget
+            ? ` Download email failed for ${emailTarget}.`
+            : " Download email failed.";
+        } else {
+          emailInfo = " Download email was not attempted.";
+        }
+      }
+      setCheckoutRecoveryStatus(`${base}${downloadsInfo}${emailInfo}`);
+      await loadDigitalCheckoutSessions();
     } catch (error) {
       setCheckoutRecoveryStatus(
         error?.response?.data?.detail
@@ -1628,7 +1699,37 @@ export default function AdminDashboard({
         || "Failed to recover checkout session.",
       );
     } finally {
-      setIsRecoveringCheckout(false);
+      setActiveRecoverySessionId("");
+    }
+  };
+
+  const handleResendCheckoutDownloadEmail = async (sessionIdRaw) => {
+    const sessionId = String(sessionIdRaw || "").trim();
+    if (!sessionId) return;
+
+    setActiveResendSessionId(sessionId);
+    setCheckoutRecoveryStatus("");
+    try {
+      const result = await resendAdminCheckoutDownloadEmail(sessionId);
+      const sent = result?.downloads_email_sent === true;
+      const emailTarget = String(result?.downloads_email_target || "").trim();
+      const downloadsCount = Math.max(0, Number(result?.downloads_count) || 0);
+      const emailText = emailTarget ? ` to ${emailTarget}` : "";
+      setCheckoutRecoveryStatus(
+        sent
+          ? `Sent ${downloadsCount} download email${downloadsCount === 1 ? "" : "s"}${emailText} for ${sessionId}.`
+          : `Email send failed${emailText} for ${sessionId}.`,
+      );
+      await loadDigitalCheckoutSessions();
+    } catch (error) {
+      setCheckoutRecoveryStatus(
+        error?.response?.data?.detail
+        || error?.response?.data?.error
+        || error?.message
+        || "Failed to resend download email.",
+      );
+    } finally {
+      setActiveResendSessionId("");
     }
   };
 
@@ -1744,26 +1845,96 @@ export default function AdminDashboard({
           <div className="tab-panel">
             {/* <AddEtsyListingForm onAddItem={onAddItem} /> */}
 
-            <div className="panel-section">
-              <h3>Stripe Recovery</h3>
-              <p className="form-note">Recover a paid checkout session by ID to finalize the order and unlock digital downloads.</p>
-              <form onSubmit={handleRecoverCheckoutSession} style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", alignItems: "center" }}>
+            <div className="panel-section digital-recovery-section">
+              <h3>Digital Download Recovery</h3>
+              <p className="form-note">Auto-listed Stripe checkout sessions that include digital downloads. Recover purchase or resend email without manually entering session IDs.</p>
+              <div className="digital-recovery-search-row">
                 <input
-                  type="text"
-                  value={checkoutRecoverySessionId}
-                  onChange={(event) => setCheckoutRecoverySessionId(event.target.value)}
-                  placeholder="cs_live_..."
-                  style={{ minWidth: "320px", flex: "1 1 380px" }}
+                  className="digital-recovery-search"
+                  type="search"
+                  value={digitalSessionEmailSearch}
+                  onChange={(event) => setDigitalSessionEmailSearch(event.target.value)}
+                  placeholder="Search by customer email"
                 />
-                <button
-                  type="submit"
-                  className="button primary"
-                  disabled={isRecoveringCheckout}
-                >
-                  {isRecoveringCheckout ? "Recovering..." : "Recover Session"}
-                </button>
-              </form>
-              {checkoutRecoveryStatus ? <p className="form-note" style={{ marginTop: "0.55rem" }}>{checkoutRecoveryStatus}</p> : null}
+                {digitalSessionEmailSearch ? (
+                  <button
+                    type="button"
+                    className="button"
+                    onClick={() => setDigitalSessionEmailSearch("")}
+                  >
+                    Clear
+                  </button>
+                ) : null}
+              </div>
+              {checkoutRecoveryStatus ? <p className="form-note digital-recovery-note">{checkoutRecoveryStatus}</p> : null}
+              {isLoadingDigitalSessions ? (
+                <p className="form-note">Loading digital checkout sessions...</p>
+              ) : filteredDigitalCheckoutSessions.length === 0 ? (
+                <p className="form-note">No digital checkout sessions found yet.</p>
+              ) : (
+                <>
+                  <div className="digital-recovery-table-wrap">
+                  <table className="product-table digital-recovery-table">
+                    <thead>
+                      <tr>
+                        <th>Customer Email</th>
+                        <th>Digital Items</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagedDigitalCheckoutSessions.map((entry) => {
+                        const sessionId = String(entry?.session_id || "").trim();
+                        const itemNames = Array.isArray(entry?.digital_items)
+                          ? entry.digital_items.map((item) => String(item?.title || "Digital item").trim()).filter(Boolean)
+                          : [];
+                        const itemPreview = itemNames[0] || "-";
+                        const itemExtra = itemNames.length > 1 ? ` +${itemNames.length - 1} more` : "";
+                        const status = String(entry?.status || "pending").toLowerCase();
+                        const statusClass = status === "paid" || status === "processed"
+                          ? "is-complete"
+                          : status === "pending"
+                            ? "is-pending"
+                            : "is-other";
+                        const isRecoveringRow = activeRecoverySessionId === sessionId;
+                        const isResendingRow = activeResendSessionId === sessionId;
+                        return (
+                          <tr key={sessionId || `${entry?.customer_id}-${entry?.created_at}`}>
+                            <td className="digital-recovery-cell-email">{entry?.customer_email || "-"}</td>
+                            <td className="digital-recovery-cell-items" title={itemNames.join(", ") || ""}>{itemPreview}{itemExtra}</td>
+                            <td className="digital-recovery-cell-status">
+                              <span className={`digital-recovery-status ${statusClass}`}>{status}</span>
+                            </td>
+                            <td className="digital-recovery-cell-actions">
+                              <div className="digital-recovery-actions">
+                                <button
+                                  type="button"
+                                  className="button primary"
+                                  disabled={!sessionId || isRecoveringRow || isResendingRow}
+                                  onClick={() => handleRecoverCheckoutSession(sessionId)}
+                                >
+                                  {isRecoveringRow ? "Recovering..." : "Recover Purchase"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="button"
+                                  disabled={!sessionId || isRecoveringRow || isResendingRow}
+                                  onClick={() => handleResendCheckoutDownloadEmail(sessionId)}
+                                >
+                                  {isResendingRow ? "Sending..." : "Send Email"}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  </div>
+                  {renderSectionPagination(digitalSessionsPage, totalDigitalSessionsPages, setDigitalSessionsPage)}
+                </>
+              )}
             </div>
 
             <div className="panel-section">

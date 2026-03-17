@@ -157,6 +157,10 @@ export const createAdminReviewInviteCode = (payload) => api.post('/admin/review-
 export const deleteAdminReviewInviteCode = (inviteId) => api.delete(`/admin/review-invite-codes/${inviteId}`);
 export const recoverAdminCheckoutSession = (sessionId) =>
   api.post('/admin/checkout/session/recover', { session_id: sessionId });
+export const fetchAdminDigitalCheckoutSessions = (params = {}) =>
+  api.get('/admin/checkout/digital-sessions', { params });
+export const resendAdminCheckoutDownloadEmail = (sessionId) =>
+  api.post('/admin/checkout/session/resend-download-email', { session_id: sessionId });
 const extractAuthToken = (payload) => {
   if (!payload) return '';
   if (typeof payload === 'string') return payload;

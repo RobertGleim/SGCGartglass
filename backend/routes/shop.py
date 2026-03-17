@@ -64,6 +64,7 @@ from ..db import (
     create_customer_checkout_session_snapshot,
     get_customer_checkout_session_snapshot,
     mark_customer_checkout_session_processed,
+    list_admin_digital_checkout_sessions,
     list_admin_recent_orders,
     mark_customer_order_admin_seen,
     update_customer_order_payment_by_reference,
@@ -71,6 +72,7 @@ from ..db import (
     append_customer_order_event,
     list_customer_order_events,
     list_customer_pattern_downloads,
+    mark_pattern_downloads_emailed,
     upsert_customer_pattern_download,
     get_customer_pattern_download_by_token,
     has_verified_purchase,
@@ -423,6 +425,7 @@ def _issue_pattern_downloads(customer_id, order_id, items, customer_email):
                 customer_email=customer_email or None,
             )
             downloads.append({
+                "id": grant.get("id"),
                 "pattern_id": int(product_id),
                 "pattern_name": template.name,
                 "pattern_source_type": "template",
@@ -445,6 +448,7 @@ def _issue_pattern_downloads(customer_id, order_id, items, customer_email):
             customer_email=customer_email or None,
         )
         downloads.append({
+            "id": grant.get("id"),
             "pattern_id": int(product_id),
             "pattern_name": product.get("name") or f"Pattern #{product_id}",
             "pattern_source_type": "manual",
@@ -456,7 +460,16 @@ def _issue_pattern_downloads(customer_id, order_id, items, customer_email):
     return downloads
 
 
-def _build_order_response(order_id, order_number, totals, downloads=None, already_placed=False):
+def _build_order_response(
+    order_id,
+    order_number,
+    totals,
+    downloads=None,
+    already_placed=False,
+    downloads_email_sent=None,
+    downloads_email_target="",
+    downloads_created_count=0,
+):
     total_amount = totals.get("total") if isinstance(totals, dict) else None
     currency = (totals.get("currency") if isinstance(totals, dict) else None) or "USD"
     if total_amount is None and isinstance(totals, dict):
@@ -473,6 +486,9 @@ def _build_order_response(order_id, order_number, totals, downloads=None, alread
             "currency": currency,
         },
         "downloads": downloads or [],
+        "downloads_email_sent": downloads_email_sent,
+        "downloads_email_target": str(downloads_email_target or "").strip(),
+        "downloads_created_count": max(0, int(downloads_created_count or 0)),
     }
 
 
@@ -589,7 +605,7 @@ def _hydrate_checkout_summary_from_session(session, customer_id=None):
     return {"items": hydrated_items, "totals": totals}
 
 
-def _finalize_paid_checkout_session(session, expected_customer_id=None):
+def _finalize_paid_checkout_session(session, expected_customer_id=None, send_download_email=True):
     session_id = str(session.get("id") or "").strip()
     payment_intent_id = str(session.get("payment_intent") or "").strip()
     metadata = session.get("metadata") or {}
@@ -627,6 +643,16 @@ def _finalize_paid_checkout_session(session, expected_customer_id=None):
     if customer_id is None:
         raise ValueError("missing_customer_id")
 
+    # Recovery/finalization can lack customer_details in some Stripe payloads.
+    # Fall back to stored customer profile values so download emails still send.
+    customer_record = fetch_customer_by_id(customer_id) or {}
+    if not customer_email:
+        customer_email = str(customer_record.get("email") or "").strip()
+    if not customer_name:
+        first_name = str(customer_record.get("first_name") or "").strip()
+        last_name = str(customer_record.get("last_name") or "").strip()
+        customer_name = " ".join([part for part in [first_name, last_name] if part]).strip() or "Customer"
+
     snapshot = get_customer_checkout_session_snapshot(session_id) if session_id else None
     summary = _normalize_checkout_snapshot(snapshot, customer_id=customer_id)
     items = summary.get("items") or []
@@ -639,6 +665,19 @@ def _finalize_paid_checkout_session(session, expected_customer_id=None):
             items = hydrated_items
             totals = hydrated.get("totals") or totals
 
+    if session_id:
+        create_customer_checkout_session_snapshot(
+            session_id,
+            customer_id,
+            {
+                "items": items,
+                "totals": totals,
+                "payment_intent_id": payment_intent_id,
+            },
+            customer_email=customer_email or None,
+            status="paid",
+        )
+
     if payment_intent_id:
         existing_order_id = get_customer_order_id_by_payment_reference(payment_intent_id)
         if existing_order_id:
@@ -647,10 +686,32 @@ def _finalize_paid_checkout_session(session, expected_customer_id=None):
             existing_items = items or list_customer_order_items_for_order(existing_order_id)
             downloads = _issue_pattern_downloads(customer_id, existing_order_id, existing_items, customer_email)
             created_downloads = [entry for entry in downloads if bool(entry.get("created"))]
-            if created_downloads:
-                _send_customer_pattern_download_email(customer_email, customer_name or "Customer", created_downloads)
+            email_target = (
+                str(customer_email or "").strip()
+                or str((order or {}).get("customer_email") or "").strip()
+                or str(customer_record.get("email") or "").strip()
+            )
+            name_target = (
+                str(customer_name or "").strip()
+                or str((order or {}).get("customer_name") or "").strip()
+                or "Customer"
+            )
+            email_sent = None
+            if send_download_email and created_downloads:
+                email_sent = bool(_send_customer_pattern_download_email(email_target, name_target, created_downloads))
+                if email_sent:
+                    mark_pattern_downloads_emailed([entry.get("id") for entry in created_downloads])
             order_number = (order or {}).get("order_number") or f"Order #{existing_order_id}"
-            return _build_order_response(existing_order_id, order_number, order or totals, downloads=downloads, already_placed=True)
+            return _build_order_response(
+                existing_order_id,
+                order_number,
+                order or totals,
+                downloads=downloads,
+                already_placed=True,
+                downloads_email_sent=email_sent,
+                downloads_email_target=email_target,
+                downloads_created_count=len(created_downloads),
+            )
 
     if not items:
         raise ValueError("missing_checkout_items")
@@ -676,12 +737,26 @@ def _finalize_paid_checkout_session(session, expected_customer_id=None):
 
     order_id = create_customer_order_with_items(customer_id, order_payload, items)
     downloads = _issue_pattern_downloads(customer_id, order_id, items, customer_email)
+    created_downloads = [entry for entry in downloads if bool(entry.get("created"))]
     if session_id:
         mark_customer_checkout_session_processed(session_id, status="paid")
-    if downloads:
-        _send_customer_pattern_download_email(customer_email, customer_name or "Customer", downloads)
+    email_target = str(customer_email or "").strip()
+    email_sent = None
+    if send_download_email and created_downloads:
+        email_sent = bool(_send_customer_pattern_download_email(email_target, customer_name or "Customer", created_downloads))
+        if email_sent:
+            mark_pattern_downloads_emailed([entry.get("id") for entry in created_downloads])
     _send_admin_order_email(order_number, totals.get("total", 0), customer_name)
-    return _build_order_response(order_id, order_number, totals, downloads=downloads, already_placed=False)
+    return _build_order_response(
+        order_id,
+        order_number,
+        totals,
+        downloads=downloads,
+        already_placed=False,
+        downloads_email_sent=email_sent,
+        downloads_email_target=email_target,
+        downloads_created_count=len(created_downloads),
+    )
 
 
 def _is_admin_request():
@@ -1077,7 +1152,7 @@ def stripe_webhook():
                             stripe.api_key = stripe_secret
                             session_payload = stripe.checkout.Session.retrieve(
                                 session_id,
-                                expand=["line_items.data.price.product", "shipping_details", "customer_details"],
+                                expand=["line_items.data.price.product", "customer_details"],
                             )
             except Exception as exc:
                 current_app.logger.warning("stripe session enrichment failed: %s", exc)
@@ -1923,7 +1998,7 @@ def customer_checkout_session_confirm():
     try:
         session = stripe.checkout.Session.retrieve(
             session_id,
-            expand=["line_items", "shipping_details", "customer_details"],
+            expand=["line_items", "customer_details"],
         )
     except Exception as exc:
         current_app.logger.error("checkout session retrieve failed: %s", exc)
@@ -1969,7 +2044,7 @@ def admin_recover_checkout_session():
     try:
         session = stripe.checkout.Session.retrieve(
             session_id,
-            expand=["line_items.data.price.product", "shipping_details", "customer_details"],
+            expand=["line_items.data.price.product", "customer_details"],
         )
     except Exception as exc:
         snapshot = get_customer_checkout_session_snapshot(session_id)
@@ -2000,6 +2075,81 @@ def admin_recover_checkout_session():
         return jsonify({"error": "checkout_recovery_failed", "detail": str(exc)}), 500
 
     return jsonify(result), 200 if result.get("already_placed") else 201
+
+
+@api.get("/admin/checkout/digital-sessions")
+@require_auth
+def admin_list_digital_checkout_sessions():
+    """List checkout sessions that include digital items for one-click recovery/email actions."""
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    limit = request.args.get("limit", default=200, type=int)
+    sessions = list_admin_digital_checkout_sessions(limit=limit)
+    return jsonify({"items": sessions})
+
+
+@api.post("/admin/checkout/session/resend-download-email")
+@require_auth
+def admin_resend_checkout_download_email():
+    """Resend digital download unlock email for a paid checkout session."""
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    session_id = str(payload.get("session_id") or "").strip()
+    if not session_id:
+        return jsonify({"error": "missing_session_id"}), 400
+
+    stripe_secret, stripe_key_error = _resolve_stripe_secret_key()
+    if stripe_key_error:
+        return jsonify(stripe_key_error), 503
+
+    import stripe
+
+    stripe.api_key = stripe_secret
+
+    try:
+        session = stripe.checkout.Session.retrieve(
+            session_id,
+            expand=["line_items.data.price.product", "customer_details"],
+        )
+    except Exception as exc:
+        current_app.logger.error("admin resend download email retrieve failed for %s: %s", session_id, exc)
+        return jsonify({"error": "session_retrieval_failed", "detail": str(exc)}), 502
+
+    if str(session.get("status") or "") != "complete" or str(session.get("payment_status") or "") != "paid":
+        return jsonify({
+            "error": "payment_not_complete",
+            "status": session.get("status"),
+            "payment_status": session.get("payment_status"),
+        }), 400
+
+    result = _finalize_paid_checkout_session(session, send_download_email=False)
+    downloads = result.get("downloads") or []
+    if not downloads:
+        return jsonify({"error": "no_digital_downloads", "detail": "No digital downloads found for this session."}), 400
+
+    customer_name, fallback_email, _shipping = _extract_checkout_customer_details(session)
+    email_target = str(result.get("downloads_email_target") or "").strip() or str(fallback_email or "").strip()
+    name_target = str(customer_name or "").strip() or "Customer"
+    if not email_target:
+        return jsonify({"error": "missing_customer_email", "detail": "No customer email found for this session."}), 400
+
+    email_sent = bool(_send_customer_pattern_download_email(email_target, name_target, downloads))
+    if email_sent:
+        mark_pattern_downloads_emailed([entry.get("id") for entry in downloads if entry.get("id")])
+
+    return jsonify({
+        "success": True,
+        "session_id": session_id,
+        "order": result.get("order") or {},
+        "downloads_count": len(downloads),
+        "downloads_email_target": email_target,
+        "downloads_email_sent": email_sent,
+    }), 200
 
 
 @api.get("/customer/orders")

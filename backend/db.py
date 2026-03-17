@@ -1837,6 +1837,105 @@ def mark_customer_checkout_session_processed(session_id, status="processed"):
     return updated
 
 
+def list_admin_digital_checkout_sessions(limit=200):
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholder = _placeholder()
+    limit_value = max(1, min(int(limit or 200), 500))
+    cursor.execute(
+        f"""
+        SELECT
+            s.*,
+            c.first_name,
+            c.last_name,
+            c.email AS account_email
+        FROM customer_checkout_sessions s
+        JOIN customers c ON c.id = s.customer_id
+        ORDER BY s.updated_at DESC, s.created_at DESC
+        LIMIT {placeholder}
+        """,
+        (limit_value,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+
+    sessions = []
+    for row in rows:
+        payload = dict(row)
+        raw_payload = payload.get("payload")
+        payload_data = None
+        if isinstance(raw_payload, str) and raw_payload.strip():
+            try:
+                payload_data = json.loads(raw_payload)
+            except Exception:
+                payload_data = None
+        elif isinstance(raw_payload, dict):
+            payload_data = raw_payload
+
+        items = payload_data.get("items") if isinstance(payload_data, dict) else []
+        if not isinstance(items, list):
+            items = []
+
+        digital_items = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            is_digital = _coerce_bool(item.get("is_digital"))
+            if not is_digital:
+                continue
+            digital_items.append({
+                "title": str(item.get("title") or "Digital item").strip(),
+                "product_type": str(item.get("product_type") or "").strip().lower(),
+                "product_id": str(item.get("product_id") or "").strip(),
+            })
+
+        if not digital_items:
+            continue
+
+        first_name = str(payload.get("first_name") or "").strip()
+        last_name = str(payload.get("last_name") or "").strip()
+        customer_name = " ".join([part for part in [first_name, last_name] if part]).strip()
+        customer_email = str(payload.get("customer_email") or "").strip() or str(payload.get("account_email") or "").strip()
+
+        sessions.append({
+            "session_id": payload.get("session_id"),
+            "customer_id": payload.get("customer_id"),
+            "customer_name": customer_name,
+            "customer_email": customer_email,
+            "status": payload.get("status") or "pending",
+            "digital_items": digital_items,
+            "digital_item_count": len(digital_items),
+            "created_at": payload.get("created_at"),
+            "updated_at": payload.get("updated_at"),
+        })
+
+    return sessions
+
+
+def mark_pattern_downloads_emailed(download_ids):
+    ids = [int(entry) for entry in (download_ids or []) if str(entry).isdigit()]
+    if not ids:
+        return 0
+
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholder = _placeholder()
+    now = datetime.utcnow().isoformat()
+    placeholders = ", ".join([placeholder] * len(ids))
+    cursor.execute(
+        f"""
+        UPDATE customer_pattern_downloads
+        SET last_emailed_at = {placeholder}, updated_at = {placeholder}
+        WHERE id IN ({placeholders})
+        """,
+        (now, now, *ids),
+    )
+    updated_count = cursor.rowcount or 0
+    conn.commit()
+    conn.close()
+    return int(updated_count)
+
+
 def list_admin_recent_orders(limit=20, unseen_only=False):
     conn = get_db()
     cursor = conn.cursor()
