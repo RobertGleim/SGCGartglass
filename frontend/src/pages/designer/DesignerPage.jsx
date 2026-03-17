@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import api, { fetchManualProductsCached, getTemplatesCached, saveProject, submitWorkOrder, getProject, getTemplate,
+import api, { addCustomerCartItem, fetchManualProductsCached, getTemplatesCached, saveProject, submitWorkOrder, getProject, getTemplate,
   getWorkOrder, getAdminWorkOrder, createCustomerRevision, createAdminRevision,
   approveWorkOrder as apiApproveWorkOrder, getWorkOrderRevisions, getAdminWorkOrderRevisions,
   getTemplateCached, getPublicGlassTypesCached
@@ -179,6 +179,7 @@ export default function DesignerPage() {
   const [categories, setCategories] = useState([]);
   const [manualProducts, setManualProducts] = useState([]);
   const [linkedParams, setLinkedParams] = useState(getLinkedParamsFromHash());
+  const [patternPurchaseStatus, setPatternPurchaseStatus] = useState('');
 
   // Canvas
   const canvasRef = useRef(null);          // <canvas> element for Fabric / flood-fill
@@ -2795,6 +2796,33 @@ export default function DesignerPage() {
     return sortByTemplateName(applySearchAndAlpha(base));
   }, [categoryFilter, templates, isAdmin, templateSearch, templateAlphaFilter]);
 
+  const handleAddPatternToCart = useCallback(async (event, template) => {
+    event.stopPropagation();
+    setPatternPurchaseStatus('');
+
+    if (!customerToken) {
+      window.location.hash = '#/account/login';
+      return;
+    }
+
+    try {
+      await addCustomerCartItem({
+        product_type: 'template',
+        product_id: String(template?.id || ''),
+        quantity: 1,
+      });
+      window.dispatchEvent(new Event('cart-updated'));
+      setPatternPurchaseStatus(`${template?.name || 'Pattern'} added to cart.`);
+    } catch (error) {
+      setPatternPurchaseStatus(
+        error?.response?.data?.detail
+          || error?.response?.data?.error
+          || error?.message
+          || 'Unable to add pattern to cart.'
+      );
+    }
+  }, [customerToken]);
+
   const linkedProductByTemplateId = useMemo(() => {
     const byTemplate = new Map();
     manualProducts.forEach((entry) => {
@@ -3035,6 +3063,9 @@ export default function DesignerPage() {
         <div className={styles.galleryHeader}>
           <h1>Stained Glass Designer</h1>
           <p>Choose a template to start designing or begin with a blank canvas.</p>
+          {patternPurchaseStatus && (
+            <p className={styles.purchaseStatus}>{patternPurchaseStatus}</p>
+          )}
           <div className={styles.templateSearchWrap}>
             <input
               type="search"
@@ -3149,6 +3180,18 @@ export default function DesignerPage() {
                         </span>
                       )}
                       {t.piece_count && <span className={styles.meta}>{t.piece_count} pieces</span>}
+                      {t.is_digital_download && Number(t.price_amount) > 0 && (
+                        <div className={styles.patternPurchaseBox}>
+                          <span className={styles.patternPrice}>${Number(t.price_amount).toFixed(2)} instant download</span>
+                          <button
+                            type="button"
+                            className={styles.patternBuyButton}
+                            onClick={(event) => handleAddPatternToCart(event, t)}
+                          >
+                            {customerToken ? 'Add pattern to cart' : 'Sign in to buy'}
+                          </button>
+                        </div>
+                      )}
                       {(() => {
                         const linkedProduct = linkedProductByTemplateId.get(String(t.id));
                         const links = linkedProduct?.related_links || {};

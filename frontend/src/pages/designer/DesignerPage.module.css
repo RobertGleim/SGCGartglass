@@ -25,6 +25,15 @@
   color: #6b4c30;
   margin-bottom: 1rem;
 }
+.purchaseStatus {
+  margin: 0 auto 1rem;
+  max-width: 560px;
+  background: #edf6ff;
+  color: #1f4ea1;
+  border: 1px solid #bfd5f4;
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+}
 .templateSearchWrap {
   display: flex;
   justify-content: center;
@@ -176,6 +185,30 @@
   color: #888;
   margin-top: 0.25rem;
   display: block;
+}
+.patternPurchaseBox {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.7rem;
+}
+.patternPrice {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #2f6b2f;
+}
+.patternBuyButton {
+  border: 1px solid #1f4ea1;
+  background: #1f4ea1;
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.patternBuyButton:hover {
+  background: #173d7d;
+  border-color: #173d7d;
 }
 .cardGalleryLink {
   display: inline-block;

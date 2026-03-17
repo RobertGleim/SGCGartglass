@@ -188,6 +188,8 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
     image_url: template?.image_url || '',
     template_type: template?.template_type || 'svg',
     piece_count: template?.piece_count ?? 0,
+    is_digital_download: Boolean(template?.is_digital_download),
+    price_amount: template?.price_amount ?? '',
     related_links: normalizeRelatedLinksForForm(template?.related_links),
   });
   const [templateOptions, setTemplateOptions] = useState([]);
@@ -243,6 +245,8 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
       image_url: template?.image_url || '',
       template_type: template?.template_type || 'svg',
       piece_count: template?.piece_count ?? 0,
+      is_digital_download: Boolean(template?.is_digital_download),
+      price_amount: template?.price_amount ?? '',
       related_links: normalizeRelatedLinksForForm(template?.related_links),
     });
     setPreviewUrl(resolveImageUrl(template?.thumbnail_url || template?.image_url || ''));
@@ -405,6 +409,10 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
     if (!form.name.trim()) { setError('Name is required'); return; }
     if (!form.category.trim()) { setError('Category is required'); return; }
     if (!form.dimensions.trim()) { setError('Dimensions is required'); return; }
+    if (form.is_digital_download && (!String(form.price_amount).trim() || Number(form.price_amount) < 0.5)) {
+      setError('Digital download templates require a price of at least $0.50');
+      return;
+    }
 
     const isNew = !template;
     const hasSVG = Boolean(form.svg_content?.trim());
@@ -425,6 +433,9 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
         dimensions: form.dimensions.trim(),
         is_active: true,
         template_type: form.template_type,
+        is_digital_download: Boolean(form.is_digital_download),
+        price_amount: form.is_digital_download ? Number(form.price_amount) : null,
+        price_currency: 'USD',
         related_links: buildRelatedLinksPayload(form.related_links),
       };
       if (hasSVG) payload.svg_content = form.svg_content;
@@ -479,6 +490,27 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
               required
             />
           </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={Boolean(form.is_digital_download)}
+              onChange={e => handleChange('is_digital_download', e.target.checked)}
+            />
+            {' '}Sell as digital pattern download
+          </label>
+          {form.is_digital_download && (
+            <label>Download price (USD) *
+              <input
+                type="number"
+                min="0.5"
+                step="0.01"
+                placeholder="e.g. 24.99"
+                value={form.price_amount}
+                onChange={e => handleChange('price_amount', e.target.value)}
+                required
+              />
+            </label>
+          )}
 
           <div className={styles.productLinkingSection}>
             <h4>Related Customer Links</h4>

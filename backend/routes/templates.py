@@ -289,6 +289,9 @@ def create_template():
             is_private=data.get("is_private", False),
             assigned_customer_id=data.get("assigned_customer_id"),
             thumbnail_url=data.get("thumbnail_url"),
+            price_amount=data.get("price_amount"),
+            price_currency=data.get("price_currency") or "USD",
+            is_digital_download=bool(data.get("is_digital_download")),
             is_active=data.get("is_active", True),
         )
         db.session.add(template)
@@ -329,6 +332,9 @@ def update_template(template_id):
             "name": template.name,
             "description": template.description,
             "category": template.category,
+            "difficulty": template.difficulty,
+            "dimensions": template.dimensions,
+            "piece_count": template.piece_count,
             "image_url": template.image_url,
             "template_type": template.template_type,
             "default_design_data": template.default_design_data,
@@ -336,6 +342,9 @@ def update_template(template_id):
             "is_private": template.is_private,
             "assigned_customer_id": template.assigned_customer_id,
             "thumbnail_url": template.thumbnail_url,
+            "price_amount": template.price_amount,
+            "price_currency": template.price_currency,
+            "is_digital_download": template.is_digital_download,
             "is_active": template.is_active,
         }
         # Only include existing svg_content if it's non-empty (skip for image templates)
@@ -362,6 +371,9 @@ def update_template(template_id):
         if "assigned_customer_id" in data:
             template.assigned_customer_id = data.get("assigned_customer_id")
         template.thumbnail_url = data.get("thumbnail_url")
+        template.price_amount = data.get("price_amount")
+        template.price_currency = data.get("price_currency") or "USD"
+        template.is_digital_download = bool(data.get("is_digital_download"))
         template.is_active = data.get("is_active", True)
 
         # Update image_url if provided

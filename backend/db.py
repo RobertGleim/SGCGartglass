@@ -316,6 +316,40 @@ def init_db(force=False):
     )
     cursor.execute(
         f"""
+        CREATE TABLE IF NOT EXISTS customer_checkout_sessions (
+            id {id_column},
+            session_id VARCHAR(255) NOT NULL UNIQUE,
+            customer_id INTEGER NOT NULL,
+            customer_email VARCHAR(255),
+            status VARCHAR(30) DEFAULT 'pending',
+            payload TEXT,
+            created_at VARCHAR(50),
+            updated_at VARCHAR(50),
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+        )
+        """
+    )
+    cursor.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS customer_pattern_downloads (
+            id {id_column},
+            customer_id INTEGER NOT NULL,
+            template_id INTEGER NOT NULL,
+            order_id INTEGER,
+            customer_email VARCHAR(255),
+            download_token VARCHAR(128) NOT NULL UNIQUE,
+            unlocked_at VARCHAR(50),
+            last_emailed_at VARCHAR(50),
+            created_at VARCHAR(50),
+            updated_at VARCHAR(50),
+            UNIQUE (customer_id, template_id),
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+            FOREIGN KEY (order_id) REFERENCES customer_orders(id) ON DELETE SET NULL
+        )
+        """
+    )
+    cursor.execute(
+        f"""
         CREATE TABLE IF NOT EXISTS customer_invoices (
             id {id_column},
             work_order_id INTEGER,
@@ -401,6 +435,16 @@ def init_db(force=False):
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS admin_seen INTEGER DEFAULT 0")
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS admin_seen_at VARCHAR(50)")
         cursor.execute("UPDATE customer_orders SET admin_seen = 0 WHERE admin_seen IS NULL")
+        cursor.execute("ALTER TABLE customer_checkout_sessions ADD COLUMN IF NOT EXISTS customer_email VARCHAR(255)")
+        cursor.execute("ALTER TABLE customer_checkout_sessions ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'pending'")
+        cursor.execute("ALTER TABLE customer_checkout_sessions ADD COLUMN IF NOT EXISTS payload TEXT")
+        cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS order_id INTEGER")
+        cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS customer_email VARCHAR(255)")
+        cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS download_token VARCHAR(128)")
+        cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS unlocked_at VARCHAR(50)")
+        cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS last_emailed_at VARCHAR(50)")
+        cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS created_at VARCHAR(50)")
+        cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS updated_at VARCHAR(50)")
 
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_addresses_customer_default_created ON customer_addresses(customer_id, is_default DESC, created_at DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_favorites_customer_created ON customer_favorites(customer_id, created_at DESC)")
@@ -414,6 +458,10 @@ def init_db(force=False):
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_order_events_order ON customer_order_events(order_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_order_events_created ON customer_order_events(created_at)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_order_events_order_created ON customer_order_events(order_id, created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_checkout_sessions_customer_created ON customer_checkout_sessions(customer_id, created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_checkout_sessions_status_created ON customer_checkout_sessions(status, created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_pattern_downloads_customer_created ON customer_pattern_downloads(customer_id, created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_pattern_downloads_order ON customer_pattern_downloads(order_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_reviews_product_status_created ON customer_reviews(product_type, product_id, status, created_at DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_reviews_customer_created ON customer_reviews(customer_id, created_at DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_review_invite_codes_active_expires ON review_invite_codes(is_active, expires_at)")
@@ -1615,6 +1663,84 @@ def create_customer_order_with_items(customer_id, order_payload, order_items):
     return order_id
 
 
+def create_customer_checkout_session_snapshot(session_id, customer_id, payload, customer_email=None, status="pending"):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    now = datetime.utcnow().isoformat()
+    payload_text = json.dumps(payload or {})
+
+    cursor.execute(
+        f"SELECT id FROM customer_checkout_sessions WHERE session_id = {placeholder} LIMIT 1",
+        (session_id,),
+    )
+    row = cursor.fetchone()
+    if row:
+        cursor.execute(
+            f"""
+            UPDATE customer_checkout_sessions
+            SET customer_id = {placeholder}, customer_email = {placeholder}, status = {placeholder}, payload = {placeholder}, updated_at = {placeholder}
+            WHERE session_id = {placeholder}
+            """,
+            (customer_id, customer_email, status, payload_text, now, session_id),
+        )
+    else:
+        cursor.execute(
+            f"""
+            INSERT INTO customer_checkout_sessions (session_id, customer_id, customer_email, status, payload, created_at, updated_at)
+            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+            """,
+            (session_id, customer_id, customer_email, status, payload_text, now, now),
+        )
+
+    conn.commit()
+    conn.close()
+
+
+def get_customer_checkout_session_snapshot(session_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"SELECT * FROM customer_checkout_sessions WHERE session_id = {placeholder} LIMIT 1",
+        (session_id,),
+    )
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    payload = dict(row)
+    raw_payload = payload.get("payload")
+    if raw_payload:
+        try:
+            payload["payload"] = json.loads(raw_payload)
+        except Exception:
+            payload["payload"] = None
+    return payload
+
+
+def mark_customer_checkout_session_processed(session_id, status="processed"):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    now = datetime.utcnow().isoformat()
+    cursor.execute(
+        f"""
+        UPDATE customer_checkout_sessions
+        SET status = {placeholder}, updated_at = {placeholder}
+        WHERE session_id = {placeholder}
+        """,
+        (status, now, session_id),
+    )
+    updated = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return updated
+
+
 def list_admin_recent_orders(limit=20, unseen_only=False):
     conn = get_db()
     cursor = conn.cursor()
@@ -1835,6 +1961,148 @@ def list_customer_order_items(customer_id, order_id):
     rows = cursor.fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+
+def list_customer_order_items_for_order(order_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"SELECT * FROM customer_order_items WHERE order_id = {placeholder} ORDER BY id ASC",
+        (order_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def upsert_customer_pattern_download(customer_id, template_id, order_id=None, customer_email=None):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    now = datetime.utcnow().isoformat()
+
+    cursor.execute(
+        f"""
+        SELECT id, download_token
+        FROM customer_pattern_downloads
+        WHERE customer_id = {placeholder} AND template_id = {placeholder}
+        LIMIT 1
+        """,
+        (customer_id, template_id),
+    )
+    row = cursor.fetchone()
+
+    if row:
+        download_token = row.get("download_token") or secrets.token_urlsafe(32)
+        cursor.execute(
+            f"""
+            UPDATE customer_pattern_downloads
+            SET order_id = {placeholder}, customer_email = {placeholder}, download_token = {placeholder}, unlocked_at = {placeholder}, updated_at = {placeholder}
+            WHERE id = {placeholder}
+            """,
+            (order_id, customer_email, download_token, now, now, row["id"]),
+        )
+        download_id = row["id"]
+        created = False
+    else:
+        download_token = secrets.token_urlsafe(32)
+        if _is_postgres_backend():
+            cursor.execute(
+                f"""
+                INSERT INTO customer_pattern_downloads (customer_id, template_id, order_id, customer_email, download_token, unlocked_at, created_at, updated_at)
+                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                RETURNING id
+                """,
+                (customer_id, template_id, order_id, customer_email, download_token, now, now, now),
+            )
+            download_id = cursor.fetchone()["id"]
+        else:
+            cursor.execute(
+                f"""
+                INSERT INTO customer_pattern_downloads (customer_id, template_id, order_id, customer_email, download_token, unlocked_at, created_at, updated_at)
+                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                """,
+                (customer_id, template_id, order_id, customer_email, download_token, now, now, now),
+            )
+            download_id = cursor.lastrowid
+        created = True
+
+    conn.commit()
+    conn.close()
+    return {
+        "id": download_id,
+        "download_token": download_token,
+        "created": created,
+        "customer_id": customer_id,
+        "template_id": template_id,
+        "order_id": order_id,
+    }
+
+
+def list_customer_pattern_downloads(customer_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"""
+        SELECT
+            d.*,
+            t.name AS template_name,
+            t.description AS template_description,
+            t.template_type,
+            t.price_amount,
+            t.price_currency,
+            t.thumbnail_url,
+            t.image_url,
+            o.order_number,
+            o.payment_status
+        FROM customer_pattern_downloads d
+        JOIN templates t ON t.id = d.template_id
+        LEFT JOIN customer_orders o ON o.id = d.order_id
+        WHERE d.customer_id = {placeholder}
+        ORDER BY d.updated_at DESC, d.created_at DESC
+        """,
+        (customer_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_customer_pattern_download_by_token(download_token):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    cursor.execute(
+        f"""
+        SELECT
+            d.*,
+            t.name AS template_name,
+            t.description AS template_description,
+            t.template_type,
+            t.svg_content,
+            t.image_url,
+            t.image_data,
+            t.image_mime,
+            t.thumbnail_url,
+            t.price_amount,
+            t.price_currency,
+            t.is_active
+        FROM customer_pattern_downloads d
+        JOIN templates t ON t.id = d.template_id
+        WHERE d.download_token = {placeholder}
+        LIMIT 1
+        """,
+        (download_token,),
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 
 def has_verified_purchase(customer_id, product_type, product_id):

@@ -15,6 +15,7 @@ import {
   removeCustomerCartItem,
   fetchCustomerOrders,
   fetchCustomerOrderItems,
+  fetchCustomerPatternDownloads,
   fetchCustomerReviews,
   fetchCustomerReviewOptions,
   createCustomerReview,
@@ -26,11 +27,12 @@ import {
 } from '../../services/api'
 import { findWishlistEntry } from '../../utils/wishlist'
 
-const TABS = ['overview', 'orders', 'favorites', 'cart', 'reviews', 'settings', 'work_orders']
+const TABS = ['overview', 'orders', 'downloads', 'favorites', 'cart', 'reviews', 'settings', 'work_orders']
 
 const TAB_LABELS = {
   overview: 'overview',
   orders: 'orders',
+  downloads: 'downloads',
   favorites: 'wishlist',
   cart: 'cart',
   reviews: 'reviews',
@@ -51,6 +53,7 @@ export default function CustomerPortal({ manualProducts }) {
   const [cartItems, setCartItems] = useState([])
   const [orders, setOrders] = useState([])
   const [orderItems, setOrderItems] = useState({})
+  const [downloads, setDownloads] = useState([])
   const [invoices, setInvoices] = useState([])
   const [selectedInvoice, setSelectedInvoice] = useState(null)
   const [invoiceViewLoading, setInvoiceViewLoading] = useState(false)
@@ -103,13 +106,14 @@ export default function CustomerPortal({ manualProducts }) {
     let isActive = true
     const loadData = async () => {
       try {
-        const [profileData, addressData, favoriteData, cartData, orderData, invoiceData, reviewData, reviewOptionData] =
+        const [profileData, addressData, favoriteData, cartData, orderData, downloadData, invoiceData, reviewData, reviewOptionData] =
           await Promise.all([
             fetchCustomerProfile(),
             fetchCustomerAddresses(),
             fetchCustomerFavorites(),
             fetchCustomerCart(),
             fetchCustomerOrders(),
+            fetchCustomerPatternDownloads(),
             getCustomerInvoices('open'),
             fetchCustomerReviews(),
             fetchCustomerReviewOptions(),
@@ -140,6 +144,7 @@ export default function CustomerPortal({ manualProducts }) {
         setFavorites(Array.isArray(favoriteData) ? favoriteData : [])
         setCartItems(Array.isArray(cartData) ? cartData : [])
         setOrders(Array.isArray(orderData) ? orderData : [])
+        setDownloads(Array.isArray(downloadData) ? downloadData : [])
         setInvoices(Array.isArray(invoiceData) ? invoiceData : [])
         setReviews(Array.isArray(reviewData) ? reviewData : [])
         const normalizedReviewOptions = Array.isArray(reviewOptionData) ? reviewOptionData : []
@@ -447,6 +452,9 @@ export default function CustomerPortal({ manualProducts }) {
       const product = manualProductMap.get(String(productId))
       return product ? product.name : `Manual product #${productId}`
     }
+    if (productType === 'template') {
+      return `Pattern #${productId}`
+    }
     return `Etsy item #${productId}`
   }
 
@@ -519,6 +527,10 @@ export default function CustomerPortal({ manualProducts }) {
                 <span className="portal-muted">Orders placed</span>
               </div>
               <div className="portal-list-item">
+                <strong>{downloads.length}</strong>
+                <span className="portal-muted">Pattern downloads</span>
+              </div>
+              <div className="portal-list-item">
                 <strong>{favorites.length}</strong>
                 <span className="portal-muted">Wishlist saved</span>
               </div>
@@ -528,6 +540,30 @@ export default function CustomerPortal({ manualProducts }) {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'downloads' && (
+        <div className="portal-card">
+          <h3>Pattern downloads</h3>
+          {downloads.length === 0 ? (
+            <p className="portal-muted">Your digital pattern purchases will appear here after Stripe confirms payment.</p>
+          ) : (
+            <div className="portal-list">
+              {downloads.map((entry) => (
+                <div key={entry.id} className="portal-list-item">
+                  <strong>{entry.template_name || `Pattern #${entry.template_id}`}</strong>
+                  {entry.order_number && <span className="portal-muted">Order: {entry.order_number}</span>}
+                  <span className="portal-muted">Unlocked: {entry.unlocked_at ? new Date(entry.unlocked_at).toLocaleString() : 'Ready'}</span>
+                  <div className="portal-actions">
+                    <a className="portal-action-link" href={entry.download_url} target="_blank" rel="noreferrer">
+                      Download pattern
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -550,7 +586,7 @@ export default function CustomerPortal({ manualProducts }) {
                       <div className="portal-list">
                         {orderItems[order.id].map((item) => (
                           <div key={item.id} className="portal-list-item">
-                            <strong>{renderProductLabel(item.product_type, item.product_id)}</strong>
+                            <strong>{item.title || renderProductLabel(item.product_type, item.product_id)}</strong>
                             <span className="portal-muted">Qty: {item.quantity}</span>
                           </div>
                         ))}

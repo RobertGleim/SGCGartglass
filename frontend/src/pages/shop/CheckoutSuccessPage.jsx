@@ -8,6 +8,7 @@ export default function CheckoutSuccessPage() {
   const { customerToken } = useCustomerAuth()
   const [status, setStatus] = useState('loading')
   const [order, setOrder] = useState(null)
+  const [downloads, setDownloads] = useState([])
   const [errorMessage, setErrorMessage] = useState('')
 
   useEffect(() => {
@@ -25,6 +26,7 @@ export default function CheckoutSuccessPage() {
     confirmCheckoutSession(sessionId)
       .then((response) => {
         setOrder(response?.order || null)
+        setDownloads(Array.isArray(response?.downloads) ? response.downloads : [])
         setStatus('success')
         window.dispatchEvent(new Event('cart-updated'))
       })
@@ -89,6 +91,11 @@ export default function CheckoutSuccessPage() {
               If you have any questions, please email{' '}
               <a href="mailto:customersupport@sgcgart.com">customersupport@sgcgart.com</a>.
             </p>
+            {downloads.length > 0 && (
+              <p className="checkout-success-contact">
+                Your digital pattern download is ready now in <a href="#/account">your customer portal</a> and has also been emailed to you.
+              </p>
+            )}
             <div className="checkout-success-actions">
               <a className="checkout-link checkout-link--primary" href="#/account">View my orders</a>
               <a className="checkout-link" href="#/product">Continue shopping</a>

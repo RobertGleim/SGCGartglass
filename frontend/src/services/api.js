@@ -124,6 +124,7 @@ export const createCheckoutSession = () => api.post('/customer/checkout/session'
 export const confirmCheckoutSession = (sessionId) => api.post('/customer/checkout/session/confirm', { session_id: sessionId });
 export const fetchCustomerOrders = () => api.get('/customer/orders');
 export const fetchCustomerOrderItems = (orderId) => api.get(`/customer/orders/${orderId}/items`);
+export const fetchCustomerPatternDownloads = () => api.get('/customer/pattern-downloads');
 export const fetchAdminRecentOrders = (params = {}) => api.get('/admin/orders/recent', { params });
 export const markAdminOrderSeen = (orderId) => api.put(`/admin/orders/${orderId}/seen`);
 export const fetchCustomerReviews = () => api.get('/customer/reviews');

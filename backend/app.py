@@ -317,6 +317,9 @@ def create_app(config_name=None):
                     "related_links": "JSON",
                     "is_private": "BOOLEAN DEFAULT FALSE",
                     "assigned_customer_id": "INTEGER",
+                    "price_amount": "DOUBLE PRECISION",
+                    "price_currency": "VARCHAR(10) DEFAULT 'USD'",
+                    "is_digital_download": "BOOLEAN DEFAULT FALSE",
                 }
                 for col, col_type in additions.items():
                     if col not in existing:

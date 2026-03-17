@@ -245,6 +245,35 @@ def validate_template_data(data: Any) -> tuple[bool, dict[str, Any], str]:
     if not is_private:
         assigned_customer_id = None
 
+    is_digital_download = payload.get("is_digital_download")
+    if is_digital_download is not None:
+        if isinstance(is_digital_download, bool):
+            pass
+        elif isinstance(is_digital_download, str):
+            is_digital_download = is_digital_download.strip().lower() in ("1", "true", "yes", "on")
+        else:
+            is_digital_download = bool(is_digital_download)
+    else:
+        is_digital_download = False
+
+    price_amount = payload.get("price_amount")
+    if price_amount in (None, ""):
+        price_amount = None
+    else:
+        try:
+            price_amount = round(float(price_amount), 2)
+        except (ValueError, TypeError):
+            return False, {}, "price_amount must be a number"
+        if price_amount < 0:
+            return False, {}, "price_amount cannot be negative"
+
+    price_currency = str(payload.get("price_currency") or "USD").strip().upper() or "USD"
+    if len(price_currency) > 10:
+        return False, {}, "price_currency must be at most 10 characters"
+
+    if is_digital_download and (price_amount is None or price_amount < 0.5):
+        return False, {}, "Digital download templates require a price of at least $0.50"
+
     related_links = payload.get("related_links")
     if related_links is not None:
         if not isinstance(related_links, dict):
@@ -295,6 +324,9 @@ def validate_template_data(data: Any) -> tuple[bool, dict[str, Any], str]:
         "related_links": related_links,
         "is_private": is_private,
         "assigned_customer_id": assigned_customer_id,
+        "price_amount": price_amount,
+        "price_currency": price_currency,
+        "is_digital_download": is_digital_download,
     }
     if svg_content is not None:
         normalized["svg_content"] = svg_content

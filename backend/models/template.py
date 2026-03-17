@@ -31,6 +31,9 @@ class Template(db.Model):
     is_private = db.Column(db.Boolean, default=False, nullable=False, index=True)
     assigned_customer_id = db.Column(db.Integer, nullable=True, index=True)
     thumbnail_url = db.Column(db.String(500), nullable=True)
+    price_amount = db.Column(db.Float, nullable=True)
+    price_currency = db.Column(db.String(10), nullable=False, default='USD')
+    is_digital_download = db.Column(db.Boolean, default=False, nullable=False, index=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
@@ -75,6 +78,9 @@ class Template(db.Model):
             "is_private": bool(self.is_private),
             "assigned_customer_id": self.assigned_customer_id,
             "thumbnail_url": self.thumbnail_url,
+            "price_amount": self.price_amount,
+            "price_currency": self.price_currency or 'USD',
+            "is_digital_download": bool(self.is_digital_download),
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

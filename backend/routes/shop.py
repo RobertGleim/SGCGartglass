@@ -6,6 +6,7 @@ Legacy shop API: auth, customer, items, manual products, etc.
 Loaded as backend.routes.shop; api blueprint is re-exported from backend.routes.
 """
 import json
+import mimetypes
 import os
 import hashlib
 import secrets
@@ -13,11 +14,12 @@ import time
 import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
+from io import BytesIO
 from urllib.parse import quote, urlencode
 from urllib import request as urllib_request
 from urllib.error import HTTPError, URLError
 
-from flask import Blueprint, jsonify, request, g, current_app
+from flask import Blueprint, jsonify, request, g, current_app, send_file
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
@@ -56,13 +58,20 @@ from ..db import (
     remove_customer_cart_item,
     list_customer_orders,
     list_customer_order_items,
+    list_customer_order_items_for_order,
     create_customer_order_with_items,
+    create_customer_checkout_session_snapshot,
+    get_customer_checkout_session_snapshot,
+    mark_customer_checkout_session_processed,
     list_admin_recent_orders,
     mark_customer_order_admin_seen,
     update_customer_order_payment_by_reference,
     get_customer_order_id_by_payment_reference,
     append_customer_order_event,
     list_customer_order_events,
+    list_customer_pattern_downloads,
+    upsert_customer_pattern_download,
+    get_customer_pattern_download_by_token,
     has_verified_purchase,
     list_customer_review_options,
     list_reviews_for_product,
@@ -83,7 +92,7 @@ from ..db import (
     get_invoice_by_id,
 )
 from ..etsy import extract_listing_id, fetch_listing, fetch_shop_favorers_count
-from ..utils.email import send_email
+from ..utils.email import send_email, digital_download_email
 
 
 api = Blueprint("api", __name__)
@@ -135,6 +144,29 @@ def _resolve_cart_product_snapshot(item):
     if not product_id:
         return None
 
+    if product_type in {"template", "pattern"}:
+        if not product_id.isdigit():
+            return None
+        from ..models import Template as TemplateModel
+
+        template = TemplateModel.query.filter(
+            TemplateModel.id == int(product_id),
+            TemplateModel.is_active.is_(True),
+        ).first()
+        if not template or not bool(template.is_digital_download):
+            return None
+
+        return {
+            "title": template.name or f"Pattern #{product_id}",
+            "price": _as_money(template.price_amount),
+            "currency": template.price_currency or "USD",
+            "image_url": template.thumbnail_url or template.image_url,
+            "product_type": "template",
+            "product_id": product_id,
+            "requires_shipping": False,
+            "is_digital": True,
+        }
+
     if product_type == "manual":
         product = fetch_manual_product(int(product_id)) if product_id.isdigit() else None
         if not product:
@@ -150,6 +182,8 @@ def _resolve_cart_product_snapshot(item):
             "image_url": image_url,
             "product_type": "manual",
             "product_id": product_id,
+            "requires_shipping": True,
+            "is_digital": False,
         }
 
     if product_type == "invoice":
@@ -177,6 +211,8 @@ def _resolve_cart_product_snapshot(item):
             "image_url": None,
             "product_type": "invoice",
             "product_id": product_id,
+            "requires_shipping": True,
+            "is_digital": False,
         }
 
     if product_id.isdigit():
@@ -192,18 +228,21 @@ def _resolve_cart_product_snapshot(item):
         "image_url": etsy_item.get("image_url"),
         "product_type": item.get("product_type"),
         "product_id": product_id,
+        "requires_shipping": True,
+        "is_digital": False,
     }
 
 
 def _calculate_checkout_totals(items):
     item_count = sum(max(1, int(entry.get("quantity", 1))) for entry in items)
     subtotal = _as_money(sum(_as_money(entry.get("line_total")) for entry in items))
+    has_shippable_items = any(bool(entry.get("requires_shipping", True)) for entry in items)
 
     free_shipping_min = _as_money(os.environ.get("CHECKOUT_FREE_SHIPPING_MIN", "50"))
     flat_shipping = _as_money(os.environ.get("CHECKOUT_FLAT_SHIPPING", "9.99"))
-    tax_rate = _as_money(os.environ.get("CHECKOUT_TAX_RATE", "0"))
+    tax_rate = _as_money(os.environ.get("CHECKOUT_TAX_RATE", "0.0825"))  # 8.25% hardcoded default
 
-    shipping = 0.0 if subtotal <= 0 or subtotal >= free_shipping_min else flat_shipping
+    shipping = 0.0 if subtotal <= 0 or not has_shippable_items or subtotal >= free_shipping_min else flat_shipping
     tax = _as_money(subtotal * tax_rate)
     total = _as_money(subtotal + shipping + tax)
 
@@ -236,6 +275,8 @@ def _build_checkout_summary(customer_id):
             "price": unit_price,
             "line_total": _as_money(unit_price * quantity),
             "currency": snapshot.get("currency") or "USD",
+            "requires_shipping": bool(snapshot.get("requires_shipping", True)),
+            "is_digital": bool(snapshot.get("is_digital", False)),
         })
 
     totals = _calculate_checkout_totals(detailed)
@@ -243,6 +284,156 @@ def _build_checkout_summary(customer_id):
         "items": detailed,
         "totals": totals,
     }
+
+
+def _normalize_checkout_snapshot(snapshot, customer_id=None):
+    payload = snapshot.get("payload") if isinstance(snapshot, dict) else None
+    items = payload.get("items") if isinstance(payload, dict) and isinstance(payload.get("items"), list) else []
+    totals = payload.get("totals") if isinstance(payload, dict) and isinstance(payload.get("totals"), dict) else {}
+
+    if items and totals:
+        return {"items": items, "totals": totals}
+    if customer_id is None:
+        return {"items": [], "totals": {}}
+    return _build_checkout_summary(customer_id)
+
+
+def _extract_checkout_customer_details(session):
+    shipping_details = session.get("shipping_details") or {}
+    shipping_address_raw = shipping_details.get("address") or {}
+    shipping_address = {
+        "line1": shipping_address_raw.get("line1") or "",
+        "line2": shipping_address_raw.get("line2") or "",
+        "city": shipping_address_raw.get("city") or "",
+        "state": shipping_address_raw.get("state") or "",
+        "postal_code": shipping_address_raw.get("postal_code") or "",
+        "country": shipping_address_raw.get("country") or "US",
+    }
+    customer_details = session.get("customer_details") or {}
+    customer_name = (
+        shipping_details.get("name")
+        or customer_details.get("name")
+        or ""
+    ).strip()
+    customer_email = (customer_details.get("email") or "").strip()
+    return customer_name, customer_email, shipping_address
+
+
+def _issue_pattern_downloads(customer_id, order_id, items, customer_email):
+    from ..models import Template as TemplateModel
+
+    downloads = []
+    seen_template_ids = set()
+    for item in items or []:
+        if str(item.get("product_type") or "").lower() != "template":
+            continue
+        product_id = str(item.get("product_id") or "").strip()
+        if not product_id.isdigit() or product_id in seen_template_ids:
+            continue
+
+        template = TemplateModel.query.filter(TemplateModel.id == int(product_id)).first()
+        if not template or not bool(template.is_digital_download):
+            continue
+
+        seen_template_ids.add(product_id)
+        grant = upsert_customer_pattern_download(
+            customer_id,
+            int(product_id),
+            order_id=order_id,
+            customer_email=customer_email or None,
+        )
+        downloads.append({
+            "template_id": int(product_id),
+            "template_name": template.name,
+            "download_token": grant.get("download_token"),
+            "download_url": _resolve_pattern_download_url(grant.get("download_token")),
+            "created": bool(grant.get("created")),
+        })
+
+    return downloads
+
+
+def _build_order_response(order_id, order_number, totals, downloads=None, already_placed=False):
+    total_amount = totals.get("total") if isinstance(totals, dict) else None
+    currency = (totals.get("currency") if isinstance(totals, dict) else None) or "USD"
+    if total_amount is None and isinstance(totals, dict):
+        total_amount = totals.get("total_amount")
+    return {
+        "success": True,
+        "already_placed": already_placed,
+        "order": {
+            "id": order_id,
+            "order_number": order_number,
+            "status": "confirmed",
+            "payment_status": "paid",
+            "total_amount": total_amount,
+            "currency": currency,
+        },
+        "downloads": downloads or [],
+    }
+
+
+def _finalize_paid_checkout_session(session, expected_customer_id=None):
+    session_id = str(session.get("id") or "").strip()
+    payment_intent_id = str(session.get("payment_intent") or "").strip()
+    metadata = session.get("metadata") or {}
+    session_customer_id = str(metadata.get("customer_id") or "").strip()
+
+    if expected_customer_id is not None and session_customer_id and session_customer_id != str(expected_customer_id):
+        raise PermissionError("checkout session does not belong to this customer")
+
+    customer_id = expected_customer_id
+    if customer_id is None and session_customer_id.isdigit():
+        customer_id = int(session_customer_id)
+    if customer_id is None:
+        raise ValueError("missing_customer_id")
+
+    customer_name, customer_email, shipping_address = _extract_checkout_customer_details(session)
+    snapshot = get_customer_checkout_session_snapshot(session_id) if session_id else None
+    summary = _normalize_checkout_snapshot(snapshot, customer_id=customer_id)
+    items = summary.get("items") or []
+    totals = summary.get("totals") or {}
+
+    if payment_intent_id:
+        existing_order_id = get_customer_order_id_by_payment_reference(payment_intent_id)
+        if existing_order_id:
+            orders = list_customer_orders(customer_id)
+            order = next((entry for entry in orders if entry.get("id") == existing_order_id), None)
+            existing_items = items or list_customer_order_items_for_order(existing_order_id)
+            downloads = _issue_pattern_downloads(customer_id, existing_order_id, existing_items, customer_email)
+            order_number = (order or {}).get("order_number") or f"Order #{existing_order_id}"
+            return _build_order_response(existing_order_id, order_number, order or totals, downloads=downloads, already_placed=True)
+
+    if not items:
+        raise ValueError("missing_checkout_items")
+
+    order_number = f"SGCG-{datetime.utcnow().strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}"
+    order_payload = {
+        "order_number": order_number,
+        "status": "confirmed",
+        "subtotal_amount": totals.get("subtotal"),
+        "shipping_amount": totals.get("shipping"),
+        "tax_amount": totals.get("tax"),
+        "total_amount": totals.get("total"),
+        "currency": totals.get("currency") or "USD",
+        "payment_status": "paid",
+        "payment_provider": "stripe",
+        "payment_reference": payment_intent_id or None,
+        "customer_name": customer_name or "Customer",
+        "customer_email": customer_email,
+        "shipping_address": json.dumps(shipping_address),
+        "billing_address": json.dumps(shipping_address),
+        "notes": None,
+    }
+
+    order_id = create_customer_order_with_items(customer_id, order_payload, items)
+    downloads = _issue_pattern_downloads(customer_id, order_id, items, customer_email)
+    if session_id:
+        mark_customer_checkout_session_processed(session_id, status="paid")
+    if downloads:
+        _send_customer_pattern_download_email(customer_email, customer_name or "Customer", downloads)
+    _send_admin_order_email(order_number, totals.get("total", 0), customer_name)
+    return _build_order_response(order_id, order_number, totals, downloads=downloads, already_placed=False)
 
 
 def _is_admin_request():
@@ -369,6 +560,21 @@ def _send_admin_order_email(order_number, total_amount, customer_name):
           </body>
         </html>
         """,
+    )
+
+
+def _resolve_pattern_download_url(download_token):
+    frontend_url = _resolve_frontend_public_url()
+    return f"{frontend_url}/api/pattern-downloads/{quote(download_token)}"
+
+
+def _send_customer_pattern_download_email(customer_email, customer_name, downloads):
+    if not customer_email or not downloads:
+        return False
+    return send_email(
+        customer_email,
+        "Your SGCG digital pattern download is ready",
+        digital_download_email(customer_name, downloads),
     )
 
 
@@ -587,8 +793,13 @@ def stripe_webhook():
         pi_id = str(data_object.get("payment_intent") or "").strip()
         if pi_id and session_payment_status == "paid":
             order_status = "confirmed"
-            updated = update_customer_order_payment_by_reference(pi_id, "paid", order_status=order_status)
-            order_id = get_customer_order_id_by_payment_reference(pi_id)
+            try:
+                finalized = _finalize_paid_checkout_session(data_object)
+            except Exception as exc:
+                current_app.logger.error("stripe checkout finalization failed: %s", exc)
+                return jsonify({"error": "checkout_finalization_failed"}), 500
+            order_id = finalized.get("order", {}).get("id")
+            updated = bool(order_id)
             if order_id:
                 try:
                     append_customer_order_event(
@@ -1129,6 +1340,12 @@ def customer_add_cart_item():
         quantity = 1
     if not product_type or not product_id:
         return jsonify({"error": "missing_product"}), 400
+    normalized_product_type = str(product_type).strip().lower()
+    if normalized_product_type in {"template", "pattern"}:
+        snapshot = _resolve_cart_product_snapshot({"product_type": "template", "product_id": str(product_id)})
+        if not snapshot:
+            return jsonify({"error": "invalid_pattern_product"}), 404
+        product_type = "template"
     clamped_quantity = 1
     upsert_customer_cart_item(customer_id, product_type, str(product_id), clamped_quantity)
     if quantity > 1:
@@ -1211,12 +1428,23 @@ def customer_checkout_session():
             "quantity": max(1, int(item.get("quantity") or 1)),
         })
 
+    # Add tax as an explicit line item so Stripe charges 8.25% tax
+    tax_cents = max(0, int(round(float(summary["totals"]["tax"]) * 100)))
+    if tax_cents > 0:
+        line_items.append({
+            "price_data": {
+                "currency": "usd",
+                "unit_amount": tax_cents,
+                "product_data": {"name": "Tax (8.25%)"},
+            },
+            "quantity": 1,
+        })
+
     session_params = {
         "line_items": line_items,
         "mode": "payment",
         "success_url": success_url,
         "cancel_url": cancel_url,
-        "shipping_address_collection": {"allowed_countries": ["US", "CA"]},
         "metadata": {
             "customer_id": str(customer_id),
             "customer_email": customer.get("email") or "",
@@ -1225,6 +1453,8 @@ def customer_checkout_session():
             "metadata": {"customer_id": str(customer_id)},
         },
     }
+    if any(bool(item.get("requires_shipping", True)) for item in summary.get("items") or []):
+        session_params["shipping_address_collection"] = {"allowed_countries": ["US", "CA"]}
     customer_email = (customer.get("email") or "").strip()
     if customer_email:
         session_params["customer_email"] = customer_email
@@ -1234,6 +1464,17 @@ def customer_checkout_session():
     except Exception as exc:
         current_app.logger.error("checkout session creation failed: %s", exc)
         return jsonify({"error": "checkout_session_failed"}), 502
+
+    create_customer_checkout_session_snapshot(
+        session.get("id"),
+        customer_id,
+        {
+            "items": summary.get("items") or [],
+            "totals": summary.get("totals") or {},
+        },
+        customer_email=customer_email or None,
+        status="pending",
+    )
 
     return jsonify({
         "session_id": session.get("id"),
@@ -1282,71 +1523,8 @@ def customer_checkout_session_confirm():
             "payment_status": session.get("payment_status"),
         }), 400
 
-    # Idempotent: if order already exists for this payment intent, return it
-    payment_intent_id = str(session.get("payment_intent") or "").strip()
-    if payment_intent_id:
-        existing_order_id = get_customer_order_id_by_payment_reference(payment_intent_id)
-        if existing_order_id:
-            orders = list_customer_orders(customer_id)
-            order = next((o for o in orders if o.get("id") == existing_order_id), None)
-            if order:
-                return jsonify({"success": True, "order": order, "already_placed": True}), 200
-
-    # Extract shipping + customer details collected by Stripe
-    shipping_details = session.get("shipping_details") or {}
-    shipping_address_raw = shipping_details.get("address") or {}
-    shipping_address = {
-        "line1": shipping_address_raw.get("line1") or "",
-        "line2": shipping_address_raw.get("line2") or "",
-        "city": shipping_address_raw.get("city") or "",
-        "state": shipping_address_raw.get("state") or "",
-        "postal_code": shipping_address_raw.get("postal_code") or "",
-        "country": shipping_address_raw.get("country") or "US",
-    }
-    customer_details = session.get("customer_details") or {}
-    customer_name_raw = (
-        shipping_details.get("name")
-        or customer_details.get("name")
-        or ""
-    ).strip()
-    customer_email_raw = (customer_details.get("email") or "").strip()
-
-    summary = _build_checkout_summary(customer_id)
-    totals = summary.get("totals") or {}
-
-    order_number = f"SGCG-{datetime.utcnow().strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}"
-    order_payload = {
-        "order_number": order_number,
-        "status": "confirmed",
-        "subtotal_amount": totals.get("subtotal"),
-        "shipping_amount": totals.get("shipping"),
-        "tax_amount": totals.get("tax"),
-        "total_amount": totals.get("total"),
-        "currency": totals.get("currency") or "USD",
-        "payment_status": "paid",
-        "payment_provider": "stripe",
-        "payment_reference": payment_intent_id or None,
-        "customer_name": customer_name_raw or "Customer",
-        "customer_email": customer_email_raw,
-        "shipping_address": json.dumps(shipping_address),
-        "billing_address": json.dumps(shipping_address),
-        "notes": None,
-    }
-
-    order_id = create_customer_order_with_items(customer_id, order_payload, summary.get("items") or [])
-    _send_admin_order_email(order_number, totals.get("total", 0), customer_name_raw)
-
-    return jsonify({
-        "success": True,
-        "order": {
-            "id": order_id,
-            "order_number": order_number,
-            "status": "confirmed",
-            "payment_status": "paid",
-            "total_amount": totals.get("total"),
-            "currency": totals.get("currency") or "USD",
-        },
-    }), 201
+    result = _finalize_paid_checkout_session(session, expected_customer_id=customer_id)
+    return jsonify(result), 200 if result.get("already_placed") else 201
 
 
 @api.get("/customer/orders")
@@ -1355,6 +1533,73 @@ def customer_orders():
     init_db()
     customer_id = g.auth_payload.get("customer_id")
     return jsonify(list_customer_orders(customer_id))
+
+
+@api.get("/customer/pattern-downloads")
+@require_customer
+def customer_pattern_downloads():
+    init_db()
+    customer_id = g.auth_payload.get("customer_id")
+    downloads = list_customer_pattern_downloads(customer_id)
+    return jsonify([
+        {
+            **entry,
+            "download_url": f"/api/pattern-downloads/{entry.get('download_token')}",
+        }
+        for entry in downloads
+    ])
+
+
+@api.get("/pattern-downloads/<download_token>")
+def download_pattern_asset(download_token):
+    init_db()
+    record = get_customer_pattern_download_by_token(download_token)
+    if not record:
+        return jsonify({"error": "not_found"}), 404
+
+    template_name = str(record.get("template_name") or "pattern").strip() or "pattern"
+    safe_base = secure_filename(template_name) or "pattern"
+    template_type = str(record.get("template_type") or "svg").strip().lower()
+
+    if template_type == "svg" and record.get("svg_content"):
+        return send_file(
+            BytesIO(str(record.get("svg_content") or "").encode("utf-8")),
+            mimetype="image/svg+xml",
+            as_attachment=True,
+            download_name=f"{safe_base}.svg",
+        )
+
+    image_data = record.get("image_data")
+    if image_data:
+        if isinstance(image_data, memoryview):
+            image_data = image_data.tobytes()
+        mime_type = record.get("image_mime") or "application/octet-stream"
+        extension = mimetypes.guess_extension(mime_type) or ".bin"
+        if extension == ".jpe":
+            extension = ".jpg"
+        return send_file(
+            BytesIO(image_data),
+            mimetype=mime_type,
+            as_attachment=True,
+            download_name=f"{safe_base}{extension}",
+        )
+
+    image_url = str(record.get("image_url") or "").strip()
+    if image_url.startswith("/uploads/templates/"):
+        file_name = image_url.rsplit("/", 1)[-1]
+        uploads_dir = os.path.join(current_app.root_path, "uploads", "templates")
+        file_path = os.path.join(uploads_dir, file_name)
+        if os.path.isfile(file_path):
+            mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+            extension = os.path.splitext(file_path)[1] or ".bin"
+            return send_file(
+                file_path,
+                mimetype=mime_type,
+                as_attachment=True,
+                download_name=f"{safe_base}{extension}",
+            )
+
+    return jsonify({"error": "download_unavailable"}), 404
 
 
 @api.get("/customer/orders/<int:order_id>/items")
