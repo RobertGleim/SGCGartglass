@@ -435,6 +435,119 @@ def _build_order_response(order_id, order_number, totals, downloads=None, alread
     }
 
 
+def _resolve_digital_item_identity_by_title(title):
+    normalized_title = str(title or "").strip().lower()
+    if not normalized_title:
+        return None
+
+    try:
+        from ..models import Template as TemplateModel
+
+        template = TemplateModel.query.filter(TemplateModel.is_digital_download.is_(True)).all()
+        for entry in template:
+            if str(entry.name or "").strip().lower() == normalized_title:
+                return {"product_type": "template", "product_id": str(entry.id), "is_digital": True}
+    except Exception:
+        pass
+
+    try:
+        manual_products = fetch_manual_products() or []
+        for entry in manual_products:
+            if not bool(entry.get("is_digital_download")):
+                continue
+            if str(entry.get("name") or "").strip().lower() == normalized_title:
+                return {"product_type": "manual", "product_id": str(entry.get("id")), "is_digital": True}
+    except Exception:
+        pass
+
+    return None
+
+
+def _hydrate_checkout_summary_from_session(session, customer_id=None):
+    line_items_container = session.get("line_items") or {}
+    raw_line_items = line_items_container.get("data") if isinstance(line_items_container, dict) else []
+    if not isinstance(raw_line_items, list):
+        raw_line_items = []
+
+    hydrated_items = []
+    for index, line_item in enumerate(raw_line_items):
+        if not isinstance(line_item, dict):
+            continue
+        quantity = max(1, int(line_item.get("quantity") or 1))
+        price_obj = line_item.get("price") or {}
+        product_obj = price_obj.get("product") if isinstance(price_obj, dict) else {}
+        if not isinstance(product_obj, dict):
+            product_obj = {}
+
+        product_metadata = product_obj.get("metadata") or {}
+        if not isinstance(product_metadata, dict):
+            product_metadata = {}
+
+        title = str(
+            line_item.get("description")
+            or product_obj.get("name")
+            or "Item"
+        ).strip()[:500]
+
+        product_type = str(product_metadata.get("product_type") or "").strip().lower()
+        product_id = str(product_metadata.get("product_id") or "").strip()
+        is_digital_raw = str(product_metadata.get("is_digital") or "").strip().lower()
+        is_digital = is_digital_raw in {"1", "true", "yes", "on"}
+
+        if (not product_type or not product_id) and customer_id is not None:
+            guessed = _resolve_digital_item_identity_by_title(title)
+            if guessed:
+                product_type = guessed.get("product_type") or product_type
+                product_id = guessed.get("product_id") or product_id
+                is_digital = bool(guessed.get("is_digital"))
+
+        if not product_type:
+            product_type = "stripe"
+        if not product_id:
+            product_id = str(product_obj.get("id") or price_obj.get("id") or line_item.get("id") or f"stripe-{index + 1}")
+
+        amount_total = line_item.get("amount_total")
+        if amount_total is None:
+            amount_total = line_item.get("amount_subtotal")
+        line_total = _as_money((float(amount_total) if amount_total is not None else 0.0) / 100.0)
+
+        if line_total <= 0:
+            unit_amount = price_obj.get("unit_amount") if isinstance(price_obj, dict) else None
+            line_total = _as_money(((float(unit_amount) if unit_amount is not None else 0.0) / 100.0) * quantity)
+
+        unit_price = _as_money(line_total / quantity)
+
+        hydrated_items.append({
+            "id": None,
+            "product_type": product_type,
+            "product_id": product_id,
+            "title": title,
+            "image_url": None,
+            "quantity": quantity,
+            "price": unit_price,
+            "line_total": line_total,
+            "currency": str((price_obj.get("currency") if isinstance(price_obj, dict) else None) or session.get("currency") or "USD").upper(),
+            "requires_shipping": not is_digital,
+            "is_digital": is_digital,
+        })
+
+    total_details = session.get("total_details") or {}
+    totals = {
+        "item_count": sum(max(1, int(entry.get("quantity") or 1)) for entry in hydrated_items),
+        "subtotal": _as_money((float(session.get("amount_subtotal") or 0.0)) / 100.0),
+        "shipping": _as_money((float(total_details.get("amount_shipping") or 0.0)) / 100.0),
+        "tax": _as_money((float(total_details.get("amount_tax") or 0.0)) / 100.0),
+        "total": _as_money((float(session.get("amount_total") or 0.0)) / 100.0),
+        "currency": str(session.get("currency") or "USD").upper(),
+    }
+    if totals["subtotal"] <= 0:
+        totals["subtotal"] = _as_money(sum(_as_money(entry.get("line_total")) for entry in hydrated_items))
+    if totals["total"] <= 0:
+        totals["total"] = _as_money(totals["subtotal"] + totals["shipping"] + totals["tax"])
+
+    return {"items": hydrated_items, "totals": totals}
+
+
 def _finalize_paid_checkout_session(session, expected_customer_id=None):
     session_id = str(session.get("id") or "").strip()
     payment_intent_id = str(session.get("payment_intent") or "").strip()
@@ -455,6 +568,13 @@ def _finalize_paid_checkout_session(session, expected_customer_id=None):
     summary = _normalize_checkout_snapshot(snapshot, customer_id=customer_id)
     items = summary.get("items") or []
     totals = summary.get("totals") or {}
+
+    if not items:
+        hydrated = _hydrate_checkout_summary_from_session(session, customer_id=customer_id)
+        hydrated_items = hydrated.get("items") or []
+        if hydrated_items:
+            items = hydrated_items
+            totals = hydrated.get("totals") or totals
 
     if payment_intent_id:
         existing_order_id = get_customer_order_id_by_payment_reference(payment_intent_id)
@@ -506,7 +626,9 @@ def _resolve_frontend_public_url():
     configured = (
         os.environ.get("FRONTEND_PUBLIC_URL")
         or os.environ.get("FRONTEND_URL")
+        or os.environ.get("FRONTEND_BASE_URL")
         or os.environ.get("APP_PUBLIC_URL")
+        or os.environ.get("APP_BASE_URL")
         or ""
     ).strip().rstrip("/")
     if configured:
@@ -833,7 +955,12 @@ def stripe_webhook():
 
     try:
         import stripe
-        stripe_secret = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
+        stripe_secret = (
+            os.environ.get("STRIPE_SECRET_KEY")
+            or os.environ.get("STRIPE_API_SECRET")
+            or os.environ.get("STRIPE_SECRET")
+            or ""
+        ).strip()
         if stripe_secret:
             stripe.api_key = stripe_secret
 
@@ -856,11 +983,28 @@ def stripe_webhook():
         pi_id = str(data_object.get("payment_intent") or "").strip()
         if pi_id and session_payment_status == "paid":
             order_status = "confirmed"
+            session_payload = data_object
             try:
-                finalized = _finalize_paid_checkout_session(data_object)
+                line_items_data = ((session_payload.get("line_items") or {}).get("data") or []) if isinstance(session_payload, dict) else []
+                if not line_items_data:
+                    session_id = str((session_payload or {}).get("id") or "").strip()
+                    if session_id:
+                        import stripe
+
+                        stripe_secret, _stripe_key_error = _resolve_stripe_secret_key()
+                        if stripe_secret:
+                            stripe.api_key = stripe_secret
+                            session_payload = stripe.checkout.Session.retrieve(
+                                session_id,
+                                expand=["line_items.data.price.product", "shipping_details", "customer_details"],
+                            )
+            except Exception as exc:
+                current_app.logger.warning("stripe session enrichment failed: %s", exc)
+            try:
+                finalized = _finalize_paid_checkout_session(session_payload)
             except Exception as exc:
                 current_app.logger.error("stripe checkout finalization failed: %s", exc)
-                return jsonify({"error": "checkout_finalization_failed"}), 500
+                return jsonify({"error": "checkout_finalization_failed", "detail": str(exc)}), 500
             order_id = finalized.get("order", {}).get("id")
             updated = bool(order_id)
             if order_id:
@@ -1471,6 +1615,14 @@ def customer_checkout_session():
     stripe.api_key = stripe_secret
 
     frontend_url = _resolve_frontend_public_url()
+    is_live_key = stripe_secret.lower().startswith("sk_live_")
+    frontend_url_lc = frontend_url.lower()
+    if is_live_key and ("localhost" in frontend_url_lc or "127.0.0.1" in frontend_url_lc):
+        return jsonify({
+            "error": "invalid_checkout_return_url",
+            "detail": "Live Stripe checkout cannot use localhost return URLs. Set FRONTEND_PUBLIC_URL (or FRONTEND_BASE_URL) to your production site URL.",
+        }), 503
+
     # {CHECKOUT_SESSION_ID} is a Stripe template variable substituted server-side
     success_url = f"{frontend_url}/#/checkout/success?session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{frontend_url}/#/checkout"
@@ -1478,7 +1630,14 @@ def customer_checkout_session():
     line_items = []
     for item in summary["items"]:
         unit_amount = max(50, int(round(float(item.get("price") or 0) * 100)))
-        product_data = {"name": str(item.get("title") or "Item")[:500]}
+        product_data = {
+            "name": str(item.get("title") or "Item")[:500],
+            "metadata": {
+                "product_type": str(item.get("product_type") or "").strip().lower(),
+                "product_id": str(item.get("product_id") or "").strip(),
+                "is_digital": "true" if bool(item.get("is_digital")) else "false",
+            },
+        }
         image_url = str(item.get("image_url") or "").strip()
         if image_url.startswith("https://"):
             product_data["images"] = [image_url]
