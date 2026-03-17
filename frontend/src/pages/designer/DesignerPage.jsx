@@ -88,28 +88,39 @@ const isSectionLocked = (sectionFills, sectionId, sectionNumber) => {
 
 // Color palette for click-to-fill coloring book experience
 const QUICK_COLORS = [
-  // Reds / Pinks
-  '#e63946', '#ff6b6b', '#ff9e7a', '#ffb6c1',
-  // Oranges / Yellows
-  '#f4a261', '#ffd700', '#f4e04d', '#ffeaa7',
-  // Greens
-  '#2a9d8f', '#52b788', '#90ee90', '#98fb98',
-  // Blues
-  '#1d3557', '#457b9d', '#87ceeb', '#add8e6',
-  // Purples
-  '#7b2d8b', '#9b5de5', '#dda0dd', '#b8b8ff',
-  // Browns / Warm Neutrals
-  '#8b4513', '#c8a96e', '#d4c5a9', '#e8d5b7',
-  // Glass Classics
-  '#a0c4c7', '#6b8e8b', '#c9a84c', '#4a2e0a',
-  // B&W
-  '#ffffff', '#cccccc', '#888888', '#222222',
+  // Core solids
+  '#C1121F', // Red
+  '#0057D9', // Blue
+  '#2A9D45', // Green
+  '#F4D35E', // Yellow
+  '#0047AB', // Cobalt Blue
+  '#228B22', // Forest Green
+  '#E76F51', // Orange
+  '#6A4C93', // Purple
+  // Additional rich tones
+  '#B5179E', // Magenta
+  '#00A6A6', // Teal
+  '#0096C7', // Sky Blue
+  '#2B2D42', // Navy Slate
+  '#7F5539', // Brown
+  '#BC6C25', // Amber Brown
+  '#6B705C', // Olive
+  '#3A5A40', // Deep Moss
+  // Neutrals
+  '#F8F9FA', // White
+  '#D9D9D9', // Light Gray
+  '#8D99AE', // Medium Gray
+  '#1B1B1B', // Black
 ];
 
 const CLEAR_GLASS_COLOR = '#eaf6ff';
 const REMOVE_COLOR_HEX = '#ffffff';
 const CANVAS_BASE_W = 840;
 const CANVAS_BASE_H = 600;
+const ADMIN_FAVORITE_COLOR_SLOTS = 4;
+const ADMIN_FAVORITE_COLORS_STORAGE_KEY = 'sgcg_admin_favorite_colors_v1';
+
+const isHexColor = (value) => /^#([A-Fa-f0-9]{6})$/.test(String(value || '').trim());
 
 const getApiOrigin = () => {
   const configuredBase = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -196,10 +207,11 @@ export default function DesignerPage() {
   const regionPixelsRef = useRef(null);
   const [selectedObj, setSelectedObj] = useState(null);
   const [selectedLegendNumber, setSelectedLegendNumber] = useState(null);
-  const [selectedColor, setSelectedColor] = useState('#c8a96e');
+  const [selectedColor, setSelectedColor] = useState('#0057D9');
   // Ref so canvas event handlers (stale closures) always read the current color
-  const selectedColorRef = useRef('#c8a96e');
+  const selectedColorRef = useRef('#0057D9');
   useEffect(() => { selectedColorRef.current = selectedColor; }, [selectedColor]);
+  const [adminFavoriteColors, setAdminFavoriteColors] = useState(() => Array(ADMIN_FAVORITE_COLOR_SLOTS).fill(''));
 
   // Glass types
   const [glassTypes, setGlassTypes] = useState([]);
@@ -259,6 +271,56 @@ export default function DesignerPage() {
   const isEraseModeRef = useRef(false);
   useEffect(() => { isEraseModeRef.current = isEraseMode; }, [isEraseMode]);
 
+  useEffect(() => {
+    if (!isAdmin) return;
+    try {
+      const raw = window.localStorage.getItem(ADMIN_FAVORITE_COLORS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      const next = Array.from({ length: ADMIN_FAVORITE_COLOR_SLOTS }, (_, index) => {
+        const hex = String(parsed[index] || '').trim();
+        return isHexColor(hex) ? hex.toUpperCase() : '';
+      });
+      setAdminFavoriteColors(next);
+    } catch {
+      // ignore corrupt localStorage payload
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    window.localStorage.setItem(ADMIN_FAVORITE_COLORS_STORAGE_KEY, JSON.stringify(adminFavoriteColors));
+  }, [adminFavoriteColors, isAdmin]);
+
+  const handleAdminFavoriteColorClick = useCallback((index) => {
+    if (index < 0 || index >= ADMIN_FAVORITE_COLOR_SLOTS) return;
+    const slotColor = String(adminFavoriteColors[index] || '').trim();
+    if (isHexColor(slotColor)) {
+      setIsEraseMode(false);
+      selectedColorRef.current = slotColor;
+      setSelectedColor(slotColor);
+      return;
+    }
+    if (!isHexColor(selectedColor)) return;
+    setAdminFavoriteColors((prev) => {
+      const next = prev.slice();
+      next[index] = selectedColor.toUpperCase();
+      return next;
+    });
+  }, [adminFavoriteColors, selectedColor]);
+
+  const handleAdminFavoriteColorClear = useCallback((event, index) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (index < 0 || index >= ADMIN_FAVORITE_COLOR_SLOTS) return;
+    setAdminFavoriteColors((prev) => {
+      const next = prev.slice();
+      next[index] = '';
+      return next;
+    });
+  }, []);
+
   const clampZoom = useCallback((value) => {
     const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
     return Number(clamped.toFixed(2));
@@ -288,8 +350,8 @@ export default function DesignerPage() {
     setSelectedObj(null);
     setSectionLabels([]);
     setFillVersion(v => v + 1);
-    setSelectedColor('#c8a96e');
-    selectedColorRef.current = '#c8a96e';
+    setSelectedColor('#0057D9');
+    selectedColorRef.current = '#0057D9';
     setActiveGlassType(null);
     activeGlassTypeRef.current = null;
     setCanvasZoom(1);
@@ -1886,7 +1948,7 @@ export default function DesignerPage() {
         } else {
           console.log('[DesignerPage] No svg_content, creating demo rectangles');
           // Demo: colorful placeholder rectangles
-          const demoColors = ['#c8a96e','#a0c8e0','#e8d5b7','#90ee90','#ffb6c1','#f4e04d','#dda0dd'];
+          const demoColors = ['#C1121F', '#F4D35E', '#2A9D45', '#228B22', '#0047AB', '#0057D9', '#6A4C93'];
           const cols = 4; const rows = 3;
           const w = 155; const h = 148;
           for (let r = 0; r < rows; r++) {
@@ -3575,6 +3637,47 @@ export default function DesignerPage() {
                   />
                 ))}
               </div>
+
+              {isAdmin && (
+                <div className={styles.adminFavoritesWrap}>
+                  <div className={styles.adminFavoritesLabel}>Admin Favorites</div>
+                  <div className={styles.adminFavoritesGrid}>
+                    {adminFavoriteColors.map((favoriteColor, index) => {
+                      const hasColor = isHexColor(favoriteColor);
+                      return (
+                        <button
+                          key={`admin-favorite-${index}`}
+                          type="button"
+                          className={`${styles.adminFavoriteSlot} ${hasColor ? styles.adminFavoriteSlotFilled : styles.adminFavoriteSlotEmpty}`}
+                          style={hasColor ? { '--favorite-color': favoriteColor } : undefined}
+                          onClick={() => handleAdminFavoriteColorClick(index)}
+                          title={hasColor ? `Favorite ${index + 1}: ${favoriteColor}` : `Favorite ${index + 1}: empty`}
+                        >
+                          {hasColor && (
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              className={styles.adminFavoriteClear}
+                              onClick={(event) => handleAdminFavoriteColorClear(event, index)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  handleAdminFavoriteColorClear(event, index);
+                                }
+                              }}
+                              aria-label={`Clear favorite ${index + 1}`}
+                              title="Clear slot"
+                            >
+                              x
+                            </span>
+                          )}
+                          {hasColor ? '' : '+'}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className={styles.adminFavoritesHint}>Click empty to save current color. Click filled to apply.</div>
+                </div>
+              )}
 
               <div className={styles.paletteActions}>
                 <button

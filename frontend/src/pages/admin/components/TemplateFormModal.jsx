@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../../../services/api';
 import styles from './TemplateFormModal.module.css';
 
@@ -316,6 +317,25 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        onClose && onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
 
   const handleChange = (field, value) => {
@@ -463,10 +483,11 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
   const hasContent = form.svg_content || form.image_url || template;
   const canSubmit = form.name && form.category && form.dimensions && hasContent && !uploading && !loading;
 
-  return (
+  const modalContent = (
     <div className={styles.overlay}>
-      <div className={styles.modal}>
-        <button className={styles.closeBtn} onClick={onClose} aria-label="Close">×</button>
+      <div className={styles.backdrop} onClick={onClose} />
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close">×</button>
         <h2>{template ? 'Edit Template' : 'Add New Template'}</h2>
 
         <form onSubmit={handleSubmit}>
@@ -711,4 +732,6 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
