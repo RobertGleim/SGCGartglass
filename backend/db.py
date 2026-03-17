@@ -1,6 +1,7 @@
 import os
 import threading
 import json
+import re
 import secrets
 from datetime import datetime
 
@@ -72,6 +73,65 @@ def _deserialize_related_links(value):
         return parsed if isinstance(parsed, dict) else None
     except Exception:
         return None
+
+
+def _normalize_category_key(value):
+    return re.sub(r"[^a-z0-9]", "", str(value or "").lower())
+
+
+def _manual_product_category_list(value):
+    if isinstance(value, list):
+        return [entry for entry in value if entry not in (None, "")]
+    if isinstance(value, str):
+        trimmed = value.strip()
+        if trimmed.startswith("[") and trimmed.endswith("]"):
+            try:
+                parsed = json.loads(trimmed)
+                if isinstance(parsed, list):
+                    return [entry for entry in parsed if entry not in (None, "")]
+            except Exception:
+                pass
+        if "," in trimmed:
+            return [entry.strip() for entry in trimmed.split(",") if entry.strip()]
+        if trimmed:
+            return [trimmed]
+    return []
+
+
+def _manual_product_is_pattern(payload):
+    categories = _manual_product_category_list(payload.get("category"))
+    if any(_normalize_category_key(entry) in {"pattern", "patterns"} for entry in categories):
+        return True
+
+    combined = " ".join(
+        [
+            " ".join(str(entry or "") for entry in categories),
+            " ".join(str(entry or "") for entry in _manual_product_category_list(payload.get("materials"))),
+            str(payload.get("name") or payload.get("title") or ""),
+            str(payload.get("description") or ""),
+        ]
+    )
+    return bool(re.search(r"pattern|svg|line\s*art|trace", combined, re.IGNORECASE))
+
+
+def _coerce_manual_product_digital_download(payload):
+    if _manual_product_is_pattern(payload):
+        return True
+
+    raw = payload.get("is_digital_download")
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, str):
+        return raw.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(raw)
+
+
+def _coerce_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
 
 
 def list_all_customers():
@@ -155,6 +215,7 @@ def init_db(force=False):
             discount_percent REAL,
             quantity INTEGER NOT NULL,
             is_featured INTEGER DEFAULT 0,
+            is_digital_download INTEGER DEFAULT 0,
             related_links TEXT,
             created_at VARCHAR(50),
             updated_at VARCHAR(50)
@@ -334,7 +395,9 @@ def init_db(force=False):
         CREATE TABLE IF NOT EXISTS customer_pattern_downloads (
             id {id_column},
             customer_id INTEGER NOT NULL,
-            template_id INTEGER NOT NULL,
+            template_id INTEGER,
+            manual_product_id INTEGER,
+            product_type VARCHAR(20) DEFAULT 'template',
             order_id INTEGER,
             customer_email VARCHAR(255),
             download_token VARCHAR(128) NOT NULL UNIQUE,
@@ -342,7 +405,6 @@ def init_db(force=False):
             last_emailed_at VARCHAR(50),
             created_at VARCHAR(50),
             updated_at VARCHAR(50),
-            UNIQUE (customer_id, template_id),
             FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
             FOREIGN KEY (order_id) REFERENCES customer_orders(id) ON DELETE SET NULL
         )
@@ -419,6 +481,22 @@ def init_db(force=False):
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS related_links TEXT")
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS old_price REAL")
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS discount_percent REAL")
+                cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS is_digital_download INTEGER DEFAULT 0")
+                cursor.execute(
+                        """
+                        UPDATE manual_products
+                        SET is_digital_download = 1
+                        WHERE COALESCE(is_digital_download, 0) = 0
+                            AND (
+                                LOWER(COALESCE(category, '')) LIKE '%pattern%'
+                                OR LOWER(COALESCE(name, '')) LIKE '%pattern%'
+                                OR LOWER(COALESCE(description, '')) LIKE '%pattern%'
+                                OR LOWER(COALESCE(description, '')) LIKE '%svg%'
+                                OR LOWER(COALESCE(description, '')) LIKE '%line art%'
+                                OR LOWER(COALESCE(description, '')) LIKE '%trace%'
+                            )
+                        """
+                )
         cursor.execute("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS review_image_url VARCHAR(512)")
         cursor.execute("ALTER TABLE review_invite_codes ADD COLUMN IF NOT EXISTS product_name VARCHAR(255)")
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS subtotal_amount REAL")
@@ -440,11 +518,14 @@ def init_db(force=False):
         cursor.execute("ALTER TABLE customer_checkout_sessions ADD COLUMN IF NOT EXISTS payload TEXT")
         cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS order_id INTEGER")
         cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS customer_email VARCHAR(255)")
+        cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS manual_product_id INTEGER")
+        cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS product_type VARCHAR(20) DEFAULT 'template'")
         cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS download_token VARCHAR(128)")
         cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS unlocked_at VARCHAR(50)")
         cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS last_emailed_at VARCHAR(50)")
         cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS created_at VARCHAR(50)")
         cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS updated_at VARCHAR(50)")
+        cursor.execute("UPDATE customer_pattern_downloads SET product_type = 'template' WHERE product_type IS NULL OR product_type = ''")
 
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_addresses_customer_default_created ON customer_addresses(customer_id, is_default DESC, created_at DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_favorites_customer_created ON customer_favorites(customer_id, created_at DESC)")
@@ -462,6 +543,9 @@ def init_db(force=False):
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_checkout_sessions_status_created ON customer_checkout_sessions(status, created_at DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_pattern_downloads_customer_created ON customer_pattern_downloads(customer_id, created_at DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_pattern_downloads_order ON customer_pattern_downloads(order_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_pattern_downloads_template ON customer_pattern_downloads(template_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_pattern_downloads_manual_product ON customer_pattern_downloads(manual_product_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_pattern_downloads_product_lookup ON customer_pattern_downloads(customer_id, product_type, template_id, manual_product_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_reviews_product_status_created ON customer_reviews(product_type, product_id, status, created_at DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_reviews_customer_created ON customer_reviews(customer_id, created_at DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_review_invite_codes_active_expires ON review_invite_codes(is_active, expires_at)")
@@ -606,6 +690,7 @@ def create_manual_product(payload):
         payload.get("discount_percent"),
         payload["quantity"],
         1 if payload.get("is_featured") else 0,
+        1 if _coerce_manual_product_digital_download(payload) else 0,
         _serialize_related_links(payload.get("related_links")),
         now,
         now,
@@ -616,11 +701,12 @@ def create_manual_product(payload):
             INSERT INTO manual_products (
                 name, description, category, materials,
                 width, height, depth, price, old_price, discount_percent, quantity, is_featured,
+                is_digital_download,
                 related_links,
                 created_at, updated_at
             ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder},
                       {placeholder}, {placeholder}, {placeholder}, {placeholder},
-                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             RETURNING id
             """,
             insert_values,
@@ -632,11 +718,12 @@ def create_manual_product(payload):
             INSERT INTO manual_products (
                 name, description, category, materials,
                 width, height, depth, price, old_price, discount_percent, quantity, is_featured,
+                is_digital_download,
                 related_links,
                 created_at, updated_at
             ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder},
                       {placeholder}, {placeholder}, {placeholder}, {placeholder},
-                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             """,
             insert_values,
         )
@@ -699,6 +786,7 @@ def fetch_manual_products():
                     pass
 
             product["images"] = []
+            product["is_digital_download"] = _coerce_bool(product.get("is_digital_download"))
             product["related_links"] = _deserialize_related_links(product.get("related_links"))
             by_id[product_id] = product
             products.append(product)
@@ -736,6 +824,7 @@ def fetch_manual_products_catalog():
             p.discount_percent,
             p.quantity,
             p.is_featured,
+            p.is_digital_download,
             p.related_links,
             p.created_at,
             p.updated_at,
@@ -770,6 +859,7 @@ def fetch_manual_products_catalog():
 
         preview_image_url = product.pop("preview_image_url", None)
         product["images"] = [{"image_url": preview_image_url, "media_type": "image"}] if preview_image_url else []
+        product["is_digital_download"] = _coerce_bool(product.get("is_digital_download"))
         product["related_links"] = _deserialize_related_links(product.get("related_links"))
         products.append(product)
 
@@ -814,6 +904,7 @@ def fetch_manual_product(product_id):
     )
     images = cursor.fetchall()
     product["images"] = [dict(img) for img in images]
+    product["is_digital_download"] = _coerce_bool(product.get("is_digital_download"))
     product["related_links"] = _deserialize_related_links(product.get("related_links"))
     
     conn.close()
@@ -842,7 +933,7 @@ def update_manual_product(product_id, payload):
         SET name = {placeholder}, description = {placeholder}, category = {placeholder}, materials = {placeholder},
             width = {placeholder}, height = {placeholder}, depth = {placeholder}, price = {placeholder},
             old_price = {placeholder}, discount_percent = {placeholder}, quantity = {placeholder},
-            is_featured = {placeholder}, related_links = {placeholder}, updated_at = {placeholder}
+            is_featured = {placeholder}, is_digital_download = {placeholder}, related_links = {placeholder}, updated_at = {placeholder}
         WHERE id = {placeholder}
         """,
         (
@@ -858,6 +949,7 @@ def update_manual_product(product_id, payload):
             payload.get("discount_percent"),
             payload["quantity"],
             1 if payload.get("is_featured") else 0,
+            1 if _coerce_manual_product_digital_download(payload) else 0,
             _serialize_related_links(payload.get("related_links")),
             now,
             product_id,
@@ -1977,22 +2069,132 @@ def list_customer_order_items_for_order(order_id):
     return [dict(row) for row in rows]
 
 
-def upsert_customer_pattern_download(customer_id, template_id, order_id=None, customer_email=None):
-    conn = get_db()
-    cursor = conn.cursor()
-    is_mysql = _use_mysql()
-    placeholder = "%s" if is_mysql else "?"
-    now = datetime.utcnow().isoformat()
+def _fetch_template_download_metadata(cursor, template_id):
+    if not template_id:
+        return None
 
+    placeholder = _placeholder()
     cursor.execute(
         f"""
-        SELECT id, download_token
-        FROM customer_pattern_downloads
-        WHERE customer_id = {placeholder} AND template_id = {placeholder}
+        SELECT
+            id,
+            name,
+            description,
+            template_type,
+            svg_content,
+            image_url,
+            image_data,
+            image_mime,
+            thumbnail_url,
+            price_amount,
+            price_currency,
+            is_active
+        FROM templates
+        WHERE id = {placeholder}
         LIMIT 1
         """,
-        (customer_id, template_id),
+        (template_id,),
     )
+    row = cursor.fetchone()
+    if not row:
+        return None
+
+    payload = dict(row)
+    return {
+        "pattern_id": payload.get("id"),
+        "pattern_name": payload.get("name"),
+        "pattern_description": payload.get("description"),
+        "pattern_source_type": "template",
+        "template_id": payload.get("id"),
+        "template_name": payload.get("name"),
+        "template_description": payload.get("description"),
+        "template_type": payload.get("template_type"),
+        "svg_content": payload.get("svg_content"),
+        "image_url": payload.get("image_url"),
+        "image_data": payload.get("image_data"),
+        "image_mime": payload.get("image_mime"),
+        "thumbnail_url": payload.get("thumbnail_url"),
+        "price_amount": payload.get("price_amount"),
+        "price_currency": payload.get("price_currency"),
+        "is_active": payload.get("is_active"),
+    }
+
+
+def _fetch_manual_product_download_metadata(cursor, manual_product_id):
+    if not manual_product_id:
+        return None
+
+    placeholder = _placeholder()
+    cursor.execute(
+        f"""
+        SELECT
+            p.id,
+            p.name,
+            p.description,
+            p.price,
+            p.is_digital_download,
+            (
+                SELECT pi.image_url
+                FROM product_images pi
+                WHERE pi.product_id = p.id
+                ORDER BY pi.display_order
+                LIMIT 1
+            ) AS image_url
+        FROM manual_products p
+        WHERE p.id = {placeholder}
+        LIMIT 1
+        """,
+        (manual_product_id,),
+    )
+    row = cursor.fetchone()
+    if not row:
+        return None
+
+    payload = dict(row)
+    return {
+        "pattern_id": payload.get("id"),
+        "pattern_name": payload.get("name"),
+        "pattern_description": payload.get("description"),
+        "pattern_source_type": "manual",
+        "manual_product_id": payload.get("id"),
+        "price_amount": payload.get("price"),
+        "price_currency": "USD",
+        "image_url": payload.get("image_url"),
+        "is_active": _coerce_bool(payload.get("is_digital_download")),
+    }
+
+
+def upsert_customer_pattern_download(customer_id, product_type, product_id, order_id=None, customer_email=None):
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholder = _placeholder()
+    now = datetime.utcnow().isoformat()
+
+    normalized_type = "manual" if str(product_type or "").strip().lower() == "manual" else "template"
+    target_id = int(product_id)
+    template_id = target_id if normalized_type == "template" else None
+    manual_product_id = target_id if normalized_type == "manual" else None
+
+    if normalized_type == "manual":
+        cursor.execute(
+            f"""
+            SELECT id, download_token
+            FROM customer_pattern_downloads
+            WHERE customer_id = {placeholder} AND product_type = {placeholder} AND manual_product_id = {placeholder}
+            LIMIT 1
+            """,
+            (customer_id, normalized_type, manual_product_id),
+        )
+    else:
+        cursor.execute(
+            f"""
+            SELECT id, download_token
+            FROM customer_pattern_downloads
+            WHERE customer_id = {placeholder} AND product_type = {placeholder} AND template_id = {placeholder}
+            LIMIT 1
+            """,
+            (customer_id, normalized_type, template_id),
+        )
     row = cursor.fetchone()
 
     if row:
@@ -2000,10 +2202,10 @@ def upsert_customer_pattern_download(customer_id, template_id, order_id=None, cu
         cursor.execute(
             f"""
             UPDATE customer_pattern_downloads
-            SET order_id = {placeholder}, customer_email = {placeholder}, download_token = {placeholder}, unlocked_at = {placeholder}, updated_at = {placeholder}
+            SET product_type = {placeholder}, template_id = {placeholder}, manual_product_id = {placeholder}, order_id = {placeholder}, customer_email = {placeholder}, download_token = {placeholder}, unlocked_at = {placeholder}, updated_at = {placeholder}
             WHERE id = {placeholder}
             """,
-            (order_id, customer_email, download_token, now, now, row["id"]),
+            (normalized_type, template_id, manual_product_id, order_id, customer_email, download_token, now, now, row["id"]),
         )
         download_id = row["id"]
         created = False
@@ -2012,20 +2214,20 @@ def upsert_customer_pattern_download(customer_id, template_id, order_id=None, cu
         if _is_postgres_backend():
             cursor.execute(
                 f"""
-                INSERT INTO customer_pattern_downloads (customer_id, template_id, order_id, customer_email, download_token, unlocked_at, created_at, updated_at)
-                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                INSERT INTO customer_pattern_downloads (customer_id, template_id, manual_product_id, product_type, order_id, customer_email, download_token, unlocked_at, created_at, updated_at)
+                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
                 RETURNING id
                 """,
-                (customer_id, template_id, order_id, customer_email, download_token, now, now, now),
+                (customer_id, template_id, manual_product_id, normalized_type, order_id, customer_email, download_token, now, now, now),
             )
             download_id = cursor.fetchone()["id"]
         else:
             cursor.execute(
                 f"""
-                INSERT INTO customer_pattern_downloads (customer_id, template_id, order_id, customer_email, download_token, unlocked_at, created_at, updated_at)
-                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                INSERT INTO customer_pattern_downloads (customer_id, template_id, manual_product_id, product_type, order_id, customer_email, download_token, unlocked_at, created_at, updated_at)
+                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
                 """,
-                (customer_id, template_id, order_id, customer_email, download_token, now, now, now),
+                (customer_id, template_id, manual_product_id, normalized_type, order_id, customer_email, download_token, now, now, now),
             )
             download_id = cursor.lastrowid
         created = True
@@ -2037,7 +2239,9 @@ def upsert_customer_pattern_download(customer_id, template_id, order_id=None, cu
         "download_token": download_token,
         "created": created,
         "customer_id": customer_id,
+        "product_type": normalized_type,
         "template_id": template_id,
+        "manual_product_id": manual_product_id,
         "order_id": order_id,
     }
 
@@ -2045,23 +2249,14 @@ def upsert_customer_pattern_download(customer_id, template_id, order_id=None, cu
 def list_customer_pattern_downloads(customer_id):
     conn = get_db()
     cursor = conn.cursor()
-    is_mysql = _use_mysql()
-    placeholder = "%s" if is_mysql else "?"
+    placeholder = _placeholder()
     cursor.execute(
         f"""
         SELECT
             d.*,
-            t.name AS template_name,
-            t.description AS template_description,
-            t.template_type,
-            t.price_amount,
-            t.price_currency,
-            t.thumbnail_url,
-            t.image_url,
             o.order_number,
             o.payment_status
         FROM customer_pattern_downloads d
-        JOIN templates t ON t.id = d.template_id
         LEFT JOIN customer_orders o ON o.id = d.order_id
         WHERE d.customer_id = {placeholder}
         ORDER BY d.updated_at DESC, d.created_at DESC
@@ -2069,40 +2264,49 @@ def list_customer_pattern_downloads(customer_id):
         (customer_id,),
     )
     rows = cursor.fetchall()
+    downloads = []
+    for row in rows:
+        payload = dict(row)
+        normalized_type = str(payload.get("product_type") or "template").strip().lower()
+        if normalized_type == "manual":
+            metadata = _fetch_manual_product_download_metadata(cursor, payload.get("manual_product_id"))
+        else:
+            metadata = _fetch_template_download_metadata(cursor, payload.get("template_id"))
+        if metadata:
+            payload.update(metadata)
+        downloads.append(payload)
     conn.close()
-    return [dict(row) for row in rows]
+    return downloads
 
 
 def get_customer_pattern_download_by_token(download_token):
     conn = get_db()
     cursor = conn.cursor()
-    is_mysql = _use_mysql()
-    placeholder = "%s" if is_mysql else "?"
+    placeholder = _placeholder()
     cursor.execute(
         f"""
-        SELECT
-            d.*,
-            t.name AS template_name,
-            t.description AS template_description,
-            t.template_type,
-            t.svg_content,
-            t.image_url,
-            t.image_data,
-            t.image_mime,
-            t.thumbnail_url,
-            t.price_amount,
-            t.price_currency,
-            t.is_active
+        SELECT *
         FROM customer_pattern_downloads d
-        JOIN templates t ON t.id = d.template_id
         WHERE d.download_token = {placeholder}
         LIMIT 1
         """,
         (download_token,),
     )
     row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return None
+
+    payload = dict(row)
+    normalized_type = str(payload.get("product_type") or "template").strip().lower()
+    if normalized_type == "manual":
+        metadata = _fetch_manual_product_download_metadata(cursor, payload.get("manual_product_id"))
+    else:
+        metadata = _fetch_template_download_metadata(cursor, payload.get("template_id"))
+    if metadata:
+        payload.update(metadata)
     conn.close()
-    return dict(row) if row else None
+    return payload
 
 
 def has_verified_purchase(customer_id, product_type, product_id):

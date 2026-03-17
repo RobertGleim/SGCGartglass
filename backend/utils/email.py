@@ -78,7 +78,7 @@ def work_order_notification_email(work_order, admin_email):
 def digital_download_email(customer_name, downloads):
     safe_name = customer_name or 'Customer'
     items_html = ''.join(
-        f"<li><strong>{entry.get('template_name') or 'Pattern'}</strong><br><a href='{entry.get('download_url')}'>{entry.get('download_url')}</a></li>"
+        f"<li><strong>{entry.get('pattern_name') or entry.get('template_name') or 'Pattern'}</strong><br><a href='{entry.get('download_url')}'>{entry.get('download_url')}</a></li>"
         for entry in downloads
         if entry.get('download_url')
     )

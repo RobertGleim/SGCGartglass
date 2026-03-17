@@ -6,6 +6,7 @@ export default function ProductCard({ product }) {
   const discountPercent = hasDiscount 
     ? Math.round(((product.old_price - product.price_amount) / product.old_price) * 100)
     : 0
+  const isDigitalDownload = product.is_digital_download === true
 
   return (
     <a href={`#/product/${product.id}`} className="product-card-link">
@@ -40,6 +41,9 @@ export default function ProductCard({ product }) {
             </div>
             {product.free_shipping && (
               <span className="free-shipping">FREE shipping</span>
+            )}
+            {isDigitalDownload && (
+              <span className="free-shipping">Instant download</span>
             )}
           </div>
         </div>

@@ -185,6 +185,7 @@ function App() {
       price_currency: 'USD',
       image_url: p.images?.[0]?.image_url,
       category: p.category,
+      is_digital_download: p.is_digital_download === 1 || p.is_digital_download === true,
       isManual: true,
       is_featured: p.is_featured === 1 || p.is_featured === true,
       originalData: p

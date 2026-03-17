@@ -366,6 +366,8 @@ export default function ProductDetail({ product, products = [] }) {
     }
   }
 
+  const isDigitalDownload = Boolean(product.is_digital_download)
+
   const handleAddToWishlist = async () => {
     setWishlistStatus('')
     if (!customerToken) {
@@ -559,6 +561,11 @@ export default function ProductDetail({ product, products = [] }) {
                   <strong>Shipping:</strong> Free shipping available
                 </li>
               )}
+              {isDigitalDownload && (
+                <li>
+                  <strong>Delivery:</strong> Instant digital download after Stripe payment confirmation
+                </li>
+              )}
             </ul>
           </div>
 
@@ -595,7 +602,7 @@ export default function ProductDetail({ product, products = [] }) {
           <div className="purchase-section">
             
             <button className="add-to-cart-btn" onClick={handleAddToCart}>
-              Add to cart
+              {isDigitalDownload ? 'Buy digital download' : 'Add to cart'}
             </button>
             <button className="wishlist-btn" onClick={handleAddToWishlist}>
               {isWishlisted ? 'In wishlist' : 'Add to wishlist'}

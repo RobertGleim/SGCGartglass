@@ -960,6 +960,7 @@ export default function AdminDashboard({
         })(),
         quantity: parseInt(manualProduct.quantity, 10),
         is_featured: manualProduct.is_featured,
+        is_digital_download: selectedTypeCategory === "patterns",
         related_links: {
           template_id: manualProduct.related_links?.template_id
             ? Number(manualProduct.related_links.template_id)
@@ -2272,6 +2273,12 @@ export default function AdminDashboard({
                     </div>
                   </div>
                 </label>
+
+                {selectedTypeCategory === "patterns" && (
+                  <p className="form-note">
+                    Pattern products are automatically treated as digital downloads. They unlock after Stripe payment and do not require shipping.
+                  </p>
+                )}
 
                 <label>
                   Categories

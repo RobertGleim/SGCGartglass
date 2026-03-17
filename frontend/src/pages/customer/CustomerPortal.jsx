@@ -552,7 +552,7 @@ export default function CustomerPortal({ manualProducts }) {
             <div className="portal-list">
               {downloads.map((entry) => (
                 <div key={entry.id} className="portal-list-item">
-                  <strong>{entry.template_name || `Pattern #${entry.template_id}`}</strong>
+                  <strong>{entry.pattern_name || entry.template_name || `Pattern #${entry.pattern_id || entry.template_id || entry.manual_product_id}`}</strong>
                   {entry.order_number && <span className="portal-muted">Order: {entry.order_number}</span>}
                   <span className="portal-muted">Unlocked: {entry.unlocked_at ? new Date(entry.unlocked_at).toLocaleString() : 'Ready'}</span>
                   <div className="portal-actions">

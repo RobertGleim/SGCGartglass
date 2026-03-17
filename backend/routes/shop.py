@@ -6,6 +6,7 @@ Legacy shop API: auth, customer, items, manual products, etc.
 Loaded as backend.routes.shop; api blueprint is re-exported from backend.routes.
 """
 import json
+import base64
 import mimetypes
 import os
 import hashlib
@@ -15,7 +16,7 @@ import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from io import BytesIO
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, unquote_to_bytes
 from urllib import request as urllib_request
 from urllib.error import HTTPError, URLError
 
@@ -175,6 +176,7 @@ def _resolve_cart_product_snapshot(item):
         images = product.get("images") if isinstance(product.get("images"), list) else []
         if images:
             image_url = images[0].get("image_url")
+        is_digital = bool(product.get("is_digital_download"))
         return {
             "title": product.get("name") or f"Manual product #{product_id}",
             "price": _as_money(product.get("price")),
@@ -182,8 +184,8 @@ def _resolve_cart_product_snapshot(item):
             "image_url": image_url,
             "product_type": "manual",
             "product_id": product_id,
-            "requires_shipping": True,
-            "is_digital": False,
+            "requires_shipping": not is_digital,
+            "is_digital": is_digital,
         }
 
     if product_type == "invoice":
@@ -323,28 +325,59 @@ def _issue_pattern_downloads(customer_id, order_id, items, customer_email):
     from ..models import Template as TemplateModel
 
     downloads = []
-    seen_template_ids = set()
+    seen_keys = set()
     for item in items or []:
-        if str(item.get("product_type") or "").lower() != "template":
-            continue
+        normalized_product_type = str(item.get("product_type") or "").lower()
         product_id = str(item.get("product_id") or "").strip()
-        if not product_id.isdigit() or product_id in seen_template_ids:
+        if not product_id.isdigit():
+            continue
+        if normalized_product_type == "template":
+            dedupe_key = f"template:{product_id}"
+        elif normalized_product_type == "manual":
+            dedupe_key = f"manual:{product_id}"
+        else:
+            continue
+        if dedupe_key in seen_keys:
             continue
 
-        template = TemplateModel.query.filter(TemplateModel.id == int(product_id)).first()
-        if not template or not bool(template.is_digital_download):
+        if normalized_product_type == "template":
+            template = TemplateModel.query.filter(TemplateModel.id == int(product_id)).first()
+            if not template or not bool(template.is_digital_download):
+                continue
+            seen_keys.add(dedupe_key)
+            grant = upsert_customer_pattern_download(
+                customer_id,
+                "template",
+                int(product_id),
+                order_id=order_id,
+                customer_email=customer_email or None,
+            )
+            downloads.append({
+                "pattern_id": int(product_id),
+                "pattern_name": template.name,
+                "pattern_source_type": "template",
+                "download_token": grant.get("download_token"),
+                "download_url": _resolve_pattern_download_url(grant.get("download_token")),
+                "created": bool(grant.get("created")),
+            })
             continue
 
-        seen_template_ids.add(product_id)
+        product = fetch_manual_product(int(product_id))
+        if not product or not bool(product.get("is_digital_download")):
+            continue
+
+        seen_keys.add(dedupe_key)
         grant = upsert_customer_pattern_download(
             customer_id,
+            "manual",
             int(product_id),
             order_id=order_id,
             customer_email=customer_email or None,
         )
         downloads.append({
-            "template_id": int(product_id),
-            "template_name": template.name,
+            "pattern_id": int(product_id),
+            "pattern_name": product.get("name") or f"Pattern #{product_id}",
+            "pattern_source_type": "manual",
             "download_token": grant.get("download_token"),
             "download_url": _resolve_pattern_download_url(grant.get("download_token")),
             "created": bool(grant.get("created")),
@@ -1557,8 +1590,8 @@ def download_pattern_asset(download_token):
     if not record:
         return jsonify({"error": "not_found"}), 404
 
-    template_name = str(record.get("template_name") or "pattern").strip() or "pattern"
-    safe_base = secure_filename(template_name) or "pattern"
+    pattern_name = str(record.get("pattern_name") or record.get("template_name") or "pattern").strip() or "pattern"
+    safe_base = secure_filename(pattern_name) or "pattern"
     template_type = str(record.get("template_type") or "svg").strip().lower()
 
     if template_type == "svg" and record.get("svg_content"):
@@ -1585,10 +1618,43 @@ def download_pattern_asset(download_token):
         )
 
     image_url = str(record.get("image_url") or "").strip()
+    if image_url.startswith("data:"):
+        try:
+            header, encoded = image_url.split(",", 1)
+            mime_type = header[5:].split(";", 1)[0] or "application/octet-stream"
+            if ";base64" in header:
+                raw_bytes = base64.b64decode(encoded)
+            else:
+                raw_bytes = unquote_to_bytes(encoded)
+            extension = mimetypes.guess_extension(mime_type) or ".bin"
+            if extension == ".jpe":
+                extension = ".jpg"
+            return send_file(
+                BytesIO(raw_bytes),
+                mimetype=mime_type,
+                as_attachment=True,
+                download_name=f"{safe_base}{extension}",
+            )
+        except Exception:
+            current_app.logger.exception("failed to decode data-url pattern download for token %s", download_token)
+
     if image_url.startswith("/uploads/templates/"):
         file_name = image_url.rsplit("/", 1)[-1]
         uploads_dir = os.path.join(current_app.root_path, "uploads", "templates")
         file_path = os.path.join(uploads_dir, file_name)
+        if os.path.isfile(file_path):
+            mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+            extension = os.path.splitext(file_path)[1] or ".bin"
+            return send_file(
+                file_path,
+                mimetype=mime_type,
+                as_attachment=True,
+                download_name=f"{safe_base}{extension}",
+            )
+
+    if image_url.startswith("/uploads/"):
+        relative_path = image_url.lstrip("/").replace("/", os.sep)
+        file_path = os.path.join(current_app.root_path, relative_path)
         if os.path.isfile(file_path):
             mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
             extension = os.path.splitext(file_path)[1] or ".bin"
