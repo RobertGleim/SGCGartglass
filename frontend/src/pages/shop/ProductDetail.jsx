@@ -10,6 +10,7 @@ import {
   fetchProductReviews,
   removeCustomerFavorite,
 } from '../../services/api'
+import { addGuestCartItem } from '../../utils/guestCart'
 import { findWishlistEntry, resolveWishlistTarget } from '../../utils/wishlist'
 
 const formatReviewDate = (value) => {
@@ -337,12 +338,6 @@ export default function ProductDetail({ product, products = [] }) {
   
   const handleAddToCart = async () => {
     setCartStatus('')
-    if (!customerToken) {
-      setCartStatus('Sign in to add items to cart.')
-      window.location.hash = '#/account/login'
-      return
-    }
-
     const isManual = Boolean(product.isManual)
     const resolvedProductId = isManual
       ? String(product.originalData?.id || '').trim()
@@ -350,6 +345,25 @@ export default function ProductDetail({ product, products = [] }) {
 
     if (!resolvedProductId) {
       setCartStatus('Unable to add this product right now.')
+      return
+    }
+
+    const guestCartItem = {
+      product_type: isManual ? 'manual' : 'etsy',
+      product_id: resolvedProductId,
+      quantity: 1,
+      title: product.title || product.originalData?.name || 'Product',
+      image_url: mainImage || '',
+      price: Number(product.price_amount || 0),
+      currency: 'USD',
+      is_digital: Boolean(isManual && (manualProductDetails?.is_digital_download || product.originalData?.is_digital_download)),
+      requires_shipping: !Boolean(isManual && (manualProductDetails?.is_digital_download || product.originalData?.is_digital_download)),
+    }
+
+    if (!customerToken) {
+      addGuestCartItem(guestCartItem)
+      window.dispatchEvent(new Event('cart-updated'))
+      setCartStatus('Added to cart.')
       return
     }
 

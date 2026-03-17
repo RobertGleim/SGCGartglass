@@ -1,6 +1,7 @@
 import '../../../styles/Header.css'
 import { useEffect, useState } from 'react'
 import { fetchCustomerCart } from '../../../services/api'
+import { getGuestCartCount } from '../../../utils/guestCart'
 
 export default function Header({ brandName, authToken, customerToken }) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -26,7 +27,7 @@ export default function Header({ brandName, authToken, customerToken }) {
 
     const refreshCartCount = async () => {
       if (!customerToken) {
-        if (active) setCartCount(0)
+        if (active) setCartCount(getGuestCartCount())
         return
       }
       try {
@@ -92,7 +93,21 @@ export default function Header({ brandName, authToken, customerToken }) {
             <a href="#/account" onClick={handleNavClick}>Account</a>
           </>
         ) : (
-          <a href="#/account/login" onClick={handleNavClick}>Sign In</a>
+          <>
+            <a
+              href="#/checkout"
+              onClick={handleNavClick}
+              className="nav-cart-inline"
+              aria-label="Open cart and checkout"
+              title="Checkout"
+            >
+              🛒
+              {cartCount > 0 && (
+                <span className="nav-cart-badge">{cartCount > 99 ? '99+' : cartCount}</span>
+              )}
+            </a>
+            <a href="#/account/login" onClick={handleNavClick}>Sign In</a>
+          </>
         )}
       </nav>
     </header>

@@ -38,6 +38,19 @@ const TAB_LABELS = {
 
 const SINGLE_ITEM_WARNING = 'Items are sold per piece. Please contact customer service if you need more than one of the same item.'
 const STAR_SCALE = [1, 2, 3, 4, 5]
+
+const resolveDownloadUrl = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (/^https?:\/\//i.test(raw)) return raw
+  const base = String(import.meta.env.VITE_API_BASE_URL || '/api').trim()
+  if (/^https?:\/\//i.test(base)) {
+    const origin = base.replace(/\/api\/?$/i, '')
+    if (raw.startsWith('/')) return `${origin}${raw}`
+    return `${origin}/${raw}`
+  }
+  return raw
+}
 const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Math.round(Number(rating) || 0))))
 
 export default function CustomerPortal({ manualProducts }) {
@@ -499,7 +512,7 @@ export default function CustomerPortal({ manualProducts }) {
                   {entry.order_number && <span className="portal-muted">Order: {entry.order_number}</span>}
                   <span className="portal-muted">Unlocked: {entry.unlocked_at ? new Date(entry.unlocked_at).toLocaleString() : 'Ready'}</span>
                   <div className="portal-actions">
-                    <a className="portal-action-link" href={entry.download_url} target="_blank" rel="noreferrer">
+                    <a className="portal-action-link" href={resolveDownloadUrl(entry.download_url)} target="_blank" rel="noreferrer">
                       Download pattern
                     </a>
                   </div>

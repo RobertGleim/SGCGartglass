@@ -317,6 +317,41 @@ def _build_checkout_summary(customer_id):
     }
 
 
+def _build_checkout_summary_from_items(items_payload):
+    detailed = []
+    for raw_item in items_payload or []:
+        if not isinstance(raw_item, dict):
+            continue
+        snapshot = _resolve_cart_product_snapshot({
+            "product_type": raw_item.get("product_type"),
+            "product_id": raw_item.get("product_id"),
+        })
+        if not snapshot:
+            continue
+
+        quantity = 1
+        unit_price = _as_money(snapshot.get("price"))
+        detailed.append({
+            "id": None,
+            "product_type": snapshot.get("product_type"),
+            "product_id": snapshot.get("product_id"),
+            "title": snapshot.get("title"),
+            "image_url": snapshot.get("image_url"),
+            "quantity": quantity,
+            "price": unit_price,
+            "line_total": _as_money(unit_price * quantity),
+            "currency": snapshot.get("currency") or "USD",
+            "requires_shipping": bool(snapshot.get("requires_shipping", True)),
+            "is_digital": bool(snapshot.get("is_digital", False)),
+        })
+
+    totals = _calculate_checkout_totals(detailed)
+    return {
+        "items": detailed,
+        "totals": totals,
+    }
+
+
 def _normalize_checkout_snapshot(snapshot, customer_id=None):
     payload = snapshot.get("payload") if isinstance(snapshot, dict) else None
     items = payload.get("items") if isinstance(payload, dict) and isinstance(payload.get("items"), list) else []
@@ -341,12 +376,18 @@ def _extract_checkout_customer_details(session):
         "country": shipping_address_raw.get("country") or "US",
     }
     customer_details = session.get("customer_details") or {}
+    metadata = session.get("metadata") or {}
     customer_name = (
         shipping_details.get("name")
         or customer_details.get("name")
         or ""
     ).strip()
-    customer_email = (customer_details.get("email") or "").strip()
+    customer_email = (
+        customer_details.get("email")
+        or session.get("customer_email")
+        or metadata.get("customer_email")
+        or ""
+    ).strip()
     return customer_name, customer_email, shipping_address
 
 
@@ -553,6 +594,7 @@ def _finalize_paid_checkout_session(session, expected_customer_id=None):
     payment_intent_id = str(session.get("payment_intent") or "").strip()
     metadata = session.get("metadata") or {}
     session_customer_id = str(metadata.get("customer_id") or "").strip()
+    customer_name, customer_email, shipping_address = _extract_checkout_customer_details(session)
 
     if expected_customer_id is not None and session_customer_id and session_customer_id != str(expected_customer_id):
         raise PermissionError("checkout session does not belong to this customer")
@@ -560,10 +602,31 @@ def _finalize_paid_checkout_session(session, expected_customer_id=None):
     customer_id = expected_customer_id
     if customer_id is None and session_customer_id.isdigit():
         customer_id = int(session_customer_id)
+
+    if customer_id is None and customer_email:
+        existing_customer = fetch_customer_by_email(customer_email)
+        if existing_customer and existing_customer.get("id") is not None:
+            customer_id = int(existing_customer.get("id"))
+        else:
+            name_parts = [part for part in str(customer_name or "").strip().split(" ") if part]
+            first_name = name_parts[0] if name_parts else "Guest"
+            last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else "Checkout"
+            try:
+                customer_id = create_customer({
+                    "email": customer_email,
+                    "password_hash": generate_password_hash(secrets.token_urlsafe(24)),
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "phone": None,
+                })
+            except Exception:
+                retry_customer = fetch_customer_by_email(customer_email)
+                if retry_customer and retry_customer.get("id") is not None:
+                    customer_id = int(retry_customer.get("id"))
+
     if customer_id is None:
         raise ValueError("missing_customer_id")
 
-    customer_name, customer_email, shipping_address = _extract_checkout_customer_details(session)
     snapshot = get_customer_checkout_session_snapshot(session_id) if session_id else None
     summary = _normalize_checkout_snapshot(snapshot, customer_id=customer_id)
     items = summary.get("items") or []
@@ -583,6 +646,9 @@ def _finalize_paid_checkout_session(session, expected_customer_id=None):
             order = next((entry for entry in orders if entry.get("id") == existing_order_id), None)
             existing_items = items or list_customer_order_items_for_order(existing_order_id)
             downloads = _issue_pattern_downloads(customer_id, existing_order_id, existing_items, customer_email)
+            created_downloads = [entry for entry in downloads if bool(entry.get("created"))]
+            if created_downloads:
+                _send_customer_pattern_download_email(customer_email, customer_name or "Customer", created_downloads)
             order_number = (order or {}).get("order_number") or f"Order #{existing_order_id}"
             return _build_order_response(existing_order_id, order_number, order or totals, downloads=downloads, already_placed=True)
 
@@ -1710,6 +1776,115 @@ def customer_checkout_session():
     })
 
 
+@api.post("/checkout/session")
+def guest_checkout_session():
+    """Create a Stripe Checkout session for guests (no sign-in required)."""
+    init_db()
+    payload = request.get_json(silent=True) or {}
+    items_payload = payload.get("items") if isinstance(payload.get("items"), list) else []
+    summary = _build_checkout_summary_from_items(items_payload)
+
+    if not summary.get("items"):
+        return jsonify({"error": "cart_empty_or_invalid"}), 400
+
+    stripe_secret, stripe_key_error = _resolve_stripe_secret_key()
+    if stripe_key_error:
+        return jsonify(stripe_key_error), 503
+
+    import stripe
+
+    stripe.api_key = stripe_secret
+
+    frontend_url = _resolve_frontend_public_url()
+    is_live_key = stripe_secret.lower().startswith("sk_live_")
+    frontend_url_lc = frontend_url.lower()
+    if is_live_key and ("localhost" in frontend_url_lc or "127.0.0.1" in frontend_url_lc):
+        return jsonify({
+            "error": "invalid_checkout_return_url",
+            "detail": "Live Stripe checkout cannot use localhost return URLs. Set FRONTEND_PUBLIC_URL (or FRONTEND_BASE_URL) to your production site URL.",
+        }), 503
+
+    success_url = f"{frontend_url}/#/checkout/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{frontend_url}/#/checkout"
+
+    line_items = []
+    for item in summary["items"]:
+        unit_amount = max(50, int(round(float(item.get("price") or 0) * 100)))
+        product_data = {
+            "name": str(item.get("title") or "Item")[:500],
+            "metadata": {
+                "product_type": str(item.get("product_type") or "").strip().lower(),
+                "product_id": str(item.get("product_id") or "").strip(),
+                "is_digital": "true" if bool(item.get("is_digital")) else "false",
+            },
+        }
+        image_url = str(item.get("image_url") or "").strip()
+        if image_url.startswith("https://"):
+            product_data["images"] = [image_url]
+        line_items.append({
+            "price_data": {
+                "currency": "usd",
+                "unit_amount": unit_amount,
+                "product_data": product_data,
+            },
+            "quantity": 1,
+        })
+
+    tax_cents = max(0, int(round(float(summary["totals"]["tax"]) * 100)))
+    if tax_cents > 0:
+        line_items.append({
+            "price_data": {
+                "currency": "usd",
+                "unit_amount": tax_cents,
+                "product_data": {"name": "Tax (8.25%)"},
+            },
+            "quantity": 1,
+        })
+
+    has_shippable_items = any(bool(item.get("requires_shipping", True)) for item in summary.get("items") or [])
+    has_digital_items = any(bool(item.get("is_digital")) for item in summary.get("items") or [])
+
+    session_params = {
+        "line_items": line_items,
+        "mode": "payment",
+        "success_url": success_url,
+        "cancel_url": cancel_url,
+        "metadata": {
+            "guest_checkout": "true",
+        },
+        # For guest checkout, always let Stripe collect customer identity.
+        "customer_creation": "always",
+        "payment_intent_data": {
+            "metadata": {"guest_checkout": "true"},
+        },
+    }
+
+    # Physical products require shipping address collection in Stripe.
+    if has_shippable_items:
+        session_params["shipping_address_collection"] = {"allowed_countries": ["US", "CA"]}
+
+    # Digital purchases require a customer email; Stripe Checkout will collect it.
+    if has_digital_items:
+        session_params["customer_creation"] = "always"
+
+    try:
+        session = stripe.checkout.Session.create(**session_params)
+    except Exception as exc:
+        current_app.logger.error("guest checkout session creation failed: %s", exc)
+        message = str(exc)
+        if "Invalid API Key provided" in message:
+            return jsonify({
+                "error": "stripe_invalid_key",
+                "detail": "Stripe key authentication failed. Set STRIPE_SECRET_KEY to a valid sk_test_ or sk_live_ key.",
+            }), 503
+        return jsonify({"error": "checkout_session_failed", "detail": message}), 502
+
+    return jsonify({
+        "session_id": session.get("id"),
+        "url": session.get("url"),
+    })
+
+
 @api.post("/customer/checkout/session/confirm")
 @require_customer
 def customer_checkout_session_confirm():
@@ -1782,6 +1957,17 @@ def admin_recover_checkout_session():
             expand=["line_items.data.price.product", "shipping_details", "customer_details"],
         )
     except Exception as exc:
+        snapshot = get_customer_checkout_session_snapshot(session_id)
+        snapshot_status = str((snapshot or {}).get("status") or "").strip().lower()
+        if snapshot and snapshot_status in {"paid", "processed"}:
+            return jsonify({
+                "success": True,
+                "already_placed": True,
+                "session_id": session_id,
+                "message": "Session was already finalized by webhook.",
+                "snapshot_status": snapshot_status,
+            }), 200
+
         current_app.logger.error("admin checkout recovery retrieve failed for %s: %s", session_id, exc)
         return jsonify({"error": "session_retrieval_failed", "detail": str(exc)}), 502
 
@@ -1818,7 +2004,7 @@ def customer_pattern_downloads():
     return jsonify([
         {
             **entry,
-            "download_url": f"/api/pattern-downloads/{entry.get('download_token')}",
+            "download_url": _resolve_pattern_download_url(entry.get("download_token")),
         }
         for entry in downloads
     ])

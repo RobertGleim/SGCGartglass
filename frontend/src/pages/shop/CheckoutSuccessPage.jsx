@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import useCustomerAuth from '../../hooks/useCustomerAuth'
 import { confirmCheckoutSession } from '../../services/api'
 import LoadingMessage from '../../components/LoadingMessage'
+import { clearGuestCart } from '../../utils/guestCart'
 import './CheckoutPage.css'
 
 export default function CheckoutSuccessPage() {
@@ -12,14 +13,19 @@ export default function CheckoutSuccessPage() {
   const [errorMessage, setErrorMessage] = useState('')
 
   useEffect(() => {
-    if (!customerToken) return
-
     const params = new URLSearchParams(window.location.hash.split('?')[1] || '')
     const sessionId = params.get('session_id')
 
     if (!sessionId) {
       setStatus('error')
       setErrorMessage('No session ID found. If you completed a payment, check your order history.')
+      return
+    }
+
+    if (!customerToken) {
+      clearGuestCart()
+      window.dispatchEvent(new Event('cart-updated'))
+      setStatus('guest-success')
       return
     }
 
@@ -41,18 +47,6 @@ export default function CheckoutSuccessPage() {
         }
       })
   }, [customerToken])
-
-  if (!customerToken) {
-    return (
-      <main className="checkout-page">
-        <section className="checkout-card">
-          <h2>Order Confirmation</h2>
-          <p>Please sign in to view your order.</p>
-          <a className="checkout-link" href="#/account/login">Sign in</a>
-        </section>
-      </main>
-    )
-  }
 
   return (
     <main className="checkout-page">
@@ -112,6 +106,21 @@ export default function CheckoutSuccessPage() {
             </p>
             <div className="checkout-success-actions">
               <a className="checkout-link" href="#/account">Check order history</a>
+            </div>
+          </div>
+        )}
+
+        {status === 'guest-success' && (
+          <div className="checkout-success-card">
+            <h2>Thank you for your order!</h2>
+            <p>Your payment was received successfully.</p>
+            <p className="checkout-success-contact">
+              If your order included a digital download, we will send it to the email you entered in Stripe.
+              For physical products, we will use the shipping address entered in Stripe.
+            </p>
+            <div className="checkout-success-actions">
+              <a className="checkout-link" href="#/product">Continue shopping</a>
+              <a className="checkout-link" href="#/account/login">Sign in to view order history</a>
             </div>
           </div>
         )}

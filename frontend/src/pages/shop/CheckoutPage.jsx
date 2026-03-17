@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import useCustomerAuth from '../../hooks/useCustomerAuth'
 import {
+  createGuestCheckoutSession,
   createCheckoutSession,
   fetchCustomerCartSummary,
   removeCustomerCartItem,
   updateCustomerCartItem,
 } from '../../services/api'
+import { readGuestCart, removeGuestCartItem } from '../../utils/guestCart'
 import LoadingMessage from '../../components/LoadingMessage'
 import './CheckoutPage.css'
 
@@ -88,6 +90,15 @@ export default function CheckoutPage() {
     }
   }
 
+  const loadGuestSummary = () => {
+    const items = readGuestCart()
+    setSummary({
+      items,
+      totals: computeLocalTotals(items),
+    })
+    setLoading(false)
+  }
+
   const syncSummarySilently = async () => {
     try {
       const data = await fetchCustomerCartSummary()
@@ -102,7 +113,12 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (!customerToken) {
-      return
+      loadGuestSummary()
+      const handleGuestCartRefresh = () => loadGuestSummary()
+      window.addEventListener('cart-updated', handleGuestCartRefresh)
+      return () => {
+        window.removeEventListener('cart-updated', handleGuestCartRefresh)
+      }
     }
     loadSummary()
   }, [customerToken])
@@ -140,6 +156,13 @@ export default function CheckoutPage() {
     })
     setStatus('')
 
+    if (!customerToken) {
+      removeGuestCartItem(itemId)
+      window.dispatchEvent(new Event('cart-updated'))
+      loadGuestSummary()
+      return
+    }
+
     try {
       await removeCustomerCartItem(itemId)
       window.dispatchEvent(new Event('cart-updated'))
@@ -154,7 +177,15 @@ export default function CheckoutPage() {
     setStatus('')
     setRedirecting(true)
     try {
-      const response = await createCheckoutSession()
+      const response = customerToken
+        ? await createCheckoutSession()
+        : await createGuestCheckoutSession({
+            items: (summary.items || []).map((item) => ({
+              product_type: item.product_type,
+              product_id: item.product_id,
+              quantity: item.quantity || 1,
+            })),
+          })
       const url = response?.url
       if (!url) throw new Error('No checkout URL returned.')
       window.location.href = url
@@ -163,18 +194,6 @@ export default function CheckoutPage() {
       setStatus(message)
       setRedirecting(false)
     }
-  }
-
-  if (!customerToken) {
-    return (
-      <main className="checkout-page">
-        <section className="checkout-card">
-          <h2>Checkout</h2>
-          <p>Please sign in to continue checkout.</p>
-          <a className="checkout-link" href="#/account/login">Go to Sign In</a>
-        </section>
-      </main>
-    )
   }
 
   return (
