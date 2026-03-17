@@ -16,6 +16,7 @@ import {
   updateAdminReview,
   createAdminReviewInviteCode,
   deleteAdminReviewInviteCode,
+  recoverAdminCheckoutSession,
   updateCustomer,
 } from "../../services/api.js";
 import TemplateManagement from "./TemplateManagement";
@@ -186,6 +187,9 @@ export default function AdminDashboard({
   const [reviewInviteCodes, setReviewInviteCodes] = useState([]);
   const [reviewInviteStatus, setReviewInviteStatus] = useState("");
   const [lastGeneratedReviewCode, setLastGeneratedReviewCode] = useState("");
+  const [checkoutRecoverySessionId, setCheckoutRecoverySessionId] = useState("");
+  const [checkoutRecoveryStatus, setCheckoutRecoveryStatus] = useState("");
+  const [isRecoveringCheckout, setIsRecoveringCheckout] = useState(false);
   const [reviewInviteForm, setReviewInviteForm] = useState({
     platform: "etsy",
     product_name: "",
@@ -1594,6 +1598,40 @@ export default function AdminDashboard({
     }
   };
 
+  const handleRecoverCheckoutSession = async (event) => {
+    event?.preventDefault?.();
+    const sessionId = String(checkoutRecoverySessionId || "").trim();
+    if (!sessionId) {
+      setCheckoutRecoveryStatus("Enter a Stripe checkout session ID.");
+      return;
+    }
+
+    setIsRecoveringCheckout(true);
+    setCheckoutRecoveryStatus("");
+    try {
+      const result = await recoverAdminCheckoutSession(sessionId);
+      const orderNumber = result?.order?.order_number;
+      const alreadyPlaced = Boolean(result?.already_placed);
+      const downloadsCount = Array.isArray(result?.downloads) ? result.downloads.length : 0;
+      const base = alreadyPlaced
+        ? `Session recovered: order already existed${orderNumber ? ` (${orderNumber})` : ""}.`
+        : `Session finalized successfully${orderNumber ? ` (${orderNumber})` : ""}.`;
+      const downloadsInfo = downloadsCount > 0
+        ? ` ${downloadsCount} download${downloadsCount === 1 ? "" : "s"} unlocked.`
+        : "";
+      setCheckoutRecoveryStatus(`${base}${downloadsInfo}`);
+    } catch (error) {
+      setCheckoutRecoveryStatus(
+        error?.response?.data?.detail
+        || error?.response?.data?.error
+        || error?.message
+        || "Failed to recover checkout session.",
+      );
+    } finally {
+      setIsRecoveringCheckout(false);
+    }
+  };
+
   return (
     <div className="admin-dashboard">
       <div className="dashboard-header">
@@ -1705,6 +1743,28 @@ export default function AdminDashboard({
         {activeTab === "products" && (
           <div className="tab-panel">
             {/* <AddEtsyListingForm onAddItem={onAddItem} /> */}
+
+            <div className="panel-section">
+              <h3>Stripe Recovery</h3>
+              <p className="form-note">Recover a paid checkout session by ID to finalize the order and unlock digital downloads.</p>
+              <form onSubmit={handleRecoverCheckoutSession} style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", alignItems: "center" }}>
+                <input
+                  type="text"
+                  value={checkoutRecoverySessionId}
+                  onChange={(event) => setCheckoutRecoverySessionId(event.target.value)}
+                  placeholder="cs_live_..."
+                  style={{ minWidth: "320px", flex: "1 1 380px" }}
+                />
+                <button
+                  type="submit"
+                  className="button primary"
+                  disabled={isRecoveringCheckout}
+                >
+                  {isRecoveringCheckout ? "Recovering..." : "Recover Session"}
+                </button>
+              </form>
+              {checkoutRecoveryStatus ? <p className="form-note" style={{ marginTop: "0.55rem" }}>{checkoutRecoveryStatus}</p> : null}
+            </div>
 
             <div className="panel-section">
               <h3>Add Manual Product</h3>

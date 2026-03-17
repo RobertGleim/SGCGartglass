@@ -525,6 +525,10 @@ def init_db(force=False):
         cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS last_emailed_at VARCHAR(50)")
         cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS created_at VARCHAR(50)")
         cursor.execute("ALTER TABLE customer_pattern_downloads ADD COLUMN IF NOT EXISTS updated_at VARCHAR(50)")
+        # Legacy Postgres schema can still have NOT NULL on template_id/manual_product_id.
+        # Manual digital unlock rows must allow template_id=NULL.
+        cursor.execute("ALTER TABLE customer_pattern_downloads ALTER COLUMN template_id DROP NOT NULL")
+        cursor.execute("ALTER TABLE customer_pattern_downloads ALTER COLUMN manual_product_id DROP NOT NULL")
         cursor.execute("UPDATE customer_pattern_downloads SET product_type = 'template' WHERE product_type IS NULL OR product_type = ''")
 
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_addresses_customer_default_created ON customer_addresses(customer_id, is_default DESC, created_at DESC)")

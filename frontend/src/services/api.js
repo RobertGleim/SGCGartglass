@@ -154,6 +154,8 @@ export const deleteAdminReview = (reviewId) => api.delete(`/admin/reviews/${revi
 export const fetchAdminReviewInviteCodes = (params = {}) => api.get('/admin/review-invite-codes', { params });
 export const createAdminReviewInviteCode = (payload) => api.post('/admin/review-invite-codes', payload);
 export const deleteAdminReviewInviteCode = (inviteId) => api.delete(`/admin/review-invite-codes/${inviteId}`);
+export const recoverAdminCheckoutSession = (sessionId) =>
+  api.post('/admin/checkout/session/recover', { session_id: sessionId });
 const extractAuthToken = (payload) => {
   if (!payload) return '';
   if (typeof payload === 'string') return payload;

@@ -1755,6 +1755,52 @@ def customer_checkout_session_confirm():
     return jsonify(result), 200 if result.get("already_placed") else 201
 
 
+@api.post("/admin/checkout/session/recover")
+@require_auth
+def admin_recover_checkout_session():
+    """Admin-only recovery action to finalize a paid Stripe session by ID."""
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    session_id = str(payload.get("session_id") or "").strip()
+    if not session_id:
+        return jsonify({"error": "missing_session_id"}), 400
+
+    stripe_secret, stripe_key_error = _resolve_stripe_secret_key()
+    if stripe_key_error:
+        return jsonify(stripe_key_error), 503
+
+    import stripe
+
+    stripe.api_key = stripe_secret
+
+    try:
+        session = stripe.checkout.Session.retrieve(
+            session_id,
+            expand=["line_items.data.price.product", "shipping_details", "customer_details"],
+        )
+    except Exception as exc:
+        current_app.logger.error("admin checkout recovery retrieve failed for %s: %s", session_id, exc)
+        return jsonify({"error": "session_retrieval_failed", "detail": str(exc)}), 502
+
+    if str(session.get("status") or "") != "complete" or str(session.get("payment_status") or "") != "paid":
+        return jsonify({
+            "error": "payment_not_complete",
+            "status": session.get("status"),
+            "payment_status": session.get("payment_status"),
+        }), 400
+
+    try:
+        result = _finalize_paid_checkout_session(session)
+    except Exception as exc:
+        current_app.logger.error("admin checkout recovery finalize failed for %s: %s", session_id, exc)
+        return jsonify({"error": "checkout_recovery_failed", "detail": str(exc)}), 500
+
+    return jsonify(result), 200 if result.get("already_placed") else 201
+
+
 @api.get("/customer/orders")
 @require_customer
 def customer_orders():
