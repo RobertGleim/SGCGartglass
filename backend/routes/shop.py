@@ -271,13 +271,10 @@ def _resolve_cart_product_snapshot(item):
 def _calculate_checkout_totals(items):
     item_count = sum(max(1, int(entry.get("quantity", 1))) for entry in items)
     subtotal = _as_money(sum(_as_money(entry.get("line_total")) for entry in items))
-    has_shippable_items = any(bool(entry.get("requires_shipping", True)) for entry in items)
-
-    free_shipping_min = _as_money(os.environ.get("CHECKOUT_FREE_SHIPPING_MIN", "50"))
-    flat_shipping = _as_money(os.environ.get("CHECKOUT_FLAT_SHIPPING", "9.99"))
+    _has_shippable_items = any(bool(entry.get("requires_shipping", True)) for entry in items)
     tax_rate = _as_money(os.environ.get("CHECKOUT_TAX_RATE", "0.0825"))  # 8.25% hardcoded default
 
-    shipping = 0.0 if subtotal <= 0 or not has_shippable_items or subtotal >= free_shipping_min else flat_shipping
+    shipping = 0.0
     tax = _as_money(subtotal * tax_rate)
     total = _as_money(subtotal + shipping + tax)
 

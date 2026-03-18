@@ -676,7 +676,7 @@ export default function GalleryManagement() {
       {status && <p className={styles.status}>{status}</p>}
 
       {showAddModal && (
-        <div className={styles.modalOverlay} onClick={closeAddModal}>
+        <div className={styles.modalOverlay}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3>Add Photo</h3>
@@ -802,7 +802,7 @@ export default function GalleryManagement() {
       )}
 
       {selectedGroup && (
-        <div className={styles.modalOverlay} onClick={closeGroupModal}>
+        <div className={styles.modalOverlay}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3>Edit Submission</h3>

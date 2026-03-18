@@ -640,14 +640,14 @@ export default function ProductDetail({ product, products = [] }) {
             <div className="policy-item">
               <span className="policy-icon">📦</span>
               <div>
-                <strong>Free shipping on orders over $50</strong>
+                <strong>Free shipping in USA</strong>
                 <p>Ships from United States</p>
               </div>
             </div>
             <div className="policy-item">
               <span className="policy-icon">↩️</span>
               <div>
-                <strong>45-day returns</strong>
+                <strong>30-day returns</strong>
                 <p>Buyers are responsible for return shipping</p>
               </div>
             </div>
@@ -748,7 +748,7 @@ export default function ProductDetail({ product, products = [] }) {
 
       {/* Image Zoom Modal */}
       {showZoom && (
-        <div className="zoom-modal" onClick={() => setShowZoom(false)}>
+        <div className="zoom-modal">
           <button className="zoom-close" onClick={() => setShowZoom(false)}>
             ×
           </button>

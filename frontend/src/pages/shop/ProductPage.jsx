@@ -593,7 +593,7 @@ export default function ProductPage({ products }) {
       </section>
 
       {showCustomOrderModal && (
-        <div className="shop-form-modal-overlay" onClick={() => setShowCustomOrderModal(false)}>
+        <div className="shop-form-modal-overlay">
           <div className="shop-form-modal" onClick={(event) => event.stopPropagation()}>
             <div className="shop-form-modal-header">
               <h3>Request Custom Order</h3>
@@ -626,7 +626,7 @@ export default function ProductPage({ products }) {
       )}
 
       {showContactModal && (
-        <div className="shop-form-modal-overlay" onClick={() => setShowContactModal(false)}>
+        <div className="shop-form-modal-overlay">
           <div className="shop-form-modal" onClick={(event) => event.stopPropagation()}>
             <div className="shop-form-modal-header">
               <h3>Contact Shop Owner</h3>

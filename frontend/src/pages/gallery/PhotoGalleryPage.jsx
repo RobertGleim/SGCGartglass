@@ -624,7 +624,7 @@ export default function PhotoGalleryPage() {
       )}
 
       {showSubmitModal && (
-        <div className={styles.modalOverlay} onClick={closeSubmitModal}>
+        <div className={styles.modalOverlay}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <button className={styles.closeBtn} type="button" onClick={closeSubmitModal}>×</button>
             <h2>Submit Gallery Photo</h2>
@@ -753,7 +753,7 @@ export default function PhotoGalleryPage() {
       )}
 
       {viewerOpen && viewerPhotos.length > 0 && (
-        <div className={styles.modalOverlay} onClick={closeViewer}>
+        <div className={styles.modalOverlay}>
           <div className={styles.viewerModal} onClick={(e) => e.stopPropagation()}>
             <button className={styles.closeBtn} type="button" onClick={closeViewer}>×</button>
             <div className={styles.viewerContent}>

@@ -21,7 +21,7 @@ export default function BottomSheet({ open, onClose, children }) {
   if (!open) return null;
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
+    <div className={styles.overlay}>
       <div
         className={expanded ? styles.sheetExpanded : styles.sheet}
         ref={sheetRef}

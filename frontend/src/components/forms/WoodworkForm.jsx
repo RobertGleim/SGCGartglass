@@ -182,7 +182,7 @@ export default function WoodworkForm({
   }
 
   return (
-    <div className="woodwork-modal-overlay" onClick={onClose}>
+    <div className="woodwork-modal-overlay">
       <div className="woodwork-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="woodwork-modal-header">
           <h2>{editingProduct ? 'Edit Woodwork' : 'Add Woodwork Product'}</h2>

@@ -561,6 +561,7 @@
   background: #f8fbff;
   display: grid;
   gap: 0.65rem;
+  min-width: 0;
 }
 
 .product-linking-section h4 {
@@ -572,6 +573,13 @@
 .product-linking-section label {
   display: grid;
   gap: 0.3rem;
+}
+
+.product-linking-section .form-note {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* ===== PASSWORD TOGGLE =====

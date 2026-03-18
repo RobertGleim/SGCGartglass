@@ -485,7 +485,7 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
 
   const modalContent = (
     <div className={styles.overlay}>
-      <div className={styles.backdrop} onClick={onClose} />
+      <div className={styles.backdrop} />
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close">×</button>
         <h2 className={styles.title}>{template ? 'Edit Template' : 'Add New Template'}</h2>

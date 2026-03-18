@@ -19,7 +19,7 @@ const computeLocalTotals = (items) => {
   const normalizedItems = Array.isArray(items) ? items : []
   const itemCount = normalizedItems.reduce((sum, item) => sum + Math.max(0, Number(item?.quantity) || 0), 0)
   const subtotal = normalizedItems.reduce((sum, item) => sum + toNumber(item?.line_total), 0)
-  const shipping = subtotal <= 0 ? 0 : subtotal >= 50 ? 0 : 9.99
+  const shipping = 0
   const tax = Math.round(subtotal * 0.0825 * 100) / 100
   const total = subtotal + shipping + tax
   return {
@@ -238,8 +238,8 @@ export default function CheckoutPage() {
                     <span>${Number(totals.subtotal || 0).toFixed(2)}</span>
                   </div>
                   <div className="checkout-summary-row">
-                    <span>Shipping</span>
-                    <span>{Number(totals.shipping || 0) === 0 ? 'Free' : `$${Number(totals.shipping).toFixed(2)}`}</span>
+                      <span>Free shipping (USA)</span>
+                      <span>Free</span>
                   </div>
                   <div className="checkout-summary-row">
                     <span>Tax (8.25%)</span>

@@ -92,9 +92,6 @@ export default function ReviewsPage() {
       purchased_at: '',
       purchase_source: 'etsy',
       purchase_source_other: '',
-      purchased_at: '',
-      purchase_source: 'etsy',
-      purchase_source_other: '',
       photo: null,
     })
   }

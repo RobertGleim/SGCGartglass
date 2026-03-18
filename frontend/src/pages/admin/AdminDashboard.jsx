@@ -536,6 +536,7 @@ export default function AdminDashboard({
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
   const categoryDropdownRef = useRef(null);
   const materialDropdownRef = useRef(null);
+  const openingCustomerIdRef = useRef(null);
   const [categoryInput, setCategoryInput] = useState("");
   const [materialInput, setMaterialInput] = useState("");
   const [imagePreviews, setImagePreviews] = useState([]);
@@ -1428,6 +1429,8 @@ export default function AdminDashboard({
   };
 
   const openCustomerEditModal = async (customer) => {
+    const customerId = customer.id;
+    openingCustomerIdRef.current = customerId;
     setEditingCustomer(customer);
     setCustomerStatus("Loading customer details...");
     setCustomerForm({
@@ -1448,6 +1451,7 @@ export default function AdminDashboard({
     });
     try {
       const templatesResponse = await getTemplates({ active: 1 });
+      if (openingCustomerIdRef.current !== customerId) return;
       const templateItems = Array.isArray(templatesResponse?.items)
         ? templatesResponse.items
         : Array.isArray(templatesResponse)
@@ -1458,6 +1462,7 @@ export default function AdminDashboard({
       );
 
       const details = await getCustomerDetails(customer.id);
+      if (openingCustomerIdRef.current !== customerId) return;
       const nextCustomer = details?.customer || customer;
       const primaryAddress =
         (Array.isArray(details?.addresses)
@@ -1494,6 +1499,7 @@ export default function AdminDashboard({
         new_template_category: "",
       });
     } catch (error) {
+      if (openingCustomerIdRef.current !== customerId) return;
       const message =
         error?.response?.data?.error || error?.message || "Unable to load address details.";
       setCustomerStatus(`Error: ${message}`);
@@ -1501,6 +1507,7 @@ export default function AdminDashboard({
   };
 
   const closeCustomerEditModal = () => {
+    openingCustomerIdRef.current = null;
     setEditingCustomer(null);
     setCustomerStatus("");
     setIsSavingCustomer(false);
@@ -1821,13 +1828,21 @@ export default function AdminDashboard({
                       </td>
                       <td>{c.email}</td>
                       <td>{c.phone || "-"}</td>
-                      <td>
+                      <td style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                         <button
                           type="button"
                           className="button"
                           onClick={() => openCustomerEditModal(c)}
                         >
                           Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="button"
+                          title={`Email ${c.email}`}
+                          onClick={() => window.open(`https://mail.hostinger.com/v2/compose?to=${encodeURIComponent(c.email || '')}`, '_blank', 'noopener,noreferrer')}
+                        >
+                          Email
                         </button>
                       </td>
                     </tr>
@@ -2429,7 +2444,7 @@ export default function AdminDashboard({
         className={`product-form-wrapper product-form-${PRODUCT_TYPE_CONFIG.find((entry) => entry.key === productType)?.theme || "stainedGlass"}`}
       >
         {showManualProductModal && (
-          <div className="modal-overlay" onClick={handleCloseModal}>
+          <div className="modal-overlay">
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <h2>
@@ -3206,7 +3221,7 @@ export default function AdminDashboard({
       </div>
 
       {editingCustomer && (
-        <div className="modal-overlay" onClick={closeCustomerEditModal}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Edit Customer</h2>

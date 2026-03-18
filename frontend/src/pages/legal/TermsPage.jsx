@@ -26,9 +26,7 @@ export default function TermsPage() {
           <li>
             <h2>Shipping and Delivery</h2>
             <p>
-              SGCG offers free standard shipping within the continental United States via USPS
-              Ground. Orders shipped to Alaska and Puerto Rico will incur an additional shipping
-              charge. Please contact us before completing your purchase for a quote.
+              SGCG offers free standard shipping within the United States via USPS Ground.
             </p>
             <ul>
               <li>A tracking number will be emailed to you upon shipment.</li>

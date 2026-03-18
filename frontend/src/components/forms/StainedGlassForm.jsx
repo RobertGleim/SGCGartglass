@@ -165,7 +165,7 @@ export default function StainedGlassForm({
   }
 
   return (
-    <div className="stainedglass-modal-overlay" onClick={onClose}>
+    <div className="stainedglass-modal-overlay">
       <div className="stainedglass-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="stainedglass-modal-header">
           <h2>{editingProduct ? 'Edit Stained Glass' : 'Add Stained Glass Product'}</h2>

@@ -333,7 +333,7 @@ export default function AdminInvoicesDashboard() {
       </div>
 
       {selectedInvoice && modalDraft && (
-        <div className="invoice-modal-backdrop" onClick={closeInvoiceDetails}>
+        <div className="invoice-modal-backdrop">
           <div className="invoice-modal" onClick={(e) => e.stopPropagation()}>
             <div className="invoice-modal-header">
               <h3>Invoice Details</h3>

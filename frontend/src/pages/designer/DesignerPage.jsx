@@ -3912,7 +3912,7 @@ export default function DesignerPage() {
 
       {/* ── Submit Work Order Modal ─────────────────── */}
       {submitModal && (
-        <div className={styles.modalOverlay} onClick={() => setSubmitModal(false)}>
+        <div className={styles.modalOverlay}>
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
             <button className={styles.closeModal} onClick={() => setSubmitModal(false)}>×</button>
             <h2>Submit Work Order</h2>

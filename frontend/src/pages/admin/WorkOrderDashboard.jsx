@@ -355,6 +355,7 @@ export default function WorkOrderDashboard() {
   const [shippingOrders, setShippingOrders] = useState([]);
   const [shippingLoading, setShippingLoading] = useState(true);
   const [updatingShippingOrderId, setUpdatingShippingOrderId] = useState(null);
+  const [shippingTab, setShippingTab] = useState('active');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [customerSearch, setCustomerSearch] = useState('');
@@ -693,64 +694,97 @@ export default function WorkOrderDashboard() {
         <p className={styles.shippingNote}>
           Stripe-paid physical product orders appear here automatically. Mark as shipped, then complete to archive.
         </p>
+
+        {/* Tab bar */}
+        <div className={styles.shippingTabBar}>
+          <button
+            className={`${styles.shippingTabBtn} ${shippingTab === 'active' ? styles.shippingTabBtnActive : ''}`}
+            onClick={() => setShippingTab('active')}
+          >
+            Active
+            {(() => { const n = shippingOrders.filter(o => String(o?.shipping_status || 'need_to_ship') !== 'completed').length; return n > 0 ? <span className={styles.shippingTabCount}>{n}</span> : null; })()}
+          </button>
+          <button
+            className={`${styles.shippingTabBtn} ${shippingTab === 'archived' ? styles.shippingTabBtnActive : ''}`}
+            onClick={() => setShippingTab('archived')}
+          >
+            Archived
+            {(() => { const n = shippingOrders.filter(o => String(o?.shipping_status || '') === 'completed').length; return n > 0 ? <span className={styles.shippingTabCount}>{n}</span> : null; })()}
+          </button>
+        </div>
+
         {shippingLoading ? (
           <LoadingMessage label="Loading shipping queue" />
-        ) : shippingOrders.length === 0 ? (
-          <div className={styles.shippingEmpty}>No paid physical orders waiting to ship.</div>
-        ) : (
-          <table className={styles.shippingTable}>
-            <thead>
-              <tr>
-                <th>Order #</th>
-                <th>Customer</th>
-                <th>Email</th>
-                <th>Items</th>
-                <th>Total</th>
-                <th>Placed</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shippingOrders.map((order) => {
-                const orderId = Number(order?.id || 0);
-                const status = String(order?.shipping_status || 'need_to_ship');
-                const isUpdating = updatingShippingOrderId === orderId;
-                return (
-                  <tr key={orderId || `${order?.order_number || 'order'}-${order?.created_at || 'unknown'}`}>
-                    <td>{order?.order_number || orderId || '-'}</td>
-                    <td>{order?.customer_name || 'Customer'}</td>
-                    <td>{order?.customer_email || '-'}</td>
-                    <td>{Number(order?.physical_item_count || order?.item_count || 0)}</td>
-                    <td>${Number(order?.total_amount || 0).toFixed(2)}</td>
-                    <td>{order?.created_at ? new Date(order.created_at).toLocaleString() : '-'}</td>
-                    <td>
-                      <span className={`${styles.shippingStatus} ${styles[`shippingStatus_${status}`] || ''}`}>
-                        {SHIPPING_STATUS_LABELS[status] || status}
-                      </span>
-                    </td>
-                    <td>
-                      <div className={styles.shippingActions}>
-                        <button
-                          onClick={() => handleShippingStatusUpdate(order, 'shipped')}
-                          disabled={isUpdating || status !== 'need_to_ship'}
-                        >
-                          {isUpdating && status === 'need_to_ship' ? 'Saving...' : 'Mark Shipped'}
-                        </button>
-                        <button
-                          onClick={() => handleShippingStatusUpdate(order, 'completed')}
-                          disabled={isUpdating || status !== 'shipped'}
-                        >
-                          {isUpdating && status === 'shipped' ? 'Saving...' : 'Complete'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
+        ) : (() => {
+          const visibleOrders = shippingOrders.filter((o) =>
+            shippingTab === 'archived'
+              ? String(o?.shipping_status || '') === 'completed'
+              : String(o?.shipping_status || 'need_to_ship') !== 'completed'
+          );
+          if (visibleOrders.length === 0) {
+            return (
+              <div className={styles.shippingEmpty}>
+                {shippingTab === 'archived' ? 'No archived orders.' : 'No active orders waiting to ship.'}
+              </div>
+            );
+          }
+          return (
+            <table className={styles.shippingTable}>
+              <thead>
+                <tr>
+                  <th>Order #</th>
+                  <th>Customer</th>
+                  <th>Email</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Placed</th>
+                  <th>Status</th>
+                  {shippingTab === 'active' && <th>Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {visibleOrders.map((order) => {
+                  const orderId = Number(order?.id || 0);
+                  const status = String(order?.shipping_status || 'need_to_ship');
+                  const isUpdating = updatingShippingOrderId === orderId;
+                  return (
+                    <tr key={orderId || `${order?.order_number || 'order'}-${order?.created_at || 'unknown'}`}>
+                      <td>{order?.order_number || orderId || '-'}</td>
+                      <td>{order?.customer_name || 'Customer'}</td>
+                      <td>{order?.customer_email || '-'}</td>
+                      <td>{Number(order?.physical_item_count || order?.item_count || 0)}</td>
+                      <td>${Number(order?.total_amount || 0).toFixed(2)}</td>
+                      <td>{order?.created_at ? new Date(order.created_at).toLocaleString() : '-'}</td>
+                      <td>
+                        <span className={`${styles.shippingStatus} ${styles[`shippingStatus_${status}`] || ''}`}>
+                          {SHIPPING_STATUS_LABELS[status] || status}
+                        </span>
+                      </td>
+                      {shippingTab === 'active' && (
+                        <td>
+                          <div className={styles.shippingActions}>
+                            <button
+                              onClick={() => handleShippingStatusUpdate(order, 'shipped')}
+                              disabled={isUpdating || status !== 'need_to_ship'}
+                            >
+                              {isUpdating && status === 'need_to_ship' ? 'Saving...' : 'Mark Shipped'}
+                            </button>
+                            <button
+                              onClick={() => handleShippingStatusUpdate(order, 'completed')}
+                              disabled={isUpdating || status !== 'shipped'}
+                            >
+                              {isUpdating && status === 'shipped' ? 'Saving...' : 'Complete'}
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          );
+        })()}
       </section>
 
       <div className={styles.summary}>
@@ -845,7 +879,7 @@ export default function WorkOrderDashboard() {
 
       {/* Preview Modal */}
       {selectedOrder && (
-        <div className={styles.modalOverlay} onClick={closePreview}>
+        <div className={styles.modalOverlay}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <button className={styles.closeBtn} onClick={closePreview}>&times;</button>
             <h2>Work Order: {selectedOrder.work_order_number || `#${selectedOrder.id}`}</h2>
