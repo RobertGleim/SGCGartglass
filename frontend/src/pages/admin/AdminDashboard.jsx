@@ -243,7 +243,6 @@ export default function AdminDashboard({
     { key: "fusedArt", label: "Fused Art", theme: "stainedGlass" },
     { key: "laserAndSandblasting", label: "Laser and Sandblasting", theme: "stainedGlass" },
     { key: "woodArt", label: "Wood Art", theme: "woodwork" },
-    { key: "patterns", label: "Patterns", theme: "stainedGlass" },
   ];
 
   const PRODUCT_TYPE_LABEL_BY_KEY = PRODUCT_TYPE_CONFIG.reduce(
@@ -681,6 +680,7 @@ export default function AdminDashboard({
   const [addImagesToGallery, setAddImagesToGallery] = useState(false);
   const [templateRefPhotos, setTemplateRefPhotos] = useState([]);
   const [templateNameManuallyEdited, setTemplateNameManuallyEdited] = useState(false);
+  const [patternOnly, setPatternOnly] = useState(false);
   const [isSavingManualProduct, setIsSavingManualProduct] = useState(false);
 
   const activeFavoriteCategories = favoriteCategoriesByType[productType] || [];
@@ -991,6 +991,8 @@ export default function AdminDashboard({
   const galleryOptionCount = productGalleryOptions.length;
   const isProductSectionEnabled = true;
   const isTemplateSectionEnabled = true;
+  const templateNameFilled = Boolean(String(unifiedTemplate.name || "").trim());
+  const shouldRequireProductFields = isProductSectionEnabled && (editingProduct || !templateNameFilled);
 
   const closeFavoriteDropdowns = () => {
     setShowCategoryDropdown(false);
@@ -1240,16 +1242,32 @@ export default function AdminDashboard({
       return;
     }
 
-    const shouldCreateTemplate = !editingProduct && Boolean(unifiedTemplate.upload_file);
-    const creatingTemplateOnly = !editingProduct && !isProductSectionEnabled && shouldCreateTemplate;
-    const creatingBoth = !editingProduct && isProductSectionEnabled && shouldCreateTemplate;
+    const shouldCreateTemplate = !editingProduct && Boolean(unifiedTemplate.upload_file) && !patternOnly;
+    const hasProductName = Boolean(String(manualProduct.name || "").trim());
+    const shouldSaveProduct = isProductSectionEnabled && (editingProduct || hasProductName);
+    const creatingTemplateOnly = !editingProduct && !shouldSaveProduct && shouldCreateTemplate;
+    const creatingBoth = !editingProduct && shouldSaveProduct && shouldCreateTemplate;
     const shouldCreatePatternCopy =
       !editingProduct
-      && Boolean(manualProduct.is_digital_download)
+      && (patternOnly || Boolean(manualProduct.is_digital_download))
       && selectedTypeCategory !== "patterns";
+    const creatingPatternOnly = !editingProduct && !shouldSaveProduct && !shouldCreateTemplate && shouldCreatePatternCopy;
 
     if (!isProductSectionEnabled && !isTemplateSectionEnabled) {
       setStatus("Select at least one section to save.");
+      return;
+    }
+
+    if (!editingProduct && !shouldSaveProduct && !shouldCreateTemplate && !shouldCreatePatternCopy) {
+      setStatus("Add a product name, upload a template/pattern file, or enable Pattern only.");
+      return;
+    }
+
+    if (
+      unifiedTemplate.is_digital_download
+      && (!String(unifiedTemplate.price_amount).trim() || Number(unifiedTemplate.price_amount) < 0.5)
+    ) {
+      setStatus("Digital downloads require a price of at least $0.50.");
       return;
     }
 
@@ -1264,13 +1282,6 @@ export default function AdminDashboard({
       }
       if (unifiedTemplate.upload_file.size > MAX_TEMPLATE_UPLOAD_BYTES) {
         setStatus("Digital template file is too large (max 50 MB).");
-        return;
-      }
-      if (
-        unifiedTemplate.is_digital_download
-        && (!String(unifiedTemplate.price_amount).trim() || Number(unifiedTemplate.price_amount) < 0.5)
-      ) {
-        setStatus("Digital templates require a price of at least $0.50.");
         return;
       }
     }
@@ -1347,7 +1358,7 @@ export default function AdminDashboard({
         }
       }
 
-      if (isProductSectionEnabled) {
+      if (shouldSaveProduct) {
       // Convert File objects to data URLs for images
         processedImages = [];
 
@@ -1511,7 +1522,7 @@ export default function AdminDashboard({
           })(),
           quantity: parseInt(manualProduct.quantity, 10),
           is_featured: manualProduct.is_featured,
-          is_digital_download: Boolean(manualProduct.is_digital_download),
+          is_digital_download: Boolean(unifiedTemplate.is_digital_download) || selectedTypeCategory === "patterns" || patternOnly,
           related_links: {
             template_id: relatedLinks.template_id
               ? Number(relatedLinks.template_id)
@@ -1540,7 +1551,7 @@ export default function AdminDashboard({
         }
       }
 
-      if (shouldCreatePatternCopy && savedProduct?.id) {
+      if (shouldCreatePatternCopy) {
         const patternTypeLabel = PRODUCT_TYPE_LABEL_BY_KEY.patterns || "Patterns";
         const nonTypeCategories = removeTypeCategories(manualProduct.category || []);
         const existingPatternId = relatedLinks.pattern_product_id
@@ -1573,8 +1584,27 @@ export default function AdminDashboard({
             return mediaType !== "video";
           });
 
+        if (patternImages.length === 0 && unifiedTemplate.upload_file) {
+          const uploadFile = (() => {
+            const fileName = String(unifiedTemplate.upload_file?.name || "").toLowerCase();
+            const isPdf = fileName.endsWith(".pdf") || unifiedTemplate.upload_file?.type === "application/pdf";
+            return isPdf ? null : unifiedTemplate.upload_file;
+          })();
+          if (uploadFile && String(uploadFile.type || "").startsWith("image/")) {
+            const dataUrl = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = (e) => resolve(e.target.result);
+              reader.readAsDataURL(uploadFile);
+            });
+            patternImages.push({
+              url: dataUrl,
+              type: "image",
+            });
+          }
+        }
+
         const patternProductData = {
-          name: String(manualProduct.name || "").trim(),
+          name: String(manualProduct.name || unifiedTemplate.name || "Pattern").trim(),
           description: String(manualProduct.description || "").trim(),
           category: [patternTypeLabel, ...nonTypeCategories],
           materials: manualProduct.materials.length > 0 ? manualProduct.materials : null,
@@ -1598,7 +1628,7 @@ export default function AdminDashboard({
             template_id: relatedLinks.template_id ? Number(relatedLinks.template_id) : (createdTemplate?.id || null),
             template_name: relatedLinks.template_name || (createdTemplate?.name || unifiedTemplate.name || null),
             pattern_product_id: existingPatternId,
-            pattern_product_name: String(manualProduct.name || "").trim() || null,
+            pattern_product_name: String(manualProduct.name || unifiedTemplate.name || "").trim() || null,
             gallery_photo_id: null,
             gallery_panel_name: null,
             gallery_template_id: null,
@@ -1615,17 +1645,19 @@ export default function AdminDashboard({
             savedPatternProduct.name || patternProductData.name || "",
           ).trim();
 
-          await onUpdateManualProduct(savedProduct.id, {
-            related_links: {
-              template_id: relatedLinks.template_id ? Number(relatedLinks.template_id) : null,
-              template_name: relatedLinks.template_name || null,
-              pattern_product_id: relatedLinks.pattern_product_id ? Number(relatedLinks.pattern_product_id) : null,
-              pattern_product_name: relatedLinks.pattern_product_name || null,
-              gallery_photo_id: relatedLinks.gallery_photo_id ? Number(relatedLinks.gallery_photo_id) : null,
-              gallery_panel_name: relatedLinks.gallery_panel_name || null,
-              gallery_template_id: relatedLinks.gallery_template_id ? Number(relatedLinks.gallery_template_id) : null,
-            },
-          });
+          if (savedProduct?.id) {
+            await onUpdateManualProduct(savedProduct.id, {
+              related_links: {
+                template_id: relatedLinks.template_id ? Number(relatedLinks.template_id) : null,
+                template_name: relatedLinks.template_name || null,
+                pattern_product_id: relatedLinks.pattern_product_id ? Number(relatedLinks.pattern_product_id) : null,
+                pattern_product_name: relatedLinks.pattern_product_name || null,
+                gallery_photo_id: relatedLinks.gallery_photo_id ? Number(relatedLinks.gallery_photo_id) : null,
+                gallery_panel_name: relatedLinks.gallery_panel_name || null,
+                gallery_template_id: relatedLinks.gallery_template_id ? Number(relatedLinks.gallery_template_id) : null,
+              },
+            });
+          }
         }
       }
 
@@ -1738,6 +1770,8 @@ export default function AdminDashboard({
         setStatus("Digital template and product listing created successfully!");
       } else if (creatingTemplateOnly) {
         setStatus("Digital template created successfully!");
+      } else if (creatingPatternOnly) {
+        setStatus("Pattern-only listing created successfully!");
       } else if (!editingProduct) {
         setStatus("Manual product added successfully!");
       }
@@ -1757,6 +1791,7 @@ export default function AdminDashboard({
         setAddImagesToGallery(false);
         setTemplateRefPhotos([]);
         setTemplateNameManuallyEdited(false);
+        setPatternOnly(false);
       }
       await loadManualProductLinkOptions();
     } catch (error) {
@@ -1860,6 +1895,7 @@ export default function AdminDashboard({
     setMaterialInput("");
     setShowManualProductModal(true);
     setTemplateNameManuallyEdited(false);
+    setPatternOnly(false);
   };
 
   const handleDeleteProduct = async (product) => {
@@ -2073,6 +2109,7 @@ export default function AdminDashboard({
     setAddImagesToGallery(false);
     setTemplateRefPhotos([]);
     setTemplateNameManuallyEdited(false);
+    setPatternOnly(false);
   };
 
   const openCustomerEditModal = async (customer) => {
@@ -2700,6 +2737,13 @@ export default function AdminDashboard({
                     {typeEntry.label}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  className={`button ${manualProductTypeFilter === "patterns" ? "primary" : ""}`}
+                  onClick={() => setManualProductTypeFilter("patterns")}
+                >
+                  Patterns
+                </button>
               </div>
               <div className="search-box-container">
                 <input
@@ -3111,7 +3155,7 @@ export default function AdminDashboard({
                   <div className="ap-section ap-section-1">
                     <h4 className="ap-section-title">🛍️ Section 1 — Product Listing</h4>
                 <label>
-                  Product Name *
+                  Product Name {shouldRequireProductFields ? "*" : ""}
                   <input
                     type="text"
                     value={manualProduct.name}
@@ -3122,7 +3166,7 @@ export default function AdminDashboard({
                       })
                     }
                     placeholder="Enter product name"
-                    required={isProductSectionEnabled}
+                    required={shouldRequireProductFields}
                   />
                 </label>
 
@@ -3169,53 +3213,6 @@ export default function AdminDashboard({
                     </div>
                   </div>
                 </label>
-
-                <label>
-                  Product Delivery Type
-                  <div className="multi-select-wrapper">
-                    <div className="multi-select-inner">
-                      <div className="multi-select-row">
-                        <label className="checkbox-label" style={{ marginBottom: 0 }}>
-                          <input
-                            type="checkbox"
-                            checked={!manualProduct.is_digital_download}
-                            disabled={selectedTypeCategory === "patterns"}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setManualProduct((prev) => ({
-                                  ...prev,
-                                  is_digital_download: false,
-                                }));
-                              }
-                            }}
-                          />
-                          <span>Physical Product (requires shipping)</span>
-                        </label>
-                        <label className="checkbox-label" style={{ marginBottom: 0 }}>
-                          <input
-                            type="checkbox"
-                            checked={Boolean(manualProduct.is_digital_download)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setManualProduct((prev) => ({
-                                  ...prev,
-                                  is_digital_download: true,
-                                }));
-                              }
-                            }}
-                          />
-                          <span>Digital Product (instant download)</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                </label>
-
-                {selectedTypeCategory === "patterns" && (
-                  <p className="form-note">
-                    Pattern products are automatically treated as digital downloads. They unlock after Stripe payment and do not require shipping.
-                  </p>
-                )}
 
                 <label>
                   Categories
@@ -3612,7 +3609,7 @@ export default function AdminDashboard({
 
                 <div className="price-quantity-inputs">
                   <label>
-                    Price (regular) *
+                    Price (regular) {shouldRequireProductFields ? "*" : ""}
                     <input
                       type="number"
                       step="0.01"
@@ -3626,7 +3623,7 @@ export default function AdminDashboard({
                       }
                       placeholder="0.00"
                       style={{ width: "130px" }}
-                      required={isProductSectionEnabled}
+                      required={shouldRequireProductFields}
                     />
                   </label>
                   <label>
@@ -3663,7 +3660,7 @@ export default function AdminDashboard({
                     />
                   </label>
                   <label>
-                    Quantity *
+                    Quantity {shouldRequireProductFields ? "*" : ""}
                     <input
                       type="number"
                       min="0"
@@ -3675,7 +3672,7 @@ export default function AdminDashboard({
                         })
                       }
                       placeholder="0"
-                      required={isProductSectionEnabled}
+                      required={shouldRequireProductFields}
                     />
                   </label>
                 </div>
@@ -3702,8 +3699,19 @@ export default function AdminDashboard({
                   <div className="ap-section ap-section-2">
                     <h4 className="ap-section-title">📐 Section 2 — Digital Template</h4>
                     <p className="form-note">
-                      Upload the digital template — it saves to Templates and auto-links to the new product.
+                      {patternOnly
+                        ? "Upload the pattern file — it saves to the Patterns tab only and auto-links to the new product."
+                        : "Upload the digital template — it saves to Templates and auto-links to the new product."}
                     </p>
+
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={patternOnly}
+                        onChange={(e) => setPatternOnly(e.target.checked)}
+                      />
+                      <span>Pattern only (adds to Patterns tab only, not to Designer/Templates)</span>
+                    </label>
 
                     <label>
                       Template Name *
@@ -3802,7 +3810,7 @@ export default function AdminDashboard({
                             }))
                           }
                           placeholder="0.00"
-                          required={Boolean(unifiedTemplate.upload_file && unifiedTemplate.is_digital_download)}
+                          required={Boolean(unifiedTemplate.is_digital_download)}
                         />
                       </label>
                     )}
@@ -3878,9 +3886,9 @@ export default function AdminDashboard({
                           {isTemplateSectionEnabled && (
                             <>
                               <hr className="ap-section-divider" />
-                              <p className="form-note">Upload the template file and up to 3 reference photos.</p>
+                              <p className="form-note">Upload the {patternOnly ? "pattern" : "template"} file and up to 3 reference photos.</p>
                               <label>
-                                Upload Template File *
+                                {patternOnly ? "Upload Pattern File *" : "Upload Template File *"}
                                 <input
                                   type="file"
                                   accept=".svg,.pdf,.jpg,.jpeg,.png"

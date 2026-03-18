@@ -1217,7 +1217,8 @@
 .modal-form input[type="text"],
 .modal-form input[type="number"],
 .modal-form input[type="file"],
-.modal-form textarea {
+.modal-form textarea,
+.modal-form select {
   padding: 0.75rem 1rem;
   border-radius: 12px;
   border: 1px solid #d7dbe4;
@@ -1228,6 +1229,7 @@
 }
 
 .modal-form input:focus,
+.modal-form select:focus,
 .modal-form textarea:focus {
   outline: none;
   border-color: #1f4ea1;

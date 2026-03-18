@@ -3,6 +3,7 @@ import threading
 import json
 import re
 import secrets
+import time
 from datetime import datetime, timedelta
 
 try:
@@ -163,9 +164,21 @@ def get_db():
         if conninfo.startswith("postgres://"):
             conninfo = conninfo.replace("postgres://", "postgresql://", 1)
 
-        conn = psycopg.connect(conninfo, row_factory=dict_row)
-        conn.autocommit = False
-        return conn
+        last_error = None
+        for attempt in range(3):
+            try:
+                conn = psycopg.connect(conninfo, row_factory=dict_row, connect_timeout=5)
+                conn.autocommit = False
+                return conn
+            except psycopg.OperationalError as exc:
+                last_error = exc
+                if attempt < 2:
+                    time.sleep(0.6 * (attempt + 1))
+                    continue
+                raise
+
+        if last_error is not None:
+            raise last_error
     raise RuntimeError("DATABASE_URL (or POSTGRES_URL) must point to PostgreSQL.")
 
 
