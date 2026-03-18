@@ -1,4 +1,7 @@
+import { useEffect, useMemo, useState } from 'react'
 import './ProductCard.css'
+
+const templateImageCache = new Map()
 
 const toCategoryList = (category) => {
   if (Array.isArray(category)) return category
@@ -45,24 +48,93 @@ const toCleanUrl = (value) => {
   return unquoted
 }
 
-const resolveCardImageUrl = (product) => {
-  const candidates = [
+const normalizeResolvedUrl = (value) => {
+  const url = toCleanUrl(value)
+  if (!url) return ''
+  if (url.startsWith('data:') || url.startsWith('blob:')) return url
+
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    // Prevent mixed-content failures when APIs return http URLs on https pages.
+    if (typeof window !== 'undefined' && window.location?.protocol === 'https:' && url.startsWith('http://')) {
+      try {
+        const parsed = new URL(url)
+        if (parsed.hostname === window.location.hostname) {
+          return `https://${parsed.host}${parsed.pathname}${parsed.search}${parsed.hash}`
+        }
+      } catch {
+        // Keep original absolute URL when parsing fails.
+      }
+    }
+    return url
+  }
+
+  if (url.startsWith('/')) return url
+  return `/${url.replace(/^\.?\//, '')}`
+}
+
+const toTemplatePathFallbacks = (url) => {
+  if (!url || url.startsWith('data:') || url.startsWith('blob:')) return []
+  if (!url.startsWith('/uploads/templates/')) return []
+
+  const withoutQuery = url.split('?')[0]
+  if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(withoutQuery)) return []
+
+  return [
+    `${withoutQuery}.png`,
+    `${withoutQuery}.jpg`,
+    `${withoutQuery}.jpeg`,
+    `${withoutQuery}.webp`,
+  ]
+}
+
+const dedupeUrls = (urls) => {
+  const seen = new Set()
+  return urls.filter((entry) => {
+    const value = String(entry || '')
+    if (!value || seen.has(value)) return false
+    seen.add(value)
+    return true
+  })
+}
+
+const resolveCardImageCandidates = (product) => {
+  const rawCandidates = [
     product?.image_url,
     product?.thumbnail_url,
     product?.originalData?.images?.[0]?.image_url,
     product?.originalData?.image_url,
   ]
 
-  for (const candidate of candidates) {
-    const url = toCleanUrl(candidate)
-    if (!url) continue
-    if (url.startsWith('data:') || url.startsWith('blob:')) return url
-    if (url.startsWith('http://') || url.startsWith('https://')) return url
-    if (url.startsWith('/')) return url
-    return `/${url}`
+  const normalized = rawCandidates
+    .map((entry) => normalizeResolvedUrl(entry))
+    .filter(Boolean)
+
+  const extended = normalized.flatMap((entry) => [entry, ...toTemplatePathFallbacks(entry)])
+  return dedupeUrls(extended)
+}
+
+const fetchTemplateFallbackImageUrl = async (templateId) => {
+  const key = String(templateId || '').trim()
+  if (!key) return ''
+  if (templateImageCache.has(key)) {
+    return templateImageCache.get(key) || ''
   }
 
-  return ''
+  try {
+    const response = await fetch(`/api/templates/${encodeURIComponent(key)}`)
+    if (!response.ok) {
+      templateImageCache.set(key, '')
+      return ''
+    }
+
+    const payload = await response.json()
+    const resolved = normalizeResolvedUrl(payload?.thumbnail_url || payload?.image_url)
+    templateImageCache.set(key, resolved || '')
+    return resolved || ''
+  } catch {
+    templateImageCache.set(key, '')
+    return ''
+  }
 }
 
 export default function ProductCard({ product }) {
@@ -81,15 +153,59 @@ export default function ProductCard({ product }) {
     && Boolean(linkedPatternId)
     && (!manualProductId || linkedPatternId !== manualProductId)
   const shouldShowInstantDownload = isDigitalDownload || isPatternProduct
-  const cardImageUrl = resolveCardImageUrl(product)
+  const linkedTemplateId = String(product?.originalData?.related_links?.template_id || '').trim()
+  const imageCandidates = useMemo(() => resolveCardImageCandidates(product), [product])
+  const [candidateIndex, setCandidateIndex] = useState(0)
+  const [templateFallbackUrl, setTemplateFallbackUrl] = useState('')
+  const [hasRequestedTemplateFallback, setHasRequestedTemplateFallback] = useState(false)
+  const [imageExhausted, setImageExhausted] = useState(false)
+
+  useEffect(() => {
+    setCandidateIndex(0)
+    setTemplateFallbackUrl('')
+    setHasRequestedTemplateFallback(false)
+    setImageExhausted(false)
+  }, [product?.id, imageCandidates])
+
+  const activeImageUrl = imageExhausted
+    ? ''
+    : (templateFallbackUrl || imageCandidates[candidateIndex] || '')
+
+  const handleCardImageError = () => {
+    if (templateFallbackUrl) {
+      setTemplateFallbackUrl('')
+    }
+
+    if (candidateIndex < imageCandidates.length - 1) {
+      setCandidateIndex((prev) => prev + 1)
+      return
+    }
+
+    if (!hasRequestedTemplateFallback && linkedTemplateId) {
+      setHasRequestedTemplateFallback(true)
+      fetchTemplateFallbackImageUrl(linkedTemplateId).then((fallbackUrl) => {
+        if (fallbackUrl) {
+          const normalizedFallback = normalizeResolvedUrl(fallbackUrl)
+          if (normalizedFallback && !imageCandidates.includes(normalizedFallback)) {
+            setTemplateFallbackUrl(normalizedFallback)
+            return
+          }
+        }
+        setImageExhausted(true)
+      })
+      return
+    }
+
+    setImageExhausted(true)
+  }
 
   return (
     <a href={`#/product/${product.id}`} className="product-card-link">
       <article className="product-card">
         <div className="card-image">
           {hasDiscount && <span className="sale-badge">On Sale</span>}
-          {cardImageUrl ? (
-            <img src={cardImageUrl} alt={product.title || 'Glass art'} />
+          {activeImageUrl ? (
+            <img src={activeImageUrl} alt={product.title || 'Glass art'} onError={handleCardImageError} />
           ) : (
             <div className="image-placeholder">No image</div>
           )}
