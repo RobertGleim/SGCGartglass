@@ -104,6 +104,17 @@
   -ms-overflow-style: none;
 }
 
+.product-form-wrapper .modal-content {
+  overflow-x: hidden;
+}
+
+.product-form-wrapper .modal-form select,
+.product-form-wrapper .modal-form input,
+.product-form-wrapper .modal-form textarea {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 .product-form-wrapper .modal-overlay::-webkit-scrollbar,
 .product-form-wrapper .modal-content::-webkit-scrollbar,
 .product-form-wrapper .custom-dropdown-menu::-webkit-scrollbar {
@@ -573,6 +584,12 @@
 .product-linking-section label {
   display: grid;
   gap: 0.3rem;
+}
+
+.product-linking-section select {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .product-linking-section .form-note {

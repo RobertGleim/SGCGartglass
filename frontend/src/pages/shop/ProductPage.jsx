@@ -101,6 +101,11 @@ const removeTypeCategories = (categories) => {
   return categories.filter((entry) => !isTypeCategory(entry))
 }
 
+const VALID_SHOP_TABS = new Set([
+  ...PRODUCT_TABS.map((tab) => tab.key),
+  'bargin-basement',
+])
+
 const inferLegacyType = (product) => {
   const categoryText = normalizeText(product.category)
   const materialsText = normalizeText(product.materials)
@@ -238,11 +243,27 @@ export default function ProductPage({ products }) {
     : PRODUCT_TABS.find((tab) => tab.key === activeTab)?.label || 'Products'
 
   useEffect(() => {
-    const requestedTab = window.sessionStorage.getItem('sgcg_shop_tab')
-    if (requestedTab === 'bargin-basement') {
-      setActiveTab('bargin-basement')
+    const applyRequestedTab = (requestedTab) => {
+      if (!VALID_SHOP_TABS.has(requestedTab)) return
+      setActiveTab(requestedTab)
       setSelectedCategory('All')
+    }
+
+    const requestedTab = window.sessionStorage.getItem('sgcg_shop_tab')
+    if (requestedTab) {
+      applyRequestedTab(requestedTab)
       window.sessionStorage.removeItem('sgcg_shop_tab')
+    }
+
+    const handleShopTabChange = (event) => {
+      const requested = event?.detail?.tab
+      if (!requested) return
+      applyRequestedTab(requested)
+    }
+
+    window.addEventListener('sgcg-shop-tab-change', handleShopTabChange)
+    return () => {
+      window.removeEventListener('sgcg-shop-tab-change', handleShopTabChange)
     }
   }, [])
 

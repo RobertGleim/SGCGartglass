@@ -115,10 +115,9 @@ def _manual_product_is_pattern(payload):
 
 
 def _coerce_manual_product_digital_download(payload):
-    if _manual_product_is_pattern(payload):
-        return True
-
     raw = payload.get("is_digital_download")
+    if raw is None:
+        return _manual_product_is_pattern(payload)
     if isinstance(raw, bool):
         return raw
     if isinstance(raw, str):

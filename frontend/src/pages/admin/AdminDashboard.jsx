@@ -99,6 +99,7 @@ const createEmptyManualProduct = () => ({
   discount_percent: "",
   quantity: "",
   is_featured: false,
+  is_digital_download: false,
   related_links: createDefaultRelatedLinks(),
 });
 
@@ -812,6 +813,7 @@ export default function AdminDashboard({
     setManualProduct((prev) => ({
       ...prev,
       category: [label, ...removeTypeCategories(prev.category)],
+      is_digital_download: type === "patterns" ? true : Boolean(prev.is_digital_download),
     }));
   };
 
@@ -1102,7 +1104,9 @@ export default function AdminDashboard({
         })(),
         quantity: parseInt(manualProduct.quantity, 10),
         is_featured: manualProduct.is_featured,
-        is_digital_download: selectedTypeCategory === "patterns",
+        is_digital_download: Boolean(
+          manualProduct.is_digital_download || selectedTypeCategory === "patterns",
+        ),
         related_links: {
           template_id: manualProduct.related_links?.template_id
             ? Number(manualProduct.related_links.template_id)
@@ -1208,6 +1212,7 @@ export default function AdminDashboard({
       })(),
       quantity: product.quantity?.toString() || "",
       is_featured: product.is_featured === 1 || product.is_featured === true,
+      is_digital_download: Boolean(product.is_digital_download),
       related_links: {
         ...createDefaultRelatedLinks(),
         ...existingRelatedLinks,
@@ -1969,6 +1974,7 @@ export default function AdminDashboard({
                           PRODUCT_TYPE_LABEL_BY_KEY[typeEntry.key]
                           || PRODUCT_TYPE_LABEL_BY_KEY.stainedGlassPanels,
                         ],
+                        is_digital_download: typeEntry.key === "patterns",
                       }));
                       setCategoryInput("");
                       setMaterialInput("");
@@ -2617,6 +2623,47 @@ export default function AdminDashboard({
                             <span>{typeEntry.label}</span>
                           </label>
                         ))}
+                      </div>
+                    </div>
+                  </div>
+                </label>
+
+                <label>
+                  Product Delivery Type
+                  <div className="multi-select-wrapper">
+                    <div className="multi-select-inner">
+                      <div className="multi-select-row">
+                        <label className="checkbox-label" style={{ marginBottom: 0 }}>
+                          <input
+                            type="checkbox"
+                            checked={!manualProduct.is_digital_download}
+                            disabled={selectedTypeCategory === "patterns"}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setManualProduct((prev) => ({
+                                  ...prev,
+                                  is_digital_download: false,
+                                }));
+                              }
+                            }}
+                          />
+                          <span>Physical Product (requires shipping)</span>
+                        </label>
+                        <label className="checkbox-label" style={{ marginBottom: 0 }}>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(manualProduct.is_digital_download)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setManualProduct((prev) => ({
+                                  ...prev,
+                                  is_digital_download: true,
+                                }));
+                              }
+                            }}
+                          />
+                          <span>Digital Product (instant download)</span>
+                        </label>
                       </div>
                     </div>
                   </div>

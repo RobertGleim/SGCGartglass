@@ -24,6 +24,7 @@
   max-height: none;
   margin: 0.5rem auto;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  overflow-x: hidden;
 }
 
 /* Scrollbar styling (hidden until interaction) */
@@ -133,13 +134,16 @@
 
 .modal-form input[type="text"],
 .modal-form input[type="number"],
-.modal-form textarea {
+.modal-form textarea,
+.modal-form select {
   width: 100%;
+  max-width: 100%;
   padding: 0.65rem;
   border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 1rem;
   font-family: inherit;
+  box-sizing: border-box;
 }
 
 .modal-form input:focus,
@@ -564,7 +568,8 @@
 
   .modal-form input[type="text"],
   .modal-form input[type="number"],
-  .modal-form textarea {
+  .modal-form textarea,
+  .modal-form select {
     padding: 0.7rem;
   }
 
@@ -603,7 +608,8 @@
 
   .modal-form input[type="text"],
   .modal-form input[type="number"],
-  .modal-form textarea {
+  .modal-form textarea,
+  .modal-form select {
     padding: 0.75rem;
   }
 

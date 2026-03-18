@@ -17,9 +17,24 @@ export default function Header({ brandName, authToken, customerToken }) {
     setMenuOpen(false)
   }
 
-  const handleOpenBarginBasement = () => {
-    window.sessionStorage.setItem('sgcg_shop_tab', 'bargin-basement')
+  const openShopTab = (tabKey) => {
+    window.sessionStorage.setItem('sgcg_shop_tab', tabKey)
+    if (String(window.location.hash || '').startsWith('#/product')) {
+      window.dispatchEvent(
+        new CustomEvent('sgcg-shop-tab-change', {
+          detail: { tab: tabKey },
+        }),
+      )
+    }
     handleNavClick()
+  }
+
+  const handleOpenProducts = () => {
+    openShopTab('stained-glass-panels')
+  }
+
+  const handleOpenBarginBasement = () => {
+    openShopTab('bargin-basement')
   }
 
   useEffect(() => {
@@ -68,7 +83,7 @@ export default function Header({ brandName, authToken, customerToken }) {
       </button>
       <nav className={`nav-links${menuOpen ? ' open' : ''}`}>
         <a href="#/" onClick={handleNavClick}>Home</a>
-        <a href="#/product" onClick={handleNavClick}>Product</a>
+        <a href="#/product" onClick={handleOpenProducts}>Product</a>
         <a href="#/product" onClick={handleOpenBarginBasement} className="nav-bargin-basement">Bargin Basement</a>
         <a href="#/reviews" onClick={handleNavClick}>Reviews</a>
         <a href="#/designer" onClick={handleNavClick}>Designer</a>
