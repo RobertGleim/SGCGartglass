@@ -1936,6 +1936,142 @@ def mark_pattern_downloads_emailed(download_ids):
     return int(updated_count)
 
 
+def _order_item_requires_shipping(item):
+    normalized_type = str(item.get("product_type") or "").strip().lower()
+    product_id = str(item.get("product_id") or "").strip()
+
+    if normalized_type in {"template", "pattern"}:
+        return False
+
+    if normalized_type == "manual":
+        if product_id.isdigit():
+            product = fetch_manual_product(int(product_id))
+            if product is not None:
+                return not bool(product.get("is_digital_download"))
+        return True
+
+    if normalized_type == "invoice":
+        return False
+
+    return True
+
+
+def list_admin_shipping_orders(limit=250):
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholder = _placeholder()
+    limit_value = max(1, min(int(limit or 250), 500))
+
+    cursor.execute(
+        f"""
+        SELECT
+            o.*,
+            c.first_name,
+            c.last_name,
+            c.email AS account_email
+        FROM customer_orders o
+        LEFT JOIN customers c ON c.id = o.customer_id
+        WHERE LOWER(COALESCE(o.payment_status, '')) = 'paid'
+          AND LOWER(COALESCE(o.status, '')) NOT IN ('cancelled', 'payment_failed')
+        ORDER BY o.updated_at DESC, o.created_at DESC
+        LIMIT {placeholder}
+        """,
+        (limit_value,),
+    )
+    order_rows = [dict(row) for row in cursor.fetchall()]
+    if not order_rows:
+        conn.close()
+        return []
+
+    order_ids = [int(entry.get("id")) for entry in order_rows if entry.get("id") is not None]
+    item_map = {order_id: [] for order_id in order_ids}
+    if order_ids:
+        placeholders = ", ".join([placeholder] * len(order_ids))
+        cursor.execute(
+            f"""
+            SELECT order_id, id, product_type, product_id, title, quantity, price, image_url
+            FROM customer_order_items
+            WHERE order_id IN ({placeholders})
+            ORDER BY id ASC
+            """,
+            tuple(order_ids),
+        )
+        for row in cursor.fetchall():
+            payload = dict(row)
+            item_map.setdefault(payload.get("order_id"), []).append(payload)
+
+    conn.close()
+
+    needs_shipping = []
+    already_shipped = []
+    archived = []
+
+    for order in order_rows:
+        order_id = int(order.get("id")) if order.get("id") is not None else None
+        items = item_map.get(order_id, [])
+        physical_items = [entry for entry in items if _order_item_requires_shipping(entry)]
+        if not physical_items:
+            continue
+
+        first_name = str(order.get("first_name") or "").strip()
+        last_name = str(order.get("last_name") or "").strip()
+        customer_name = " ".join([part for part in [first_name, last_name] if part]).strip()
+        normalized_status = str(order.get("status") or "").strip().lower()
+        shipping_status = normalized_status
+        if normalized_status not in {"shipped", "completed"}:
+            shipping_status = "need_to_ship"
+
+        payload = {
+            **order,
+            "customer_name": customer_name or str(order.get("customer_name") or "").strip() or "Customer",
+            "customer_email": str(order.get("customer_email") or "").strip() or str(order.get("account_email") or "").strip(),
+            "shipping_status": shipping_status,
+            "item_count": len(items),
+            "physical_item_count": len(physical_items),
+            "items": physical_items,
+        }
+
+        if shipping_status == "completed":
+            archived.append(payload)
+        elif shipping_status == "shipped":
+            already_shipped.append(payload)
+        else:
+            needs_shipping.append(payload)
+
+    sort_key = lambda entry: str(entry.get("updated_at") or entry.get("created_at") or "")
+    needs_shipping.sort(key=sort_key, reverse=True)
+    already_shipped.sort(key=sort_key, reverse=True)
+    archived.sort(key=sort_key, reverse=True)
+    return needs_shipping + already_shipped + archived
+
+
+def update_admin_customer_order_status(order_id, new_status):
+    normalized = str(new_status or "").strip().lower()
+    if normalized == "need_to_ship":
+        normalized = "confirmed"
+    if normalized == "archived":
+        normalized = "completed"
+    if normalized not in {"confirmed", "shipped", "completed"}:
+        raise ValueError("invalid_order_status")
+
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholder = _placeholder()
+    now = datetime.utcnow().isoformat()
+    cursor.execute(
+        f"""
+        UPDATE customer_orders
+        SET status = {placeholder}, updated_at = {placeholder}
+        WHERE id = {placeholder}
+        """,
+        (normalized, now, order_id),
+    )
+    updated = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return updated
+
+
 def list_admin_recent_orders(limit=20, unseen_only=False):
     conn = get_db()
     cursor = conn.cursor()

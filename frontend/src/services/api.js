@@ -128,6 +128,9 @@ export const fetchCustomerOrderItems = (orderId) => api.get(`/customer/orders/${
 export const fetchCustomerPatternDownloads = () => api.get('/customer/pattern-downloads');
 export const fetchAdminRecentOrders = (params = {}) => api.get('/admin/orders/recent', { params });
 export const markAdminOrderSeen = (orderId) => api.put(`/admin/orders/${orderId}/seen`);
+export const fetchAdminShippingOrders = (params = {}) => api.get('/admin/orders/shipping', { params });
+export const updateAdminOrderShippingStatus = (orderId, status) =>
+  api.put(`/admin/orders/${orderId}/shipping-status`, { status });
 export const fetchCustomerReviews = () => api.get('/customer/reviews');
 export const fetchCustomerReviewOptions = () => api.get('/customer/review-options');
 export const createCustomerReview = (review) => api.post('/customer/reviews', review);

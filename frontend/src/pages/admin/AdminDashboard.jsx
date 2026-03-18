@@ -1670,8 +1670,8 @@ export default function AdminDashboard({
       const emailSent = result?.downloads_email_sent;
       const emailTarget = String(result?.downloads_email_target || "").trim();
       const base = alreadyPlaced
-        ? `Recovered ${sessionId}: order already existed${orderNumber ? ` (${orderNumber})` : ""}.`
-        : `Recovered ${sessionId}: order finalized${orderNumber ? ` (${orderNumber})` : ""}.`;
+        ? `Order already existed${orderNumber ? ` (${orderNumber})` : ""}.`
+        : `Order finalized${orderNumber ? ` (${orderNumber})` : ""}.`;
       const downloadsInfo = downloadsCount > 0
         ? ` ${downloadsCount} download${downloadsCount === 1 ? "" : "s"} available.`
         : "";
@@ -1717,8 +1717,8 @@ export default function AdminDashboard({
       const emailText = emailTarget ? ` to ${emailTarget}` : "";
       setCheckoutRecoveryStatus(
         sent
-          ? `Sent ${downloadsCount} download email${downloadsCount === 1 ? "" : "s"}${emailText} for ${sessionId}.`
-          : `Email send failed${emailText} for ${sessionId}.`,
+          ? `Sent ${downloadsCount} download email${downloadsCount === 1 ? "" : "s"}${emailText}.`
+          : `Email send failed${emailText}.`,
       );
       await loadDigitalCheckoutSessions();
     } catch (error) {
@@ -1837,6 +1837,98 @@ export default function AdminDashboard({
             )}
             {renderSectionPagination(customersPage, totalCustomersPages, setCustomersPage)}
           </div>
+
+          <div className="panel-section digital-recovery-section">
+            <h3>Digital Download Recovery</h3>
+            <p className="form-note">Auto-listed Stripe checkout sessions that include digital downloads. Recover purchase or resend email without manually entering session IDs.</p>
+            <div className="digital-recovery-search-row">
+              <input
+                className="digital-recovery-search"
+                type="search"
+                value={digitalSessionEmailSearch}
+                onChange={(event) => setDigitalSessionEmailSearch(event.target.value)}
+                placeholder="Search by customer email"
+              />
+              {digitalSessionEmailSearch ? (
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => setDigitalSessionEmailSearch("")}
+                >
+                  Clear
+                </button>
+              ) : null}
+            </div>
+            {checkoutRecoveryStatus ? <p className="form-note digital-recovery-note">{checkoutRecoveryStatus}</p> : null}
+            {isLoadingDigitalSessions ? (
+              <p className="form-note">Loading digital checkout sessions...</p>
+            ) : filteredDigitalCheckoutSessions.length === 0 ? (
+              <p className="form-note">No digital checkout sessions found yet.</p>
+            ) : (
+              <>
+                <div className="digital-recovery-table-wrap">
+                <table className="product-table digital-recovery-table">
+                  <thead>
+                    <tr>
+                      <th>Customer Email</th>
+                      <th>Digital Items</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagedDigitalCheckoutSessions.map((entry) => {
+                      const sessionId = String(entry?.session_id || "").trim();
+                      const itemNames = Array.isArray(entry?.digital_items)
+                        ? entry.digital_items.map((item) => String(item?.title || "Digital item").trim()).filter(Boolean)
+                        : [];
+                      const itemPreview = itemNames[0] || "-";
+                      const itemExtra = itemNames.length > 1 ? ` +${itemNames.length - 1} more` : "";
+                      const status = String(entry?.status || "pending").toLowerCase();
+                      const statusClass = status === "paid" || status === "processed"
+                        ? "is-complete"
+                        : status === "pending"
+                          ? "is-pending"
+                          : "is-other";
+                      const isRecoveringRow = activeRecoverySessionId === sessionId;
+                      const isResendingRow = activeResendSessionId === sessionId;
+                      return (
+                        <tr key={sessionId || `${entry?.customer_id}-${entry?.created_at}`}>
+                          <td className="digital-recovery-cell-email">{entry?.customer_email || "-"}</td>
+                          <td className="digital-recovery-cell-items" title={itemNames.join(", ") || ""}>{itemPreview}{itemExtra}</td>
+                          <td className="digital-recovery-cell-status">
+                            <span className={`digital-recovery-status ${statusClass}`}>{status}</span>
+                          </td>
+                          <td className="digital-recovery-cell-actions">
+                            <div className="digital-recovery-actions">
+                              <button
+                                type="button"
+                                className="button primary"
+                                disabled={!sessionId || isRecoveringRow || isResendingRow}
+                                onClick={() => handleRecoverCheckoutSession(sessionId)}
+                              >
+                                {isRecoveringRow ? "Recovering..." : "Recover Purchase"}
+                              </button>
+                              <button
+                                type="button"
+                                className="button"
+                                disabled={!sessionId || isRecoveringRow || isResendingRow}
+                                onClick={() => handleResendCheckoutDownloadEmail(sessionId)}
+                              >
+                                {isResendingRow ? "Sending..." : "Send Email"}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                </div>
+                {renderSectionPagination(digitalSessionsPage, totalDigitalSessionsPages, setDigitalSessionsPage)}
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -1844,98 +1936,6 @@ export default function AdminDashboard({
         {activeTab === "products" && (
           <div className="tab-panel">
             {/* <AddEtsyListingForm onAddItem={onAddItem} /> */}
-
-            <div className="panel-section digital-recovery-section">
-              <h3>Digital Download Recovery</h3>
-              <p className="form-note">Auto-listed Stripe checkout sessions that include digital downloads. Recover purchase or resend email without manually entering session IDs.</p>
-              <div className="digital-recovery-search-row">
-                <input
-                  className="digital-recovery-search"
-                  type="search"
-                  value={digitalSessionEmailSearch}
-                  onChange={(event) => setDigitalSessionEmailSearch(event.target.value)}
-                  placeholder="Search by customer email"
-                />
-                {digitalSessionEmailSearch ? (
-                  <button
-                    type="button"
-                    className="button"
-                    onClick={() => setDigitalSessionEmailSearch("")}
-                  >
-                    Clear
-                  </button>
-                ) : null}
-              </div>
-              {checkoutRecoveryStatus ? <p className="form-note digital-recovery-note">{checkoutRecoveryStatus}</p> : null}
-              {isLoadingDigitalSessions ? (
-                <p className="form-note">Loading digital checkout sessions...</p>
-              ) : filteredDigitalCheckoutSessions.length === 0 ? (
-                <p className="form-note">No digital checkout sessions found yet.</p>
-              ) : (
-                <>
-                  <div className="digital-recovery-table-wrap">
-                  <table className="product-table digital-recovery-table">
-                    <thead>
-                      <tr>
-                        <th>Customer Email</th>
-                        <th>Digital Items</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pagedDigitalCheckoutSessions.map((entry) => {
-                        const sessionId = String(entry?.session_id || "").trim();
-                        const itemNames = Array.isArray(entry?.digital_items)
-                          ? entry.digital_items.map((item) => String(item?.title || "Digital item").trim()).filter(Boolean)
-                          : [];
-                        const itemPreview = itemNames[0] || "-";
-                        const itemExtra = itemNames.length > 1 ? ` +${itemNames.length - 1} more` : "";
-                        const status = String(entry?.status || "pending").toLowerCase();
-                        const statusClass = status === "paid" || status === "processed"
-                          ? "is-complete"
-                          : status === "pending"
-                            ? "is-pending"
-                            : "is-other";
-                        const isRecoveringRow = activeRecoverySessionId === sessionId;
-                        const isResendingRow = activeResendSessionId === sessionId;
-                        return (
-                          <tr key={sessionId || `${entry?.customer_id}-${entry?.created_at}`}>
-                            <td className="digital-recovery-cell-email">{entry?.customer_email || "-"}</td>
-                            <td className="digital-recovery-cell-items" title={itemNames.join(", ") || ""}>{itemPreview}{itemExtra}</td>
-                            <td className="digital-recovery-cell-status">
-                              <span className={`digital-recovery-status ${statusClass}`}>{status}</span>
-                            </td>
-                            <td className="digital-recovery-cell-actions">
-                              <div className="digital-recovery-actions">
-                                <button
-                                  type="button"
-                                  className="button primary"
-                                  disabled={!sessionId || isRecoveringRow || isResendingRow}
-                                  onClick={() => handleRecoverCheckoutSession(sessionId)}
-                                >
-                                  {isRecoveringRow ? "Recovering..." : "Recover Purchase"}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="button"
-                                  disabled={!sessionId || isRecoveringRow || isResendingRow}
-                                  onClick={() => handleResendCheckoutDownloadEmail(sessionId)}
-                                >
-                                  {isResendingRow ? "Sending..." : "Send Email"}
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                  </div>
-                  {renderSectionPagination(digitalSessionsPage, totalDigitalSessionsPages, setDigitalSessionsPage)}
-                </>
-              )}
-            </div>
 
             <div className="panel-section">
               <h3>Add Manual Product</h3>

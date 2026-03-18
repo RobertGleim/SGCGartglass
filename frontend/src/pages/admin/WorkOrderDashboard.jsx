@@ -1,6 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
-import { getAdminWorkOrder, getTemplate, updateAdminWorkOrderDesign, generateInvoice } from '../../services/api';
+import {
+  fetchAdminShippingOrders,
+  updateAdminOrderShippingStatus,
+  getAdminWorkOrder,
+  getTemplate,
+  updateAdminWorkOrderDesign,
+  generateInvoice,
+} from '../../services/api';
 import LoadingMessage from '../../components/LoadingMessage';
 import ColoredDesignPreview from './components/ColoredDesignPreview';
 import styles from './WorkOrderDashboard.module.css';
@@ -16,6 +23,12 @@ const STATUS_LABELS = {
   production: 'In Production',
   completed: 'Completed',
   cancelled: 'Cancelled',
+};
+
+const SHIPPING_STATUS_LABELS = {
+  need_to_ship: 'Need To Ship',
+  shipped: 'Shipped',
+  completed: 'Archived',
 };
 
 // Row highlight + dropdown colors per status
@@ -339,6 +352,9 @@ const buildWorkOrderPacketHtml = (order, designMarkup) => {
 
 export default function WorkOrderDashboard() {
   const [orders, setOrders] = useState([]);
+  const [shippingOrders, setShippingOrders] = useState([]);
+  const [shippingLoading, setShippingLoading] = useState(true);
+  const [updatingShippingOrderId, setUpdatingShippingOrderId] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [customerSearch, setCustomerSearch] = useState('');
@@ -401,8 +417,23 @@ export default function WorkOrderDashboard() {
     }
   };
 
+  const fetchShippingQueue = async () => {
+    setShippingLoading(true);
+    try {
+      const res = await fetchAdminShippingOrders({ limit: 300 });
+      const items = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
+      setShippingOrders(items);
+    } catch {
+      window.toast && window.toast('Failed to load shipping queue', { type: 'error' });
+      setShippingOrders([]);
+    } finally {
+      setShippingLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchOrders();
+    fetchShippingQueue();
   }, []);
 
   // Handle status change
@@ -420,6 +451,41 @@ export default function WorkOrderDashboard() {
       window.toast && window.toast('Failed to update status', { type: 'error' });
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleShippingStatusUpdate = async (order, nextStatus) => {
+    const orderId = Number(order?.id || 0);
+    if (!orderId || !nextStatus) return;
+
+    setUpdatingShippingOrderId(orderId);
+    try {
+      await updateAdminOrderShippingStatus(orderId, nextStatus);
+      setShippingOrders((prev) => {
+        const updated = prev.map((entry) => (
+          Number(entry?.id) === orderId
+            ? {
+                ...entry,
+                shipping_status: nextStatus,
+                status: nextStatus === 'need_to_ship' ? 'confirmed' : nextStatus,
+                updated_at: new Date().toISOString(),
+              }
+            : entry
+        ));
+
+        const groups = {
+          need_to_ship: updated.filter((entry) => String(entry?.shipping_status) === 'need_to_ship'),
+          shipped: updated.filter((entry) => String(entry?.shipping_status) === 'shipped'),
+          completed: updated.filter((entry) => String(entry?.shipping_status) === 'completed'),
+        };
+        return [...groups.need_to_ship, ...groups.shipped, ...groups.completed];
+      });
+      window.toast && window.toast('Shipping status updated', { type: 'success' });
+    } catch (err) {
+      console.error('[WorkOrderDashboard] Shipping status update error:', err);
+      window.toast && window.toast('Failed to update shipping status', { type: 'error' });
+    } finally {
+      setUpdatingShippingOrderId(null);
     }
   };
 
@@ -618,6 +684,75 @@ export default function WorkOrderDashboard() {
   return (
     <div className={styles.page}>
       <h1>Work Order Dashboard</h1>
+
+      <section className={styles.shippingSection}>
+        <div className={styles.shippingHeader}>
+          <h2>Orders To Ship</h2>
+          <button onClick={fetchShippingQueue} disabled={shippingLoading || updatingShippingOrderId !== null}>Refresh Shipping Queue</button>
+        </div>
+        <p className={styles.shippingNote}>
+          Stripe-paid physical product orders appear here automatically. Mark as shipped, then complete to archive.
+        </p>
+        {shippingLoading ? (
+          <LoadingMessage label="Loading shipping queue" />
+        ) : shippingOrders.length === 0 ? (
+          <div className={styles.shippingEmpty}>No paid physical orders waiting to ship.</div>
+        ) : (
+          <table className={styles.shippingTable}>
+            <thead>
+              <tr>
+                <th>Order #</th>
+                <th>Customer</th>
+                <th>Email</th>
+                <th>Items</th>
+                <th>Total</th>
+                <th>Placed</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shippingOrders.map((order) => {
+                const orderId = Number(order?.id || 0);
+                const status = String(order?.shipping_status || 'need_to_ship');
+                const isUpdating = updatingShippingOrderId === orderId;
+                return (
+                  <tr key={orderId || `${order?.order_number || 'order'}-${order?.created_at || 'unknown'}`}>
+                    <td>{order?.order_number || orderId || '-'}</td>
+                    <td>{order?.customer_name || 'Customer'}</td>
+                    <td>{order?.customer_email || '-'}</td>
+                    <td>{Number(order?.physical_item_count || order?.item_count || 0)}</td>
+                    <td>${Number(order?.total_amount || 0).toFixed(2)}</td>
+                    <td>{order?.created_at ? new Date(order.created_at).toLocaleString() : '-'}</td>
+                    <td>
+                      <span className={`${styles.shippingStatus} ${styles[`shippingStatus_${status}`] || ''}`}>
+                        {SHIPPING_STATUS_LABELS[status] || status}
+                      </span>
+                    </td>
+                    <td>
+                      <div className={styles.shippingActions}>
+                        <button
+                          onClick={() => handleShippingStatusUpdate(order, 'shipped')}
+                          disabled={isUpdating || status !== 'need_to_ship'}
+                        >
+                          {isUpdating && status === 'need_to_ship' ? 'Saving...' : 'Mark Shipped'}
+                        </button>
+                        <button
+                          onClick={() => handleShippingStatusUpdate(order, 'completed')}
+                          disabled={isUpdating || status !== 'shipped'}
+                        >
+                          {isUpdating && status === 'shipped' ? 'Saving...' : 'Complete'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </section>
+
       <div className={styles.summary}>
         <div className={styles.card} style={getStatusStyle('pending')} onClick={() => setStatusFilter('pending')}>Pending Review: {summary.pending}</div>
         <div className={styles.card} style={getStatusStyle('review')} onClick={() => setStatusFilter('review')}>Under Review: {summary.review}</div>

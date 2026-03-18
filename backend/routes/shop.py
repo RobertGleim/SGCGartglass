@@ -66,7 +66,9 @@ from ..db import (
     mark_customer_checkout_session_processed,
     list_admin_digital_checkout_sessions,
     list_admin_recent_orders,
+    list_admin_shipping_orders,
     mark_customer_order_admin_seen,
+    update_admin_customer_order_status,
     update_customer_order_payment_by_reference,
     get_customer_order_id_by_payment_reference,
     append_customer_order_event,
@@ -2292,6 +2294,50 @@ def admin_mark_order_seen(order_id):
     if not updated:
         return jsonify({"error": "not_found"}), 404
     return jsonify({"success": True})
+
+
+@api.get("/admin/orders/shipping")
+@require_auth
+def admin_shipping_orders():
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    limit = request.args.get("limit", default=250, type=int)
+    orders = list_admin_shipping_orders(limit=limit)
+    return jsonify({"items": orders})
+
+
+@api.put("/admin/orders/<int:order_id>/shipping-status")
+@require_auth
+def admin_update_order_shipping_status(order_id):
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    requested_status = str(payload.get("status") or "").strip().lower()
+    if not requested_status:
+        return jsonify({"error": "missing_status"}), 400
+
+    try:
+        updated = update_admin_customer_order_status(order_id, requested_status)
+    except ValueError:
+        return jsonify({"error": "invalid_status"}), 400
+
+    if not updated:
+        return jsonify({"error": "not_found"}), 404
+
+    applied_status = "confirmed" if requested_status == "need_to_ship" else (
+        "completed" if requested_status == "archived" else requested_status
+    )
+    append_customer_order_event(
+        order_id,
+        event_type="shipping.status.updated",
+        event_detail=f"shipping_status={applied_status}",
+        payload=json.dumps({"requested_status": requested_status, "applied_status": applied_status}),
+    )
+    return jsonify({"success": True, "order_id": order_id, "status": applied_status})
 
 
 @api.get("/admin/orders/<int:order_id>/events")
