@@ -6,6 +6,52 @@ import './HomePage.css'
 
 const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Math.round(Number(rating) || 0))))
 
+const toCleanImageUrl = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (/^javascript:/i.test(raw)) return ''
+
+  const unquoted = raw.replace(/^['\"]|['\"]$/g, '')
+
+  if (
+    (unquoted.startsWith('[') && unquoted.endsWith(']'))
+    || (unquoted.startsWith('{') && unquoted.endsWith('}'))
+  ) {
+    try {
+      const parsed = JSON.parse(unquoted)
+      if (Array.isArray(parsed)) {
+        return toCleanImageUrl(parsed[0]?.image_url || parsed[0]?.url || parsed[0]?.src || parsed[0])
+      }
+      if (parsed && typeof parsed === 'object') {
+        return toCleanImageUrl(parsed.image_url || parsed.url || parsed.src)
+      }
+    } catch {
+      // Keep original value when this isn't valid JSON.
+    }
+  }
+
+  if (unquoted.startsWith('data:')) {
+    return unquoted.replace(/\s+/g, '')
+  }
+
+  return unquoted
+}
+
+const resolveReviewImageUrl = (review) => {
+  const candidates = [review?.product_image_url, review?.fallback_product_image_url]
+
+  for (const candidate of candidates) {
+    const url = toCleanImageUrl(candidate)
+    if (!url) continue
+    if (url.startsWith('data:') || url.startsWith('blob:')) return url
+    if (url.startsWith('http://') || url.startsWith('https://')) return url
+    if (url.startsWith('/')) return url
+    return `/${url.replace(/^\.?\//, '')}`
+  }
+
+  return ''
+}
+
 export default function HomePage({ featuredItems, itemsLoading }) {
   const [recentReviews, setRecentReviews] = useState([])
   const [activeReviewIndex, setActiveReviewIndex] = useState(0)
@@ -45,6 +91,7 @@ export default function HomePage({ featuredItems, itemsLoading }) {
   }, [recentReviews.length])
 
   const activeReview = recentReviews[activeReviewIndex] || null
+  const activeReviewImageUrl = resolveReviewImageUrl(activeReview)
 
   return (
     <main>
@@ -72,12 +119,21 @@ export default function HomePage({ featuredItems, itemsLoading }) {
                 key={`${activeReview.id}-${reviewAnimationKey}`}
                 className="home-review-card home-review-card-animated"
               >
-                {activeReview.product_image_url ? (
+                {activeReviewImageUrl ? (
                   <div className="home-review-image-shell">
                     <img
-                      src={activeReview.product_image_url}
+                      src={activeReviewImageUrl}
                       alt={activeReview.product_title || activeReview.title || 'Reviewed product'}
                       className="home-review-image"
+                      onError={(event) => {
+                        const fallback = toCleanImageUrl(activeReview?.fallback_product_image_url)
+                        const current = String(event.currentTarget.src || '').trim()
+                        if (fallback && current !== fallback) {
+                          event.currentTarget.src = fallback
+                          return
+                        }
+                        event.currentTarget.style.display = 'none'
+                      }}
                     />
                   </div>
                 ) : null}

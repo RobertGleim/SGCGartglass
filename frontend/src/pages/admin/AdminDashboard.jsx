@@ -67,6 +67,43 @@ const canUseTemplateForCustomer = (template, customerId) => {
   return Number(template?.assigned_customer_id || 0) === Number(customerId || 0);
 };
 
+const getApiOrigin = () => {
+  const configuredBase = import.meta.env.VITE_API_BASE_URL || "/api";
+  if (/^https?:\/\//i.test(configuredBase)) {
+    return configuredBase.replace(/\/api\/?$/, "");
+  }
+  return window.location.origin;
+};
+
+const resolveMediaUrl = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^javascript:/i.test(raw)) return "";
+  if (raw.startsWith("data:") || raw.startsWith("blob:")) return raw;
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+
+  // Support serialized payloads from older records (e.g. JSON arrays/objects).
+  if (
+    (raw.startsWith("[") && raw.endsWith("]")) ||
+    (raw.startsWith("{") && raw.endsWith("}"))
+  ) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return resolveMediaUrl(parsed[0]?.image_url || parsed[0]?.url || parsed[0]?.src || parsed[0]);
+      }
+      if (parsed && typeof parsed === "object") {
+        return resolveMediaUrl(parsed.image_url || parsed.url || parsed.src);
+      }
+    } catch {
+      // Keep using the raw value below if JSON parsing fails.
+    }
+  }
+
+  if (raw.startsWith("/")) return `${getApiOrigin()}${raw}`;
+  return `${getApiOrigin()}/${raw.replace(/^\.?\//, "")}`;
+};
+
 const FACEBOOK_POSTED_STORAGE_KEY = "adminFbPostedManualProducts";
 const STAR_SCALE = [1, 2, 3, 4, 5];
 const MAX_MANUAL_UPLOAD_PHOTOS = 10;
@@ -79,12 +116,15 @@ const MAX_GALLERY_UPLOAD_BYTES = 20 * 1024 * 1024;
 const TEMPLATE_DIFFICULTY_OPTIONS = ["Beginner", "Intermediate", "Advanced"];
 const MANUAL_PRODUCTS_PER_PAGE = 10;
 const SECTION_PAGE_SIZE = 10;
+const ADMIN_ACTIVITY_POPUP_DELAY_MS = 450;
 
 const createDefaultRelatedLinks = () => ({
   template_id: "",
   template_name: "",
   pattern_product_id: "",
   pattern_product_name: "",
+  linked_product_id: "",
+  linked_product_name: "",
   gallery_photo_id: "",
   gallery_panel_name: "",
   gallery_template_id: "",
@@ -139,6 +179,8 @@ const hasAnyRelatedLinkValue = (relatedLinks) => {
     relatedLinks.template_name,
     relatedLinks.pattern_product_id,
     relatedLinks.pattern_product_name,
+    relatedLinks.linked_product_id,
+    relatedLinks.linked_product_name,
     relatedLinks.gallery_photo_id,
     relatedLinks.gallery_panel_name,
     relatedLinks.gallery_template_id,
@@ -331,6 +373,15 @@ export default function AdminDashboard({
   const [checkoutRecoveryStatus, setCheckoutRecoveryStatus] = useState("");
   const [activeRecoverySessionId, setActiveRecoverySessionId] = useState("");
   const [activeResendSessionId, setActiveResendSessionId] = useState("");
+  const [isSavingReview, setIsSavingReview] = useState(false);
+  const [isDeletingReview, setIsDeletingReview] = useState(false);
+  const [isGeneratingReviewCode, setIsGeneratingReviewCode] = useState(false);
+  const [isDeletingReviewCode, setIsDeletingReviewCode] = useState(false);
+  const [isRegeneratingReviewCode, setIsRegeneratingReviewCode] = useState(false);
+  const [isOpeningCustomerModal, setIsOpeningCustomerModal] = useState(false);
+  const [isOpeningProductEdit, setIsOpeningProductEdit] = useState(false);
+  const [activeProductDeleteId, setActiveProductDeleteId] = useState("");
+  const [activeFacebookShareId, setActiveFacebookShareId] = useState("");
   const [reviewInviteForm, setReviewInviteForm] = useState({
     platform: "etsy",
     product_name: "",
@@ -397,6 +448,7 @@ export default function AdminDashboard({
 
   const handleSaveAdminReview = async (review) => {
     setAdminReviewStatus("");
+    setIsSavingReview(true);
     try {
       await updateAdminReview(review.id, {
         rating: Number(review.rating),
@@ -407,23 +459,29 @@ export default function AdminDashboard({
       setAdminReviewStatus("Review updated.");
     } catch (error) {
       setAdminReviewStatus(error?.response?.data?.error || error?.message || "Failed to update review.");
+    } finally {
+      setIsSavingReview(false);
     }
   };
 
   const handleDeleteAdminReview = async (reviewId) => {
     setAdminReviewStatus("");
+    setIsDeletingReview(true);
     try {
       await deleteAdminReview(reviewId);
       setAdminReviews((prev) => prev.filter((entry) => entry.id !== reviewId));
       setAdminReviewStatus("Review deleted.");
     } catch (error) {
       setAdminReviewStatus(error?.response?.data?.error || error?.message || "Failed to delete review.");
+    } finally {
+      setIsDeletingReview(false);
     }
   };
 
   const handleGenerateReviewCode = async (event) => {
     event.preventDefault();
     setReviewInviteStatus("");
+    setIsGeneratingReviewCode(true);
     try {
       const payload = {
         platform: String(reviewInviteForm.platform || "").trim().toLowerCase(),
@@ -477,6 +535,8 @@ export default function AdminDashboard({
       }
     } catch (error) {
       setReviewInviteStatus(error?.response?.data?.error || error?.message || "Failed to generate review code.");
+    } finally {
+      setIsGeneratingReviewCode(false);
     }
   };
 
@@ -493,18 +553,22 @@ export default function AdminDashboard({
   const handleDeleteReviewCode = async (inviteId) => {
     if (!inviteId) return;
     setReviewInviteStatus("");
+    setIsDeletingReviewCode(true);
     try {
       await deleteAdminReviewInviteCode(inviteId);
       setReviewInviteCodes((prev) => prev.filter((entry) => entry.id !== inviteId));
       setReviewInviteStatus("Review code deleted.");
     } catch (error) {
       setReviewInviteStatus(error?.response?.data?.error || error?.message || "Failed to delete review code.");
+    } finally {
+      setIsDeletingReviewCode(false);
     }
   };
 
   const regenerateReviewCode = async (invite, options = {}) => {
     if (!invite) return;
     setReviewInviteStatus("");
+    setIsRegeneratingReviewCode(true);
 
     const shouldCopy = Boolean(options.copy);
     const shouldRequireEmail = Boolean(options.requireEmail);
@@ -569,6 +633,8 @@ export default function AdminDashboard({
       }
     } catch (error) {
       setReviewInviteStatus(error?.response?.data?.error || error?.message || "Failed to regenerate and resend review code.");
+    } finally {
+      setIsRegeneratingReviewCode(false);
     }
   };
 
@@ -804,6 +870,26 @@ export default function AdminDashboard({
     });
   }, [normalizedManualProducts]);
 
+  const linkedProductOptions = useMemo(() => {
+    const seen = new Set();
+    return normalizedManualProducts
+      .filter((entry) => {
+        if (!entry?.id) return false;
+        if (editingProduct && String(entry.id) === String(editingProduct.id)) return false;
+        return true;
+      })
+      .map((entry) => ({
+        id: entry.id,
+        name: String(entry.name || `Product #${entry.id}`).trim(),
+      }))
+      .filter((entry) => {
+        const key = String(entry.id);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }, [normalizedManualProducts, editingProduct]);
+
   const filteredManualProducts = useMemo(() => {
     const searchLower = manualProductSearch.toLowerCase();
     return normalizedManualProducts.filter((product) => {
@@ -989,6 +1075,7 @@ export default function AdminDashboard({
       .find(Boolean) || productType;
   const templateOptionCount = productTemplateOptions.length;
   const patternOptionCount = patternProductOptions.length;
+  const linkedProductOptionCount = linkedProductOptions.length;
   const galleryOptionCount = productGalleryOptions.length;
   const isProductSectionEnabled = true;
   const isTemplateSectionEnabled = true;
@@ -1228,6 +1315,8 @@ export default function AdminDashboard({
       template_name: relatedLinks.template_name?.trim() || null,
       pattern_product_id: relatedLinks.pattern_product_id ? Number(relatedLinks.pattern_product_id) : null,
       pattern_product_name: relatedLinks.pattern_product_name?.trim() || null,
+      linked_product_id: relatedLinks.linked_product_id ? Number(relatedLinks.linked_product_id) : null,
+      linked_product_name: relatedLinks.linked_product_name?.trim() || null,
       gallery_photo_id: relatedLinks.gallery_photo_id ? Number(relatedLinks.gallery_photo_id) : null,
       gallery_panel_name: relatedLinks.gallery_panel_name?.trim() || null,
       gallery_template_id: relatedLinks.gallery_template_id ? Number(relatedLinks.gallery_template_id) : null,
@@ -1533,6 +1622,10 @@ export default function AdminDashboard({
               ? Number(relatedLinks.pattern_product_id)
               : null,
             pattern_product_name: relatedLinks.pattern_product_name || null,
+            linked_product_id: relatedLinks.linked_product_id
+              ? Number(relatedLinks.linked_product_id)
+              : null,
+            linked_product_name: relatedLinks.linked_product_name || null,
             gallery_photo_id: relatedLinks.gallery_photo_id
               ? Number(relatedLinks.gallery_photo_id)
               : null,
@@ -1637,6 +1730,8 @@ export default function AdminDashboard({
             template_name: relatedLinks.template_name || (createdTemplate?.name || unifiedTemplate.name || null),
             pattern_product_id: existingPatternId,
             pattern_product_name: String(manualProduct.name || unifiedTemplate.name || "").trim() || null,
+            linked_product_id: relatedLinks.linked_product_id ? Number(relatedLinks.linked_product_id) : null,
+            linked_product_name: relatedLinks.linked_product_name || null,
             gallery_photo_id: null,
             gallery_panel_name: null,
             gallery_template_id: null,
@@ -1660,6 +1755,8 @@ export default function AdminDashboard({
                 template_name: relatedLinks.template_name || null,
                 pattern_product_id: relatedLinks.pattern_product_id ? Number(relatedLinks.pattern_product_id) : null,
                 pattern_product_name: relatedLinks.pattern_product_name || null,
+                linked_product_id: relatedLinks.linked_product_id ? Number(relatedLinks.linked_product_id) : null,
+                linked_product_name: relatedLinks.linked_product_name || null,
                 gallery_photo_id: relatedLinks.gallery_photo_id ? Number(relatedLinks.gallery_photo_id) : null,
                 gallery_panel_name: relatedLinks.gallery_panel_name || null,
                 gallery_template_id: relatedLinks.gallery_template_id ? Number(relatedLinks.gallery_template_id) : null,
@@ -1726,6 +1823,10 @@ export default function AdminDashboard({
                     ? Number(relatedLinks.pattern_product_id)
                     : null,
                   pattern_product_name: relatedLinks.pattern_product_name || null,
+                  linked_product_id: relatedLinks.linked_product_id
+                    ? Number(relatedLinks.linked_product_id)
+                    : null,
+                  linked_product_name: relatedLinks.linked_product_name || null,
                   gallery_photo_id: firstGalleryId,
                   gallery_panel_name: firstGalleryPanelName,
                   gallery_template_id: firstGalleryTemplateId,
@@ -1825,6 +1926,8 @@ export default function AdminDashboard({
   };
 
   const handleEditProduct = async (product) => {
+    setIsOpeningProductEdit(true);
+    try {
     const inferredType = inferProductType(product);
     const existingCategories = Array.isArray(product.category)
       ? product.category
@@ -1906,6 +2009,9 @@ export default function AdminDashboard({
     setTemplateNameManuallyEdited(false);
     setPatternOnly(false);
     setPatternOnlyDescription(String(product.description || ""));
+    } finally {
+      setIsOpeningProductEdit(false);
+    }
   };
 
   const handleDeleteProduct = async (product) => {
@@ -1913,6 +2019,7 @@ export default function AdminDashboard({
       `⚠️ Delete Product?\n\nAre you sure you want to permanently delete "${product.name}"?\n\nThis action cannot be undone.`,
     );
     if (confirmDelete) {
+      setActiveProductDeleteId(String(product?.id || ""));
       try {
         setStatus("Deleting product...");
         await onDeleteManualProduct(product.id);
@@ -1926,6 +2033,8 @@ export default function AdminDashboard({
         } else {
           setStatus(`Error deleting product: ${error.message}`);
         }
+      } finally {
+        setActiveProductDeleteId("");
       }
     }
   };
@@ -1966,6 +2075,7 @@ export default function AdminDashboard({
       return;
     }
 
+    setActiveFacebookShareId(productId);
     try {
       await publishManualProductToFacebook(productId);
       setFacebookPostedProductIds((prev) => ({
@@ -2005,6 +2115,8 @@ export default function AdminDashboard({
         || "Unable to post to Facebook.",
       );
       return;
+    } finally {
+      setActiveFacebookShareId("");
     }
   };
 
@@ -2126,6 +2238,7 @@ export default function AdminDashboard({
   const openCustomerEditModal = async (customer) => {
     const customerId = customer.id;
     openingCustomerIdRef.current = customerId;
+    setIsOpeningCustomerModal(true);
     setEditingCustomer(customer);
     setCustomerStatus("Loading customer details...");
     setCustomerForm({
@@ -2198,6 +2311,8 @@ export default function AdminDashboard({
       const message =
         error?.response?.data?.error || error?.message || "Unable to load address details.";
       setCustomerStatus(`Error: ${message}`);
+    } finally {
+      setIsOpeningCustomerModal(false);
     }
   };
 
@@ -2435,8 +2550,144 @@ export default function AdminDashboard({
     }
   };
 
+  const adminActivityState = useMemo(() => {
+    if (isOpeningProductEdit) {
+      return {
+        title: "Opening editor...",
+        detail: "Loading product links and preparing edit form.",
+      };
+    }
+    if (isSavingManualProduct) {
+      return {
+        title: "Saving listing...",
+        detail: "Uploading media and applying all linked product updates.",
+      };
+    }
+    if (isSendingTemplate) {
+      return {
+        title: "Uploading template...",
+        detail: "Preparing and sending template files to the customer.",
+      };
+    }
+    if (isOpeningCustomerModal) {
+      return {
+        title: "Loading customer details...",
+        detail: "Fetching addresses and available templates.",
+      };
+    }
+    if (isSavingCustomer) {
+      return {
+        title: "Saving customer...",
+        detail: "Updating customer profile and address information.",
+      };
+    }
+    if (isDeletingCustomer) {
+      return {
+        title: "Deleting customer...",
+        detail: "Removing customer account data.",
+      };
+    }
+    if (isRefreshingCatalog) {
+      return {
+        title: "Loading catalog...",
+        detail: "Refreshing products and templates from the latest data.",
+      };
+    }
+    if (isLoadingDigitalSessions || activeRecoverySessionId || activeResendSessionId) {
+      return {
+        title: "Loading checkout sessions...",
+        detail: "Syncing recent digital checkout activity.",
+      };
+    }
+    if (isSavingReview) {
+      return {
+        title: "Saving review...",
+        detail: "Updating the review details and status.",
+      };
+    }
+    if (isDeletingReview) {
+      return {
+        title: "Deleting review...",
+        detail: "Removing the selected review.",
+      };
+    }
+    if (isGeneratingReviewCode || isRegeneratingReviewCode) {
+      return {
+        title: "Generating review code...",
+        detail: "Creating a code and preparing email delivery.",
+      };
+    }
+    if (isDeletingReviewCode) {
+      return {
+        title: "Deleting review code...",
+        detail: "Removing the selected invite code.",
+      };
+    }
+    if (activeProductDeleteId) {
+      return {
+        title: "Deleting product...",
+        detail: "Removing product data from the catalog.",
+      };
+    }
+    if (activeFacebookShareId) {
+      return {
+        title: "Posting to Facebook...",
+        detail: "Publishing product content to your connected page.",
+      };
+    }
+    return null;
+  }, [
+    isOpeningProductEdit,
+    isSavingManualProduct,
+    isSendingTemplate,
+    isOpeningCustomerModal,
+    isSavingCustomer,
+    isDeletingCustomer,
+    isRefreshingCatalog,
+    isLoadingDigitalSessions,
+    activeRecoverySessionId,
+    activeResendSessionId,
+    isSavingReview,
+    isDeletingReview,
+    isGeneratingReviewCode,
+    isRegeneratingReviewCode,
+    isDeletingReviewCode,
+    activeProductDeleteId,
+    activeFacebookShareId,
+  ]);
+
+  const [showAdminActivityOverlay, setShowAdminActivityOverlay] = useState(false);
+
+  useEffect(() => {
+    let timerId;
+    if (adminActivityState) {
+      timerId = window.setTimeout(() => {
+        setShowAdminActivityOverlay(true);
+      }, ADMIN_ACTIVITY_POPUP_DELAY_MS);
+    } else {
+      setShowAdminActivityOverlay(false);
+    }
+
+    return () => {
+      if (timerId) {
+        window.clearTimeout(timerId);
+      }
+    };
+  }, [adminActivityState]);
+
   return (
     <div className="admin-dashboard">
+      {adminActivityState && showAdminActivityOverlay ? (
+        <div className="admin-activity-overlay" role="status" aria-live="polite" aria-busy="true">
+          <div className="admin-activity-popup">
+            <span className="admin-activity-spinner" aria-hidden="true" />
+            <div className="admin-activity-text">
+              <strong>{adminActivityState.title}</strong>
+              <span>{adminActivityState.detail}</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="dashboard-header">
         <div>
           <h2>Admin Dashboard</h2>
@@ -2782,12 +3033,12 @@ export default function AdminDashboard({
                           {product.images && product.images.length > 0 ? (
                             product.images[0].media_type === "video" ? (
                               <video
-                                src={product.images[0].image_url}
+                                src={resolveMediaUrl(product.images[0].image_url)}
                                 className="thumb-placeholder"
                               />
                             ) : (
                               <img
-                                src={product.images[0].image_url}
+                                src={resolveMediaUrl(product.images[0].image_url)}
                                 alt={product.name}
                               />
                             )
@@ -4023,7 +4274,7 @@ export default function AdminDashboard({
                         <div className="ap-section ap-section-5">
                           <h4 className="ap-section-title">🔗 Section 5 — Related Customer Links</h4>
                           <p className="form-note">
-                            Link this listing to existing templates, patterns, or gallery entries.
+                            Link this listing to existing templates, patterns, products, or gallery entries.
                           </p>
 
                           <label>
@@ -4079,6 +4330,35 @@ export default function AdminDashboard({
                               {patternProductOptions.map((pattern) => (
                                 <option key={pattern.id} value={pattern.id}>
                                   {pattern.name}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+
+                          <label>
+                            {`Linked Product (${linkedProductOptionCount})`}
+                            <select
+                              value={manualProduct.related_links?.linked_product_id || ""}
+                              onChange={(e) => {
+                                const nextId = e.target.value;
+                                const selectedProduct = linkedProductOptions.find(
+                                  (entry) => String(entry.id) === String(nextId),
+                                );
+                                setManualProduct({
+                                  ...manualProduct,
+                                  related_links: {
+                                    ...createDefaultRelatedLinks(),
+                                    ...manualProduct.related_links,
+                                    linked_product_id: nextId,
+                                    linked_product_name: selectedProduct?.name || "",
+                                  },
+                                });
+                              }}
+                            >
+                              <option value="">None</option>
+                              {linkedProductOptions.map((entry) => (
+                                <option key={entry.id} value={entry.id}>
+                                  {entry.name}
                                 </option>
                               ))}
                             </select>

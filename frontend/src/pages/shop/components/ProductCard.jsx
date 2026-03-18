@@ -13,6 +13,58 @@ const toCategoryList = (category) => {
 
 const normalizeCategory = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '')
 
+const toCleanUrl = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (/^javascript:/i.test(raw)) return ''
+
+  const unquoted = raw.replace(/^['\"]|['\"]$/g, '')
+
+  if (
+    (unquoted.startsWith('[') && unquoted.endsWith(']'))
+    || (unquoted.startsWith('{') && unquoted.endsWith('}'))
+  ) {
+    try {
+      const parsed = JSON.parse(unquoted)
+      if (Array.isArray(parsed)) {
+        return toCleanUrl(parsed[0]?.image_url || parsed[0]?.url || parsed[0]?.src || parsed[0])
+      }
+      if (parsed && typeof parsed === 'object') {
+        return toCleanUrl(parsed.image_url || parsed.url || parsed.src)
+      }
+    } catch {
+      // Fall back to the original string below.
+    }
+  }
+
+  if (unquoted.startsWith('data:')) {
+    // Browsers reject whitespace inside base64 payloads.
+    return unquoted.replace(/\s+/g, '')
+  }
+
+  return unquoted
+}
+
+const resolveCardImageUrl = (product) => {
+  const candidates = [
+    product?.image_url,
+    product?.thumbnail_url,
+    product?.originalData?.images?.[0]?.image_url,
+    product?.originalData?.image_url,
+  ]
+
+  for (const candidate of candidates) {
+    const url = toCleanUrl(candidate)
+    if (!url) continue
+    if (url.startsWith('data:') || url.startsWith('blob:')) return url
+    if (url.startsWith('http://') || url.startsWith('https://')) return url
+    if (url.startsWith('/')) return url
+    return `/${url}`
+  }
+
+  return ''
+}
+
 export default function ProductCard({ product }) {
   // Calculate discount if there's an old price
   const hasDiscount = product.old_price && product.old_price > product.price_amount
@@ -29,14 +81,15 @@ export default function ProductCard({ product }) {
     && Boolean(linkedPatternId)
     && (!manualProductId || linkedPatternId !== manualProductId)
   const shouldShowInstantDownload = isDigitalDownload || isPatternProduct
+  const cardImageUrl = resolveCardImageUrl(product)
 
   return (
     <a href={`#/product/${product.id}`} className="product-card-link">
       <article className="product-card">
         <div className="card-image">
           {hasDiscount && <span className="sale-badge">On Sale</span>}
-          {product.image_url ? (
-            <img src={product.image_url} alt={product.title || 'Glass art'} />
+          {cardImageUrl ? (
+            <img src={cardImageUrl} alt={product.title || 'Glass art'} />
           ) : (
             <div className="image-placeholder">No image</div>
           )}

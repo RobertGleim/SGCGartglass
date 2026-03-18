@@ -5,6 +5,7 @@ import re
 import secrets
 import time
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
 try:
     from .models import db as db
@@ -14,6 +15,54 @@ except Exception:  # pragma: no cover
 
 _schema_initialized = False
 _schema_init_lock = threading.Lock()
+_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def _review_image_url_is_available(value):
+    raw = str(value or "").strip()
+    if not raw:
+        return False
+    if raw.startswith("data:") or raw.startswith("blob:"):
+        return True
+    if raw.startswith("http://") or raw.startswith("https://"):
+        # External URLs are treated as usable; existence checks would require network I/O.
+        return True
+
+    parsed_path = urlparse(raw).path if "://" in raw else raw
+    if not parsed_path:
+        return False
+    if not parsed_path.startswith("/uploads/"):
+        return True
+
+    relative_path = parsed_path.lstrip("/").replace("/", os.sep)
+    absolute_path = os.path.abspath(os.path.join(_BACKEND_DIR, relative_path))
+    uploads_root = os.path.abspath(os.path.join(_BACKEND_DIR, "uploads"))
+    if not absolute_path.startswith(uploads_root + os.sep) and absolute_path != uploads_root:
+        return False
+    return os.path.isfile(absolute_path)
+
+
+def _normalize_review_image_fields(rows):
+    normalized = []
+    for row in rows:
+        payload = dict(row)
+        primary_image = payload.get("product_image_url")
+        fallback_image = payload.get("fallback_product_image_url")
+
+        primary_ok = _review_image_url_is_available(primary_image)
+        fallback_ok = _review_image_url_is_available(fallback_image)
+
+        if not primary_ok and fallback_ok:
+            payload["product_image_url"] = fallback_image
+        elif not primary_ok:
+            payload["product_image_url"] = None
+
+        if not fallback_ok:
+            payload["fallback_product_image_url"] = None
+
+        normalized.append(payload)
+
+    return normalized
 
 
 def _preferred_database_url():
@@ -57,6 +106,8 @@ def _serialize_related_links(value):
         "template_name",
         "pattern_product_id",
         "pattern_product_name",
+        "linked_product_id",
+        "linked_product_name",
         "gallery_photo_id",
         "gallery_panel_name",
         "gallery_template_id",
@@ -2862,7 +2913,7 @@ def list_reviews_for_product(product_type, product_id):
     )
     rows = cursor.fetchall()
     conn.close()
-    return [dict(row) for row in rows]
+    return _normalize_review_image_fields(rows)
 
 
 def list_recent_reviews(limit=10):
@@ -2915,7 +2966,7 @@ def list_recent_reviews(limit=10):
     )
     rows = cursor.fetchall()
     conn.close()
-    return [dict(row) for row in rows]
+    return _normalize_review_image_fields(rows)
 
 
 def create_customer_invoice(customer_id, work_order_id, invoice_number, amount, due_date=None, notes=None):
