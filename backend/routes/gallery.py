@@ -232,21 +232,24 @@ def create_gallery_photo():
 
 @admin_gallery_bp.get("/gallery/photos")
 def admin_list_gallery_photos():
-    _, auth_error = _require_admin()
-    if auth_error:
-        return auth_error
+    try:
+        _, auth_error = _require_admin()
+        if auth_error:
+            return auth_error
 
-    approval_status = (request.args.get("approval_status") or "").strip().lower()
-    category = (request.args.get("category") or "").strip()
-    template_id = request.args.get("template_id", type=int)
-    query = GalleryPhoto.query
-    if approval_status in {"pending", "approved", "rejected"}:
-        query = query.filter(GalleryPhoto.approval_status == approval_status)
-    if category:
-        query = query.filter(GalleryPhoto.category.ilike(category))
-    if template_id:
-        query = query.filter(GalleryPhoto.template_id == template_id)
-    return jsonify(_serialize_list(query, include_admin_fields=True))
+        approval_status = (request.args.get("approval_status") or "").strip().lower()
+        category = (request.args.get("category") or "").strip()
+        template_id = request.args.get("template_id", type=int)
+        query = GalleryPhoto.query
+        if approval_status in {"pending", "approved", "rejected"}:
+            query = query.filter(GalleryPhoto.approval_status == approval_status)
+        if category:
+            query = query.filter(GalleryPhoto.category.ilike(category))
+        if template_id:
+            query = query.filter(GalleryPhoto.template_id == template_id)
+        return jsonify(_serialize_list(query, include_admin_fields=True))
+    except Exception as exc:
+        return jsonify({"error": "server_error", "detail": str(exc)}), 500
 
 
 @admin_gallery_bp.put("/gallery/photos/<int:photo_id>")

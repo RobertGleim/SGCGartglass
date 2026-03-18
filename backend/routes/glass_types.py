@@ -2,11 +2,13 @@
 Glass type API: public list (active only) and admin CRUD + toggle + reorder.
 """
 import os
+from functools import wraps
 from flask import Blueprint, jsonify, request, current_app
 from pathlib import Path
 from sqlalchemy import func
 
 from ..models import db, GlassType
+from ..auth import decode_token
 from ..services.glass_type_service import (
     validate_texture_image,
     save_texture_file,
@@ -19,8 +21,27 @@ admin_glass_types_bp = Blueprint("admin_glass_types", __name__)
 
 
 def _require_admin(handler):
-    """Placeholder: require admin auth. Integrate with require_auth + role check later."""
-    return handler
+    @wraps(handler)
+    def wrapper(*args, **kwargs):
+        auth_header = (request.headers.get("Authorization") or "").strip()
+        if not auth_header.startswith("Bearer "):
+            return jsonify({"error": "missing_token"}), 401
+
+        token = auth_header.split(" ", 1)[1].strip()
+        if not token:
+            return jsonify({"error": "missing_token"}), 401
+
+        try:
+            payload = decode_token(token)
+        except Exception:
+            return jsonify({"error": "invalid_token"}), 401
+
+        if payload.get("role") == "customer":
+            return jsonify({"error": "forbidden"}), 403
+
+        return handler(*args, **kwargs)
+
+    return wrapper
 
 
 def _upload_folder() -> str:

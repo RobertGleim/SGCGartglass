@@ -421,11 +421,9 @@ export default function ColoredDesignPreview({ designData, template, editable = 
     if (!highlightedSection) return;
 
     const target = svgEl.querySelector(`[data-section-id="${highlightedSection}"]`);
-    console.log('[ColoredDesignPreview] highlight section:', highlightedSection, 'found:', !!target);
     if (!target) {
       // Debug: list all data-section-id values
       const allIds = [...svgEl.querySelectorAll('[data-section-id]')].map(el => el.getAttribute('data-section-id'));
-      console.log('[ColoredDesignPreview] available section IDs:', allIds.slice(0, 20));
       return;
     }
     try {
@@ -498,15 +496,6 @@ export default function ColoredDesignPreview({ designData, template, editable = 
 
   const sectionEntries = Object.entries(sections);
   const hasSections = sectionEntries.length > 0;
-
-  // Debug: log sections data to verify sectionNum is saved
-  useEffect(() => {
-    if (hasSections) {
-      console.log('[ColoredDesignPreview] sections keys:', Object.keys(sections));
-      console.log('[ColoredDesignPreview] sections data:', JSON.stringify(sections, null, 2));
-      console.log('[ColoredDesignPreview] sectionCenters:', sectionCenters);
-    }
-  }, [sections, hasSections, sectionCenters]);
 
   // Build display number map: section key → display number
   // Priority: saved sectionNum > center num > raw key

@@ -101,6 +101,34 @@ const removeTypeCategories = (categories) => {
   return categories.filter((entry) => !isTypeCategory(entry))
 }
 
+const dedupeCategories = (categories) => {
+  const seen = new Set()
+  return categories.filter((entry) => {
+    const normalized = normalizeCategoryValue(entry)
+    if (!normalized || seen.has(normalized)) {
+      return false
+    }
+    seen.add(normalized)
+    return true
+  })
+}
+
+const getProductSubcategories = (product) => {
+  return dedupeCategories(
+    removeTypeCategories(toCategoryArray(product.category))
+      .map((entry) => String(entry || '').trim())
+      .filter(Boolean)
+  )
+}
+
+const productHasSubcategory = (product, selectedCategory) => {
+  const target = normalizeCategoryValue(selectedCategory)
+  if (!target) return false
+  return getProductSubcategories(product).some(
+    (entry) => normalizeCategoryValue(entry) === target
+  )
+}
+
 const VALID_SHOP_TABS = new Set([
   ...PRODUCT_TABS.map((tab) => tab.key),
   'bargin-basement',
@@ -273,8 +301,7 @@ export default function ProductPage({ products }) {
       'On sale': sectionProducts.filter((p) => isOnSale(p)).length
     }
     sectionProducts.forEach((product) => {
-      const categories = removeTypeCategories(toCategoryArray(product.category))
-      categories.forEach((category) => {
+      getProductSubcategories(product).forEach((category) => {
         counts[category] = (counts[category] || 0) + 1
       })
     })
@@ -295,8 +322,7 @@ export default function ProductPage({ products }) {
       } else if (selectedCategory === 'On sale') {
         matchesCategory = isOnSale(product)
       } else {
-        const categories = removeTypeCategories(toCategoryArray(product.category))
-        matchesCategory = categories.includes(selectedCategory)
+        matchesCategory = productHasSubcategory(product, selectedCategory)
       }
       
       const matchesSearch =
@@ -345,11 +371,8 @@ export default function ProductPage({ products }) {
   }, [currentPage, totalPages])
 
   useEffect(() => {
-    if (selectedCategory !== 'All') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedCategory('All')
-    }
-  }, [activeTab, selectedCategory])
+    setSelectedCategory('All')
+  }, [activeTab])
 
   const activeReview = recentReviews[activeReviewIndex] || null
 

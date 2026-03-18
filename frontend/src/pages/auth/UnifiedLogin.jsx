@@ -2,7 +2,23 @@ import { useState } from 'react'
 import { requestCustomerPasswordReset } from '../../services/api'
 import '../../styles/CustomerAuth.css'
 
-export default function UnifiedLogin({ onAdminLogin, onCustomerLogin }) {
+const getCurrentRoutePath = () => {
+  const hash = window.location.hash || ''
+  return hash.startsWith('#') ? hash.slice(1) : hash
+}
+
+const isCredentialFailure = (error) => {
+  const status = Number(error?.response?.status || 0)
+  const code = String(error?.response?.data?.error || '').toLowerCase()
+  return status === 401 && (
+    code === 'invalid_credentials'
+    || code === 'invalid_token'
+    || code === 'missing_token'
+    || code.startsWith('invalid_token')
+  )
+}
+
+export default function UnifiedLogin({ onAdminLogin, onCustomerLogin, preferredRole = 'auto' }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -18,28 +34,46 @@ export default function UnifiedLogin({ onAdminLogin, onCustomerLogin }) {
     setLoading(true)
 
     try {
-      // Try customer login first to avoid expected admin 401 noise for customer accounts
-      try {
-        await onCustomerLogin(email, password)
-        console.log('[UnifiedLogin] Customer login successful')
-        window.location.hash = '#/account'
-        // Force re-render if hash was already #/account
-        window.dispatchEvent(new HashChangeEvent('hashchange'))
-      } catch (customerError) {
-        // Customer login failed; try admin login as fallback for admin accounts
+      const routePath = getCurrentRoutePath()
+      const resolvedRole = preferredRole === 'auto'
+        ? (routePath.startsWith('/admin') ? 'admin' : 'customer')
+        : preferredRole
+
+      const loginStrategies = resolvedRole === 'admin'
+        ? [
+            { role: 'admin', run: () => onAdminLogin(email, password) },
+            { role: 'customer', run: () => onCustomerLogin(email, password) },
+          ]
+        : [
+            { role: 'customer', run: () => onCustomerLogin(email, password) },
+            { role: 'admin', run: () => onAdminLogin(email, password) },
+          ]
+
+      let lastError = null
+      for (let index = 0; index < loginStrategies.length; index += 1) {
+        const attempt = loginStrategies[index]
+        const isLastAttempt = index === loginStrategies.length - 1
         try {
-          await onAdminLogin(email, password)
-          // Navigation handled by onAdminLogin (App.jsx handleLogin)
-        } catch (adminError) {
-          // Both logins failed - now show error
-          console.error('[UnifiedLogin] Login failed:', adminError.response?.data?.error || adminError.message)
-          const serverMsg = adminError.response?.data?.error
-          if (serverMsg === 'admin_not_configured') {
-            setError('Admin account is not configured on the server. Check ADMIN_EMAIL and ADMIN_PASSWORD_HASH environment variables.')
-          } else {
-            setError('Invalid email or password. Please try again.')
+          await attempt.run()
+          if (attempt.role === 'customer') {
+            window.location.hash = '#/account'
+            window.dispatchEvent(new HashChangeEvent('hashchange'))
+          }
+          return
+        } catch (loginError) {
+          lastError = loginError
+          if (!isCredentialFailure(loginError) || isLastAttempt) {
+            break
           }
         }
+      }
+
+      console.error('[UnifiedLogin] Login failed:', lastError?.response?.data?.error || lastError?.message)
+      const serverMsg = lastError?.response?.data?.error
+      if (serverMsg === 'admin_not_configured') {
+        setError('Admin account is not configured on the server. Check ADMIN_EMAIL and ADMIN_PASSWORD_HASH environment variables.')
+      } else {
+        setError('Invalid email or password. Please try again.')
       }
     } finally {
       setLoading(false)

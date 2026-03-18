@@ -1,5 +1,18 @@
 import './ProductCard.css'
 
+const toCategoryList = (category) => {
+  if (Array.isArray(category)) return category
+  if (typeof category === 'string' && category.trim().includes(',')) {
+    return category
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+  }
+  return category ? [category] : []
+}
+
+const normalizeCategory = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+
 export default function ProductCard({ product }) {
   // Calculate discount if there's an old price
   const hasDiscount = product.old_price && product.old_price > product.price_amount
@@ -7,6 +20,15 @@ export default function ProductCard({ product }) {
     ? Math.round(((product.old_price - product.price_amount) / product.old_price) * 100)
     : 0
   const isDigitalDownload = product.is_digital_download === true
+  const isPatternProduct = toCategoryList(product.category)
+    .some((entry) => normalizeCategory(entry) === 'patterns' || normalizeCategory(entry) === 'pattern')
+  const manualProductId = String(product?.originalData?.id || '').trim()
+  const linkedPatternId = String(product?.originalData?.related_links?.pattern_product_id || '').trim()
+  const hasLinkedPattern = !isDigitalDownload
+    && !isPatternProduct
+    && Boolean(linkedPatternId)
+    && (!manualProductId || linkedPatternId !== manualProductId)
+  const shouldShowInstantDownload = isDigitalDownload || isPatternProduct
 
   return (
     <a href={`#/product/${product.id}`} className="product-card-link">
@@ -42,8 +64,11 @@ export default function ProductCard({ product }) {
             {product.free_shipping && (
               <span className="free-shipping">FREE shipping</span>
             )}
-            {isDigitalDownload && (
-              <span className="free-shipping">Instant download</span>
+            {shouldShowInstantDownload && (
+              <span className="instant-download-badge">Instant download</span>
+            )}
+            {hasLinkedPattern && (
+              <span className="pattern-available-badge">Pattern available</span>
             )}
           </div>
         </div>

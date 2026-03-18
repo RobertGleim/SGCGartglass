@@ -18,7 +18,12 @@ load_dotenv(dotenv_path=backend_env_local_path, override=True)
 
 def _sqlalchemy_database_uri():
     """Build SQLAlchemy URI from DATABASE_URL/POSTGRES_URL (PostgreSQL only)."""
-    url = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL')
+    app_env = (os.environ.get('APP_ENV') or os.environ.get('FLASK_ENV') or '').strip().lower()
+    is_debug = os.environ.get('FLASK_DEBUG', 'false').strip().lower() in {'1', 'true', 'yes', 'on'}
+    if app_env in {'development', 'testing'} or is_debug:
+        url = os.environ.get('POSTGRES_URL') or os.environ.get('DATABASE_URL')
+    else:
+        url = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL')
     if not url:
         raise RuntimeError('Set DATABASE_URL or POSTGRES_URL to a PostgreSQL connection string.')
 

@@ -24,6 +24,7 @@ export default function Sidebar({
         {categories.map((category) => (
           <li key={category}>
             <button
+              type="button"
               className={`sidebar-category-btn ${category === selectedCategory ? 'active' : ''}`}
               onClick={() => setSelectedCategory(category)}
             >

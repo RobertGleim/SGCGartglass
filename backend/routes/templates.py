@@ -1,12 +1,19 @@
 """\nTemplate API: public list/get and admin CRUD (create, update, soft delete).\n"""
 import os
 import uuid
+from functools import wraps
 from flask import Blueprint, jsonify, request, current_app
 from sqlalchemy import func
 from werkzeug.utils import secure_filename
 
 from ..models import db, Template, TemplateRegion
 from ..auth import decode_token
+from ..db import (
+    create_manual_product,
+    fetch_manual_product,
+    fetch_manual_products,
+    update_manual_product,
+)
 from ..services.template_service import (
     validate_template_data,
     parse_svg_regions,
@@ -22,12 +29,31 @@ admin_templates_bp = Blueprint("admin_templates", __name__)
 DEFAULT_LIMIT = 12
 MAX_LIMIT = 50
 MAX_TEMPLATE_UPLOAD_BYTES = 50 * 1024 * 1024
+PATTERN_DEFAULT_QUANTITY = 999
 
 
 def _require_admin(handler):
-    """Placeholder: require admin auth. Integrate with require_auth + role check later."""
-    # TODO: from ..auth import require_auth; check g.auth_payload.get("role") == "admin"
-    return handler
+    @wraps(handler)
+    def wrapper(*args, **kwargs):
+        auth_header = (request.headers.get("Authorization") or "").strip()
+        if not auth_header.startswith("Bearer "):
+            return jsonify({"error": "missing_token"}), 401
+
+        token = auth_header.split(" ", 1)[1].strip()
+        if not token:
+            return jsonify({"error": "missing_token"}), 401
+
+        try:
+            payload = decode_token(token)
+        except Exception:
+            return jsonify({"error": "invalid_token"}), 401
+
+        if payload.get("role") == "customer":
+            return jsonify({"error": "forbidden"}), 403
+
+        return handler(*args, **kwargs)
+
+    return wrapper
 
 
 def _get_request_auth_payload():
@@ -62,6 +88,124 @@ def _can_access_template(template: Template, auth_payload: dict | None) -> bool:
     except (TypeError, ValueError):
         return False
     return bool(template.assigned_customer_id and int(template.assigned_customer_id) == customer_id)
+
+
+def _to_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_pattern_related_links(value):
+    if isinstance(value, dict):
+        return dict(value)
+    return {}
+
+
+def _resolve_existing_pattern_product(template: Template):
+    related_links = _normalize_pattern_related_links(template.related_links)
+    linked_pattern_id = _to_int(related_links.get("pattern_product_id"))
+    if linked_pattern_id:
+        linked_product = fetch_manual_product(linked_pattern_id)
+        if linked_product:
+            return linked_product
+
+    manual_products = fetch_manual_products() or []
+    for entry in manual_products:
+        entry_links = entry.get("related_links") if isinstance(entry, dict) else None
+        if not isinstance(entry_links, dict):
+            continue
+        template_id = _to_int(entry_links.get("template_id"))
+        if template_id and template_id == template.id:
+            return entry
+
+    return None
+
+
+def _build_pattern_product_payload(template: Template, existing_product=None):
+    existing_product = existing_product or {}
+    existing_images = existing_product.get("images") if isinstance(existing_product.get("images"), list) else []
+    template_image_url = (template.thumbnail_url or template.image_url or "").strip()
+
+    images = existing_images
+    if not images and template_image_url:
+        images = [{"url": template_image_url, "type": "image"}]
+
+    related_links = _normalize_pattern_related_links(existing_product.get("related_links"))
+    related_links.update({
+        "template_id": template.id,
+        "template_name": template.name,
+    })
+
+    return {
+        "name": (template.name or "").strip() or f"Pattern #{template.id}",
+        "description": (template.description or "").strip() or f"Digital pattern download for {template.name}",
+        "category": ["Pattern"],
+        "materials": existing_product.get("materials") if existing_product.get("materials") is not None else [],
+        "width": existing_product.get("width"),
+        "height": existing_product.get("height"),
+        "depth": existing_product.get("depth"),
+        "price": float(template.price_amount or 0),
+        "old_price": existing_product.get("old_price"),
+        "discount_percent": existing_product.get("discount_percent"),
+        "quantity": existing_product.get("quantity") if existing_product.get("quantity") is not None else PATTERN_DEFAULT_QUANTITY,
+        "is_featured": bool(existing_product.get("is_featured")),
+        "is_digital_download": True,
+        "related_links": related_links,
+        "images": images,
+    }
+
+
+def _sync_pattern_product_for_template(template: Template):
+    if not bool(template.is_digital_download):
+        return
+
+    existing_product = _resolve_existing_pattern_product(template)
+    payload = _build_pattern_product_payload(template, existing_product=existing_product)
+
+    if existing_product and existing_product.get("id"):
+        pattern_product_id = int(existing_product["id"])
+        update_manual_product(pattern_product_id, payload)
+        pattern_product = fetch_manual_product(pattern_product_id)
+    else:
+        pattern_product_id = create_manual_product(payload)
+        pattern_product = fetch_manual_product(pattern_product_id)
+
+    if not pattern_product:
+        raise RuntimeError("Failed to create or update linked pattern product")
+
+    next_links = _normalize_pattern_related_links(template.related_links)
+    next_links.update({
+        "template_id": template.id,
+        "template_name": template.name,
+        "pattern_product_id": pattern_product_id,
+        "pattern_product_name": pattern_product.get("name") or template.name,
+    })
+    template.related_links = next_links
+
+
+def _safe_session_rollback():
+    try:
+        db.session.rollback()
+    except Exception as rollback_error:
+        current_app.logger.warning("Template route rollback failed: %s", rollback_error)
+
+
+def _sync_pattern_product_nonfatal(template: Template):
+    try:
+        _sync_pattern_product_for_template(template)
+        db.session.commit()
+        db.session.refresh(template)
+        return None
+    except Exception as sync_error:
+        _safe_session_rollback()
+        current_app.logger.warning(
+            "Template pattern sync skipped for template_id=%s: %s",
+            getattr(template, "id", None),
+            sync_error,
+        )
+        return str(sync_error)
 
 
 @templates_bp.get("/templates")
@@ -305,9 +449,14 @@ def create_template():
             ))
         db.session.commit()
         db.session.refresh(template)
-        return jsonify(template.to_dict(include_regions=True, include_svg=True)), 201
+        sync_error = _sync_pattern_product_nonfatal(template)
+
+        response_payload = template.to_dict(include_regions=True, include_svg=True)
+        if sync_error:
+            response_payload["sync_warning"] = "Template saved, but linked pattern product sync was skipped."
+        return jsonify(response_payload), 201
     except Exception as e:
-        db.session.rollback()
+        _safe_session_rollback()
         return jsonify({"error": "server_error", "detail": str(e)}), 500
 
 
@@ -397,9 +546,14 @@ def update_template(template_id):
                 ))
         db.session.commit()
         db.session.refresh(template)
-        return jsonify(template.to_dict(include_regions=True, include_svg=True))
+        sync_error = _sync_pattern_product_nonfatal(template)
+
+        response_payload = template.to_dict(include_regions=True, include_svg=True)
+        if sync_error:
+            response_payload["sync_warning"] = "Template saved, but linked pattern product sync was skipped."
+        return jsonify(response_payload)
     except Exception as e:
-        db.session.rollback()
+        _safe_session_rollback()
         return jsonify({"error": "server_error", "detail": str(e)}), 500
 
 
@@ -426,5 +580,5 @@ def delete_template(template_id):
         db.session.commit()
         return jsonify({"success": True, "message": "Template deactivated"}), 200
     except Exception as e:
-        db.session.rollback()
+        _safe_session_rollback()
         return jsonify({"error": "server_error", "detail": str(e)}), 500

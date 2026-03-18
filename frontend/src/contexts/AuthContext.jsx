@@ -29,7 +29,6 @@ export function AuthProvider({ children }) {
     if (isValidToken(token)) {
       setAuthToken(token)
       window.sessionStorage.setItem('sgcg_token', token)
-      console.log('[Auth] Admin login successful')
     } else {
       throw new Error('Invalid authentication response from server')
     }

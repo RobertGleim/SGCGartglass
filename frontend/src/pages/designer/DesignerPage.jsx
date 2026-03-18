@@ -626,11 +626,9 @@ export default function DesignerPage() {
         const snap = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
         historyRef.current = [snap];
         historyIdxRef.current = 0;
-        console.log('[DesignerPage] Restored flood-fill canvas from saved dataUrl at', CANVAS_W, 'x', CANVAS_H);
       };
       img.onerror = () => console.error('[DesignerPage] Failed to load saved dataUrl image');
       img.src = designData.dataUrl;
-      console.log('[DesignerPage] Applied flood-fill design data, dataUrl length:', designData.dataUrl.length);
       return; // flood-fill handled, skip Fabric.js path
     }
 
@@ -734,7 +732,6 @@ export default function DesignerPage() {
       const snap = ctx.getImageData(0, 0, CANVAS_BASE_W, CANVAS_BASE_H);
       historyRef.current = [snap];
       historyIdxRef.current = 0;
-      console.log('[DesignerPage] Applied flood-fill section metadata to canvas:', Object.keys(sectionDataMap).length, 'sections');
       return;
     }
 
@@ -888,7 +885,6 @@ export default function DesignerPage() {
       fabricRef.current.renderAll();
     }
     
-    console.log('[DesignerPage] Applied design data:', Object.keys(designData).length, 'keys');
   };
   
   // Auto-submit when project is loaded with submit flag
@@ -928,7 +924,6 @@ export default function DesignerPage() {
             img.onload = () => {
               img._supportsReadback = canReadImagePixels(img);
               textureCacheRef.current.set(gt.id, img);
-              console.log('[DesignerPage] Loaded glass texture:', gt.name, textureSourceUrl);
               if (woDesignDataRef.current && step === STEP.DESIGN) {
                 applyDesignData(woDesignDataRef.current);
               }
@@ -979,10 +974,6 @@ export default function DesignerPage() {
   useEffect(() => {
     if (step !== STEP.DESIGN || !canvasRef.current || !selectedTemplate) return;
 
-    console.log('[DesignerPage] Initializing canvas with template:', selectedTemplate);
-    console.log('[DesignerPage] Template type:', selectedTemplate.template_type);
-    console.log('[DesignerPage] Has svg_content:', !!selectedTemplate.svg_content);
-    console.log('[DesignerPage] Has image_url:', !!selectedTemplate.image_url);
 
     let destroyed = false;
     isFloodFillMode.current = false;
@@ -1534,7 +1525,6 @@ export default function DesignerPage() {
 
           // Fallback: if template image failed, try to restore from saved dataUrl
           if (!imgEl && woDesignDataRef.current?.dataUrl) {
-            console.log('[DesignerPage] Template image failed to load, using saved dataUrl fallback');
             imgEl = await new Promise((resolve, reject) => {
               const el = document.createElement('img');
               el.onload = () => resolve(el);
@@ -1794,11 +1784,9 @@ export default function DesignerPage() {
         // ============================================================
         //  SVG TEMPLATE  →  Fabric.js with ungrouped paths
         // ============================================================
-        console.log('[DesignerPage] Loading Fabric.js for SVG template');
         const fabric = await import('fabric');
         const { Canvas, loadSVGFromString, util, Rect } = fabric;
 
-        console.log('[DesignerPage] Creating Fabric canvas');
         const canvas = new Canvas(canvasRef.current, {
           width: CANVAS_W,
           height: CANVAS_H,
@@ -1810,7 +1798,6 @@ export default function DesignerPage() {
         fabricRef.current = canvas;
 
         if (selectedTemplate.svg_content) {
-          console.log('[DesignerPage] Parsing SVG content...');
           // Parse SVG string into Fabric objects
           let rawObjects = [];
           let svgOptions = {};
@@ -1818,7 +1805,6 @@ export default function DesignerPage() {
             const result = await loadSVGFromString(selectedTemplate.svg_content);
             rawObjects = (result.objects || []).filter(Boolean);
             svgOptions = result.options || {};
-            console.log('[DesignerPage] SVG parsed successfully:', rawObjects.length, 'objects');
           } catch (e) {
             console.error('[DesignerPage] SVG parse error:', e);
           }
@@ -1943,10 +1929,8 @@ export default function DesignerPage() {
               child.setCoords();
               canvas.add(child);
             });
-            console.log('[DesignerPage] Added', leaves.length, 'objects to canvas');
           }
         } else {
-          console.log('[DesignerPage] No svg_content, creating demo rectangles');
           // Demo: colorful placeholder rectangles
           const demoColors = ['#C1121F', '#F4D35E', '#2A9D45', '#228B22', '#0047AB', '#0057D9', '#6A4C93'];
           const cols = 4; const rows = 3;
@@ -1967,12 +1951,9 @@ export default function DesignerPage() {
               canvas.add(rect);
             }
           }
-          console.log('[DesignerPage] Added demo rectangles');
         }
 
-        console.log('[DesignerPage] Rendering canvas...');
         canvas.renderAll();
-        console.log('[DesignerPage] Canvas rendered');
 
         // ── Detect border/frame/background sections and lock them ──
         // Any section whose bbox touches 2+ canvas edges is a frame, corner,
@@ -2197,7 +2178,6 @@ export default function DesignerPage() {
               setSelectedLegendNumber(sectionNumber);
             }
           } else {
-            console.log('[DesignerPage] Section filled:', { sectionId, sectionNum: sectionNumber, color });
             sectionFillsRef.current[sectionId] = {
               color,
               glassType: gt?.name || null,
@@ -3195,10 +3175,8 @@ export default function DesignerPage() {
                     onClick={async () => {
                       resetTemplateSession();
                       // Fetch full template (with svg_content / image_url) before entering designer
-                      console.log('[DesignerPage] Template clicked:', t.id, t.name);
                       try {
                         const full = await getTemplateCached(t.id);
-                        console.log('[DesignerPage] Full template fetched:', full);
                         // API response interceptor already extracts .data, so full IS the data
                         setSelectedTemplate(full);
                         if (full?.default_design_data && typeof full.default_design_data === 'object') {
@@ -3206,7 +3184,6 @@ export default function DesignerPage() {
                         }
                       } catch (err) {
                         console.error('[DesignerPage] Template fetch failed:', err);
-                        console.log('[DesignerPage] Using gallery data as fallback');
                         setSelectedTemplate(t); // fallback to gallery data
                         if (t?.default_design_data && typeof t.default_design_data === 'object') {
                           woDesignDataRef.current = t.default_design_data;

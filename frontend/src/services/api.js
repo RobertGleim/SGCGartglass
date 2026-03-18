@@ -313,17 +313,22 @@ api.interceptors.response.use(
       return api.request(retryConfig);
     }
 
-    // Check if error response is HTML (404 or misconfigured routing)
+    // Check if error response is HTML (debug traceback page, proxy issue, or bad routing)
     if (error.response?.data && typeof error.response.data === 'string' && error.response.data.startsWith('<!')) {
-      console.error('[API] Server returned HTML instead of JSON. Likely API routing misconfiguration.');
+      const status = Number(error.response?.status || 0);
+      if (status === 404) {
+        console.error('[API] Server returned HTML instead of JSON (404). Possible API routing misconfiguration.');
+      } else {
+        console.error('[API] Server returned HTML instead of JSON. Backend threw an exception before returning API JSON.');
+      }
       console.error('[API] Request URL:', error.config?.url);
       console.error('[API] Request method:', error.config?.method);
-      console.error('[API] Status:', error.response?.status);
+      console.error('[API] Status:', status);
 
       const requestUrl = String(originalConfig.url || '');
       const originalBaseURL = String(originalConfig.baseURL || '');
       const shouldRetryWithApiPrefix =
-        error.response?.status === 404
+        status === 404
         && requestUrl.startsWith('/')
         && !requestUrl.startsWith('/api/')
         && !requestUrl.startsWith('/api')

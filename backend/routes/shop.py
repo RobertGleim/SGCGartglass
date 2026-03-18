@@ -95,6 +95,9 @@ from ..db import (
     update_customer_admin,
     delete_customer_admin,
     get_invoice_by_id,
+    get_login_lockout_remaining,
+    record_login_failure,
+    clear_login_failures,
 )
 from ..etsy import extract_listing_id, fetch_listing, fetch_shop_favorers_count
 from ..utils.email import send_email, digital_download_email
@@ -112,6 +115,47 @@ _catalog_cache = {
 ALLOWED_REVIEW_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 ALLOWED_REVIEW_IMAGE_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_REVIEW_IMAGE_BYTES = 20 * 1024 * 1024
+
+
+def _login_policy():
+    def _int_env(name, default):
+        raw = str(os.environ.get(name) or "").strip()
+        if not raw:
+            return default
+        try:
+            return max(1, int(raw))
+        except ValueError:
+            return default
+
+    return {
+        "max_attempts": _int_env("AUTH_LOGIN_MAX_ATTEMPTS", 5),
+        "window_seconds": _int_env("AUTH_LOGIN_WINDOW_SECONDS", 900),
+        "lockout_seconds": _int_env("AUTH_LOGIN_LOCKOUT_SECONDS", 900),
+    }
+
+
+def _check_login_lock(scope, email, ip):
+    init_db()
+    policy = _login_policy()
+    return get_login_lockout_remaining(scope, email=email, request_ip=ip)
+
+
+def _record_login_failure(scope, email, ip):
+    init_db()
+    policy = _login_policy()
+    return record_login_failure(
+        scope,
+        email=email,
+        request_ip=ip,
+        max_attempts=policy["max_attempts"],
+        window_seconds=policy["window_seconds"],
+        lockout_seconds=policy["lockout_seconds"],
+    )
+
+
+def _clear_login_failures(scope, email, ip):
+    init_db()
+    clear_login_failures(scope, email=email, request_ip=ip)
 
 
 def _resolve_stripe_secret_key():
@@ -1104,6 +1148,11 @@ def submit_contact_request():
 def stripe_webhook():
     init_db()
     webhook_secret = (os.environ.get("STRIPE_WEBHOOK_SECRET") or "").strip()
+    app_env = (os.environ.get("APP_ENV") or os.environ.get("FLASK_ENV") or "").strip().lower()
+    is_debug = (os.environ.get("FLASK_DEBUG") or "").strip().lower() == "true"
+    if not webhook_secret and app_env not in {"development", "testing"} and not is_debug:
+        current_app.logger.error("stripe webhook rejected: STRIPE_WEBHOOK_SECRET is not configured")
+        return jsonify({"error": "webhook_not_configured"}), 503
 
     payload = request.get_data(as_text=False)
     signature = request.headers.get("Stripe-Signature")
@@ -1339,6 +1388,11 @@ def login():
     payload = request.get_json(silent=True) or {}
     email = payload.get("email", "").strip().lower()
     password = payload.get("password", "")
+    request_ip = (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
+
+    locked_for = _check_login_lock("admin", email, request_ip)
+    if locked_for > 0:
+        return jsonify({"error": "too_many_attempts", "retry_after_seconds": locked_for}), 429
 
     admin_email = os.environ.get("ADMIN_EMAIL", "sgcgartglass@gmail.com").strip().lower()
     admin_hash = os.environ.get("ADMIN_PASSWORD_HASH")
@@ -1346,8 +1400,12 @@ def login():
         return jsonify({"error": "admin_not_configured"}), 500
 
     if email != admin_email or not check_password_hash(admin_hash, password):
+        locked_for = _record_login_failure("admin", email, request_ip)
+        if locked_for > 0:
+            return jsonify({"error": "too_many_attempts", "retry_after_seconds": locked_for}), 429
         return jsonify({"error": "invalid_credentials"}), 401
 
+    _clear_login_failures("admin", email, request_ip)
     token = create_token(email, role="admin")
     return jsonify({"token": token})
 
@@ -1380,11 +1438,20 @@ def customer_login():
     payload = request.get_json(silent=True) or {}
     email = payload.get("email", "").strip().lower()
     password = payload.get("password", "")
+    request_ip = (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
+
+    locked_for = _check_login_lock("customer", email, request_ip)
+    if locked_for > 0:
+        return jsonify({"error": "too_many_attempts", "retry_after_seconds": locked_for}), 429
 
     customer = fetch_customer_by_email(email)
     if not customer or not check_password_hash(customer["password_hash"], password):
+        locked_for = _record_login_failure("customer", email, request_ip)
+        if locked_for > 0:
+            return jsonify({"error": "too_many_attempts", "retry_after_seconds": locked_for}), 429
         return jsonify({"error": "invalid_credentials"}), 401
 
+    _clear_login_failures("customer", email, request_ip)
     update_customer_last_login(customer["id"])
     token = create_token(email, role="customer", customer_id=customer["id"])
     return jsonify({"token": token, "customer_id": customer["id"]})
@@ -1393,11 +1460,19 @@ def customer_login():
 def _password_reset_link(token):
     base = (os.environ.get("FRONTEND_BASE_URL") or "").strip().rstrip("/")
     if not base:
-        origin = request.headers.get("Origin")
-        if origin:
-            base = origin.strip().rstrip("/")
-        else:
+        cors_origins = [
+            origin.strip().rstrip("/")
+            for origin in str(os.environ.get("CORS_ORIGINS") or "").split(",")
+            if origin.strip() and origin.strip() != "*"
+        ]
+        base = cors_origins[0] if cors_origins else ""
+    if not base:
+        app_env = (os.environ.get("APP_ENV") or os.environ.get("FLASK_ENV") or "").strip().lower()
+        is_debug = (os.environ.get("FLASK_DEBUG") or "").strip().lower() == "true"
+        if app_env in {"development", "testing"} or is_debug:
             base = request.host_url.rstrip("/")
+        else:
+            raise ValueError("FRONTEND_BASE_URL (or non-wildcard CORS_ORIGINS) must be configured for password reset links")
     return f"{base}/#/account/reset-password?token={quote(token)}"
 
 
@@ -2807,19 +2882,22 @@ def create_item():
 
 @api.get("/manual-products")
 def list_manual_products():
-    init_db()
-    summary_mode = str(request.args.get("summary") or "").strip().lower() in {"1", "true", "yes"}
-    cache_key = "manual_products_summary" if summary_mode else "manual_products"
+    try:
+        init_db()
+        summary_mode = str(request.args.get("summary") or "").strip().lower() in {"1", "true", "yes"}
+        cache_key = "manual_products_summary" if summary_mode else "manual_products"
 
-    cached_products = _cache_get(cache_key)
-    if cached_products is not None:
-        return jsonify(cached_products), 200
+        cached_products = _cache_get(cache_key)
+        if cached_products is not None:
+            return jsonify(cached_products), 200
 
-    products = fetch_manual_products_catalog() if summary_mode else fetch_manual_products()
-    if products is None:
-        products = []
-    _cache_set(cache_key, products)
-    return jsonify(products), 200
+        products = fetch_manual_products_catalog() if summary_mode else fetch_manual_products()
+        if products is None:
+            products = []
+        _cache_set(cache_key, products)
+        return jsonify(products), 200
+    except Exception as exc:
+        return jsonify({"error": "server_error", "detail": str(exc)}), 500
 
 
 @api.get("/manual-products/<int:product_id>")

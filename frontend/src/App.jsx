@@ -296,7 +296,7 @@ function App() {
         {route.path === '/admin' && (
           <main className="admin-page">
             {!authToken ? (
-              <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
+              <UnifiedLogin preferredRole="admin" onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
             ) : (
               <AdminDashboard
                 items={items}
@@ -325,7 +325,7 @@ function App() {
 
         {route.path === '/account/login' && (
           <main className="admin-page">
-            <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
+            <UnifiedLogin preferredRole="customer" onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
           </main>
         )}
 
@@ -344,7 +344,7 @@ function App() {
         {route.path === '/account' && (
           <main className="admin-page">
             {!customerToken ? (
-              <UnifiedLogin onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
+              <UnifiedLogin preferredRole="customer" onAdminLogin={handleLogin} onCustomerLogin={customerLogin} />
             ) : (
               <CustomerPortal manualProducts={manualProducts} />
             )}

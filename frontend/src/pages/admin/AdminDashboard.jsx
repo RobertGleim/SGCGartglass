@@ -1104,9 +1104,7 @@ export default function AdminDashboard({
         })(),
         quantity: parseInt(manualProduct.quantity, 10),
         is_featured: manualProduct.is_featured,
-        is_digital_download: Boolean(
-          manualProduct.is_digital_download || selectedTypeCategory === "patterns",
-        ),
+        is_digital_download: Boolean(manualProduct.is_digital_download),
         related_links: {
           template_id: manualProduct.related_links?.template_id
             ? Number(manualProduct.related_links.template_id)

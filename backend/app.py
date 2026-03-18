@@ -10,7 +10,7 @@ from urllib.error import URLError, HTTPError
 from urllib.parse import urlparse
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
-from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 try:
     from flask_mail import Mail
 except Exception:  # pragma: no cover
@@ -63,6 +63,10 @@ def create_app(config_name=None):
     app.config.from_object(config_class)
     app.config["ACTIVE_CONFIG"] = resolved_config_name
 
+    # Keep API responses JSON-shaped in local development even when runtime errors occur.
+    if bool(app.config.get("DEBUG", False)):
+        app.config["PROPAGATE_EXCEPTIONS"] = False
+
     if Mail is not None:
         try:
             Mail(app)
@@ -107,6 +111,20 @@ def create_app(config_name=None):
             "error": "file_too_large",
             "detail": "Upload is too large. Please reduce the number of photos/videos or upload smaller files.",
         }), 413
+
+    @app.errorhandler(HTTPException)
+    def handle_http_exception(error):
+        if not request.path.startswith("/api"):
+            return error
+        detail = error.description if getattr(error, "description", None) else "Request failed."
+        return jsonify({"error": "http_error", "detail": str(detail)}), int(error.code or 500)
+
+    @app.errorhandler(Exception)
+    def handle_unexpected_exception(error):
+        if not request.path.startswith("/api"):
+            raise error
+        app.logger.exception("Unhandled API exception on %s", request.path)
+        return jsonify({"error": "server_error", "detail": str(error)}), 500
 
     # Proxy external texture URLs through backend so frontend canvas can load same-origin assets.
     @app.route("/api/texture-proxy", methods=["GET"])

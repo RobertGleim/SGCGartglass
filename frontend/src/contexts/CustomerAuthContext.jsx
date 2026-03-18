@@ -52,7 +52,6 @@ export function CustomerAuthProvider({ children }) {
   }, [])
 
   const signupWithCredentials = useCallback(async (payload) => {
-    console.log('CustomerAuthContext: signupWithCredentials called', payload)
     const token = await customerSignup(payload)
     if (isValidToken(token)) {
       setCustomerToken(token)
@@ -99,7 +98,6 @@ export function CustomerAuthProvider({ children }) {
       const timeSinceLastActivity = now - lastActivityRef.current
 
       if (timeSinceLastActivity >= INACTIVITY_TIMEOUT) {
-        console.log('[CustomerAuth] Auto-logout due to inactivity')
         logout()
       }
     }, CHECK_INTERVAL)

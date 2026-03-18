@@ -3,7 +3,7 @@ import threading
 import json
 import re
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 
 try:
     from .models import db as db
@@ -15,8 +15,16 @@ _schema_initialized = False
 _schema_init_lock = threading.Lock()
 
 
+def _preferred_database_url():
+    app_env = (os.environ.get("APP_ENV") or os.environ.get("FLASK_ENV") or "").strip().lower()
+    is_debug = (os.environ.get("FLASK_DEBUG") or "").strip().lower() in {"1", "true", "yes", "on"}
+    if app_env in {"development", "testing"} or is_debug:
+        return (os.environ.get("POSTGRES_URL") or os.environ.get("DATABASE_URL") or "").strip()
+    return (os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL") or "").strip()
+
+
 def _db_backend():
-    database_url = (os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL") or "").strip().lower()
+    database_url = _preferred_database_url().lower()
     if database_url.startswith(("postgresql://", "postgres://", "postgresql+psycopg://")):
         return "postgres"
     raise RuntimeError("DATABASE_URL (or POSTGRES_URL) must point to PostgreSQL.")
@@ -147,7 +155,7 @@ def get_db():
         import psycopg
         from psycopg.rows import dict_row
 
-        raw_url = (os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL") or "").strip()
+        raw_url = _preferred_database_url()
         if not raw_url:
             raise RuntimeError("DATABASE_URL or POSTGRES_URL is required for PostgreSQL connections.")
 
@@ -285,6 +293,23 @@ def init_db(force=False):
     )
     cursor.execute(
         f"""
+        CREATE TABLE IF NOT EXISTS auth_login_failures (
+            id {id_column},
+            scope VARCHAR(30) NOT NULL,
+            identifier_type VARCHAR(20) NOT NULL,
+            identifier VARCHAR(255) NOT NULL,
+            failed_count INTEGER DEFAULT 0,
+            window_start VARCHAR(50) NOT NULL,
+            lock_until VARCHAR(50),
+            last_failed_at VARCHAR(50),
+            created_at VARCHAR(50) NOT NULL,
+            updated_at VARCHAR(50) NOT NULL,
+            UNIQUE (scope, identifier_type, identifier)
+        )
+        """
+    )
+    cursor.execute(
+        f"""
         CREATE TABLE IF NOT EXISTS customer_favorites (
             id {id_column},
             customer_id INTEGER NOT NULL,
@@ -303,6 +328,8 @@ def init_db(force=False):
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_password_resets_expires ON customer_password_resets(expires_at)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customer_password_resets_customer_created ON customer_password_resets(customer_id, created_at DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customers_created_at ON customers(created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_auth_login_failures_scope_identifier ON auth_login_failures(scope, identifier_type, identifier)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_auth_login_failures_lock_until ON auth_login_failures(lock_until)")
     cursor.execute(
         f"""
         CREATE TABLE IF NOT EXISTS customer_cart_items (
@@ -1283,6 +1310,194 @@ def revoke_customer_password_resets(customer_id):
         """,
         (now, customer_id),
     )
+    conn.commit()
+    conn.close()
+
+
+def _to_datetime(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+
+
+def _login_identifiers(email=None, request_ip=None):
+    identifiers = []
+    normalized_email = str(email or "").strip().lower()
+    normalized_ip = str(request_ip or "").strip()
+    if normalized_email:
+        identifiers.append(("email", normalized_email))
+    if normalized_ip:
+        identifiers.append(("ip", normalized_ip))
+    return identifiers
+
+
+def _auth_login_retention_days():
+    raw = str(os.environ.get("AUTH_LOGIN_RETENTION_DAYS") or "").strip()
+    if not raw:
+        return 30
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return 30
+
+
+def _prune_auth_login_failures(cursor, now_dt):
+    retention_days = _auth_login_retention_days()
+    cutoff_iso = (now_dt - timedelta(days=retention_days)).isoformat()
+    now_iso = now_dt.isoformat()
+    placeholder = _placeholder()
+
+    cursor.execute(
+        f"""
+        DELETE FROM auth_login_failures
+        WHERE updated_at < {placeholder}
+          AND (lock_until IS NULL OR lock_until < {placeholder})
+        """,
+        (cutoff_iso, now_iso),
+    )
+    return cursor.rowcount > 0
+
+
+def get_login_lockout_remaining(scope, email=None, request_ip=None):
+    identifiers = _login_identifiers(email=email, request_ip=request_ip)
+    if not identifiers:
+        return 0
+
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholder = _placeholder()
+    now_dt = datetime.utcnow()
+    did_prune = _prune_auth_login_failures(cursor, now_dt)
+    if did_prune:
+        conn.commit()
+    remaining = 0
+
+    for identifier_type, identifier in identifiers:
+        cursor.execute(
+            f"""
+            SELECT lock_until
+            FROM auth_login_failures
+            WHERE scope = {placeholder}
+              AND identifier_type = {placeholder}
+              AND identifier = {placeholder}
+            LIMIT 1
+            """,
+            (scope, identifier_type, identifier),
+        )
+        row = cursor.fetchone() or {}
+        lock_until_dt = _to_datetime(row.get("lock_until"))
+        if lock_until_dt and lock_until_dt > now_dt:
+            remaining = max(remaining, int((lock_until_dt - now_dt).total_seconds()))
+
+    conn.close()
+    return remaining
+
+
+def record_login_failure(scope, email=None, request_ip=None, max_attempts=5, window_seconds=900, lockout_seconds=900):
+    identifiers = _login_identifiers(email=email, request_ip=request_ip)
+    if not identifiers:
+        return 0
+
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholder = _placeholder()
+    now_dt = datetime.utcnow()
+    now_iso = now_dt.isoformat()
+    _prune_auth_login_failures(cursor, now_dt)
+    remaining = 0
+
+    for identifier_type, identifier in identifiers:
+        cursor.execute(
+            f"""
+            SELECT id, failed_count, window_start
+            FROM auth_login_failures
+            WHERE scope = {placeholder}
+              AND identifier_type = {placeholder}
+              AND identifier = {placeholder}
+            LIMIT 1
+            """,
+            (scope, identifier_type, identifier),
+        )
+        row = cursor.fetchone()
+
+        failed_count = 0
+        window_start_dt = now_dt
+        if row:
+            previous_window_start = _to_datetime(row.get("window_start"))
+            if previous_window_start and now_dt - previous_window_start <= timedelta(seconds=max(1, int(window_seconds))):
+                failed_count = int(row.get("failed_count") or 0)
+                window_start_dt = previous_window_start
+
+        failed_count += 1
+        lock_until_iso = None
+        if failed_count >= max(1, int(max_attempts)):
+            lock_until_dt = now_dt + timedelta(seconds=max(1, int(lockout_seconds)))
+            lock_until_iso = lock_until_dt.isoformat()
+            remaining = max(remaining, int((lock_until_dt - now_dt).total_seconds()))
+
+        if row:
+            cursor.execute(
+                f"""
+                UPDATE auth_login_failures
+                SET failed_count = {placeholder},
+                    window_start = {placeholder},
+                    lock_until = {placeholder},
+                    last_failed_at = {placeholder},
+                    updated_at = {placeholder}
+                WHERE id = {placeholder}
+                """,
+                (failed_count, window_start_dt.isoformat(), lock_until_iso, now_iso, now_iso, row["id"]),
+            )
+        else:
+            cursor.execute(
+                f"""
+                INSERT INTO auth_login_failures (
+                    scope, identifier_type, identifier, failed_count, window_start, lock_until, last_failed_at, created_at, updated_at
+                ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                """,
+                (
+                    scope,
+                    identifier_type,
+                    identifier,
+                    failed_count,
+                    window_start_dt.isoformat(),
+                    lock_until_iso,
+                    now_iso,
+                    now_iso,
+                    now_iso,
+                ),
+            )
+
+    conn.commit()
+    conn.close()
+    return remaining
+
+
+def clear_login_failures(scope, email=None, request_ip=None):
+    identifiers = _login_identifiers(email=email, request_ip=request_ip)
+    if not identifiers:
+        return
+
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholder = _placeholder()
+    now_dt = datetime.utcnow()
+    _prune_auth_login_failures(cursor, now_dt)
+
+    for identifier_type, identifier in identifiers:
+        cursor.execute(
+            f"""
+            DELETE FROM auth_login_failures
+            WHERE scope = {placeholder}
+              AND identifier_type = {placeholder}
+              AND identifier = {placeholder}
+            """,
+            (scope, identifier_type, identifier),
+        )
+
     conn.commit()
     conn.close()
 
