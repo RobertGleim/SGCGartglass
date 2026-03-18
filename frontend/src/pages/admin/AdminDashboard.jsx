@@ -681,6 +681,7 @@ export default function AdminDashboard({
   const [templateRefPhotos, setTemplateRefPhotos] = useState([]);
   const [templateNameManuallyEdited, setTemplateNameManuallyEdited] = useState(false);
   const [patternOnly, setPatternOnly] = useState(false);
+  const [patternOnlyDescription, setPatternOnlyDescription] = useState("");
   const [isSavingManualProduct, setIsSavingManualProduct] = useState(false);
 
   const activeFavoriteCategories = favoriteCategoriesByType[productType] || [];
@@ -1603,9 +1604,16 @@ export default function AdminDashboard({
           }
         }
 
+        const resolvedPatternDescription = String(
+          manualProduct.description || patternOnlyDescription || "",
+        ).trim();
+        if (!resolvedPatternDescription) {
+          throw new Error("Pattern description is required.");
+        }
+
         const patternProductData = {
           name: String(manualProduct.name || unifiedTemplate.name || "Pattern").trim(),
-          description: String(manualProduct.description || "").trim(),
+          description: resolvedPatternDescription,
           category: [patternTypeLabel, ...nonTypeCategories],
           materials: manualProduct.materials.length > 0 ? manualProduct.materials : null,
           width: manualProduct.width ? parseFloat(manualProduct.width) : null,
@@ -1792,6 +1800,7 @@ export default function AdminDashboard({
         setTemplateRefPhotos([]);
         setTemplateNameManuallyEdited(false);
         setPatternOnly(false);
+        setPatternOnlyDescription("");
       }
       await loadManualProductLinkOptions();
     } catch (error) {
@@ -1896,6 +1905,7 @@ export default function AdminDashboard({
     setShowManualProductModal(true);
     setTemplateNameManuallyEdited(false);
     setPatternOnly(false);
+    setPatternOnlyDescription(String(product.description || ""));
   };
 
   const handleDeleteProduct = async (product) => {
@@ -2110,6 +2120,7 @@ export default function AdminDashboard({
     setTemplateRefPhotos([]);
     setTemplateNameManuallyEdited(false);
     setPatternOnly(false);
+    setPatternOnlyDescription("");
   };
 
   const openCustomerEditModal = async (customer) => {
@@ -3712,6 +3723,19 @@ export default function AdminDashboard({
                       />
                       <span>Pattern only (adds to Patterns tab only, not to Designer/Templates)</span>
                     </label>
+
+                    {patternOnly && (
+                      <label>
+                        Pattern Description *
+                        <textarea
+                          rows="2"
+                          value={patternOnlyDescription}
+                          onChange={(e) => setPatternOnlyDescription(e.target.value)}
+                          placeholder="Short description for the pattern-only listing"
+                          required={patternOnly}
+                        />
+                      </label>
+                    )}
 
                     <label>
                       Template Name *
