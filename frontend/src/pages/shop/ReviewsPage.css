@@ -77,10 +77,13 @@
   justify-content: center;
   padding: 1rem;
   z-index: 1200;
+  overflow-y: auto;
 }
 
 .reviews-modal-card {
   width: min(100%, 520px);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
   border-radius: 12px;
   background: #fff;
   border: 1px solid #e3e8ef;
@@ -187,6 +190,21 @@
   margin: 0;
   color: #666;
   font-size: 0.9rem;
+}
+
+@media (max-width: 640px) {
+  .reviews-modal-overlay {
+    padding: 0.75rem;
+  }
+
+  .reviews-modal-card {
+    max-height: calc(100vh - 1.5rem);
+    padding: 0.85rem;
+  }
+
+  .reviews-modal-actions {
+    flex-wrap: wrap;
+  }
 }
 
 .reviews-summary-breakdown {

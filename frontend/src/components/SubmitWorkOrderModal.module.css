@@ -9,6 +9,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
 }
 .modal {
   background: #fff;
@@ -17,6 +19,8 @@
   padding: 2rem 2.5rem;
   min-width: 340px;
   max-width: 90vw;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
   position: relative;
 }
 .closeBtn {
@@ -82,4 +86,24 @@ input[type="text"], textarea, select {
   color: #c00;
   font-size: 0.95rem;
   margin-top: -0.5rem;
+}
+
+@media (max-width: 640px) {
+  .overlay {
+    padding: 0.75rem;
+  }
+
+  .modal {
+    min-width: 0;
+    width: 100%;
+    max-height: calc(100vh - 1.5rem);
+    padding: 1.1rem 1rem;
+  }
+
+  .preview {
+    width: 100%;
+    max-width: 280px;
+    height: auto;
+    aspect-ratio: 1 / 1;
+  }
 }

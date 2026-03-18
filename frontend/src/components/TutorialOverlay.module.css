@@ -9,6 +9,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
 }
 .tutorialBox {
   background: #fff;
@@ -17,6 +19,8 @@
   padding: 2rem 2.5rem;
   min-width: 320px;
   max-width: 90vw;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
   position: relative;
   text-align: center;
   animation: fadeIn 0.3s;
@@ -41,4 +45,21 @@
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@media (max-width: 640px) {
+  .overlay {
+    padding: 0.75rem;
+  }
+
+  .tutorialBox {
+    min-width: 0;
+    width: 100%;
+    max-height: calc(100vh - 1.5rem);
+    padding: 1.1rem 1rem;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
 }

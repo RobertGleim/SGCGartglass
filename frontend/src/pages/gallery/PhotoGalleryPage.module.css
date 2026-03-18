@@ -218,10 +218,13 @@
   justify-content: center;
   padding: 1rem;
   z-index: 1200;
+  overflow-y: auto;
 }
 
 .modal {
   width: min(620px, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
   background: #fff;
   border-radius: 12px;
   padding: 1rem;
@@ -320,10 +323,24 @@
 
 .viewerModal {
   width: min(840px, 96vw);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
   background: #fff;
   border-radius: 12px;
   padding: 1rem;
   position: relative;
+}
+
+@media (max-width: 640px) {
+  .modalOverlay {
+    padding: 0.75rem;
+  }
+
+  .modal,
+  .viewerModal {
+    max-height: calc(100vh - 1.5rem);
+    padding: 0.85rem;
+  }
 }
 
 .viewerContent {

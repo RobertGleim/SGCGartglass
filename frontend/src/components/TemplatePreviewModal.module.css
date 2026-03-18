@@ -9,6 +9,8 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 1rem;
+  overflow-y: auto;
 }
 .modalContent {
   background: var(--canvas);
@@ -17,6 +19,8 @@
   padding: 2rem;
   max-width: 600px;
   width: 100%;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
   position: relative;
 }
 .closeBtn {
@@ -71,4 +75,21 @@
   font-size: 1.1em;
   cursor: pointer;
   font-weight: bold;
+}
+
+@media (max-width: 640px) {
+  .modalOverlay {
+    padding: 0.75rem;
+  }
+
+  .modalContent {
+    padding: 1rem;
+    max-height: calc(100vh - 1.5rem);
+  }
+
+  .previewImage {
+    width: 100%;
+    height: auto;
+    max-height: 50vh;
+  }
 }
