@@ -3,6 +3,14 @@ import './ProductCard.css'
 
 const templateImageCache = new Map()
 
+const getApiOrigin = () => {
+  const configuredBase = String(import.meta.env.VITE_API_BASE_URL || '/api').trim()
+  if (/^https?:\/\//i.test(configuredBase)) {
+    return configuredBase.replace(/\/api\/?$/, '')
+  }
+  return window.location.origin
+}
+
 const toCategoryList = (category) => {
   if (Array.isArray(category)) return category
   if (typeof category === 'string' && category.trim().includes(',')) {
@@ -68,6 +76,7 @@ const normalizeResolvedUrl = (value) => {
     return url
   }
 
+  if (url.startsWith('/uploads/')) return `${getApiOrigin()}${url}`
   if (url.startsWith('/')) return url
   return `/${url.replace(/^\.?\//, '')}`
 }
@@ -121,7 +130,7 @@ const fetchTemplateFallbackImageUrl = async (templateId) => {
   }
 
   try {
-    const response = await fetch(`/api/templates/${encodeURIComponent(key)}`)
+    const response = await fetch(`${getApiOrigin()}/api/templates/${encodeURIComponent(key)}`)
     if (!response.ok) {
       templateImageCache.set(key, '')
       return ''

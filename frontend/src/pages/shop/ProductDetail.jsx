@@ -22,10 +22,20 @@ const formatReviewDate = (value) => {
 
 const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Number(rating) || 0)))
 
+const getApiOrigin = () => {
+  const configuredBase = String(import.meta.env.VITE_API_BASE_URL || '/api').trim()
+  if (/^https?:\/\//i.test(configuredBase)) {
+    return configuredBase.replace(/\/api\/?$/, '')
+  }
+  return window.location.origin
+}
+
 const toCleanUrl = (value) => {
   const url = String(value || '').trim()
   if (!url) return ''
   if (/^javascript:/i.test(url)) return ''
+  if (url.startsWith('/uploads/')) return `${getApiOrigin()}${url}`
+  if (url.startsWith('uploads/')) return `${getApiOrigin()}/${url}`
   return url
 }
 
