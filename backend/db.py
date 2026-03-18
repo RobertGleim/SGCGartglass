@@ -109,18 +109,7 @@ def _manual_product_category_list(value):
 
 def _manual_product_is_pattern(payload):
     categories = _manual_product_category_list(payload.get("category"))
-    if any(_normalize_category_key(entry) in {"pattern", "patterns"} for entry in categories):
-        return True
-
-    combined = " ".join(
-        [
-            " ".join(str(entry or "") for entry in categories),
-            " ".join(str(entry or "") for entry in _manual_product_category_list(payload.get("materials"))),
-            str(payload.get("name") or payload.get("title") or ""),
-            str(payload.get("description") or ""),
-        ]
-    )
-    return bool(re.search(r"pattern|svg|line\s*art|trace", combined, re.IGNORECASE))
+    return any(_normalize_category_key(entry) in {"pattern", "patterns"} for entry in categories)
 
 
 def _coerce_manual_product_digital_download(payload):
@@ -525,7 +514,7 @@ def init_db(force=False):
             """
             UPDATE manual_products
             SET is_digital_download = 1
-            WHERE COALESCE(is_digital_download, 0) = 0
+                        WHERE is_digital_download IS NULL
               AND (
                 LOWER(COALESCE(category, '')) LIKE '%pattern%'
                 OR LOWER(COALESCE(name, '')) LIKE '%pattern%'
