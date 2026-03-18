@@ -2819,6 +2819,15 @@ def list_reviews_for_product(product_type, product_id):
         f"""
                 SELECT
                         r.*, c.first_name, c.last_name,
+                        (
+                                SELECT COALESCE(oi.image_url, '')
+                                FROM customer_order_items oi
+                                WHERE oi.product_type = r.product_type
+                                    AND oi.product_id = r.product_id
+                                    AND COALESCE(oi.image_url, '') <> ''
+                                ORDER BY oi.id DESC
+                                LIMIT 1
+                        ) AS fallback_product_image_url,
                         COALESCE(
                             r.review_image_url,
                             (
@@ -2864,6 +2873,15 @@ def list_recent_reviews(limit=10):
         f"""
                 SELECT
                         r.*, c.first_name, c.last_name,
+                        (
+                                SELECT COALESCE(oi.image_url, '')
+                                FROM customer_order_items oi
+                                WHERE oi.product_type = r.product_type
+                                    AND oi.product_id = r.product_id
+                                    AND COALESCE(oi.image_url, '') <> ''
+                                ORDER BY oi.id DESC
+                                LIMIT 1
+                        ) AS fallback_product_image_url,
                         COALESCE(
                             r.review_image_url,
                             (

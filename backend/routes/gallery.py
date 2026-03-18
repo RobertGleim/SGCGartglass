@@ -83,18 +83,71 @@ def _with_absolute_image_url(item):
     return output
 
 
-def _serialize_list(query, include_admin_fields=False):
-    items = query.order_by(GalleryPhoto.created_at.desc(), GalleryPhoto.id.desc()).all()
-    categories = sorted({item.category for item in items if item.category})
-    templates = sorted(
-        {item.template for item in items if item.template_id and item.template},
-        key=lambda template: template.name.lower(),
-    )
-    return {
+def _group_key_expr():
+    return db.func.coalesce(GalleryPhoto.submission_group_id, db.cast(GalleryPhoto.id, db.String))
+
+
+def _serialize_list(query, include_admin_fields=False, page=None, per_page=None):
+    ordered_query = query.order_by(GalleryPhoto.created_at.desc(), GalleryPhoto.id.desc())
+
+    use_pagination = bool(page and per_page)
+    if use_pagination:
+        group_key = _group_key_expr()
+        grouped_query = query.with_entities(
+            group_key.label("group_id"),
+            db.func.max(GalleryPhoto.created_at).label("latest_created_at"),
+            db.func.max(GalleryPhoto.id).label("latest_id"),
+        ).group_by(group_key).order_by(
+            db.func.max(GalleryPhoto.created_at).desc(),
+            db.func.max(GalleryPhoto.id).desc(),
+        )
+
+        total_items = grouped_query.count()
+        total_pages = max(1, (total_items + per_page - 1) // per_page)
+        clamped_page = min(max(1, page), total_pages)
+        group_rows = grouped_query.offset((clamped_page - 1) * per_page).limit(per_page).all()
+        selected_group_ids = [str(row.group_id) for row in group_rows if getattr(row, "group_id", None) is not None]
+        if selected_group_ids:
+            items = ordered_query.filter(group_key.in_(selected_group_ids)).all()
+            group_position = {group_id: index for index, group_id in enumerate(selected_group_ids)}
+            items.sort(
+                key=lambda item: (
+                    group_position.get(str(item.submission_group_id or item.id), len(selected_group_ids)),
+                    -(item.created_at.timestamp() if item.created_at else 0),
+                    -int(item.id or 0),
+                )
+            )
+        else:
+            items = []
+    else:
+        total_items = ordered_query.count()
+        total_pages = 1
+        clamped_page = 1
+        items = ordered_query.all()
+
+    category_rows = query.with_entities(GalleryPhoto.category).filter(GalleryPhoto.category.isnot(None)).distinct().all()
+    categories = sorted({row[0] for row in category_rows if row and row[0]})
+
+    template_id_rows = query.with_entities(GalleryPhoto.template_id).filter(GalleryPhoto.template_id.isnot(None)).distinct().all()
+    template_ids = [row[0] for row in template_id_rows if row and row[0]]
+    templates = []
+    if template_ids:
+        templates = Template.query.filter(Template.id.in_(template_ids)).all()
+        templates = sorted(templates, key=lambda template: (template.name or "").lower())
+
+    response = {
         "items": [_with_absolute_image_url(item.to_dict(include_admin_fields=include_admin_fields)) for item in items],
         "categories": categories,
         "templates": [{"id": template.id, "name": template.name} for template in templates],
     }
+    if use_pagination:
+        response.update({
+            "page": clamped_page,
+            "per_page": per_page,
+            "total_items": total_items,
+            "total_pages": total_pages,
+        })
+    return response
 
 
 @gallery_bp.get("/gallery/photos")
@@ -102,6 +155,15 @@ def list_gallery_photos():
     category = (request.args.get("category") or "").strip()
     template_id = request.args.get("template_id", type=int)
     photo_id = request.args.get("photo_id", type=int)
+    page = request.args.get("page", type=int)
+    per_page = request.args.get("per_page", type=int)
+
+    if page and page < 1:
+        page = 1
+    if per_page and per_page < 1:
+        per_page = 1
+    if per_page and per_page > 50:
+        per_page = 50
 
     query = GalleryPhoto.query.filter(
         GalleryPhoto.is_hidden.is_(False),
@@ -119,7 +181,12 @@ def list_gallery_photos():
         else:
             query = query.filter(GalleryPhoto.id == photo_id)
 
-    return jsonify(_serialize_list(query, include_admin_fields=False))
+    # Linked-photo views should always return the full submission group.
+    if photo_id:
+        page = None
+        per_page = None
+
+    return jsonify(_serialize_list(query, include_admin_fields=False, page=page, per_page=per_page))
 
 
 @gallery_bp.post("/gallery/photos")
@@ -240,6 +307,14 @@ def admin_list_gallery_photos():
         approval_status = (request.args.get("approval_status") or "").strip().lower()
         category = (request.args.get("category") or "").strip()
         template_id = request.args.get("template_id", type=int)
+        page = request.args.get("page", type=int)
+        per_page = request.args.get("per_page", type=int)
+        if page and page < 1:
+            page = 1
+        if per_page and per_page < 1:
+            per_page = 1
+        if per_page and per_page > 50:
+            per_page = 50
         query = GalleryPhoto.query
         if approval_status in {"pending", "approved", "rejected"}:
             query = query.filter(GalleryPhoto.approval_status == approval_status)
@@ -247,7 +322,7 @@ def admin_list_gallery_photos():
             query = query.filter(GalleryPhoto.category.ilike(category))
         if template_id:
             query = query.filter(GalleryPhoto.template_id == template_id)
-        return jsonify(_serialize_list(query, include_admin_fields=True))
+        return jsonify(_serialize_list(query, include_admin_fields=True, page=page, per_page=per_page))
     except Exception as exc:
         return jsonify({"error": "server_error", "detail": str(exc)}), 500
 

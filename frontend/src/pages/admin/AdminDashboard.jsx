@@ -19,6 +19,8 @@ import {
   fetchAdminDigitalCheckoutSessions,
   recoverAdminCheckoutSession,
   resendAdminCheckoutDownloadEmail,
+  submitGalleryPhoto,
+  updateAdminTemplate,
   updateCustomer,
 } from "../../services/api.js";
 import TemplateManagement from "./TemplateManagement";
@@ -73,6 +75,8 @@ const MAX_MANUAL_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_MANUAL_VIDEO_BYTES = 80 * 1024 * 1024;
 const MAX_MANUAL_TOTAL_BYTES = 120 * 1024 * 1024;
 const MAX_TEMPLATE_UPLOAD_BYTES = 50 * 1024 * 1024;
+const MAX_GALLERY_UPLOAD_BYTES = 20 * 1024 * 1024;
+const TEMPLATE_DIFFICULTY_OPTIONS = ["Beginner", "Intermediate", "Advanced"];
 const MANUAL_PRODUCTS_PER_PAGE = 10;
 const SECTION_PAGE_SIZE = 10;
 
@@ -102,6 +106,127 @@ const createEmptyManualProduct = () => ({
   is_digital_download: false,
   related_links: createDefaultRelatedLinks(),
 });
+
+const createEmptyUnifiedTemplate = () => ({
+  name: "",
+  category: "",
+  difficulty: TEMPLATE_DIFFICULTY_OPTIONS[0],
+  dimensions: "",
+  is_digital_download: true,
+  price_amount: "",
+  upload_file: null,
+  related_links: createDefaultRelatedLinks(),
+});
+
+const createEmptyRelatedTemplateUpload = () => ({
+  file: null,
+  name: "",
+  category: "Patterns",
+});
+
+const createEmptyRelatedGalleryUpload = () => ({
+  file: null,
+  panel_name: "",
+  description: "",
+  category: "",
+  template_id: "",
+});
+
+const hasAnyRelatedLinkValue = (relatedLinks) => {
+  if (!relatedLinks || typeof relatedLinks !== "object") return false;
+  return [
+    relatedLinks.template_id,
+    relatedLinks.template_name,
+    relatedLinks.pattern_product_id,
+    relatedLinks.pattern_product_name,
+    relatedLinks.gallery_photo_id,
+    relatedLinks.gallery_panel_name,
+    relatedLinks.gallery_template_id,
+  ].some((entry) => String(entry || "").trim() !== "");
+};
+
+const getNameFromFile = (file) => String(file?.name || "").replace(/\.[^.]+$/, "").trim();
+
+const readStoredJson = (key, fallback) => {
+  try {
+    const rawValue = localStorage.getItem(key);
+    if (!rawValue) return fallback;
+    return JSON.parse(rawValue);
+  } catch {
+    return fallback;
+  }
+};
+
+const ensureArray = (value) => (Array.isArray(value) ? value : []);
+
+const normalizeManualProductRecord = (value) => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  return {
+    ...value,
+    images: ensureArray(value.images).filter(Boolean),
+    category: Array.isArray(value.category)
+      ? value.category.filter(Boolean)
+      : value.category
+        ? [value.category]
+        : [],
+    materials: Array.isArray(value.materials)
+      ? value.materials.filter(Boolean)
+      : value.materials
+        ? [value.materials]
+        : [],
+    related_links:
+      value.related_links && typeof value.related_links === "object"
+        ? value.related_links
+        : createDefaultRelatedLinks(),
+  };
+};
+
+let pdfjsLibLoader;
+const getPdfjsLib = async () => {
+  if (!pdfjsLibLoader) {
+    pdfjsLibLoader = import("pdfjs-dist").then((module) => module.default || module);
+  }
+  return pdfjsLibLoader;
+};
+
+const pdfToPngFile = async (file) => {
+  const pdfjsLib = await getPdfjsLib();
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+  const arrayBuffer = await file.arrayBuffer();
+
+  let pdf;
+  try {
+    pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
+  } catch (error) {
+    console.warn("[AdminDashboard] PDF worker setup failed, retrying without worker...", error);
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+    pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
+  }
+
+  const page = await pdf.getPage(1);
+  const viewport = page.getViewport({ scale: 4 });
+  const canvas = document.createElement("canvas");
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const context = canvas.getContext("2d");
+  await page.render({ canvasContext: context, viewport }).promise;
+
+  const blob = await new Promise((resolve, reject) => {
+    canvas.toBlob((result) => {
+      if (result) {
+        resolve(result);
+      } else {
+        reject(new Error("Failed to render PDF preview image."));
+      }
+    }, "image/png");
+  });
+
+  const fileName = String(file?.name || "template.pdf").replace(/\.[^.]+$/, "");
+  return new File([blob], `${fileName}.png`, { type: "image/png" });
+};
 
 export default function AdminDashboard({
   items = [],
@@ -148,6 +273,16 @@ export default function AdminDashboard({
       (acc, entry) => ({ ...acc, [entry.key]: [] }),
       {},
     );
+
+  const normalizedItems = useMemo(
+    () => ensureArray(items).filter((entry) => entry && typeof entry === "object"),
+    [items],
+  );
+
+  const normalizedManualProducts = useMemo(
+    () => ensureArray(manualProducts).map(normalizeManualProductRecord).filter(Boolean),
+    [manualProducts],
+  );
 
   const [activeTab, setActiveTab] = useState("products");
   const [customers, setCustomers] = useState([]);
@@ -469,9 +604,8 @@ export default function AdminDashboard({
   const [productType, setProductType] = useState("stainedGlassPanels");
   const [favoriteCategoriesByType, setFavoriteCategoriesByType] = useState(
     () => {
-      const savedByType = localStorage.getItem("favoriteCategoriesByType");
-      if (savedByType) {
-        const parsed = JSON.parse(savedByType);
+      const parsed = readStoredJson("favoriteCategoriesByType", null);
+      if (parsed) {
         const emptyBuckets = createEmptyTypeBuckets();
         return {
           ...emptyBuckets,
@@ -493,18 +627,16 @@ export default function AdminDashboard({
         };
       }
 
-      const legacySaved = localStorage.getItem("favoriteCategories");
-      const legacyCategories = legacySaved ? JSON.parse(legacySaved) : [];
+      const legacyCategories = readStoredJson("favoriteCategories", []);
       return {
         ...createEmptyTypeBuckets(),
-        stainedGlassPanels: legacyCategories,
+        stainedGlassPanels: Array.isArray(legacyCategories) ? legacyCategories : [],
       };
     },
   );
   const [favoriteMaterialsByType, setFavoriteMaterialsByType] = useState(() => {
-    const savedByType = localStorage.getItem("favoriteMaterialsByType");
-    if (savedByType) {
-      const parsed = JSON.parse(savedByType);
+    const parsed = readStoredJson("favoriteMaterialsByType", null);
+    if (parsed) {
       return {
         ...createEmptyTypeBuckets(),
         stainedGlassPanels: Array.isArray(parsed?.stainedGlassPanels)
@@ -525,14 +657,17 @@ export default function AdminDashboard({
       };
     }
 
-    const legacySaved = localStorage.getItem("favoriteMaterials");
-    const legacyMaterials = legacySaved ? JSON.parse(legacySaved) : [];
+    const legacyMaterials = readStoredJson("favoriteMaterials", []);
     return {
       ...createEmptyTypeBuckets(),
-      stainedGlassPanels: legacyMaterials,
+      stainedGlassPanels: Array.isArray(legacyMaterials) ? legacyMaterials : [],
     };
   });
   const [manualProduct, setManualProduct] = useState(createEmptyManualProduct());
+  const [unifiedTemplate, setUnifiedTemplate] = useState(createEmptyUnifiedTemplate());
+  const [relatedTemplateUpload, setRelatedTemplateUpload] = useState(createEmptyRelatedTemplateUpload());
+  const [relatedGalleryUpload, setRelatedGalleryUpload] = useState(createEmptyRelatedGalleryUpload());
+  const [showRelatedLinksSection, setShowRelatedLinksSection] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
   const categoryDropdownRef = useRef(null);
@@ -543,6 +678,10 @@ export default function AdminDashboard({
   const [imagePreviews, setImagePreviews] = useState([]);
   const [enableWatermark, setEnableWatermark] = useState(true);
   const [watermarkText, setWatermarkText] = useState("SGCG ART GLASS");
+  const [addImagesToGallery, setAddImagesToGallery] = useState(false);
+  const [templateRefPhotos, setTemplateRefPhotos] = useState([]);
+  const [templateNameManuallyEdited, setTemplateNameManuallyEdited] = useState(false);
+  const [isSavingManualProduct, setIsSavingManualProduct] = useState(false);
 
   const activeFavoriteCategories = favoriteCategoriesByType[productType] || [];
   const activeFavoriteMaterials = favoriteMaterialsByType[productType] || [];
@@ -638,7 +777,7 @@ export default function AdminDashboard({
   };
 
   const patternProductOptions = useMemo(() => {
-    const inferred = manualProducts
+    const inferred = normalizedManualProducts
       .filter((entry) => inferProductType(entry) === "patterns")
       .map((entry) => ({
         id: entry.id,
@@ -648,7 +787,7 @@ export default function AdminDashboard({
 
     const source = inferred.length > 0
       ? inferred
-      : manualProducts
+      : normalizedManualProducts
         .map((entry) => ({
           id: entry.id,
           name: (entry.name || `Product #${entry.id}`).trim(),
@@ -662,11 +801,11 @@ export default function AdminDashboard({
       seen.add(key);
       return true;
     });
-  }, [manualProducts]);
+  }, [normalizedManualProducts]);
 
   const filteredManualProducts = useMemo(() => {
     const searchLower = manualProductSearch.toLowerCase();
-    return manualProducts.filter((product) => {
+    return normalizedManualProducts.filter((product) => {
       const name = toSearchableText(product.name);
       const description = toSearchableText(product.description);
       const category = toSearchableText(product.category);
@@ -686,7 +825,7 @@ export default function AdminDashboard({
         )
       );
     });
-  }, [manualProducts, manualProductSearch, manualProductTypeFilter]);
+  }, [normalizedManualProducts, manualProductSearch, manualProductTypeFilter]);
 
   const totalManualProductPages = Math.max(
     1,
@@ -795,6 +934,31 @@ export default function AdminDashboard({
     loadManualProductLinkOptions();
   }, [showManualProductModal]);
 
+  // Auto-fill template name from product name until user manually edits template name.
+  useEffect(() => {
+    if (!showManualProductModal || editingProduct) return;
+    if (templateNameManuallyEdited) return;
+    setUnifiedTemplate((prev) => ({
+      ...prev,
+      name: manualProduct.name,
+    }));
+  }, [
+    manualProduct.name,
+    showManualProductModal,
+    editingProduct,
+    templateNameManuallyEdited,
+  ]);
+
+  // Auto-fill template category from selected product type when blank
+  useEffect(() => {
+    if (!showManualProductModal || editingProduct) return;
+    const typeLabel = PRODUCT_TYPE_CONFIG.find((e) => e.key === productType)?.label || "";
+    setUnifiedTemplate((prev) => ({
+      ...prev,
+      category: prev.category || typeLabel,
+    }));
+  }, [productType, showManualProductModal, editingProduct]);
+
   const normalizeTypeFromCategory = (value) => {
     const normalized = String(value || "")
       .toLowerCase()
@@ -825,6 +989,8 @@ export default function AdminDashboard({
   const templateOptionCount = productTemplateOptions.length;
   const patternOptionCount = patternProductOptions.length;
   const galleryOptionCount = productGalleryOptions.length;
+  const isProductSectionEnabled = true;
+  const isTemplateSectionEnabled = true;
 
   const closeFavoriteDropdowns = () => {
     setShowCategoryDropdown(false);
@@ -1041,105 +1207,558 @@ export default function AdminDashboard({
     });
   };
 
+  const readFileAsText = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => resolve(String(event.target?.result || ""));
+      reader.onerror = () => reject(new Error("Unable to read the selected file."));
+      reader.readAsText(file);
+    });
+
+  const normalizeRelatedLinksPayload = (relatedLinks) => {
+    if (!relatedLinks || typeof relatedLinks !== "object") {
+      return null;
+    }
+
+    const payload = {
+      template_id: relatedLinks.template_id ? Number(relatedLinks.template_id) : null,
+      template_name: relatedLinks.template_name?.trim() || null,
+      pattern_product_id: relatedLinks.pattern_product_id ? Number(relatedLinks.pattern_product_id) : null,
+      pattern_product_name: relatedLinks.pattern_product_name?.trim() || null,
+      gallery_photo_id: relatedLinks.gallery_photo_id ? Number(relatedLinks.gallery_photo_id) : null,
+      gallery_panel_name: relatedLinks.gallery_panel_name?.trim() || null,
+      gallery_template_id: relatedLinks.gallery_template_id ? Number(relatedLinks.gallery_template_id) : null,
+    };
+
+    const hasValue = Object.values(payload).some((entry) => entry !== null && entry !== "");
+    return hasValue ? payload : null;
+  };
+
   const handleManualProductSubmit = async (event) => {
     event.preventDefault();
-    setStatus(
-      editingProduct ? "Updating product..." : "Adding manual product...",
-    );
-    try {
-      // Convert File objects to data URLs for images
-      const processedImages = [];
+    if (isSavingManualProduct) {
+      return;
+    }
 
-      for (const img of manualProduct.images || []) {
-        if (img instanceof File) {
-          // New file - convert to data URL
+    const shouldCreateTemplate = !editingProduct && Boolean(unifiedTemplate.upload_file);
+    const creatingTemplateOnly = !editingProduct && !isProductSectionEnabled && shouldCreateTemplate;
+    const creatingBoth = !editingProduct && isProductSectionEnabled && shouldCreateTemplate;
+    const shouldCreatePatternCopy =
+      !editingProduct
+      && Boolean(manualProduct.is_digital_download)
+      && selectedTypeCategory !== "patterns";
+
+    if (!isProductSectionEnabled && !isTemplateSectionEnabled) {
+      setStatus("Select at least one section to save.");
+      return;
+    }
+
+    if (shouldCreateTemplate) {
+      if (!unifiedTemplate.name.trim()) {
+        setStatus("Digital template name is required.");
+        return;
+      }
+      if (!unifiedTemplate.upload_file) {
+        setStatus("Upload an SVG, PDF, JPG, or PNG for the digital template.");
+        return;
+      }
+      if (unifiedTemplate.upload_file.size > MAX_TEMPLATE_UPLOAD_BYTES) {
+        setStatus("Digital template file is too large (max 50 MB).");
+        return;
+      }
+      if (
+        unifiedTemplate.is_digital_download
+        && (!String(unifiedTemplate.price_amount).trim() || Number(unifiedTemplate.price_amount) < 0.5)
+      ) {
+        setStatus("Digital templates require a price of at least $0.50.");
+        return;
+      }
+    }
+
+    setIsSavingManualProduct(true);
+    setStatus(editingProduct ? "Updating product..." : "Saving listing in background...");
+    if (!editingProduct) {
+      handleCloseModal();
+    }
+
+    try {
+      let createdTemplate = null;
+      let templateCreatePayload = null;
+      let savedProduct = null;
+      let processedImages = [];
+      let relatedLinks = {
+        ...createDefaultRelatedLinks(),
+        ...(manualProduct.related_links || {}),
+      };
+
+      if (shouldCreateTemplate) {
+        const file = unifiedTemplate.upload_file;
+        const fileName = String(file?.name || "").toLowerCase();
+        const isPdf = fileName.endsWith(".pdf") || file?.type === "application/pdf";
+        const templateType = fileName.endsWith(".svg") ? "svg" : "image";
+        let svgContent = "";
+        let uploadedImageUrl = "";
+
+        if (templateType === "svg") {
+          svgContent = (await readFileAsText(file)).trim();
+          if (!svgContent) {
+            throw new Error("The uploaded SVG appears to be empty.");
+          }
+        } else {
+          const uploadFile = isPdf ? await pdfToPngFile(file) : file;
+          const uploadPayload = new FormData();
+          uploadPayload.append("file", uploadFile);
+          const uploadResult = await uploadAdminTemplateImage(uploadPayload);
+          uploadedImageUrl = String(uploadResult?.image_url || "").trim();
+          if (!uploadedImageUrl) {
+            throw new Error("Template image upload failed.");
+          }
+        }
+
+        templateCreatePayload = {
+          name: unifiedTemplate.name.trim(),
+          category: unifiedTemplate.category.trim() || "Patterns",
+          difficulty: unifiedTemplate.difficulty,
+          dimensions: unifiedTemplate.dimensions.trim() || 'Letter (8.5" x 11")',
+          template_type: templateType,
+          is_active: true,
+          is_digital_download: Boolean(unifiedTemplate.is_digital_download),
+          price_amount: unifiedTemplate.is_digital_download ? Number(unifiedTemplate.price_amount) : null,
+          price_currency: "USD",
+          related_links: normalizeRelatedLinksPayload(
+            isProductSectionEnabled ? manualProduct.related_links : unifiedTemplate.related_links,
+          ),
+          ...(svgContent ? { svg_content: svgContent } : {}),
+          ...(uploadedImageUrl
+            ? { image_url: uploadedImageUrl, thumbnail_url: uploadedImageUrl }
+            : {}),
+        };
+
+        createdTemplate = await createAdminTemplate(templateCreatePayload);
+        if (createdTemplate?.id) {
+          relatedLinks.template_id = String(createdTemplate.id);
+          relatedLinks.template_name = String(createdTemplate.name || unifiedTemplate.name || "").trim();
+        }
+        if (createdTemplate?.related_links?.pattern_product_id) {
+          relatedLinks.pattern_product_id = String(createdTemplate.related_links.pattern_product_id);
+          relatedLinks.pattern_product_name = String(
+            createdTemplate.related_links.pattern_product_name || unifiedTemplate.name || "",
+          ).trim();
+        }
+      }
+
+      if (isProductSectionEnabled) {
+      // Convert File objects to data URLs for images
+        processedImages = [];
+
+        for (const img of manualProduct.images || []) {
+          if (img instanceof File) {
+            const dataUrl = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = (e) => resolve(e.target.result);
+              reader.readAsDataURL(img);
+            });
+            processedImages.push({
+              url: dataUrl,
+              type: img.type.startsWith("video") ? "video" : "image",
+            });
+          } else if (img.image_url) {
+            processedImages.push({
+              image_url: img.image_url,
+              media_type: img.media_type || "image",
+            });
+          }
+        }
+
+        if (!createdTemplate?.id && relatedTemplateUpload.file) {
+          if (relatedTemplateUpload.file.size > MAX_TEMPLATE_UPLOAD_BYTES) {
+            throw new Error("Linked template upload is too large (max 50 MB).");
+          }
+          const linkedTemplateName = String(relatedTemplateUpload.name || "").trim()
+            || getNameFromFile(relatedTemplateUpload.file)
+            || "Linked Template";
+
+          const uploadedFileName = String(relatedTemplateUpload.file?.name || "").toLowerCase();
+          const isPdfUpload = uploadedFileName.endsWith(".pdf") || relatedTemplateUpload.file?.type === "application/pdf";
+          const fileForUpload = isPdfUpload
+            ? await pdfToPngFile(relatedTemplateUpload.file)
+            : relatedTemplateUpload.file;
+          const fileType = String(fileForUpload?.type || "");
+          if (!fileType.startsWith("image/")) {
+            throw new Error("Linked template upload supports PDF or image files only.");
+          }
+
+          const uploadPayload = new FormData();
+          uploadPayload.append("file", fileForUpload);
+          const uploadResult = await uploadAdminTemplateImage(uploadPayload);
+          const uploadedImageUrl = String(uploadResult?.image_url || "").trim();
+          if (!uploadedImageUrl) {
+            throw new Error("Linked template image upload failed.");
+          }
+
+          const uploadedTemplate = await createAdminTemplate({
+            name: linkedTemplateName,
+            category: String(relatedTemplateUpload.category || "Patterns").trim() || "Patterns",
+            template_type: "image",
+            image_url: uploadedImageUrl,
+            thumbnail_url: uploadedImageUrl,
+            is_active: true,
+            is_digital_download: false,
+          });
+
+          if (uploadedTemplate?.id) {
+            setProductTemplateOptions((prev) => {
+              const exists = prev.some((entry) => String(entry.id) === String(uploadedTemplate.id));
+              if (exists) return prev;
+              return [{ id: uploadedTemplate.id, name: String(uploadedTemplate.name || "").trim() }, ...prev];
+            });
+            relatedLinks.template_id = String(uploadedTemplate.id);
+            relatedLinks.template_name = String(uploadedTemplate.name || relatedTemplateUpload.name || "").trim();
+          }
+        }
+
+        if (relatedGalleryUpload.file) {
+          const uploadFile = relatedGalleryUpload.file;
+          if (!String(uploadFile?.type || "").startsWith("image/")) {
+            throw new Error("Linked gallery upload supports image files only.");
+          }
+          if (uploadFile.size > MAX_GALLERY_UPLOAD_BYTES) {
+            throw new Error("Linked gallery image is too large (max 20 MB).");
+          }
+
+          const panelName = String(relatedGalleryUpload.panel_name || "").trim()
+            || getNameFromFile(uploadFile)
+            || "Linked Gallery";
+
+          const uploadPayload = new FormData();
+          uploadPayload.append("panel_name", panelName);
+          uploadPayload.append("description", String(relatedGalleryUpload.description || "").trim());
+          uploadPayload.append("category", String(relatedGalleryUpload.category || "").trim());
+          uploadPayload.append("template_id", String(relatedGalleryUpload.template_id || "").trim());
+          uploadPayload.append("display_name", "SGCG Art");
+          uploadPayload.append("hide_submitter_name", "false");
+          uploadPayload.append("photos", uploadFile);
+
+          const galleryResult = await submitGalleryPhoto(uploadPayload);
+          const galleryItems = Array.isArray(galleryResult?.items)
+            ? galleryResult.items
+            : Array.isArray(galleryResult)
+              ? galleryResult
+              : [];
+          const createdGallery = galleryItems[0] || galleryResult?.photo || galleryResult;
+
+          if (createdGallery?.id) {
+            const createdGalleryId = String(createdGallery.id);
+            const createdPanelName = String(createdGallery.panel_name || panelName).trim();
+            const createdTemplateId = createdGallery.template_id
+              ? String(createdGallery.template_id)
+              : String(relatedGalleryUpload.template_id || "").trim();
+
+            relatedLinks.gallery_photo_id = createdGalleryId;
+            relatedLinks.gallery_panel_name = createdPanelName;
+            relatedLinks.gallery_template_id = createdTemplateId;
+
+            setProductGalleryOptions((prev) => {
+              const exists = prev.some((entry) => String(entry.id) === createdGalleryId);
+              if (exists) return prev;
+              return [
+                {
+                  id: Number(createdGallery.id),
+                  panel_name: createdPanelName || `Photo #${createdGalleryId}`,
+                  template_id: createdTemplateId ? Number(createdTemplateId) : null,
+                },
+                ...prev,
+              ];
+            });
+          }
+        }
+
+        if (createdTemplate?.id) {
+          relatedLinks.template_id = String(createdTemplate.id);
+          relatedLinks.template_name = String(createdTemplate.name || unifiedTemplate.name || "").trim();
+        }
+
+        const productData = {
+          // price field stores sale price when discount is present.
+          name: manualProduct.name.trim(),
+          description: manualProduct.description.trim(),
+          category:
+            manualProduct.category.length > 0 ? manualProduct.category : null,
+          materials:
+            manualProduct.materials.length > 0 ? manualProduct.materials : null,
+          width: manualProduct.width ? parseFloat(manualProduct.width) : null,
+          height: manualProduct.height ? parseFloat(manualProduct.height) : null,
+          depth: manualProduct.depth ? parseFloat(manualProduct.depth) : null,
+          price: (() => {
+            const basePrice = Number(manualProduct.price || 0);
+            const discountPercent = Number(manualProduct.discount_percent || 0);
+            if (!Number.isFinite(basePrice) || basePrice <= 0) return 0;
+            if (!Number.isFinite(discountPercent) || discountPercent <= 0) return Number(basePrice.toFixed(2));
+            const bounded = Math.min(100, Math.max(0, discountPercent));
+            return Number((basePrice * (1 - bounded / 100)).toFixed(2));
+          })(),
+          old_price: (() => {
+            const basePrice = Number(manualProduct.price || 0);
+            const discountPercent = Number(manualProduct.discount_percent || 0);
+            if (!Number.isFinite(basePrice) || basePrice <= 0) return null;
+            if (!Number.isFinite(discountPercent) || discountPercent <= 0) return null;
+            return Number(basePrice.toFixed(2));
+          })(),
+          discount_percent: (() => {
+            const discountPercent = Number(manualProduct.discount_percent || 0);
+            if (!Number.isFinite(discountPercent) || discountPercent <= 0) return null;
+            return Number(Math.min(100, Math.max(0, discountPercent)).toFixed(2));
+          })(),
+          quantity: parseInt(manualProduct.quantity, 10),
+          is_featured: manualProduct.is_featured,
+          is_digital_download: Boolean(manualProduct.is_digital_download),
+          related_links: {
+            template_id: relatedLinks.template_id
+              ? Number(relatedLinks.template_id)
+              : null,
+            template_name: relatedLinks.template_name || null,
+            pattern_product_id: relatedLinks.pattern_product_id
+              ? Number(relatedLinks.pattern_product_id)
+              : null,
+            pattern_product_name: relatedLinks.pattern_product_name || null,
+            gallery_photo_id: relatedLinks.gallery_photo_id
+              ? Number(relatedLinks.gallery_photo_id)
+              : null,
+            gallery_panel_name: relatedLinks.gallery_panel_name || null,
+            gallery_template_id: relatedLinks.gallery_template_id
+              ? Number(relatedLinks.gallery_template_id)
+              : null,
+          },
+          images: processedImages,
+        };
+
+        if (editingProduct) {
+          savedProduct = await onUpdateManualProduct(editingProduct.id, productData);
+          setStatus("Product updated successfully!");
+        } else {
+          savedProduct = await onAddManualProduct(productData);
+        }
+      }
+
+      if (shouldCreatePatternCopy && savedProduct?.id) {
+        const patternTypeLabel = PRODUCT_TYPE_LABEL_BY_KEY.patterns || "Patterns";
+        const nonTypeCategories = removeTypeCategories(manualProduct.category || []);
+        const existingPatternId = relatedLinks.pattern_product_id
+          ? Number(relatedLinks.pattern_product_id)
+          : createdTemplate?.related_links?.pattern_product_id
+            ? Number(createdTemplate.related_links.pattern_product_id)
+            : null;
+
+        const referenceImages = [];
+        for (const entry of templateRefPhotos) {
+          const file = entry?.file;
+          if (!(file instanceof File) || !String(file.type || "").startsWith("image/")) {
+            continue;
+          }
           const dataUrl = await new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = (e) => resolve(e.target.result);
-            reader.readAsDataURL(img);
+            reader.readAsDataURL(file);
           });
-          processedImages.push({
+          referenceImages.push({
             url: dataUrl,
-            type: img.type.startsWith("video") ? "video" : "image",
+            type: "image",
           });
-        } else if (img.image_url) {
-          // Existing image from database
-          processedImages.push({
-            image_url: img.image_url,
-            media_type: img.media_type || "image",
+        }
+
+        const patternImages = referenceImages.length > 0
+          ? referenceImages
+          : processedImages.filter((entry) => {
+            const mediaType = String(entry.media_type || entry.type || "").toLowerCase();
+            return mediaType !== "video";
+          });
+
+        const patternProductData = {
+          name: String(manualProduct.name || "").trim(),
+          description: String(manualProduct.description || "").trim(),
+          category: [patternTypeLabel, ...nonTypeCategories],
+          materials: manualProduct.materials.length > 0 ? manualProduct.materials : null,
+          width: manualProduct.width ? parseFloat(manualProduct.width) : null,
+          height: manualProduct.height ? parseFloat(manualProduct.height) : null,
+          depth: manualProduct.depth ? parseFloat(manualProduct.depth) : null,
+          price: (() => {
+            const digitalPrice = Number(unifiedTemplate.price_amount);
+            if (Number.isFinite(digitalPrice) && digitalPrice > 0) {
+              return Number(digitalPrice.toFixed(2));
+            }
+            const basePrice = Number(manualProduct.price || 0);
+            return Number.isFinite(basePrice) && basePrice > 0 ? Number(basePrice.toFixed(2)) : 0;
+          })(),
+          old_price: null,
+          discount_percent: null,
+          quantity: parseInt(manualProduct.quantity || "1", 10) || 1,
+          is_featured: false,
+          is_digital_download: true,
+          related_links: {
+            template_id: relatedLinks.template_id ? Number(relatedLinks.template_id) : (createdTemplate?.id || null),
+            template_name: relatedLinks.template_name || (createdTemplate?.name || unifiedTemplate.name || null),
+            pattern_product_id: existingPatternId,
+            pattern_product_name: String(manualProduct.name || "").trim() || null,
+            gallery_photo_id: null,
+            gallery_panel_name: null,
+            gallery_template_id: null,
+          },
+          images: patternImages,
+        };
+
+        const savedPatternProduct = existingPatternId
+          ? await onUpdateManualProduct(existingPatternId, patternProductData)
+          : await onAddManualProduct(patternProductData);
+        if (savedPatternProduct?.id) {
+          relatedLinks.pattern_product_id = String(savedPatternProduct.id);
+          relatedLinks.pattern_product_name = String(
+            savedPatternProduct.name || patternProductData.name || "",
+          ).trim();
+
+          await onUpdateManualProduct(savedProduct.id, {
+            related_links: {
+              template_id: relatedLinks.template_id ? Number(relatedLinks.template_id) : null,
+              template_name: relatedLinks.template_name || null,
+              pattern_product_id: relatedLinks.pattern_product_id ? Number(relatedLinks.pattern_product_id) : null,
+              pattern_product_name: relatedLinks.pattern_product_name || null,
+              gallery_photo_id: relatedLinks.gallery_photo_id ? Number(relatedLinks.gallery_photo_id) : null,
+              gallery_panel_name: relatedLinks.gallery_panel_name || null,
+              gallery_template_id: relatedLinks.gallery_template_id ? Number(relatedLinks.gallery_template_id) : null,
+            },
           });
         }
       }
 
-      const productData = {
-        // price field stores sale price when discount is present.
-        name: manualProduct.name.trim(),
-        description: manualProduct.description.trim(),
-        category:
-          manualProduct.category.length > 0 ? manualProduct.category : null,
-        materials:
-          manualProduct.materials.length > 0 ? manualProduct.materials : null,
-        width: manualProduct.width ? parseFloat(manualProduct.width) : null,
-        height: manualProduct.height ? parseFloat(manualProduct.height) : null,
-        depth: manualProduct.depth ? parseFloat(manualProduct.depth) : null,
-        price: (() => {
-          const basePrice = Number(manualProduct.price || 0);
-          const discountPercent = Number(manualProduct.discount_percent || 0);
-          if (!Number.isFinite(basePrice) || basePrice <= 0) return 0;
-          if (!Number.isFinite(discountPercent) || discountPercent <= 0) return Number(basePrice.toFixed(2));
-          const bounded = Math.min(100, Math.max(0, discountPercent));
-          return Number((basePrice * (1 - bounded / 100)).toFixed(2));
-        })(),
-        old_price: (() => {
-          const basePrice = Number(manualProduct.price || 0);
-          const discountPercent = Number(manualProduct.discount_percent || 0);
-          if (!Number.isFinite(basePrice) || basePrice <= 0) return null;
-          if (!Number.isFinite(discountPercent) || discountPercent <= 0) return null;
-          return Number(basePrice.toFixed(2));
-        })(),
-        discount_percent: (() => {
-          const discountPercent = Number(manualProduct.discount_percent || 0);
-          if (!Number.isFinite(discountPercent) || discountPercent <= 0) return null;
-          return Number(Math.min(100, Math.max(0, discountPercent)).toFixed(2));
-        })(),
-        quantity: parseInt(manualProduct.quantity, 10),
-        is_featured: manualProduct.is_featured,
-        is_digital_download: Boolean(manualProduct.is_digital_download),
-        related_links: {
-          template_id: manualProduct.related_links?.template_id
-            ? Number(manualProduct.related_links.template_id)
-            : null,
-          template_name: manualProduct.related_links?.template_name || null,
-          pattern_product_id: manualProduct.related_links?.pattern_product_id
-            ? Number(manualProduct.related_links.pattern_product_id)
-            : null,
-          pattern_product_name: manualProduct.related_links?.pattern_product_name || null,
-          gallery_photo_id: manualProduct.related_links?.gallery_photo_id
-            ? Number(manualProduct.related_links.gallery_photo_id)
-            : null,
-          gallery_panel_name: manualProduct.related_links?.gallery_panel_name || null,
-          gallery_template_id: manualProduct.related_links?.gallery_template_id
-            ? Number(manualProduct.related_links.gallery_template_id)
-            : null,
-        },
-        images: processedImages,
-      };
+      if (addImagesToGallery && savedProduct?.id && Array.isArray(imagePreviews) && imagePreviews.length > 0) {
+        const imageFiles = imagePreviews
+          .filter((entry) => entry?.type !== "video" && entry?.file)
+          .map((entry) => entry.file)
+          .slice(0, MAX_MANUAL_UPLOAD_PHOTOS);
 
-      if (editingProduct) {
-        await onUpdateManualProduct(editingProduct.id, productData);
-        setStatus("Product updated successfully!");
-      } else {
-        await onAddManualProduct(productData);
+        if (imageFiles.length > 0) {
+          const galleryPayload = new FormData();
+          galleryPayload.append(
+            "panel_name",
+            String(savedProduct.name || manualProduct.name || "Product Gallery").trim(),
+          );
+          galleryPayload.append("description", String(manualProduct.description || "").trim());
+          galleryPayload.append("category", String(selectedTypeCategory || "").trim());
+          if (relatedLinks.template_id || createdTemplate?.id) {
+            galleryPayload.append("template_id", String(relatedLinks.template_id || createdTemplate.id));
+          }
+          galleryPayload.append("display_name", "SGCG Art");
+          galleryPayload.append("hide_submitter_name", "false");
+          imageFiles.forEach((file) => {
+            galleryPayload.append("photos", file);
+          });
+
+          const galleryResult = await submitGalleryPhoto(galleryPayload);
+          const galleryItems = Array.isArray(galleryResult?.items)
+            ? galleryResult.items
+            : Array.isArray(galleryResult)
+              ? galleryResult
+              : [];
+          const firstCreated = galleryItems[0] || galleryResult?.photo || galleryResult;
+
+          if (firstCreated?.id) {
+            const firstGalleryId = Number(firstCreated.id);
+            const firstGalleryPanelName = String(
+              firstCreated.panel_name || savedProduct.name || manualProduct.name || "Product Gallery",
+            ).trim();
+            const firstGalleryTemplateId = firstCreated.template_id
+              ? Number(firstCreated.template_id)
+              : relatedLinks.template_id
+                ? Number(relatedLinks.template_id)
+                : null;
+
+            relatedLinks.gallery_photo_id = String(firstGalleryId);
+            relatedLinks.gallery_panel_name = firstGalleryPanelName;
+            relatedLinks.gallery_template_id = firstGalleryTemplateId ? String(firstGalleryTemplateId) : "";
+
+            if (!editingProduct) {
+              await onUpdateManualProduct(savedProduct.id, {
+                related_links: {
+                  template_id: relatedLinks.template_id
+                    ? Number(relatedLinks.template_id)
+                    : null,
+                  template_name: relatedLinks.template_name || null,
+                  pattern_product_id: relatedLinks.pattern_product_id
+                    ? Number(relatedLinks.pattern_product_id)
+                    : null,
+                  pattern_product_name: relatedLinks.pattern_product_name || null,
+                  gallery_photo_id: firstGalleryId,
+                  gallery_panel_name: firstGalleryPanelName,
+                  gallery_template_id: firstGalleryTemplateId,
+                },
+              });
+            }
+
+            setProductGalleryOptions((prev) => {
+              const exists = prev.some((entry) => String(entry.id) === String(firstGalleryId));
+              if (exists) return prev;
+              return [
+                {
+                  id: firstGalleryId,
+                  panel_name: firstGalleryPanelName || `Photo #${firstGalleryId}`,
+                  template_id: firstGalleryTemplateId,
+                },
+                ...prev,
+              ];
+            });
+          }
+        }
+      }
+
+      if (createdTemplate?.id && templateCreatePayload) {
+        const currentTemplateLinks = {
+          ...createDefaultRelatedLinks(),
+          ...(createdTemplate.related_links || {}),
+          ...(templateCreatePayload.related_links || {}),
+        };
+        const nextTemplateLinks = {
+          ...currentTemplateLinks,
+          pattern_product_id: relatedLinks.pattern_product_id ? Number(relatedLinks.pattern_product_id) : null,
+          pattern_product_name: relatedLinks.pattern_product_name || null,
+          gallery_photo_id: relatedLinks.gallery_photo_id ? Number(relatedLinks.gallery_photo_id) : null,
+          gallery_panel_name: relatedLinks.gallery_panel_name || null,
+          gallery_template_id: relatedLinks.gallery_template_id ? Number(relatedLinks.gallery_template_id) : null,
+        };
+
+        await updateAdminTemplate(createdTemplate.id, {
+          ...templateCreatePayload,
+          related_links: normalizeRelatedLinksPayload(nextTemplateLinks),
+        });
+      }
+
+      if (typeof onRefreshCatalog === "function") {
+        await onRefreshCatalog();
+      }
+
+      if (creatingBoth) {
+        setStatus("Digital template and product listing created successfully!");
+      } else if (creatingTemplateOnly) {
+        setStatus("Digital template created successfully!");
+      } else if (!editingProduct) {
         setStatus("Manual product added successfully!");
       }
 
-      // Close modal and reset state
-      setShowManualProductModal(false);
-      setEditingProduct(null);
-      setManualProduct(createEmptyManualProduct());
-      setImagePreviews([]);
-      setEnableWatermark(true); // Always reset to true after submission
-      setWatermarkText("SGCG ART GLASS"); // Reset to default text
+      // Close modal and reset state (for edit mode; create mode is already background-closed)
+      if (editingProduct) {
+        setShowManualProductModal(false);
+        setEditingProduct(null);
+        setManualProduct(createEmptyManualProduct());
+        setUnifiedTemplate(createEmptyUnifiedTemplate());
+        setRelatedTemplateUpload(createEmptyRelatedTemplateUpload());
+        setRelatedGalleryUpload(createEmptyRelatedGalleryUpload());
+        setShowRelatedLinksSection(false);
+        setImagePreviews([]);
+        setEnableWatermark(true); // Always reset to true after submission
+        setWatermarkText("SGCG ART GLASS"); // Reset to default text
+        setAddImagesToGallery(false);
+        setTemplateRefPhotos([]);
+        setTemplateNameManuallyEdited(false);
+      }
+      await loadManualProductLinkOptions();
     } catch (error) {
       // Check if it's an authentication error
       if (
@@ -1148,8 +1767,16 @@ export default function AdminDashboard({
       ) {
         setStatus("Session expired. Please log out and log back in.");
       } else {
-        setStatus(`Error: ${error.message}`);
+        setStatus(
+          `Error: ${
+            error?.response?.data?.detail
+            || error?.response?.data?.error
+            || error.message
+          }`,
+        );
       }
+    } finally {
+      setIsSavingManualProduct(false);
     }
   };
 
@@ -1220,9 +1847,19 @@ export default function AdminDashboard({
         gallery_template_id: existingRelatedLinks?.gallery_template_id ? String(existingRelatedLinks.gallery_template_id) : "",
       },
     });
+    setUnifiedTemplate(createEmptyUnifiedTemplate());
+    setRelatedTemplateUpload(createEmptyRelatedTemplateUpload());
+    setRelatedGalleryUpload(createEmptyRelatedGalleryUpload());
+    setShowRelatedLinksSection(
+      hasAnyRelatedLinkValue(existingRelatedLinks)
+      || Boolean(existingRelatedLinks?.template_id)
+      || Boolean(existingRelatedLinks?.pattern_product_id)
+      || Boolean(existingRelatedLinks?.gallery_photo_id),
+    );
     setCategoryInput("");
     setMaterialInput("");
     setShowManualProductModal(true);
+    setTemplateNameManuallyEdited(false);
   };
 
   const handleDeleteProduct = async (product) => {
@@ -1424,11 +2061,18 @@ export default function AdminDashboard({
     setShowManualProductModal(false);
     setEditingProduct(null);
     setManualProduct(createEmptyManualProduct());
+    setUnifiedTemplate(createEmptyUnifiedTemplate());
+    setRelatedTemplateUpload(createEmptyRelatedTemplateUpload());
+    setRelatedGalleryUpload(createEmptyRelatedGalleryUpload());
+    setShowRelatedLinksSection(false);
     setCategoryInput("");
     setMaterialInput("");
     setImagePreviews([]);
     setEnableWatermark(true); // Always reset to true when modal closes
     setWatermarkText("SGCG ART GLASS"); // Reset to default text
+    setAddImagesToGallery(false);
+    setTemplateRefPhotos([]);
+    setTemplateNameManuallyEdited(false);
   };
 
   const openCustomerEditModal = async (customer) => {
@@ -1956,35 +2600,32 @@ export default function AdminDashboard({
             {/* <AddEtsyListingForm onAddItem={onAddItem} /> */}
 
             <div className="panel-section">
-              <h3>Add Manual Product</h3>
+              <h3>Add Product</h3>
               {/* <p className="form-note">Add products that are not listed on Etsy</p> */}
               <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                {PRODUCT_TYPE_CONFIG.map((typeEntry) => (
-                  <button
-                    key={typeEntry.key}
-                    className="button primary"
-                    type="button"
-                    onClick={() => {
-                      setProductType(typeEntry.key);
-                      setManualProduct((prev) => ({
-                        ...createEmptyManualProduct(),
-                        category: [
-                          PRODUCT_TYPE_LABEL_BY_KEY[typeEntry.key]
-                          || PRODUCT_TYPE_LABEL_BY_KEY.stainedGlassPanels,
-                        ],
-                        is_digital_download: typeEntry.key === "patterns",
-                      }));
-                      setCategoryInput("");
-                      setMaterialInput("");
-                      setImagePreviews([]);
-                      setEditingProduct(null);
-                      loadManualProductLinkOptions();
-                      setShowManualProductModal(true);
-                    }}
-                  >
-                    {`Add ${typeEntry.label} Product`}
-                  </button>
-                ))}
+                <button
+                  className="button primary"
+                  type="button"
+                  onClick={() => {
+                    setProductType("stainedGlassPanels");
+                    setManualProduct({
+                      ...createEmptyManualProduct(),
+                      category: [PRODUCT_TYPE_LABEL_BY_KEY.stainedGlassPanels],
+                    });
+                    setUnifiedTemplate(createEmptyUnifiedTemplate());
+                    setRelatedTemplateUpload(createEmptyRelatedTemplateUpload());
+                    setRelatedGalleryUpload(createEmptyRelatedGalleryUpload());
+                    setShowRelatedLinksSection(false);
+                    setCategoryInput("");
+                    setMaterialInput("");
+                    setImagePreviews([]);
+                    setEditingProduct(null);
+                    loadManualProductLinkOptions();
+                    setShowManualProductModal(true);
+                  }}
+                >
+                  Add Product
+                </button>
               </div>
             </div>
 
@@ -2454,7 +3095,7 @@ export default function AdminDashboard({
                 <h2>
                   {editingProduct
                     ? "Edit Product"
-                    : `Add ${PRODUCT_TYPE_LABEL_BY_KEY[productType] || PRODUCT_TYPE_LABEL_BY_KEY.stainedGlassPanels} Product`}
+                    : "Add Product / Digital Template"}
                 </h2>
                 <button
                   className="modal-close"
@@ -2465,6 +3106,10 @@ export default function AdminDashboard({
                 </button>
               </div>
               <form className="modal-form" onSubmit={handleManualProductSubmit}>
+                {/* ── SECTION 1: PRODUCT ───────────────────────────────────── */}
+                {isProductSectionEnabled && (
+                  <div className="ap-section ap-section-1">
+                    <h4 className="ap-section-title">🛍️ Section 1 — Product Listing</h4>
                 <label>
                   Product Name *
                   <input
@@ -2477,112 +3122,12 @@ export default function AdminDashboard({
                       })
                     }
                     placeholder="Enter product name"
-                    required
+                    required={isProductSectionEnabled}
                   />
                 </label>
 
-                <div className="form-field">
-                  <label>Images / Video</label>
-                  <div className="image-upload-section">
-                    {/* Watermark Settings - At the top */}
-                    <div className="watermark-section">
-                      <h4>Watermark Settings</h4>
-                      <div className="watermark-controls">
-                        <label className="checkbox-label">
-                          <input
-                            type="checkbox"
-                            checked={enableWatermark}
-                            onChange={(e) =>
-                              setEnableWatermark(e.target.checked)
-                            }
-                          />
-                          <span>Apply watermark to new images</span>
-                        </label>
-
-                        {enableWatermark && (
-                          <div className="watermark-input-group">
-                            <label>
-                              Watermark Text
-                              <input
-                                type="text"
-                                value={watermarkText}
-                                onChange={(e) =>
-                                  setWatermarkText(e.target.value)
-                                }
-                                placeholder="Enter watermark text"
-                              />
-                            </label>
-                            <span className="form-note">
-                              Watermark will appear diagonally across the image
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="image-upload-input">
-                      <input
-                        type="file"
-                        id="image-input"
-                        accept="image/*,video/*"
-                        multiple
-                        onChange={(e) => handleAddImages(e.target.files)}
-                        style={{ display: "none" }}
-                      />
-                      <label htmlFor="image-input" className="upload-button">
-                        + Add Images/Video
-                      </label>
-                      <span className="form-note">
-                        Add up to 10 photos and 1 video. If upload is too large, reduce the number of photos/videos.
-                      </span>
-                    </div>
-
-                    {imagePreviews.length > 0 && (
-                      <div className="image-gallery">
-                        <h4>Added Images ({imagePreviews.length})</h4>
-                        <div className="image-grid">
-                          {imagePreviews.map((preview) => (
-                            <div
-                              key={preview.id}
-                              className="image-item"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {preview.type === "video" ? (
-                                <video
-                                  src={preview.src}
-                                  className="image-preview"
-                                />
-                              ) : (
-                                <img
-                                  src={preview.src}
-                                  alt="Preview"
-                                  className="image-preview"
-                                />
-                              )}
-                              <button
-                                type="button"
-                                className="remove-image-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRemoveImage(preview.id);
-                                }}
-                                title="Remove image"
-                              >
-                                ✕
-                              </button>
-                              {preview.type === "video" && (
-                                <span className="media-badge">Video</span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
                 <label>
-                  Description *
+                  Description
                   <textarea
                     value={manualProduct.description}
                     onChange={(e) =>
@@ -2593,7 +3138,6 @@ export default function AdminDashboard({
                     }
                     placeholder="Enter product description"
                     rows="4"
-                    required
                   />
                 </label>
 
@@ -3082,7 +3626,7 @@ export default function AdminDashboard({
                       }
                       placeholder="0.00"
                       style={{ width: "130px" }}
-                      required
+                      required={isProductSectionEnabled}
                     />
                   </label>
                   <label>
@@ -3131,7 +3675,7 @@ export default function AdminDashboard({
                         })
                       }
                       placeholder="0"
-                      required
+                      required={isProductSectionEnabled}
                     />
                   </label>
                 </div>
@@ -3150,171 +3694,471 @@ export default function AdminDashboard({
                   <span>Feature this product on the home page</span>
                 </label>
 
-                <div className="product-linking-section">
-                  <h4>Related Customer Links</h4>
-                  <p className="form-note">
-                    Link this product to a template, pattern, or gallery entry so customers can jump straight to inspiration.
-                  </p>
+                  </div>
+                )}
 
-                  <label>
-                    {`Linked Template (${templateOptionCount})`}
-                    <select
-                      value={manualProduct.related_links?.template_id || ""}
-                      onChange={(e) => {
-                        const nextId = e.target.value;
-                        const selectedTemplate = productTemplateOptions.find(
-                          (entry) => String(entry.id) === String(nextId),
-                        );
-                        setManualProduct({
-                          ...manualProduct,
-                          related_links: {
-                            ...createDefaultRelatedLinks(),
-                            ...manualProduct.related_links,
-                            template_id: nextId,
-                            template_name: selectedTemplate?.name || "",
-                          },
-                        });
-                      }}
-                    >
-                      <option value="">None</option>
-                      {productTemplateOptions.map((template) => (
-                        <option key={template.id} value={template.id}>
-                          {template.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                {/* ── SECTION 2: DIGITAL TEMPLATE ─────────────── */}
+                {isTemplateSectionEnabled && (
+                  <div className="ap-section ap-section-2">
+                    <h4 className="ap-section-title">📐 Section 2 — Digital Template</h4>
+                    <p className="form-note">
+                      Upload the digital template — it saves to Templates and auto-links to the new product.
+                    </p>
 
-                  <label>
-                    {`Linked Pattern Product (${patternOptionCount})`}
-                    <select
-                      value={manualProduct.related_links?.pattern_product_id || ""}
-                      onChange={(e) => {
-                        const nextId = e.target.value;
-                        const selectedPattern = patternProductOptions.find(
-                          (entry) => String(entry.id) === String(nextId),
-                        );
-                        setManualProduct({
-                          ...manualProduct,
-                          related_links: {
-                            ...createDefaultRelatedLinks(),
-                            ...manualProduct.related_links,
-                            pattern_product_id: nextId,
-                            pattern_product_name: selectedPattern?.name || "",
-                          },
-                        });
-                      }}
-                    >
-                      <option value="">None</option>
-                      {patternProductOptions.map((pattern) => (
-                        <option key={pattern.id} value={pattern.id}>
-                          {pattern.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                    <label>
+                      Template Name *
+                      <input
+                        type="text"
+                        value={unifiedTemplate.name}
+                        onChange={(e) => {
+                          setTemplateNameManuallyEdited(true);
+                          setUnifiedTemplate((prev) => ({
+                            ...prev,
+                            name: e.target.value,
+                          }));
+                        }}
+                        placeholder="Enter template name"
+                        required={Boolean(unifiedTemplate.upload_file)}
+                      />
+                    </label>
 
-                  <label>
-                    {`Linked Photo Gallery Entry (${galleryOptionCount})`}
-                    <select
-                      value={manualProduct.related_links?.gallery_photo_id || ""}
-                      onChange={(e) => {
-                        const nextId = e.target.value;
-                        const selectedPhoto = productGalleryOptions.find(
-                          (entry) => String(entry.id) === String(nextId),
-                        );
-                        setManualProduct({
-                          ...manualProduct,
-                          related_links: {
-                            ...createDefaultRelatedLinks(),
-                            ...manualProduct.related_links,
-                            gallery_photo_id: nextId,
-                            gallery_panel_name: selectedPhoto?.panel_name || "",
-                            gallery_template_id: selectedPhoto?.template_id
-                              ? String(selectedPhoto.template_id)
-                              : "",
-                          },
-                        });
-                      }}
-                    >
-                      <option value="">None</option>
-                      {productGalleryOptions.map((photo) => (
-                        <option key={photo.id} value={photo.id}>
-                          {photo.panel_name || `Photo #${photo.id}`}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
+                    <label>
+                      Template Category
+                      <input
+                        type="text"
+                        value={unifiedTemplate.category}
+                        onChange={(e) =>
+                          setUnifiedTemplate((prev) => ({
+                            ...prev,
+                            category: e.target.value,
+                          }))
+                        }
+                        placeholder="Examples: Patterns, Floral, Geometric"
+                      />
+                    </label>
 
-                <div className="modal-actions">
-                  <button
-                    type="button"
-                    className="button"
-                    onClick={handleCloseModal}
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="button primary">
-                    {editingProduct ? "Update Product" : "Add Listing"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-      </div>
+                    <div className="price-quantity-inputs">
+                      <label>
+                        Difficulty
+                        <select
+                          value={unifiedTemplate.difficulty}
+                          onChange={(e) =>
+                            setUnifiedTemplate((prev) => ({
+                              ...prev,
+                              difficulty: e.target.value,
+                            }))
+                          }
+                        >
+                          {TEMPLATE_DIFFICULTY_OPTIONS.map((level) => (
+                            <option key={level} value={level}>
+                              {level}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
 
-      {editingCustomer && (
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Edit Customer</h2>
-              <button className="modal-close" onClick={closeCustomerEditModal} aria-label="Close">
-                ×
-              </button>
-            </div>
-            <form className="modal-form" onSubmit={handleCustomerSave}>
-              <div className="panel-section" style={{ padding: "1rem", marginTop: "0.15rem" }}>
-                <h3 style={{ marginBottom: "0.75rem", fontSize: "1.05rem" }}>Send Template to Customer</h3>
-                <label>
-                  Template
-                  <select
-                    value={sendTemplateForm.template_id}
-                    onChange={(e) =>
-                      setSendTemplateForm((prev) => ({
-                        ...prev,
-                        template_id: e.target.value,
-                        uploaded_file: e.target.value ? null : prev.uploaded_file,
-                      }))
-                    }
-                  >
-                    <option value="">Select template...</option>
-                    {adminTemplateOptions.map((template) => (
-                      <option key={template.id} value={template.id}>
-                        {template.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Or Upload New Template
-                  <input
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.gif,.webp"
-                    onChange={(e) => {
-                      const nextFile = e.target.files?.[0] || null;
-                      setSendTemplateForm((prev) => ({
-                        ...prev,
-                        template_id: nextFile ? "" : prev.template_id,
-                        uploaded_file: nextFile,
-                        new_template_name:
-                          prev.new_template_name ||
-                          (nextFile ? nextFile.name.replace(/\.[^.]+$/, "") : ""),
-                      }));
-                    }}
-                  />
-                </label>
+                      <label>
+                        Dimensions
+                        <input
+                          type="text"
+                          value={unifiedTemplate.dimensions}
+                          onChange={(e) =>
+                            setUnifiedTemplate((prev) => ({
+                              ...prev,
+                              dimensions: e.target.value,
+                            }))
+                          }
+                          placeholder='Examples: 12" x 18", Letter'
+                        />
+                      </label>
+                    </div>
+
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(unifiedTemplate.is_digital_download)}
+                        onChange={(e) =>
+                          setUnifiedTemplate((prev) => ({
+                            ...prev,
+                            is_digital_download: e.target.checked,
+                          }))
+                        }
+                      />
+                      <span>Digital download (customers can purchase and download instantly)</span>
+                    </label>
+
+                    {unifiedTemplate.is_digital_download && (
+                      <label>
+                        Digital Price (USD) *
+                        <input
+                          type="number"
+                          min="0.5"
+                          step="0.01"
+                          value={unifiedTemplate.price_amount}
+                          onChange={(e) =>
+                            setUnifiedTemplate((prev) => ({
+                              ...prev,
+                              price_amount: e.target.value,
+                            }))
+                          }
+                          placeholder="0.00"
+                          required={Boolean(unifiedTemplate.upload_file && unifiedTemplate.is_digital_download)}
+                        />
+                      </label>
+                    )}
+
+                  </div>
+                )}
+
+                {/* ── SECTION 3: IMAGES / VIDEO ─────────────── */}
+                        <div className="ap-section ap-section-3">
+                          <h4 className="ap-section-title">🖼️ Section 3 — Images / Video</h4>
+
+                          <p className="form-note">
+                            Add up to 10 photos and 1 video for the product listing.
+                          </p>
+                          <div className="image-upload-input">
+                            <input
+                              type="file"
+                              id="image-input"
+                              accept="image/*,video/*"
+                              multiple
+                              onChange={(e) => handleAddImages(e.target.files)}
+                              style={{ display: "none" }}
+                            />
+                            <label htmlFor="image-input" className="upload-button">
+                              + Add Images / Video
+                            </label>
+                          </div>
+
+                          {imagePreviews.length > 0 && (
+                            <div className="image-gallery">
+                              <h4>Added Images ({imagePreviews.length})</h4>
+                              <div className="image-grid">
+                                {imagePreviews.map((preview) => (
+                                  <div
+                                    key={preview.id}
+                                    className="image-item"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {preview.type === "video" ? (
+                                      <video src={preview.src} className="image-preview" />
+                                    ) : (
+                                      <img src={preview.src} alt="Preview" className="image-preview" />
+                                    )}
+                                    <button
+                                      type="button"
+                                      className="remove-image-btn"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemoveImage(preview.id);
+                                      }}
+                                      title="Remove image"
+                                    >
+                                      ✕
+                                    </button>
+                                    {preview.type === "video" && (
+                                      <span className="media-badge">Video</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <label className="checkbox-label" style={{ marginTop: "0.5rem" }}>
+                            <input
+                              type="checkbox"
+                              checked={addImagesToGallery}
+                              onChange={(e) => setAddImagesToGallery(e.target.checked)}
+                            />
+                            <span>Add product photos to gallery when submitted (auto-grouped)</span>
+                          </label>
+
+                          {isTemplateSectionEnabled && (
+                            <>
+                              <hr className="ap-section-divider" />
+                              <p className="form-note">Upload the template file and up to 3 reference photos.</p>
+                              <label>
+                                Upload Template File *
+                                <input
+                                  type="file"
+                                  accept=".svg,.pdf,.jpg,.jpeg,.png"
+                                  onChange={(e) => {
+                                    const nextFile = e.target.files?.[0] || null;
+                                    setUnifiedTemplate((prev) => ({
+                                      ...prev,
+                                      upload_file: nextFile,
+                                    }));
+                                  }}
+                                  required={false}
+                                />
+                              </label>
+                              {unifiedTemplate.upload_file ? (
+                                <div className="form-note">
+                                  Selected template file: {unifiedTemplate.upload_file.name}
+                                </div>
+                              ) : null}
+                              <div className="image-upload-input" style={{ marginTop: "0.5rem" }}>
+                                <input
+                                  type="file"
+                                  id="template-ref-input"
+                                  accept="image/*"
+                                  multiple
+                                  onChange={(e) => {
+                                    const files = Array.from(e.target.files || []);
+                                    const toAdd = files.slice(0, 3 - templateRefPhotos.length);
+                                    const newPreviews = toAdd.map((file) => ({
+                                      id: `${file.name}-${Date.now()}-${Math.random()}`,
+                                      src: URL.createObjectURL(file),
+                                      file,
+                                    }));
+                                    setTemplateRefPhotos((prev) => [...prev, ...newPreviews]);
+                                    e.target.value = "";
+                                  }}
+                                  style={{ display: "none" }}
+                                  disabled={templateRefPhotos.length >= 3}
+                                />
+                                <label
+                                  htmlFor="template-ref-input"
+                                  className="upload-button"
+                                  style={templateRefPhotos.length >= 3 ? { opacity: 0.5, cursor: "not-allowed" } : {}}
+                                >
+                                  + Add Reference Photos ({templateRefPhotos.length}/3)
+                                </label>
+                                <span className="form-note">Reference photos help customers visualize the pattern.</span>
+                              </div>
+                              {templateRefPhotos.length > 0 && (
+                                <div className="image-gallery">
+                                  <div className="image-grid">
+                                    {templateRefPhotos.map((photo) => (
+                                      <div
+                                        key={photo.id}
+                                        className="image-item"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <img src={photo.src} alt="Ref" className="image-preview" />
+                                        <button
+                                          type="button"
+                                          className="remove-image-btn"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setTemplateRefPhotos((prev) =>
+                                              prev.filter((p) => p.id !== photo.id),
+                                            );
+                                          }}
+                                          title="Remove photo"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+
+                        {/* ── SECTION 4: WATERMARK ─────────────────────── */}
+                        <div className="ap-section ap-section-4">
+                          <h4 className="ap-section-title">💧 Section 4 — Watermark Settings</h4>
+                          <label className="checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={enableWatermark}
+                              onChange={(e) => setEnableWatermark(e.target.checked)}
+                            />
+                            <span>Apply watermark to new images</span>
+                          </label>
+                          {enableWatermark && (
+                            <div className="watermark-input-group">
+                              <label>
+                                Watermark Text
+                                <input
+                                  type="text"
+                                  value={watermarkText}
+                                  onChange={(e) => setWatermarkText(e.target.value)}
+                                  placeholder="Enter watermark text"
+                                />
+                              </label>
+                              <span className="form-note">Watermark will appear diagonally across the image.</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* ── SECTION 5: RELATED CUSTOMER LINKS ────────── */}
+                        <div className="ap-section ap-section-5">
+                          <h4 className="ap-section-title">🔗 Section 5 — Related Customer Links</h4>
+                          <p className="form-note">
+                            Link this listing to existing templates, patterns, or gallery entries.
+                          </p>
+
+                          <label>
+                            {`Linked Template (${templateOptionCount})`}
+                            <select
+                              value={manualProduct.related_links?.template_id || ""}
+                              onChange={(e) => {
+                                const nextId = e.target.value;
+                                const selectedTemplate = productTemplateOptions.find(
+                                  (entry) => String(entry.id) === String(nextId),
+                                );
+                                setManualProduct({
+                                  ...manualProduct,
+                                  related_links: {
+                                    ...createDefaultRelatedLinks(),
+                                    ...manualProduct.related_links,
+                                    template_id: nextId,
+                                    template_name: selectedTemplate?.name || "",
+                                  },
+                                });
+                              }}
+                            >
+                              <option value="">None</option>
+                              {productTemplateOptions.map((template) => (
+                                <option key={template.id} value={template.id}>
+                                  {template.name}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+
+                          <label>
+                            {`Linked Pattern Product (${patternOptionCount})`}
+                            <select
+                              value={manualProduct.related_links?.pattern_product_id || ""}
+                              onChange={(e) => {
+                                const nextId = e.target.value;
+                                const selectedPattern = patternProductOptions.find(
+                                  (entry) => String(entry.id) === String(nextId),
+                                );
+                                setManualProduct({
+                                  ...manualProduct,
+                                  related_links: {
+                                    ...createDefaultRelatedLinks(),
+                                    ...manualProduct.related_links,
+                                    pattern_product_id: nextId,
+                                    pattern_product_name: selectedPattern?.name || "",
+                                  },
+                                });
+                              }}
+                            >
+                              <option value="">None</option>
+                              {patternProductOptions.map((pattern) => (
+                                <option key={pattern.id} value={pattern.id}>
+                                  {pattern.name}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+
+                          <label>
+                            {`Linked Photo Gallery Entry (${galleryOptionCount})`}
+                            <select
+                              value={manualProduct.related_links?.gallery_photo_id || ""}
+                              onChange={(e) => {
+                                const nextId = e.target.value;
+                                const selectedPhoto = productGalleryOptions.find(
+                                  (entry) => String(entry.id) === String(nextId),
+                                );
+                                setManualProduct({
+                                  ...manualProduct,
+                                  related_links: {
+                                    ...createDefaultRelatedLinks(),
+                                    ...manualProduct.related_links,
+                                    gallery_photo_id: nextId,
+                                    gallery_panel_name: selectedPhoto?.panel_name || "",
+                                    gallery_template_id: selectedPhoto?.template_id
+                                      ? String(selectedPhoto.template_id)
+                                      : "",
+                                  },
+                                });
+                              }}
+                            >
+                              <option value="">None</option>
+                              {productGalleryOptions.map((photo) => (
+                                <option key={photo.id} value={photo.id}>
+                                  {photo.panel_name || `Photo #${photo.id}`}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+
+                        <div className="modal-actions">
+                          <button
+                            type="button"
+                            className="button"
+                            onClick={handleCloseModal}
+                          >
+                            Cancel
+                          </button>
+                          <button type="submit" className="button primary">
+                            {editingProduct
+                              ? "Update Product"
+                              : isTemplateSectionEnabled && isProductSectionEnabled
+                                ? "Save Product + Template"
+                                : isTemplateSectionEnabled
+                                  ? "Save Digital Template"
+                                  : "Add Listing"}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {editingCustomer && (
+                <div className="modal-overlay">
+                  <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                      <h2>Edit Customer</h2>
+                      <button className="modal-close" onClick={closeCustomerEditModal} aria-label="Close">
+                        ×
+                      </button>
+                    </div>
+                    <form className="modal-form" onSubmit={handleCustomerSave}>
+                      <div className="panel-section" style={{ padding: "1rem", marginTop: "0.15rem" }}>
+                        <h3 style={{ marginBottom: "0.75rem", fontSize: "1.05rem" }}>Send Template to Customer</h3>
+                        <label>
+                          Template
+                          <select
+                            value={sendTemplateForm.template_id}
+                            onChange={(e) =>
+                              setSendTemplateForm((prev) => ({
+                                ...prev,
+                                template_id: e.target.value,
+                                uploaded_file: e.target.value ? null : prev.uploaded_file,
+                              }))
+                            }
+                          >
+                            <option value="">Select template...</option>
+                            {adminTemplateOptions.map((template) => (
+                              <option key={template.id} value={template.id}>
+                                {template.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          Or Upload New Template
+                          <input
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.gif,.webp"
+                            onChange={(e) => {
+                              const nextFile = e.target.files?.[0] || null;
+                              setSendTemplateForm((prev) => ({
+                                ...prev,
+                                template_id: nextFile ? "" : prev.template_id,
+                                uploaded_file: nextFile,
+                                new_template_name:
+                                  prev.new_template_name
+                                  || (nextFile ? nextFile.name.replace(/\.[^.]+$/, "") : ""),
+                              }));
+                            }}
+                          />
+                        </label>
                 {sendTemplateForm.uploaded_file && (
                   <>
                     <div className="form-note">Selected file: {sendTemplateForm.uploaded_file.name}</div>

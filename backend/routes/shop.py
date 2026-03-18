@@ -2527,7 +2527,11 @@ def submit_review_with_invite_code():
         if len(image_bytes) > MAX_REVIEW_IMAGE_BYTES:
             return jsonify({"error": "image_too_large"}), 400
 
-        uploads_dir = os.path.join(os.path.dirname(__file__), "..", "uploads", "reviews")
+        configured_upload_root = current_app.config.get("UPLOAD_FOLDER")
+        if configured_upload_root:
+            uploads_dir = os.path.join(str(configured_upload_root), "reviews")
+        else:
+            uploads_dir = os.path.join(os.path.dirname(__file__), "..", "uploads", "reviews")
         uploads_dir = os.path.abspath(uploads_dir)
         os.makedirs(uploads_dir, exist_ok=True)
 
@@ -2939,16 +2943,36 @@ def update_manual_product_endpoint(product_id):
     if not product:
         return jsonify({"error": "not_found"}), 404
     payload = request.get_json(silent=True) or {}
-    if not payload.get("name"):
+    merged_payload = {
+        "name": product.get("name"),
+        "description": product.get("description"),
+        "category": product.get("category"),
+        "materials": product.get("materials"),
+        "width": product.get("width"),
+        "height": product.get("height"),
+        "depth": product.get("depth"),
+        "price": product.get("price"),
+        "old_price": product.get("old_price"),
+        "discount_percent": product.get("discount_percent"),
+        "quantity": product.get("quantity"),
+        "is_featured": product.get("is_featured"),
+        "is_digital_download": product.get("is_digital_download"),
+        "related_links": product.get("related_links"),
+    }
+    if "images" in payload:
+        merged_payload["images"] = payload.get("images")
+    merged_payload.update(payload)
+
+    if not merged_payload.get("name"):
         return jsonify({"error": "missing_name"}), 400
-    if not payload.get("description"):
+    if not merged_payload.get("description"):
         return jsonify({"error": "missing_description"}), 400
-    if payload.get("price") is None:
+    if merged_payload.get("price") is None:
         return jsonify({"error": "missing_price"}), 400
-    if payload.get("quantity") is None:
+    if merged_payload.get("quantity") is None:
         return jsonify({"error": "missing_quantity"}), 400
     try:
-        update_manual_product(product_id, payload)
+        update_manual_product(product_id, merged_payload)
         updated_product = fetch_manual_product(product_id)
         _catalog_cache_invalidate("manual_products", "manual_products_summary")
         return jsonify(updated_product)

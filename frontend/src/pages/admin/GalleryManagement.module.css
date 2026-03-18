@@ -30,6 +30,22 @@
   margin: -0.1rem 0 0.7rem;
 }
 
+.paginationHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin: 0.3rem 0 0.7rem;
+  font-size: 0.86rem;
+  color: #555;
+}
+
+.paginationControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .form {
   display: grid;
   gap: 0.75rem;

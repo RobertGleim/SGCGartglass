@@ -54,9 +54,23 @@ const resolveGalleryImageUrl = (value) => {
   return `${getApiOrigin()}/${value}`;
 };
 
+const normalizeManualCategory = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+const isPatternManualProduct = (entry) => {
+  const categories = Array.isArray(entry?.category)
+    ? entry.category
+    : entry?.category
+      ? [entry.category]
+      : [];
+  return categories.some((category) => {
+    const normalized = normalizeManualCategory(category);
+    return normalized === 'pattern' || normalized === 'patterns';
+  });
+};
+
 const GALLERY_MAX_PHOTOS = 10;
 const GALLERY_MAX_SINGLE_FILE_BYTES = 20 * 1024 * 1024;
 const GALLERY_MAX_TOTAL_BYTES = 120 * 1024 * 1024;
+const GALLERY_PAGE_SIZE = 15;
 
 export default function PhotoGalleryPage() {
   const { authToken } = useAuth();
@@ -69,6 +83,9 @@ export default function PhotoGalleryPage() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState(getInitialTemplateIdFromHash());
   const [selectedPhotoId, setSelectedPhotoId] = useState(getInitialPhotoIdFromHash());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [manualProducts, setManualProducts] = useState([]);
   const [linkedParams, setLinkedParams] = useState(getLinkedParamsFromHash());
   const [loading, setLoading] = useState(true);
@@ -113,10 +130,20 @@ export default function PhotoGalleryPage() {
         category: selectedCategory || undefined,
         template_id: selectedTemplateId || undefined,
         photo_id: selectedPhotoId || undefined,
+        page: selectedPhotoId ? undefined : currentPage,
+        per_page: selectedPhotoId ? undefined : GALLERY_PAGE_SIZE,
       });
       let items = Array.isArray(response?.items) ? response.items : [];
       let categories = Array.isArray(response?.categories) ? response.categories : [];
       let templatesFromResponse = Array.isArray(response?.templates) ? response.templates : [];
+
+      if (!selectedPhotoId) {
+        const nextTotalPages = Math.max(1, Number(response?.total_pages) || 1);
+        const nextPage = Math.min(Math.max(1, Number(response?.page) || currentPage), nextTotalPages);
+        setTotalPages(nextTotalPages);
+        setTotalItems(Number(response?.total_items) || 0);
+        setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
+      }
 
       // Always anchor linked gallery navigation by photo ID (and its submission group),
       // even if backend photo_id filtering is unavailable or stale.
@@ -125,7 +152,7 @@ export default function PhotoGalleryPage() {
         let targetPhoto = items.find((entry) => String(entry?.id) === linkedId);
 
         if (!targetPhoto) {
-          const fallbackResponse = await getGalleryPhotosCached();
+          const fallbackResponse = await getGalleryPhotosCached({ page: 1, per_page: 500 });
           const fallbackItems = Array.isArray(fallbackResponse?.items) ? fallbackResponse.items : [];
           targetPhoto = fallbackItems.find((entry) => String(entry?.id) === linkedId);
           if (targetPhoto) {
@@ -143,8 +170,14 @@ export default function PhotoGalleryPage() {
           items = items.filter(
             (entry) => String(entry?.submission_group_id || entry?.id || '') === targetGroupId,
           );
+          setCurrentPage(1);
+          setTotalPages(1);
+          setTotalItems(items.length);
         } else {
           items = [];
+          setCurrentPage(1);
+          setTotalPages(1);
+          setTotalItems(0);
         }
       }
 
@@ -156,6 +189,9 @@ export default function PhotoGalleryPage() {
     } catch (err) {
       setError(err?.response?.data?.detail || err?.message || 'Failed to load gallery photos.');
       setPhotos([]);
+      setCurrentPage(1);
+      setTotalPages(1);
+      setTotalItems(0);
     } finally {
       setLoading(false);
     }
@@ -187,6 +223,7 @@ export default function PhotoGalleryPage() {
       setSelectedTemplateId(getInitialTemplateIdFromHash());
       setSelectedPhotoId(getInitialPhotoIdFromHash());
       setLinkedParams(getLinkedParamsFromHash());
+      setCurrentPage(1);
     };
     window.addEventListener('hashchange', syncFromHash);
     return () => window.removeEventListener('hashchange', syncFromHash);
@@ -194,7 +231,11 @@ export default function PhotoGalleryPage() {
 
   useEffect(() => {
     loadPhotos();
-  }, [selectedCategory, selectedTemplateId, selectedPhotoId]);
+  }, [selectedCategory, selectedTemplateId, selectedPhotoId, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, selectedTemplateId]);
 
   useEffect(() => {
     if (!customerToken) {
@@ -343,9 +384,10 @@ export default function PhotoGalleryPage() {
 
     const templateId = String(linkedParams.template_id || selectedTemplateId || '').trim();
     if (templateId) {
-      const byTemplate = manualProducts.find(
+      const matchingProducts = manualProducts.filter(
         (entry) => String(entry?.related_links?.template_id || '') === templateId,
       );
+      const byTemplate = matchingProducts.find((entry) => !isPatternManualProduct(entry)) || matchingProducts[0] || null;
       if (byTemplate) return byTemplate;
     }
 
@@ -383,9 +425,10 @@ export default function PhotoGalleryPage() {
 
     const templateId = String(activeViewerPhoto?.template_id || viewerGroup?.template_id || '').trim();
     if (templateId) {
-      const byTemplateId = manualProducts.find(
+      const matchingProducts = manualProducts.filter(
         (entry) => String(entry?.related_links?.template_id || '') === templateId,
       );
+      const byTemplateId = matchingProducts.find((entry) => !isPatternManualProduct(entry)) || matchingProducts[0] || null;
       if (byTemplateId) return byTemplateId;
     }
 
@@ -550,29 +593,38 @@ export default function PhotoGalleryPage() {
       <div className={styles.filters}>
         <div className={styles.filterGroup}>
           <label htmlFor="gallery-category">Category</label>
-          <select
-            id="gallery-category"
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-          >
-            <option value="">All Categories</option>
-            {categories.map((category) => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
+          <div className={styles.selectWrap}>
+            <select
+              id="gallery-category"
+              className={styles.categorySelect}
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+            >
+              <option value="">All Categories</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+            <span className={styles.selectChevron} aria-hidden="true">☰</span>
+          </div>
         </div>
-
-        <button
-          type="button"
-          className={styles.resetBtn}
-          onClick={() => {
-            setSelectedCategory('');
-            setSelectedTemplateId('');
-            setSelectedPhotoId('');
-          }}
-        >
-          Reset Filters
-        </button>
+        <div className={styles.filterGroup}>
+          <label htmlFor="gallery-template">Template</label>
+          <div className={styles.selectWrap}>
+            <select
+              id="gallery-template"
+              className={styles.categorySelect}
+              value={selectedTemplateId}
+              onChange={(e) => setSelectedTemplateId(e.target.value)}
+            >
+              <option value="">All Templates</option>
+              {templates.map((template) => (
+                <option key={template.id} value={template.id}>{template.name}</option>
+              ))}
+            </select>
+            <span className={styles.selectChevron} aria-hidden="true">☰</span>
+          </div>
+        </div>
       </div>
 
       {loading ? (
@@ -620,6 +672,30 @@ export default function PhotoGalleryPage() {
               </div>
             </article>
           ))}
+        </div>
+      )}
+
+      {!loading && !error && !selectedPhotoId && totalPages > 1 && (
+        <div className={styles.paginationWrap}>
+          <button
+            type="button"
+            className={styles.resetBtn}
+            disabled={currentPage <= 1}
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+          >
+            Previous
+          </button>
+          <span className={styles.paginationLabel}>
+            Page {currentPage} of {totalPages} · {totalItems} cards
+          </span>
+          <button
+            type="button"
+            className={styles.resetBtn}
+            disabled={currentPage >= totalPages}
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+          >
+            Next
+          </button>
         </div>
       )}
 

@@ -619,6 +619,15 @@ export default function ProductPage({ products }) {
                       src={activeReview.product_image_url}
                       alt={activeReview.product_title || activeReview.title || 'Reviewed product'}
                       className="product-page-review-image"
+                      onError={(event) => {
+                        const fallback = String(activeReview.fallback_product_image_url || '').trim()
+                        const current = String(event.currentTarget.src || '').trim()
+                        if (fallback && current !== fallback) {
+                          event.currentTarget.src = fallback
+                          return
+                        }
+                        event.currentTarget.style.display = 'none'
+                      }}
                     />
                   </div>
                 ) : null}

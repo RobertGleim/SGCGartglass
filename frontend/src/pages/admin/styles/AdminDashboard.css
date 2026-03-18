@@ -105,6 +105,8 @@
 }
 
 .product-form-wrapper .modal-content {
+  width: min(800px, calc(100vw - 1rem));
+  max-width: 800px;
   overflow-x: hidden;
 }
 
@@ -113,6 +115,51 @@
 .product-form-wrapper .modal-form textarea {
   max-width: 100%;
   box-sizing: border-box;
+}
+
+/* Add Product modal section layout */
+.ap-section {
+  border-radius: 10px;
+  border: 2px solid transparent;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.ap-section-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.02rem;
+  line-height: 1.3;
+}
+
+.ap-section-divider {
+  border: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  margin: 0.75rem 0;
+}
+
+.ap-section-1 {
+  background: #eef6ff;
+  border-color: #1e88e5;
+}
+
+.ap-section-2 {
+  background: #f2f9f1;
+  border-color: #2e7d32;
+}
+
+.ap-section-3 {
+  background: #fff8e8;
+  border-color: #ef6c00;
+}
+
+.ap-section-4 {
+  background: #e8f8ff;
+  border-color: #00838f;
+}
+
+.ap-section-5 {
+  background: #fff1f1;
+  border-color: #c62828;
 }
 
 .product-form-wrapper .modal-overlay::-webkit-scrollbar,

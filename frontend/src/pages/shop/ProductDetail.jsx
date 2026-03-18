@@ -64,6 +64,46 @@ const resolveVideoUrl = (entry) => {
   return ''
 }
 
+const normalizeCategoryValue = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+
+const toCategoryArray = (category) => {
+  if (Array.isArray(category)) {
+    return category.filter(Boolean)
+  }
+
+  if (typeof category === 'string') {
+    const trimmed = category.trim()
+
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (Array.isArray(parsed)) {
+          return parsed.filter(Boolean)
+        }
+      } catch {
+        // ignore malformed serialized categories
+      }
+    }
+
+    if (trimmed.includes(',')) {
+      return trimmed
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+    }
+  }
+
+  return category ? [category] : []
+}
+
+const isPatternCategory = (category) => {
+  const normalized = normalizeCategoryValue(category)
+  return normalized === 'pattern' || normalized === 'patterns'
+}
+
+const isPatternProductEntry = (entry) =>
+  toCategoryArray(entry?.category).some((category) => isPatternCategory(category))
+
 export default function ProductDetail({ product, products = [] }) {
   const [selectedImage, setSelectedImage] = useState(0)
   const [showZoom, setShowZoom] = useState(false)
@@ -268,62 +308,86 @@ export default function ProductDetail({ product, products = [] }) {
     if (directSource && typeof directSource === 'object') {
       return directSource
     }
+    return null
+  }, [manualProductDetails, product])
 
-    if (!product?.isManual || !currentManualProductId) {
-      return null
+  const relatedProductFromTemplate = useMemo(() => {
+    if (!product?.isManual || !Array.isArray(products)) return null
+    const currentId = String(currentManualProductId || '').trim()
+    const templateId = String(relatedLinks?.template_id || '').trim()
+    if (!currentId || !templateId) return null
+
+    const manualEntries = products
+      .filter((entry) => entry?.isManual)
+      .map((entry) => entry?.originalData)
+      .filter(Boolean)
+
+    return (
+      manualEntries.find((entry) => {
+        const entryId = String(entry?.id || '').trim()
+        if (!entryId || entryId === currentId) return false
+        const entryLinks = entry?.related_links
+        if (!entryLinks || typeof entryLinks !== 'object') return false
+        const entryTemplateId = String(entryLinks.template_id || '').trim()
+        if (!entryTemplateId || entryTemplateId !== templateId) return false
+        return !isPatternProductEntry(entry)
+      }) || null
+    )
+  }, [currentManualProductId, product, products, relatedLinks?.template_id])
+
+  const resolvedRelatedLinks = useMemo(() => {
+    const base = relatedLinks && typeof relatedLinks === 'object' ? { ...relatedLinks } : {}
+    const fallback = relatedProductFromTemplate?.related_links
+
+    if (fallback && typeof fallback === 'object') {
+      if (!base.template_id && fallback.template_id) base.template_id = fallback.template_id
+      if (!base.template_name && fallback.template_name) base.template_name = fallback.template_name
+      if (!base.gallery_photo_id && fallback.gallery_photo_id) base.gallery_photo_id = fallback.gallery_photo_id
+      if (!base.gallery_panel_name && fallback.gallery_panel_name) base.gallery_panel_name = fallback.gallery_panel_name
+      if (!base.gallery_template_id && fallback.gallery_template_id) base.gallery_template_id = fallback.gallery_template_id
     }
 
-    const reverseLinkedProduct = (Array.isArray(products) ? products : []).find((entry) => {
-      if (!entry?.isManual) return false
-      const source = entry?.originalData?.related_links
-      if (!source || typeof source !== 'object') return false
-      return String(source.pattern_product_id || '').trim() === currentManualProductId
-    })
-
-    const reverseSource = reverseLinkedProduct?.originalData?.related_links
-    if (!reverseSource || typeof reverseSource !== 'object') {
-      return null
+    if (!base.pattern_product_id && currentManualProductId && isPatternProductEntry(manualProductDetails || product?.originalData || product)) {
+      base.pattern_product_id = currentManualProductId
     }
 
-    return {
-      ...reverseSource,
-      pattern_product_id: reverseSource.pattern_product_id || currentManualProductId,
-      pattern_product_name:
-        reverseSource.pattern_product_name
-        || product?.title
-        || product?.originalData?.name
-        || '',
-    }
-  }, [currentManualProductId, manualProductDetails, product, products])
+    return Object.keys(base).length > 0 ? base : null
+  }, [currentManualProductId, manualProductDetails, product, relatedLinks, relatedProductFromTemplate])
 
   const shouldShowPatternLink = useMemo(() => {
-    if (!relatedLinks?.pattern_product_id) return false
-    const patternId = String(relatedLinks.pattern_product_id).trim()
+    if (!resolvedRelatedLinks?.pattern_product_id) return false
+    const patternId = String(resolvedRelatedLinks.pattern_product_id).trim()
     return !currentManualProductId || patternId !== currentManualProductId
-  }, [relatedLinks, currentManualProductId])
+  }, [resolvedRelatedLinks, currentManualProductId])
+
+  const relatedProductHref = useMemo(() => {
+    const linkedProductId = String(relatedProductFromTemplate?.id || '').trim()
+    if (!linkedProductId) return ''
+    return `#/product/m-${linkedProductId}`
+  }, [relatedProductFromTemplate])
 
   const relatedQuerySuffix = useMemo(() => {
-    if (!relatedLinks || typeof relatedLinks !== 'object') return ''
+    if (!resolvedRelatedLinks || typeof resolvedRelatedLinks !== 'object') return ''
     const params = new URLSearchParams()
-    if (relatedLinks.template_id) params.set('template', String(relatedLinks.template_id))
-    if (relatedLinks.pattern_product_id) params.set('pattern_product_id', String(relatedLinks.pattern_product_id))
-    if (relatedLinks.gallery_photo_id) params.set('gallery_photo_id', String(relatedLinks.gallery_photo_id))
-    if (relatedLinks.gallery_template_id) params.set('gallery_template_id', String(relatedLinks.gallery_template_id))
+    if (resolvedRelatedLinks.template_id) params.set('template', String(resolvedRelatedLinks.template_id))
+    if (resolvedRelatedLinks.pattern_product_id) params.set('pattern_product_id', String(resolvedRelatedLinks.pattern_product_id))
+    if (resolvedRelatedLinks.gallery_photo_id) params.set('gallery_photo_id', String(resolvedRelatedLinks.gallery_photo_id))
+    if (resolvedRelatedLinks.gallery_template_id) params.set('gallery_template_id', String(resolvedRelatedLinks.gallery_template_id))
     const query = params.toString()
     return query ? `&${query}` : ''
-  }, [relatedLinks])
+  }, [resolvedRelatedLinks])
 
   const galleryHref = useMemo(() => {
-    if (!relatedLinks?.gallery_photo_id) return ''
+    if (!resolvedRelatedLinks?.gallery_photo_id) return ''
     const params = new URLSearchParams()
-    params.set('photo_id', String(relatedLinks.gallery_photo_id))
-    const templateId = relatedLinks.gallery_template_id || relatedLinks.template_id
+    params.set('photo_id', String(resolvedRelatedLinks.gallery_photo_id))
+    const templateId = resolvedRelatedLinks.gallery_template_id || resolvedRelatedLinks.template_id
     if (templateId) params.set('template_id', String(templateId))
-    if (relatedLinks.pattern_product_id) params.set('pattern_product_id', String(relatedLinks.pattern_product_id))
-    if (relatedLinks.template_id) params.set('template', String(relatedLinks.template_id))
+    if (resolvedRelatedLinks.pattern_product_id) params.set('pattern_product_id', String(resolvedRelatedLinks.pattern_product_id))
+    if (resolvedRelatedLinks.template_id) params.set('template', String(resolvedRelatedLinks.template_id))
     const query = params.toString()
     return query ? `#/gallery?${query}` : '#/gallery'
-  }, [relatedLinks])
+  }, [resolvedRelatedLinks])
 
   useEffect(() => {
     if (images.length === 0) {
@@ -583,28 +647,35 @@ export default function ProductDetail({ product, products = [] }) {
             </ul>
           </div>
 
-          {!!relatedLinks && (
+          {!!resolvedRelatedLinks && (
             <div className="related-links-section">
               <h3>Design Resources</h3>
               <ul>
-                {relatedLinks.template_id && (
+                {resolvedRelatedLinks.template_id && (
                   <li>
-                    <a href={`#/designer?template=${relatedLinks.template_id}${relatedQuerySuffix}`}>
-                      View linked template{relatedLinks.template_name ? `: ${relatedLinks.template_name}` : ''}
+                    <a href={`#/designer?template=${resolvedRelatedLinks.template_id}${relatedQuerySuffix}`}>
+                      View linked template{resolvedRelatedLinks.template_name ? `: ${resolvedRelatedLinks.template_name}` : ''}
+                    </a>
+                  </li>
+                )}
+                {relatedProductHref && (
+                  <li>
+                    <a href={`${relatedProductHref}${relatedQuerySuffix ? `?${relatedQuerySuffix.slice(1)}` : ''}`}>
+                      View related product{relatedProductFromTemplate?.name ? `: ${relatedProductFromTemplate.name}` : ''}
                     </a>
                   </li>
                 )}
                 {shouldShowPatternLink && (
                   <li>
-                    <a href={`#/product/m-${relatedLinks.pattern_product_id}${relatedQuerySuffix ? `?${relatedQuerySuffix.slice(1)}` : ''}`}>
-                      View related pattern{relatedLinks.pattern_product_name ? `: ${relatedLinks.pattern_product_name}` : ''}
+                    <a href={`#/product/m-${resolvedRelatedLinks.pattern_product_id}${relatedQuerySuffix ? `?${relatedQuerySuffix.slice(1)}` : ''}`}>
+                      View related pattern{resolvedRelatedLinks.pattern_product_name ? `: ${resolvedRelatedLinks.pattern_product_name}` : ''}
                     </a>
                   </li>
                 )}
-                {relatedLinks.gallery_photo_id && (
+                {resolvedRelatedLinks.gallery_photo_id && (
                   <li>
                     <a href={galleryHref || '#/gallery'}>
-                      View photo gallery example{relatedLinks.gallery_panel_name ? `: ${relatedLinks.gallery_panel_name}` : ''}
+                      View photo gallery example{resolvedRelatedLinks.gallery_panel_name ? `: ${resolvedRelatedLinks.gallery_panel_name}` : ''}
                     </a>
                   </li>
                 )}

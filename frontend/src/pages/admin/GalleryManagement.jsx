@@ -13,6 +13,7 @@ const ADMIN_DEFAULT_DISPLAY_NAME = 'SGCG Art';
 const GALLERY_MAX_PHOTOS = 10;
 const GALLERY_MAX_SINGLE_FILE_BYTES = 20 * 1024 * 1024;
 const GALLERY_MAX_TOTAL_BYTES = 120 * 1024 * 1024;
+const ADMIN_GALLERY_PAGE_SIZE = 15;
 
 const getApiOrigin = () => {
   const configuredBase = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -42,6 +43,9 @@ export default function GalleryManagement() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [isSavingModal, setIsSavingModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
@@ -121,20 +125,32 @@ export default function GalleryManagement() {
   const loadData = async () => {
     setLoading(true);
     try {
+      const approvalStatus = statusFilter === 'all' ? undefined : statusFilter;
       const [galleryResponse, templateResponse] = await Promise.all([
-        getAdminGalleryPhotos(),
+        getAdminGalleryPhotos({
+          approval_status: approvalStatus,
+          page: currentPage,
+          per_page: ADMIN_GALLERY_PAGE_SIZE,
+        }),
         getTemplates(),
       ]);
       const items = Array.isArray(galleryResponse?.items) ? galleryResponse.items : [];
+      const nextTotalPages = Math.max(1, Number(galleryResponse?.total_pages) || 1);
+      const nextPage = Math.min(Math.max(1, Number(galleryResponse?.page) || currentPage), nextTotalPages);
       const templateItems = Array.isArray(templateResponse?.items) ? templateResponse.items : [];
       const nonDirectMessageTemplates = templateItems.filter(
         (template) => normalizeCategory(template?.category) !== 'direct message',
       );
       setPhotos(items);
+      setTotalPages(nextTotalPages);
+      setTotalItems(Number(galleryResponse?.total_items) || 0);
+      setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
       setTemplates(nonDirectMessageTemplates.map((template) => ({ id: template.id, name: template.name })));
       setStatus('');
     } catch (err) {
       setStatus(err?.response?.data?.detail || err?.message || 'Failed to load gallery management data.');
+      setTotalPages(1);
+      setTotalItems(0);
     } finally {
       setLoading(false);
     }
@@ -142,7 +158,11 @@ export default function GalleryManagement() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [statusFilter, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter]);
 
   const sortedGroups = useMemo(() => {
     const statusOrder = { pending: 0, approved: 1, rejected: 2 };
@@ -595,6 +615,30 @@ export default function GalleryManagement() {
           >
             Rejected
           </button>
+        </div>
+        <div className={styles.paginationHeaderRow}>
+          <span>Showing most recent {Math.min(ADMIN_GALLERY_PAGE_SIZE, totalItems)} of {totalItems} submissions</span>
+          {totalPages > 1 && (
+            <div className={styles.paginationControls}>
+              <button
+                type="button"
+                className={styles.button}
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              >
+                Previous
+              </button>
+              <span>Page {currentPage} of {totalPages}</span>
+              <button
+                type="button"
+                className={styles.button}
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
         {isQuickEditMode && (
           <div className={styles.quickActionsRow}>

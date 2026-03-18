@@ -12,6 +12,41 @@ const formatReviewDate = (value) => {
 
 const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Number(rating) || 0)))
 
+const formatPurchaseSource = (value) => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return ''
+  return normalized
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ')
+}
+
+const extractReviewBodyMeta = (value) => {
+  const lines = String(value || '').split(/\r?\n/)
+  let purchasedAt = ''
+  let purchasedVia = ''
+
+  const filteredLines = lines.filter((line) => {
+    const purchasedAtMatch = line.match(/^Purchased At:\s*(.+)$/i)
+    if (purchasedAtMatch) {
+      purchasedAt = purchasedAtMatch[1].trim()
+      return false
+    }
+    const purchasedViaMatch = line.match(/^Purchased Via:\s*(.+)$/i)
+    if (purchasedViaMatch) {
+      purchasedVia = purchasedViaMatch[1].trim()
+      return false
+    }
+    return true
+  })
+
+  return {
+    body: filteredLines.join('\n').replace(/\n{3,}/g, '\n\n').trim(),
+    purchasedAt,
+    purchasedVia,
+  }
+}
+
 export default function ReviewsPage() {
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
@@ -143,6 +178,7 @@ export default function ReviewsPage() {
   const normalizedReviews = useMemo(
     () => reviews.map((review) => ({
       ...review,
+      ...extractReviewBodyMeta(review.body),
       numericRating: Number(review.rating) || 0,
       createdAtMs: review.created_at ? new Date(review.created_at).getTime() : 0,
     })),
@@ -265,12 +301,7 @@ export default function ReviewsPage() {
                   <div className="reviews-feed-meta">
                     <strong>{(review.first_name || '').trim()} {(review.last_name || '').trim()}</strong>
                     {review.created_at ? <span>{formatReviewDate(review.created_at)}</span> : null}
-                    <span>
-                      Purchased item:{' '}
-                      <a href={toProductHref(review)}>
-                        {review.product_title || `${review.product_type} #${review.product_id}`}
-                      </a>
-                    </span>
+                    {review.purchasedVia ? <span>Purchased at {formatPurchaseSource(review.purchasedVia)}</span> : null}
                   </div>
                   <div className="reviews-feed-body-row">
                     <div>
@@ -282,6 +313,15 @@ export default function ReviewsPage() {
                         src={review.product_image_url}
                         alt={review.product_title || review.title || 'Reviewed product'}
                         className="reviews-feed-thumb"
+                        onError={(event) => {
+                          const fallback = String(review.fallback_product_image_url || '').trim()
+                          const current = String(event.currentTarget.src || '').trim()
+                          if (fallback && current !== fallback) {
+                            event.currentTarget.src = fallback
+                            return
+                          }
+                          event.currentTarget.style.display = 'none'
+                        }}
                       />
                     ) : null}
                   </div>

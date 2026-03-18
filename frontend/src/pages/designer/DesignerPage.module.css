@@ -210,9 +210,14 @@
   background: #173d7d;
   border-color: #173d7d;
 }
+.cardLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+}
 .cardGalleryLink {
   display: inline-block;
-  margin-top: 0.35rem;
   font-size: 0.8rem;
   color: #1f4ea1;
   text-decoration: underline;

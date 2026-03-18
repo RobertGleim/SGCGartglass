@@ -257,6 +257,29 @@ def create_app(config_name=None):
             return resp
         return jsonify({'error': 'Image not found'}), 404
 
+    # Serve uploaded review images at /uploads/reviews/<filename>
+    # Supports both configured upload roots and legacy backend/uploads path.
+    @app.route("/uploads/reviews/<path:filename>")
+    def send_review_image(filename):
+        from pathlib import Path
+        from flask import send_from_directory
+
+        configured_upload_root = app.config.get("UPLOAD_FOLDER") or str(Path(app.root_path) / "uploads")
+        configured_reviews_dir = Path(str(configured_upload_root)) / "reviews"
+        legacy_reviews_dir = Path(app.root_path) / "uploads" / "reviews"
+
+        candidate_dirs = []
+        for directory in (configured_reviews_dir, legacy_reviews_dir):
+            resolved = directory.resolve()
+            if resolved not in candidate_dirs:
+                candidate_dirs.append(resolved)
+
+        for directory in candidate_dirs:
+            if (directory / filename).is_file():
+                return send_from_directory(str(directory), filename)
+
+        return jsonify({'error': 'Image not found'}), 404
+
     # Serve any other uploaded file at /uploads/<filename>
     @app.route("/uploads/<path:filename>")
     def send_upload(filename):

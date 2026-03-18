@@ -419,6 +419,7 @@ export const uploadAdminTemplateImage = (formData) =>
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 export const createAdminTemplate = (payload) => api.post('/admin/templates', payload);
+export const updateAdminTemplate = (id, payload) => api.put(`/admin/templates/${id}`, payload);
 export const sendTemplateToCustomerWorkOrder = (customerId, payload) =>
   api.post(`/admin/customers/${customerId}/template-message`, payload);
 

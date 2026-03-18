@@ -2803,6 +2803,17 @@ export default function DesignerPage() {
   // ── Filtered templates ────────────────────────────────────────
   const normalizeCategory = (value) => String(value || '').trim().toLowerCase();
   const isDirectMessageTemplate = (template) => normalizeCategory(template?.category) === 'direct message';
+  const toManualProductCategories = (entry) => {
+    if (Array.isArray(entry?.category)) {
+      return entry.category;
+    }
+    return entry?.category ? [entry.category] : [];
+  };
+  const isPatternManualProduct = (entry) =>
+    toManualProductCategories(entry).some((category) => {
+      const normalized = normalizeCategory(category).replace(/[^a-z0-9]/g, '');
+      return normalized === 'pattern' || normalized === 'patterns';
+    });
 
   const filtered = useMemo(() => {
     const sortByTemplateName = (entries) => [...entries].sort((a, b) => {
@@ -2838,9 +2849,16 @@ export default function DesignerPage() {
     return sortByTemplateName(applySearchAndAlpha(base));
   }, [categoryFilter, templates, isAdmin, templateSearch, templateAlphaFilter]);
 
-  const handleAddPatternToCart = useCallback(async (event, template) => {
+  const handleAddPatternToCart = useCallback(async (event, template, linkedPatternId = '') => {
     event.stopPropagation();
     setPatternPurchaseStatus('');
+
+    const patternId = String(linkedPatternId || '').trim();
+    if (patternId) {
+      window.location.hash = `#/product/m-${patternId}`;
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      return;
+    }
 
     if (!customerToken) {
       window.location.hash = '#/account/login';
@@ -2865,31 +2883,44 @@ export default function DesignerPage() {
     }
   }, [customerToken]);
 
-  const linkedProductByTemplateId = useMemo(() => {
+  const linkedProductsByTemplateId = useMemo(() => {
     const byTemplate = new Map();
     manualProducts.forEach((entry) => {
       const templateId = String(entry?.related_links?.template_id || '').trim();
-      if (!templateId || byTemplate.has(templateId)) return;
-      byTemplate.set(templateId, entry);
+      if (!templateId) return;
+      if (!byTemplate.has(templateId)) {
+        byTemplate.set(templateId, []);
+      }
+      byTemplate.get(templateId).push(entry);
     });
     return byTemplate;
   }, [manualProducts]);
 
   const activeLinkedResources = useMemo(() => {
     const contextTemplateId = String(linkedParams.template_id || selectedTemplate?.id || '').trim();
-    const linkedProduct = contextTemplateId ? linkedProductByTemplateId.get(contextTemplateId) : null;
-    const source = linkedProduct?.related_links || {};
+    const linkedProducts = contextTemplateId ? (linkedProductsByTemplateId.get(contextTemplateId) || []) : [];
+    const directPatternId = String(selectedTemplate?.related_links?.pattern_product_id || '').trim();
+    const linkedPatternProduct = linkedProducts.find(
+      (entry) => String(entry?.id || '').trim() === directPatternId,
+    ) || linkedProducts.find((entry) => isPatternManualProduct(entry)) || null;
+    const linkedProduct = linkedProducts.find((entry) => !isPatternManualProduct(entry)) || linkedPatternProduct;
+    const source = linkedProduct?.related_links || selectedTemplate?.related_links || {};
 
     return {
       template_id: contextTemplateId || String(source.template_id || '').trim(),
       template_name: source.template_name || selectedTemplate?.name || '',
-      pattern_product_id: String(linkedParams.pattern_product_id || source.pattern_product_id || linkedProduct?.id || '').trim(),
-      pattern_product_name: source.pattern_product_name || linkedProduct?.name || '',
+      pattern_product_id: String(
+        linkedParams.pattern_product_id
+        || source.pattern_product_id
+        || linkedPatternProduct?.id
+        || '',
+      ).trim(),
+      pattern_product_name: source.pattern_product_name || linkedPatternProduct?.name || '',
       gallery_photo_id: String(linkedParams.gallery_photo_id || source.gallery_photo_id || '').trim(),
       gallery_panel_name: source.gallery_panel_name || '',
       gallery_template_id: String(source.gallery_template_id || linkedParams.gallery_template_id || contextTemplateId || '').trim(),
     };
-  }, [linkedParams, linkedProductByTemplateId, selectedTemplate]);
+  }, [isPatternManualProduct, linkedParams, linkedProductsByTemplateId, selectedTemplate]);
 
   const activeTemplateRelatedProducts = useMemo(() => {
     const contextTemplateId = String(activeLinkedResources.template_id || '').trim();
@@ -2900,6 +2931,7 @@ export default function DesignerPage() {
       const source = entry?.related_links;
       if (!source || typeof source !== 'object') return;
       if (String(source.template_id || '').trim() !== contextTemplateId) return;
+      if (isPatternManualProduct(entry)) return;
 
       const productId = String(entry?.id || source.pattern_product_id || '').trim();
       if (!productId || dedup.has(productId)) return;
@@ -2913,7 +2945,7 @@ export default function DesignerPage() {
     });
 
     return [...dedup.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true }));
-  }, [activeLinkedResources.template_id, manualProducts]);
+  }, [activeLinkedResources.template_id, isPatternManualProduct, manualProducts]);
 
   const activeLinkedGalleryHref = useMemo(() => {
     if (!activeLinkedResources.gallery_photo_id) return '';
@@ -3225,14 +3257,22 @@ export default function DesignerPage() {
                           <button
                             type="button"
                             className={styles.patternBuyButton}
-                            onClick={(event) => handleAddPatternToCart(event, t)}
+                            onClick={(event) => {
+                              const linkedProducts = linkedProductsByTemplateId.get(String(t.id)) || [];
+                              const linkedProduct = linkedProducts.find((entry) => isPatternManualProduct(entry)) || linkedProducts[0] || null;
+                              const linkedPatternId = String(
+                                linkedProduct?.related_links?.pattern_product_id || linkedProduct?.id || ''
+                              ).trim();
+                              handleAddPatternToCart(event, t, linkedPatternId);
+                            }}
                           >
-                            {customerToken ? 'Add pattern to cart' : 'Sign in to buy'}
+                            Purchase Pattern
                           </button>
                         </div>
                       )}
                       {(() => {
-                        const linkedProduct = linkedProductByTemplateId.get(String(t.id));
+                        const linkedProducts = linkedProductsByTemplateId.get(String(t.id)) || [];
+                        const linkedProduct = linkedProducts.find((entry) => !isPatternManualProduct(entry)) || linkedProducts[0] || null;
                         const links = linkedProduct?.related_links || {};
                         const linkedPatternId = String(links.pattern_product_id || linkedProduct?.id || '').trim();
                         const linkedPhotoId = String(links.gallery_photo_id || '').trim();
@@ -3248,7 +3288,7 @@ export default function DesignerPage() {
                           : `#/gallery?template_id=${t.id}`;
                         const cardPatternHref = linkedPatternId ? `#/product/m-${linkedPatternId}` : '';
                         return (
-                          <>
+                          <div className={styles.cardLinks}>
                             <a
                               href={cardGalleryHref}
                               className={styles.cardGalleryLink}
@@ -3265,7 +3305,7 @@ export default function DesignerPage() {
                                 View linked pattern
                               </a>
                             )}
-                          </>
+                          </div>
                         );
                       })()}
                     </div>
