@@ -2,6 +2,43 @@ import useCarousel from '../../../../hooks/useCarousel'
 import LoadingMessage from '../../../../components/LoadingMessage'
 import './FeaturedCarousel.css'
 
+const getApiOrigin = () => {
+  const configuredBase = String(import.meta.env.VITE_API_BASE_URL || '/api').trim()
+  if (/^https?:\/\//i.test(configuredBase)) {
+    return configuredBase.replace(/\/api\/?$/, '')
+  }
+  return window.location.origin
+}
+
+const toCleanUrl = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (/^javascript:/i.test(raw)) return ''
+  return raw.replace(/^['\"]|['\"]$/g, '')
+}
+
+const resolveCarouselImageUrl = (item) => {
+  const candidates = [
+    item?.image_url,
+    item?.thumbnail_url,
+    item?.originalData?.images?.[0]?.image_url,
+    item?.originalData?.image_url,
+  ]
+
+  for (const candidate of candidates) {
+    const url = toCleanUrl(candidate)
+    if (!url) continue
+    if (url.startsWith('data:') || url.startsWith('blob:')) return url
+    if (url.startsWith('/uploads/')) return `${getApiOrigin()}${url}`
+    if (url.startsWith('uploads/')) return `${getApiOrigin()}/${url}`
+    if (url.startsWith('http://') || url.startsWith('https://')) return url
+    if (url.startsWith('/')) return url
+    return `/${url.replace(/^\.?\//, '')}`
+  }
+
+  return ''
+}
+
 export default function FeaturedCarousel({ items, itemsLoading }) {
   const {
     currentSlide,
@@ -36,6 +73,7 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
           {visibleSlides.map(({ offset, item, index }) => {
             const absOffset = Math.abs(offset)
             const isCenter = absOffset === 0
+            const resolvedImageUrl = resolveCarouselImageUrl(item)
 
             let scale = 1
             let opacity = 1
@@ -72,8 +110,8 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
               >
                 <article className="product-card">
                   <div className="card-image">
-                    {item.image_url ? (
-                      <img src={item.image_url} alt={item.title || 'Glass art'} />
+                    {resolvedImageUrl ? (
+                      <img src={resolvedImageUrl} alt={item.title || 'Glass art'} />
                     ) : (
                       <div className="image-placeholder">No image</div>
                     )}
@@ -113,18 +151,23 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
       {items.length > 0 && (
         <div className="carousel-thumbnails">
           {items.map((item, index) => (
+            (() => {
+              const resolvedThumbUrl = resolveCarouselImageUrl(item)
+              return (
             <button
               key={index}
               className={`thumbnail ${index === currentSlide ? 'active' : ''}`}
               onClick={() => goToSlide(index)}
               aria-label={`View ${item.title || 'item'}`}
             >
-              {item.image_url ? (
-                <img src={item.image_url} alt={item.title || 'Glass art'} />
+              {resolvedThumbUrl ? (
+                <img src={resolvedThumbUrl} alt={item.title || 'Glass art'} />
               ) : (
                 <div className="image-placeholder">No image</div>
               )}
             </button>
+              )
+            })()
           ))}
         </div>
       )}
