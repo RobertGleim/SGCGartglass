@@ -152,7 +152,7 @@ const createEmptyUnifiedTemplate = () => ({
   category: "",
   difficulty: TEMPLATE_DIFFICULTY_OPTIONS[0],
   dimensions: "",
-  is_digital_download: true,
+  is_digital_download: false,
   price_amount: "",
   upload_file: null,
   related_links: createDefaultRelatedLinks(),
