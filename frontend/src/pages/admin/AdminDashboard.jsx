@@ -131,6 +131,49 @@ const createDefaultRelatedLinks = () => ({
   gallery_template_id: "",
 });
 
+const PHYSICAL_DEFAULT_QUANTITY = "1";
+const DIGITAL_DEFAULT_QUANTITY = "9999";
+
+const getDefaultQuantityByDigitalFlag = (isDigitalDownload) =>
+  isDigitalDownload ? DIGITAL_DEFAULT_QUANTITY : PHYSICAL_DEFAULT_QUANTITY;
+
+const normalizeQuantityInput = (value, isDigitalDownload) => {
+  const parsed = parseInt(String(value ?? "").trim(), 10);
+  if (Number.isFinite(parsed) && parsed >= 0) {
+    return parsed;
+  }
+  return parseInt(getDefaultQuantityByDigitalFlag(isDigitalDownload), 10);
+};
+
+const syncQuantityWithDownloadMode = (currentQuantity, isDigitalDownload) => {
+  const normalized = String(currentQuantity ?? "").trim();
+  if (!normalized) {
+    return getDefaultQuantityByDigitalFlag(isDigitalDownload);
+  }
+  if (isDigitalDownload && normalized === PHYSICAL_DEFAULT_QUANTITY) {
+    return DIGITAL_DEFAULT_QUANTITY;
+  }
+  if (!isDigitalDownload && normalized === DIGITAL_DEFAULT_QUANTITY) {
+    return PHYSICAL_DEFAULT_QUANTITY;
+  }
+  return normalized;
+};
+
+const resolveAutoQuantityForMode = (
+  currentQuantity,
+  isDigitalDownload,
+  quantityManuallyEdited,
+) => {
+  const normalized = String(currentQuantity ?? "").trim();
+  if (!normalized) {
+    return getDefaultQuantityByDigitalFlag(isDigitalDownload);
+  }
+  if (quantityManuallyEdited) {
+    return normalized;
+  }
+  return syncQuantityWithDownloadMode(normalized, isDigitalDownload);
+};
+
 const createEmptyManualProduct = () => ({
   name: "",
   images: [],
@@ -142,7 +185,7 @@ const createEmptyManualProduct = () => ({
   depth: "",
   price: "",
   discount_percent: "",
-  quantity: "",
+  quantity: PHYSICAL_DEFAULT_QUANTITY,
   is_featured: false,
   is_digital_download: false,
   related_links: createDefaultRelatedLinks(),
@@ -752,6 +795,7 @@ export default function AdminDashboard({
   const [templateNameManuallyEdited, setTemplateNameManuallyEdited] = useState(false);
   const [patternOnly, setPatternOnly] = useState(false);
   const [patternOnlyDescription, setPatternOnlyDescription] = useState("");
+  const [quantityManuallyEdited, setQuantityManuallyEdited] = useState(false);
   const [isSavingManualProduct, setIsSavingManualProduct] = useState(false);
 
   const activeFavoriteCategories = favoriteCategoriesByType[productType] || [];
@@ -1070,11 +1114,19 @@ export default function AdminDashboard({
 
   const setPrimaryTypeCategory = (type) => {
     const label = PRODUCT_TYPE_LABEL_BY_KEY[type] || PRODUCT_TYPE_LABEL_BY_KEY.stainedGlassPanels;
-    setManualProduct((prev) => ({
-      ...prev,
-      category: [label, ...removeTypeCategories(prev.category)],
-      is_digital_download: type === "patterns" ? true : Boolean(prev.is_digital_download),
-    }));
+    setManualProduct((prev) => {
+      const nextIsDigitalDownload = type === "patterns" ? true : Boolean(prev.is_digital_download);
+      return {
+        ...prev,
+        category: [label, ...removeTypeCategories(prev.category)],
+        is_digital_download: nextIsDigitalDownload,
+        quantity: resolveAutoQuantityForMode(
+          prev.quantity,
+          nextIsDigitalDownload,
+          quantityManuallyEdited,
+        ),
+      };
+    });
   };
 
   const visibleCategoryTags = removeTypeCategories(manualProduct.category);
@@ -1588,6 +1640,11 @@ export default function AdminDashboard({
           relatedLinks.template_name = String(createdTemplate.name || unifiedTemplate.name || "").trim();
         }
 
+        const resolvedIsDigitalProduct =
+          Boolean(unifiedTemplate.is_digital_download) ||
+          selectedTypeCategory === "patterns" ||
+          patternOnly;
+
         const productData = {
           // price field stores sale price when discount is present.
           name: manualProduct.name.trim(),
@@ -1619,9 +1676,9 @@ export default function AdminDashboard({
             if (!Number.isFinite(discountPercent) || discountPercent <= 0) return null;
             return Number(Math.min(100, Math.max(0, discountPercent)).toFixed(2));
           })(),
-          quantity: parseInt(manualProduct.quantity, 10),
+          quantity: normalizeQuantityInput(manualProduct.quantity, resolvedIsDigitalProduct),
           is_featured: manualProduct.is_featured,
-          is_digital_download: Boolean(unifiedTemplate.is_digital_download) || selectedTypeCategory === "patterns" || patternOnly,
+          is_digital_download: resolvedIsDigitalProduct,
           related_links: {
             template_id: relatedLinks.template_id
               ? Number(relatedLinks.template_id)
@@ -1731,7 +1788,7 @@ export default function AdminDashboard({
           })(),
           old_price: null,
           discount_percent: null,
-          quantity: parseInt(manualProduct.quantity || "1", 10) || 1,
+          quantity: normalizeQuantityInput(manualProduct.quantity, true),
           is_featured: false,
           is_digital_download: true,
           related_links: {
@@ -1899,6 +1956,7 @@ export default function AdminDashboard({
         setShowManualProductModal(false);
         setEditingProduct(null);
         setManualProduct(createEmptyManualProduct());
+        setQuantityManuallyEdited(false);
         setUnifiedTemplate(createEmptyUnifiedTemplate());
         setRelatedTemplateUpload(createEmptyRelatedTemplateUpload());
         setRelatedGalleryUpload(createEmptyRelatedGalleryUpload());
@@ -1991,7 +2049,10 @@ export default function AdminDashboard({
         }
         return "";
       })(),
-      quantity: product.quantity?.toString() || "",
+      quantity: syncQuantityWithDownloadMode(
+        product.quantity?.toString() || "",
+        Boolean(product.is_digital_download),
+      ),
       is_featured: product.is_featured === 1 || product.is_featured === true,
       is_digital_download: Boolean(product.is_digital_download),
       related_links: {
@@ -2015,6 +2076,7 @@ export default function AdminDashboard({
     setCategoryInput("");
     setMaterialInput("");
     setShowManualProductModal(true);
+    setQuantityManuallyEdited(true);
     setTemplateNameManuallyEdited(false);
     setPatternOnly(false);
     setPatternOnlyDescription(String(product.description || ""));
@@ -2248,6 +2310,7 @@ export default function AdminDashboard({
     setShowManualProductModal(false);
     setEditingProduct(null);
     setManualProduct(createEmptyManualProduct());
+    setQuantityManuallyEdited(false);
     setUnifiedTemplate(createEmptyUnifiedTemplate());
     setRelatedTemplateUpload(createEmptyRelatedTemplateUpload());
     setRelatedGalleryUpload(createEmptyRelatedGalleryUpload());
@@ -3140,6 +3203,7 @@ export default function AdminDashboard({
                       ...createEmptyManualProduct(),
                       category: [PRODUCT_TYPE_LABEL_BY_KEY.stainedGlassPanels],
                     });
+                    setQuantityManuallyEdited(false);
                     setUnifiedTemplate(createEmptyUnifiedTemplate());
                     setRelatedTemplateUpload(createEmptyRelatedTemplateUpload());
                     setRelatedGalleryUpload(createEmptyRelatedGalleryUpload());
@@ -4192,12 +4256,13 @@ export default function AdminDashboard({
                       type="number"
                       min="0"
                       value={manualProduct.quantity}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        setQuantityManuallyEdited(true);
                         setManualProduct({
                           ...manualProduct,
                           quantity: e.target.value,
-                        })
-                      }
+                        });
+                      }}
                       placeholder="0"
                       required={shouldRequireProductFields}
                     />
@@ -4235,7 +4300,18 @@ export default function AdminDashboard({
                       <input
                         type="checkbox"
                         checked={patternOnly}
-                        onChange={(e) => setPatternOnly(e.target.checked)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setPatternOnly(checked);
+                          setManualProduct((prev) => ({
+                            ...prev,
+                            quantity: resolveAutoQuantityForMode(
+                              prev.quantity,
+                              checked,
+                              quantityManuallyEdited,
+                            ),
+                          }));
+                        }}
                       />
                       <span>Pattern only (adds to Patterns tab only, not to Designer/Templates)</span>
                     </label>
@@ -4326,10 +4402,21 @@ export default function AdminDashboard({
                         type="checkbox"
                         checked={Boolean(unifiedTemplate.is_digital_download)}
                         onChange={(e) =>
-                          setUnifiedTemplate((prev) => ({
-                            ...prev,
-                            is_digital_download: e.target.checked,
-                          }))
+                          {
+                            const checked = e.target.checked;
+                            setUnifiedTemplate((prev) => ({
+                              ...prev,
+                              is_digital_download: checked,
+                            }));
+                            setManualProduct((prev) => ({
+                              ...prev,
+                              quantity: resolveAutoQuantityForMode(
+                                prev.quantity,
+                                checked,
+                                quantityManuallyEdited,
+                              ),
+                            }));
+                          }
                         }
                       />
                       <span>Digital download (customers can purchase and download instantly)</span>

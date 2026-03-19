@@ -2913,11 +2913,29 @@ def get_manual_product(product_id):
     return jsonify(product)
 
 
+def _resolve_manual_product_quantity(quantity, is_digital_download):
+    if quantity is None or quantity == "":
+        return 9999 if is_digital_download else 1
+    return quantity
+
+
+def _coerce_bool_value(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 @api.post("/manual-products")
 @require_auth
 def create_manual_product_endpoint():
     init_db()
     payload = request.get_json(silent=True) or {}
+    payload["quantity"] = _resolve_manual_product_quantity(
+        payload.get("quantity"),
+        _coerce_bool_value(payload.get("is_digital_download")),
+    )
     if not payload.get("name") or not payload.get("name").strip():
         return jsonify({"error": "missing_name", "detail": "Product name is required"}), 400
     if not payload.get("description") or not payload.get("description").strip():
@@ -2962,6 +2980,10 @@ def update_manual_product_endpoint(product_id):
     if "images" in payload:
         merged_payload["images"] = payload.get("images")
     merged_payload.update(payload)
+    merged_payload["quantity"] = _resolve_manual_product_quantity(
+        merged_payload.get("quantity"),
+        _coerce_bool_value(merged_payload.get("is_digital_download")),
+    )
 
     if not merged_payload.get("name"):
         return jsonify({"error": "missing_name"}), 400
