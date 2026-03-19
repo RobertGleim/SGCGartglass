@@ -767,6 +767,44 @@
   color: #999;
 }
 
+.pattern-template-convert-section {
+  border: 1px solid #d8e2f2;
+  background: #f7fbff;
+  border-radius: 10px;
+  padding: 0.85rem;
+  margin-top: 0.35rem;
+  margin-bottom: 1rem;
+  display: grid;
+  gap: 0.55rem;
+  max-width: 840px;
+}
+
+.pattern-template-convert-section h4 {
+  margin: 0;
+  font-size: 0.98rem;
+  color: #1f4ea1;
+}
+
+.pattern-template-convert-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.pattern-template-convert-controls select {
+  flex: 1 1 290px;
+  min-height: 2.35rem;
+  border: 1px solid #c6d4ea;
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  background: #fff;
+}
+
+.pattern-template-convert-status {
+  margin: 0;
+}
+
 .order-event-timeline {
   margin-top: 0.5rem;
   border-top: 1px solid #ececec;
@@ -989,6 +1027,16 @@
 
   .digital-recovery-search {
     min-width: 100%;
+  }
+
+  .pattern-template-convert-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pattern-template-convert-controls select,
+  .pattern-template-convert-controls .button {
+    width: 100%;
   }
 
   .digital-recovery-actions .button {

@@ -20,6 +20,7 @@ import {
   recoverAdminCheckoutSession,
   resendAdminCheckoutDownloadEmail,
   submitGalleryPhoto,
+  updateAdminGalleryPhoto,
   updateAdminTemplate,
   updateCustomer,
 } from "../../services/api.js";
@@ -650,6 +651,9 @@ export default function AdminDashboard({
   const [isRefreshingCatalog, setIsRefreshingCatalog] = useState(false);
   const [manualProductSearch, setManualProductSearch] = useState("");
   const [manualProductTypeFilter, setManualProductTypeFilter] = useState("all");
+  const [patternToTemplateSelection, setPatternToTemplateSelection] = useState("");
+  const [isConvertingPatternToTemplate, setIsConvertingPatternToTemplate] = useState(false);
+  const [patternToTemplateStatus, setPatternToTemplateStatus] = useState("");
   const [manualProductsPage, setManualProductsPage] = useState(1);
   const [customersPage, setCustomersPage] = useState(1);
   const [reviewCodesPage, setReviewCodesPage] = useState(1);
@@ -913,6 +917,11 @@ export default function AdminDashboard({
       );
     });
   }, [normalizedManualProducts, manualProductSearch, manualProductTypeFilter]);
+
+  const filteredPatternProducts = useMemo(
+    () => filteredManualProducts.filter((product) => inferProductType(product) === "patterns"),
+    [filteredManualProducts],
+  );
 
   const totalManualProductPages = Math.max(
     1,
@@ -2132,6 +2141,26 @@ export default function AdminDashboard({
   }, [manualProductSearch, manualProductTypeFilter]);
 
   useEffect(() => {
+    if (manualProductTypeFilter !== "patterns") {
+      setPatternToTemplateSelection("");
+      setPatternToTemplateStatus("");
+      return;
+    }
+
+    if (!patternToTemplateSelection) return;
+    const stillExists = filteredPatternProducts.some(
+      (entry) => String(entry.id) === String(patternToTemplateSelection),
+    );
+    if (!stillExists) {
+      setPatternToTemplateSelection("");
+    }
+  }, [
+    manualProductTypeFilter,
+    patternToTemplateSelection,
+    filteredPatternProducts,
+  ]);
+
+  useEffect(() => {
     setCustomersPage(1);
   }, [customers.length]);
 
@@ -2469,6 +2498,206 @@ export default function AdminDashboard({
       setStatus(`Error: ${message}`);
     } finally {
       setIsRefreshingCatalog(false);
+    }
+  };
+
+  const toManualRelatedLinksPayload = (relatedLinks) => {
+    const normalized = {
+      ...createDefaultRelatedLinks(),
+      ...(relatedLinks && typeof relatedLinks === "object" ? relatedLinks : {}),
+    };
+    return {
+      template_id: normalized.template_id ? Number(normalized.template_id) : null,
+      template_name: String(normalized.template_name || "").trim() || null,
+      pattern_product_id: normalized.pattern_product_id ? Number(normalized.pattern_product_id) : null,
+      pattern_product_name: String(normalized.pattern_product_name || "").trim() || null,
+      linked_product_id: normalized.linked_product_id ? Number(normalized.linked_product_id) : null,
+      linked_product_name: String(normalized.linked_product_name || "").trim() || null,
+      gallery_photo_id: normalized.gallery_photo_id ? Number(normalized.gallery_photo_id) : null,
+      gallery_panel_name: String(normalized.gallery_panel_name || "").trim() || null,
+      gallery_template_id: normalized.gallery_template_id ? Number(normalized.gallery_template_id) : null,
+    };
+  };
+
+  const handleConvertPatternToTemplate = async () => {
+    if (isConvertingPatternToTemplate) return;
+
+    const patternProductId = Number(patternToTemplateSelection || 0);
+    if (!patternProductId) {
+      setPatternToTemplateStatus("Select a pattern to convert.");
+      return;
+    }
+
+    const patternProduct = normalizedManualProducts.find(
+      (entry) => Number(entry?.id || 0) === patternProductId,
+    );
+    if (!patternProduct) {
+      setPatternToTemplateStatus("The selected pattern could not be found.");
+      return;
+    }
+
+    const patternName = String(patternProduct.name || `Pattern #${patternProductId}`).trim();
+    if (!patternName) {
+      setPatternToTemplateStatus("Pattern name is required before conversion.");
+      return;
+    }
+
+    const firstPatternImage = ensureArray(patternProduct.images).find((entry) => {
+      const mediaType = String(entry?.media_type || entry?.type || "").toLowerCase();
+      const imageUrl = String(entry?.image_url || entry?.url || "").trim();
+      return mediaType !== "video" && Boolean(imageUrl);
+    });
+    const templateImageUrl = String(
+      firstPatternImage?.image_url || firstPatternImage?.url || "",
+    ).trim();
+
+    if (!templateImageUrl) {
+      setPatternToTemplateStatus("Pattern needs at least one image before it can be converted to a template.");
+      return;
+    }
+
+    setIsConvertingPatternToTemplate(true);
+    setPatternToTemplateStatus("Converting pattern to template...");
+
+    try {
+      const baseRelatedLinks = {
+        ...createDefaultRelatedLinks(),
+        ...(patternProduct.related_links && typeof patternProduct.related_links === "object"
+          ? patternProduct.related_links
+          : {}),
+      };
+
+      const toDimensionPart = (value) => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric) || numeric <= 0) return "";
+        return String(Number(numeric.toFixed(2))).replace(/\.00$/, "");
+      };
+
+      const widthText = toDimensionPart(patternProduct.width);
+      const heightText = toDimensionPart(patternProduct.height);
+      const depthText = toDimensionPart(patternProduct.depth);
+      const derivedDimensions = [
+        widthText && heightText ? `${widthText}\" x ${heightText}\"` : "",
+        depthText ? `Depth ${depthText}\"` : "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
+      const templateCategory = Array.isArray(patternProduct.category)
+        ? (patternProduct.category.find((entry) => String(entry || "").trim()) || "Patterns")
+        : (String(patternProduct.category || "").trim() || "Patterns");
+
+      const listedPrice = Number(patternProduct.price || 0);
+      const digitalPrice = Number.isFinite(listedPrice) && listedPrice >= 0.5
+        ? Number(listedPrice.toFixed(2))
+        : null;
+
+      const templateRelatedLinks = {
+        ...baseRelatedLinks,
+        pattern_product_id: patternProductId,
+        pattern_product_name: patternName,
+      };
+
+      const createdTemplate = await createAdminTemplate({
+        name: patternName,
+        description: String(patternProduct.description || "").trim() || `Digital pattern for ${patternName}`,
+        category: templateCategory,
+        difficulty: TEMPLATE_DIFFICULTY_OPTIONS[0],
+        dimensions: derivedDimensions || 'Letter (8.5" x 11")',
+        template_type: "image",
+        image_url: templateImageUrl,
+        thumbnail_url: templateImageUrl,
+        is_active: true,
+        is_digital_download: Boolean(digitalPrice),
+        price_amount: digitalPrice,
+        price_currency: "USD",
+        related_links: normalizeRelatedLinksPayload(templateRelatedLinks),
+      });
+
+      const createdTemplateId = Number(createdTemplate?.id || 0);
+      if (!createdTemplateId) {
+        throw new Error("Template was created but did not return a template id.");
+      }
+
+      const nextPatternLinks = {
+        ...templateRelatedLinks,
+        template_id: createdTemplateId,
+        template_name: String(createdTemplate.name || patternName).trim(),
+        gallery_template_id: baseRelatedLinks.gallery_photo_id
+          ? String(createdTemplateId)
+          : baseRelatedLinks.gallery_template_id,
+      };
+
+      await onUpdateManualProduct(patternProductId, {
+        related_links: toManualRelatedLinksPayload(nextPatternLinks),
+      });
+
+      const linkedProductId = Number(baseRelatedLinks.linked_product_id || 0);
+      if (linkedProductId && linkedProductId !== patternProductId) {
+        const linkedProduct = normalizedManualProducts.find(
+          (entry) => Number(entry?.id || 0) === linkedProductId,
+        );
+        const linkedProductLinks = {
+          ...createDefaultRelatedLinks(),
+          ...(linkedProduct?.related_links && typeof linkedProduct.related_links === "object"
+            ? linkedProduct.related_links
+            : {}),
+          template_id: createdTemplateId,
+          template_name: String(createdTemplate.name || patternName).trim(),
+          pattern_product_id: patternProductId,
+          pattern_product_name: patternName,
+          linked_product_id: linkedProductId,
+          linked_product_name: String(
+            baseRelatedLinks.linked_product_name || linkedProduct?.name || "",
+          ).trim() || null,
+          gallery_photo_id: baseRelatedLinks.gallery_photo_id || null,
+          gallery_panel_name: String(baseRelatedLinks.gallery_panel_name || "").trim() || null,
+          gallery_template_id: baseRelatedLinks.gallery_photo_id
+            ? createdTemplateId
+            : (baseRelatedLinks.gallery_template_id || null),
+        };
+
+        await onUpdateManualProduct(linkedProductId, {
+          related_links: toManualRelatedLinksPayload(linkedProductLinks),
+        });
+      }
+
+      const galleryPhotoId = Number(baseRelatedLinks.gallery_photo_id || 0);
+      if (galleryPhotoId) {
+        await updateAdminGalleryPhoto(galleryPhotoId, {
+          template_id: createdTemplateId,
+        });
+      }
+
+      setProductTemplateOptions((prev) => {
+        const exists = prev.some((entry) => String(entry.id) === String(createdTemplateId));
+        if (exists) return prev;
+        return [
+          {
+            id: createdTemplateId,
+            name: String(createdTemplate.name || patternName).trim(),
+          },
+          ...prev,
+        ];
+      });
+
+      await loadManualProductLinkOptions();
+      if (typeof onRefreshCatalog === "function") {
+        await onRefreshCatalog();
+      }
+
+      setPatternToTemplateStatus(
+        `Template created from ${patternName}. Linked pattern, product, and gallery references were synced automatically.`,
+      );
+    } catch (error) {
+      const message =
+        error?.response?.data?.detail
+        || error?.response?.data?.error
+        || error?.message
+        || "Failed to convert pattern to template.";
+      setPatternToTemplateStatus(`Error: ${message}`);
+    } finally {
+      setIsConvertingPatternToTemplate(false);
     }
   };
 
@@ -3016,6 +3245,42 @@ export default function AdminDashboard({
                   className="search-input"
                 />
               </div>
+              {manualProductTypeFilter === "patterns" && (
+                <div className="pattern-template-convert-section">
+                  <h4>Convert Pattern to Template</h4>
+                  <p className="form-note">
+                    Select one pattern to create a template with the same name. Related pattern, physical product, and photo gallery links are synced automatically.
+                  </p>
+                  <div className="pattern-template-convert-controls">
+                    <select
+                      value={patternToTemplateSelection}
+                      onChange={(event) => {
+                        setPatternToTemplateSelection(event.target.value);
+                        setPatternToTemplateStatus("");
+                      }}
+                      disabled={isConvertingPatternToTemplate || filteredPatternProducts.length === 0}
+                    >
+                      <option value="">Select a pattern...</option>
+                      {filteredPatternProducts.map((pattern) => (
+                        <option key={pattern.id} value={pattern.id}>
+                          {String(pattern.name || `Pattern #${pattern.id}`).trim()}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="button primary"
+                      onClick={handleConvertPatternToTemplate}
+                      disabled={isConvertingPatternToTemplate || !patternToTemplateSelection}
+                    >
+                      {isConvertingPatternToTemplate ? "Converting..." : "Create Template From Pattern"}
+                    </button>
+                  </div>
+                  {patternToTemplateStatus ? (
+                    <p className="form-note pattern-template-convert-status">{patternToTemplateStatus}</p>
+                  ) : null}
+                </div>
+              )}
               {manualProducts.length === 0 ? (
                 <div className="empty-state">
                   No manual products added yet.
