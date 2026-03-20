@@ -3092,6 +3092,11 @@ export default function AdminDashboard({
           onClick={() => setActiveTab("deactivated-products")}
         >
           Deactivated
+          {normalizedManualProducts.filter((p) => !p.is_active).length > 0 && (
+            <span className="tab-count-badge">
+              {normalizedManualProducts.filter((p) => !p.is_active).length}
+            </span>
+          )}
         </button>
         <button
           className={`tab ${activeTab === "customers" ? "active" : ""}`}
