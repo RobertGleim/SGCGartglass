@@ -322,6 +322,21 @@
   background-color: #333;
 }
 
+.add-to-cart-btn:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.sold-out-pill {
+  background: #b91c1c;
+  color: #fff;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .wishlist-btn {
   width: 100%;
   min-height: 48px;

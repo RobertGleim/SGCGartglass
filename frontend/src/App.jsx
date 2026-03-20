@@ -175,7 +175,9 @@ function App() {
   }, [route.path, route.params?.id])
 
   const allProducts = useMemo(() => {
-    const manualItems = manualProducts.map(p => ({
+    const manualItems = manualProducts
+      .filter((p) => p?.is_active !== 0 && p?.is_active !== false)
+      .map(p => ({
       id: `m-${p.id}`,
       title: p.name,
       description: p.description,
@@ -185,6 +187,7 @@ function App() {
       price_currency: 'USD',
       image_url: p.images?.[0]?.image_url,
       category: p.category,
+      quantity: p.quantity,
       is_digital_download: p.is_digital_download === 1 || p.is_digital_download === true,
       isManual: true,
       is_featured: p.is_featured === 1 || p.is_featured === true,

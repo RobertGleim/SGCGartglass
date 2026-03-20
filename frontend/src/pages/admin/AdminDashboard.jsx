@@ -267,6 +267,7 @@ const normalizeManualProductRecord = (value) => {
       value.related_links && typeof value.related_links === "object"
         ? value.related_links
         : createDefaultRelatedLinks(),
+    is_active: value.is_active !== 0 && value.is_active !== false,
   };
 };
 
@@ -425,6 +426,7 @@ export default function AdminDashboard({
   const [isOpeningCustomerModal, setIsOpeningCustomerModal] = useState(false);
   const [isOpeningProductEdit, setIsOpeningProductEdit] = useState(false);
   const [activeProductDeleteId, setActiveProductDeleteId] = useState("");
+  const [activeProductToggleId, setActiveProductToggleId] = useState("");
   const [activeFacebookShareId, setActiveFacebookShareId] = useState("");
   const [reviewInviteForm, setReviewInviteForm] = useState({
     platform: "etsy",
@@ -693,11 +695,13 @@ export default function AdminDashboard({
   const [status, setStatus] = useState("");
   const [isRefreshingCatalog, setIsRefreshingCatalog] = useState(false);
   const [manualProductSearch, setManualProductSearch] = useState("");
+  const [deactivatedProductSearch, setDeactivatedProductSearch] = useState("");
   const [manualProductTypeFilter, setManualProductTypeFilter] = useState("all");
   const [patternToTemplateSelection, setPatternToTemplateSelection] = useState("");
   const [isConvertingPatternToTemplate, setIsConvertingPatternToTemplate] = useState(false);
   const [patternToTemplateStatus, setPatternToTemplateStatus] = useState("");
   const [manualProductsPage, setManualProductsPage] = useState(1);
+  const [deactivatedProductsPage, setDeactivatedProductsPage] = useState(1);
   const [customersPage, setCustomersPage] = useState(1);
   const [reviewCodesPage, setReviewCodesPage] = useState(1);
   const [reviewsPage, setReviewsPage] = useState(1);
@@ -939,8 +943,9 @@ export default function AdminDashboard({
   }, [normalizedManualProducts, editingProduct]);
 
   const filteredManualProducts = useMemo(() => {
+    const activeManualProducts = normalizedManualProducts.filter((product) => product.is_active);
     const searchLower = manualProductSearch.toLowerCase();
-    return normalizedManualProducts.filter((product) => {
+    return activeManualProducts.filter((product) => {
       const name = toSearchableText(product.name);
       const description = toSearchableText(product.description);
       const category = toSearchableText(product.category);
@@ -962,6 +967,31 @@ export default function AdminDashboard({
     });
   }, [normalizedManualProducts, manualProductSearch, manualProductTypeFilter]);
 
+  const filteredDeactivatedProducts = useMemo(() => {
+    const deactivatedManualProducts = normalizedManualProducts.filter((product) => !product.is_active);
+    const searchLower = deactivatedProductSearch.toLowerCase();
+    return deactivatedManualProducts.filter((product) => {
+      const name = toSearchableText(product.name);
+      const description = toSearchableText(product.description);
+      const category = toSearchableText(product.category);
+      const materials = toSearchableText(product.materials);
+
+      const matchesType =
+        manualProductTypeFilter === "all"
+        || inferProductType(product) === manualProductTypeFilter;
+
+      return (
+        matchesType
+        && (
+          name.includes(searchLower)
+          || description.includes(searchLower)
+          || category.includes(searchLower)
+          || materials.includes(searchLower)
+        )
+      );
+    });
+  }, [normalizedManualProducts, deactivatedProductSearch, manualProductTypeFilter]);
+
   const filteredPatternProducts = useMemo(
     () => filteredManualProducts.filter((product) => inferProductType(product) === "patterns"),
     [filteredManualProducts],
@@ -978,6 +1008,18 @@ export default function AdminDashboard({
     const startIndex = (currentManualProductsPage - 1) * MANUAL_PRODUCTS_PER_PAGE;
     return filteredManualProducts.slice(startIndex, startIndex + MANUAL_PRODUCTS_PER_PAGE);
   }, [filteredManualProducts, currentManualProductsPage]);
+
+  const totalDeactivatedProductPages = Math.max(
+    1,
+    Math.ceil(filteredDeactivatedProducts.length / MANUAL_PRODUCTS_PER_PAGE),
+  );
+
+  const currentDeactivatedProductsPage = Math.min(deactivatedProductsPage, totalDeactivatedProductPages);
+
+  const pagedDeactivatedProducts = useMemo(() => {
+    const startIndex = (currentDeactivatedProductsPage - 1) * MANUAL_PRODUCTS_PER_PAGE;
+    return filteredDeactivatedProducts.slice(startIndex, startIndex + MANUAL_PRODUCTS_PER_PAGE);
+  }, [filteredDeactivatedProducts, currentDeactivatedProductsPage]);
 
   const pagedCustomers = useMemo(() => {
     const startIndex = (customersPage - 1) * SECTION_PAGE_SIZE;
@@ -2110,6 +2152,43 @@ export default function AdminDashboard({
     }
   };
 
+  const handleToggleProductActive = async (product) => {
+    const productId = String(product?.id || "");
+    if (!productId) return;
+
+    const isCurrentlyActive = product?.is_active !== 0 && product?.is_active !== false;
+    const nextActive = !isCurrentlyActive;
+    const actionLabel = nextActive ? "activate" : "deactivate";
+    const confirmMessage = nextActive
+      ? `Reactivate \"${product.name}\" and show it on the site?`
+      : `Deactivate \"${product.name}\" and remove it from the site?`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setActiveProductToggleId(productId);
+    try {
+      setStatus(nextActive ? "Activating product..." : "Deactivating product...");
+      await onUpdateManualProduct(product.id, {
+        ...product,
+        is_active: nextActive,
+      });
+      setStatus(nextActive ? "Product activated." : "Product deactivated.");
+    } catch (error) {
+      if (
+        error.message.includes("Unauthorized") ||
+        error.message.includes("401")
+      ) {
+        setStatus("Session expired. Please log out and log back in.");
+      } else {
+        setStatus(`Error updating product visibility: ${error.message}`);
+      }
+    } finally {
+      setActiveProductToggleId("");
+    }
+  };
+
   const openFacebookShareDialog = (product) => {
     const productId = String(product?.id || "").trim();
     if (!productId) {
@@ -2201,6 +2280,10 @@ export default function AdminDashboard({
   useEffect(() => {
     setManualProductsPage(1);
   }, [manualProductSearch, manualProductTypeFilter]);
+
+  useEffect(() => {
+    setDeactivatedProductsPage(1);
+  }, [deactivatedProductSearch, manualProductTypeFilter]);
 
   useEffect(() => {
     if (manualProductTypeFilter !== "patterns") {
@@ -2921,6 +3004,12 @@ export default function AdminDashboard({
         detail: "Removing product data from the catalog.",
       };
     }
+    if (activeProductToggleId) {
+      return {
+        title: "Updating product visibility...",
+        detail: "Applying storefront visibility change.",
+      };
+    }
     if (activeFacebookShareId) {
       return {
         title: "Posting to Facebook...",
@@ -2945,6 +3034,7 @@ export default function AdminDashboard({
     isRegeneratingReviewCode,
     isDeletingReviewCode,
     activeProductDeleteId,
+    activeProductToggleId,
     activeFacebookShareId,
   ]);
 
@@ -2996,6 +3086,12 @@ export default function AdminDashboard({
           onClick={() => setActiveTab("products")}
         >
           Products
+        </button>
+        <button
+          className={`tab ${activeTab === "deactivated-products" ? "active" : ""}`}
+          onClick={() => setActiveTab("deactivated-products")}
+        >
+          Deactivated
         </button>
         <button
           className={`tab ${activeTab === "customers" ? "active" : ""}`}
@@ -3257,7 +3353,7 @@ export default function AdminDashboard({
 
             <div className="panel-section">
               <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
-                <h3 style={{ margin: 0 }}>Manual Products ({manualProducts.length})</h3>
+                <h3 style={{ margin: 0 }}>Manual Products ({filteredManualProducts.length})</h3>
                 <button
                   type="button"
                   className="button"
@@ -3345,9 +3441,9 @@ export default function AdminDashboard({
                   ) : null}
                 </div>
               )}
-              {manualProducts.length === 0 ? (
+              {normalizedManualProducts.filter((product) => product.is_active).length === 0 ? (
                 <div className="empty-state">
-                  No manual products added yet.
+                  No active products. Move products here by activating them from the Deactivated tab.
                 </div>
               ) : filteredManualProducts.length === 0 ? (
                 <div className="empty-state">
@@ -3382,9 +3478,13 @@ export default function AdminDashboard({
                               product.is_featured === true) && (
                               <span className="featured-badge">★ Featured</span>
                             )}
+                            {!product.is_digital_download && Number(product.quantity || 0) <= 0 && (
+                              <span className="inactive-badge">Sold out</span>
+                            )}
                           </h4>
                           <p className="product-meta">
-                            ${product.price} · Qty: {product.quantity}
+                            ${product.price}
+                            {product.is_digital_download ? " · Digital download" : ` · Qty: ${product.quantity}`}
                             {toDisplayList(product.category) &&
                               ` · ${toDisplayList(product.category)}`}
                             {toDisplayList(product.materials) &&
@@ -3398,6 +3498,18 @@ export default function AdminDashboard({
                             title="Edit product"
                           >
                             ✎
+                          </button>
+                          <button
+                            className={`button-icon visibility ${product.is_active ? "" : "inactive"}`}
+                            onClick={() => handleToggleProductActive(product)}
+                            title={product.is_active ? "Deactivate product" : "Activate product"}
+                            disabled={activeProductToggleId === String(product.id)}
+                          >
+                            {activeProductToggleId === String(product.id)
+                              ? "..."
+                              : product.is_active
+                                ? "Hide"
+                                : "Show"}
                           </button>
                           <button
                             className={`button-icon facebook ${facebookPostedProductIds[String(product.id)] ? "posted" : ""}`}
@@ -3446,6 +3558,178 @@ export default function AdminDashboard({
                         className="button"
                         disabled={currentManualProductsPage >= totalManualProductPages}
                         onClick={() => setManualProductsPage((prev) => Math.min(totalManualProductPages, prev + 1))}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "deactivated-products" && (
+          <div className="tab-panel">
+            <div className="panel-section">
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
+                <h3 style={{ margin: 0 }}>Deactivated Products ({filteredDeactivatedProducts.length})</h3>
+                <button
+                  type="button"
+                  className="button"
+                  onClick={handleRefreshCatalog}
+                  disabled={isRefreshingCatalog}
+                >
+                  {isRefreshingCatalog ? "Refreshing..." : "Refresh Catalog"}
+                </button>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "8px",
+                  margin: "0.5rem 0 0.85rem",
+                }}
+              >
+                <button
+                  type="button"
+                  className={`button ${manualProductTypeFilter === "all" ? "primary" : ""}`}
+                  onClick={() => setManualProductTypeFilter("all")}
+                >
+                  All
+                </button>
+                {PRODUCT_TYPE_CONFIG.map((typeEntry) => (
+                  <button
+                    key={`deactivated-${typeEntry.key}`}
+                    type="button"
+                    className={`button ${manualProductTypeFilter === typeEntry.key ? "primary" : ""}`}
+                    onClick={() => setManualProductTypeFilter(typeEntry.key)}
+                  >
+                    {typeEntry.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className={`button ${manualProductTypeFilter === "patterns" ? "primary" : ""}`}
+                  onClick={() => setManualProductTypeFilter("patterns")}
+                >
+                  Patterns
+                </button>
+              </div>
+
+              <div className="search-box-container">
+                <input
+                  type="text"
+                  placeholder="Search deactivated products by name, category, or materials..."
+                  value={deactivatedProductSearch}
+                  onChange={(e) => setDeactivatedProductSearch(e.target.value)}
+                  className="search-input"
+                />
+              </div>
+
+              {normalizedManualProducts.filter((product) => !product.is_active).length === 0 ? (
+                <div className="empty-state">
+                  No deactivated products.
+                </div>
+              ) : filteredDeactivatedProducts.length === 0 ? (
+                <div className="empty-state">
+                  No deactivated products match your search.
+                </div>
+              ) : (
+                <>
+                  <div className="product-list">
+                    {pagedDeactivatedProducts.map((product) => (
+                      <div key={`deactivated-${product.id}`} className="product-row product-row-inactive">
+                        <div className="product-thumb">
+                          {product.images && product.images.length > 0 ? (
+                            product.images[0].media_type === "video" ? (
+                              <video
+                                src={resolveMediaUrl(product.images[0].image_url)}
+                                className="thumb-placeholder"
+                              />
+                            ) : (
+                              <img
+                                src={resolveMediaUrl(product.images[0].image_url)}
+                                alt={product.name}
+                              />
+                            )
+                          ) : (
+                            <div className="thumb-placeholder">No image</div>
+                          )}
+                        </div>
+                        <div className="product-details">
+                          <h4>
+                            {product.name}
+                            <span className="inactive-badge">Inactive</span>
+                            {!product.is_digital_download && Number(product.quantity || 0) <= 0 && (
+                              <span className="inactive-badge">Sold out</span>
+                            )}
+                          </h4>
+                          <p className="product-meta">
+                            ${product.price}
+                            {product.is_digital_download ? " · Digital download" : ` · Qty: ${product.quantity}`}
+                            {toDisplayList(product.category) &&
+                              ` · ${toDisplayList(product.category)}`}
+                            {toDisplayList(product.materials) &&
+                              ` · ${toDisplayList(product.materials)}`}
+                          </p>
+                        </div>
+                        <div className="product-actions">
+                          <button
+                            className="button-icon edit"
+                            onClick={() => handleEditProduct(product)}
+                            title="Edit product"
+                          >
+                            ✎
+                          </button>
+                          <button
+                            className="button-icon visibility inactive"
+                            onClick={() => handleToggleProductActive(product)}
+                            title="Activate product"
+                            disabled={activeProductToggleId === String(product.id)}
+                          >
+                            {activeProductToggleId === String(product.id) ? "..." : "Show"}
+                          </button>
+                          <button
+                            className="button-icon delete"
+                            onClick={() => handleDeleteProduct(product)}
+                            title="Delete product"
+                          >
+                            🗑
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {filteredDeactivatedProducts.length > MANUAL_PRODUCTS_PER_PAGE && (
+                    <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", justifyContent: "center", flexWrap: "wrap", marginTop: "0.9rem" }}>
+                      <button
+                        type="button"
+                        className="button"
+                        disabled={currentDeactivatedProductsPage <= 1}
+                        onClick={() => setDeactivatedProductsPage((prev) => Math.max(1, prev - 1))}
+                      >
+                        Prev
+                      </button>
+
+                      {Array.from({ length: totalDeactivatedProductPages }, (_, index) => index + 1).map((pageNumber) => (
+                        <button
+                          key={`deactivated-page-${pageNumber}`}
+                          type="button"
+                          className={`button ${currentDeactivatedProductsPage === pageNumber ? "primary" : ""}`}
+                          onClick={() => setDeactivatedProductsPage(pageNumber)}
+                        >
+                          {pageNumber}
+                        </button>
+                      ))}
+
+                      <button
+                        type="button"
+                        className="button"
+                        disabled={currentDeactivatedProductsPage >= totalDeactivatedProductPages}
+                        onClick={() => setDeactivatedProductsPage((prev) => Math.min(totalDeactivatedProductPages, prev + 1))}
                       >
                         Next
                       </button>

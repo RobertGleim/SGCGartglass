@@ -275,6 +275,7 @@ def init_db(force=False):
             discount_percent REAL,
             quantity INTEGER NOT NULL,
             is_featured INTEGER DEFAULT 0,
+            is_active INTEGER DEFAULT 1,
             is_digital_download INTEGER DEFAULT 0,
             related_links TEXT,
             created_at VARCHAR(50),
@@ -560,7 +561,15 @@ def init_db(force=False):
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS related_links TEXT")
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS old_price REAL")
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS discount_percent REAL")
+        cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1")
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS is_digital_download INTEGER DEFAULT 0")
+        cursor.execute(
+            """
+            UPDATE manual_products
+            SET is_active = 1
+            WHERE is_active IS NULL
+            """
+        )
         cursor.execute(
             """
             UPDATE manual_products
@@ -773,6 +782,7 @@ def create_manual_product(payload):
         payload.get("discount_percent"),
         payload["quantity"],
         1 if payload.get("is_featured") else 0,
+        1 if payload.get("is_active", True) else 0,
         1 if _coerce_manual_product_digital_download(payload) else 0,
         _serialize_related_links(payload.get("related_links")),
         now,
@@ -784,12 +794,13 @@ def create_manual_product(payload):
             INSERT INTO manual_products (
                 name, description, category, materials,
                 width, height, depth, price, old_price, discount_percent, quantity, is_featured,
+                is_active,
                 is_digital_download,
                 related_links,
                 created_at, updated_at
             ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder},
                       {placeholder}, {placeholder}, {placeholder}, {placeholder},
-                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             RETURNING id
             """,
             insert_values,
@@ -801,12 +812,13 @@ def create_manual_product(payload):
             INSERT INTO manual_products (
                 name, description, category, materials,
                 width, height, depth, price, old_price, discount_percent, quantity, is_featured,
+                is_active,
                 is_digital_download,
                 related_links,
                 created_at, updated_at
             ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder},
                       {placeholder}, {placeholder}, {placeholder}, {placeholder},
-                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             """,
             insert_values,
         )
@@ -869,6 +881,7 @@ def fetch_manual_products():
                     pass
 
             product["images"] = []
+            product["is_active"] = _coerce_bool(product.get("is_active", 1))
             product["is_digital_download"] = _coerce_bool(product.get("is_digital_download"))
             product["related_links"] = _deserialize_related_links(product.get("related_links"))
             by_id[product_id] = product
@@ -907,6 +920,7 @@ def fetch_manual_products_catalog():
             p.discount_percent,
             p.quantity,
             p.is_featured,
+            p.is_active,
             p.is_digital_download,
             p.related_links,
             p.created_at,
@@ -942,6 +956,7 @@ def fetch_manual_products_catalog():
 
         preview_image_url = product.pop("preview_image_url", None)
         product["images"] = [{"image_url": preview_image_url, "media_type": "image"}] if preview_image_url else []
+        product["is_active"] = _coerce_bool(product.get("is_active", 1))
         product["is_digital_download"] = _coerce_bool(product.get("is_digital_download"))
         product["related_links"] = _deserialize_related_links(product.get("related_links"))
         products.append(product)
@@ -987,6 +1002,7 @@ def fetch_manual_product(product_id):
     )
     images = cursor.fetchall()
     product["images"] = [dict(img) for img in images]
+    product["is_active"] = _coerce_bool(product.get("is_active", 1))
     product["is_digital_download"] = _coerce_bool(product.get("is_digital_download"))
     product["related_links"] = _deserialize_related_links(product.get("related_links"))
     
@@ -1016,7 +1032,7 @@ def update_manual_product(product_id, payload):
         SET name = {placeholder}, description = {placeholder}, category = {placeholder}, materials = {placeholder},
             width = {placeholder}, height = {placeholder}, depth = {placeholder}, price = {placeholder},
             old_price = {placeholder}, discount_percent = {placeholder}, quantity = {placeholder},
-            is_featured = {placeholder}, is_digital_download = {placeholder}, related_links = {placeholder}, updated_at = {placeholder}
+            is_featured = {placeholder}, is_active = {placeholder}, is_digital_download = {placeholder}, related_links = {placeholder}, updated_at = {placeholder}
         WHERE id = {placeholder}
         """,
         (
@@ -1032,6 +1048,7 @@ def update_manual_product(product_id, payload):
             payload.get("discount_percent"),
             payload["quantity"],
             1 if payload.get("is_featured") else 0,
+            1 if payload.get("is_active", True) else 0,
             1 if _coerce_manual_product_digital_download(payload) else 0,
             _serialize_related_links(payload.get("related_links")),
             now,
@@ -1986,6 +2003,10 @@ def create_customer_order_with_items(customer_id, order_payload, order_items):
         order_id = cursor.lastrowid
 
     for item in order_items:
+        item_product_type = str(item.get("product_type") or "").strip().lower()
+        item_product_id = str(item.get("product_id") or "").strip()
+        item_quantity = max(1, int(item.get("quantity", 1) or 1))
+
         cursor.execute(
             f"""
             INSERT INTO customer_order_items (order_id, product_type, product_id, title, price, quantity, image_url)
@@ -1993,14 +2014,44 @@ def create_customer_order_with_items(customer_id, order_payload, order_items):
             """,
             (
                 order_id,
-                item.get("product_type"),
-                str(item.get("product_id")),
+                item_product_type,
+                item_product_id,
                 item.get("title"),
                 item.get("price"),
-                int(item.get("quantity", 1)),
+                item_quantity,
                 item.get("image_url"),
             ),
         )
+
+        # Physical manual products should decrement inventory on successful purchase.
+        if item_product_type == "manual" and item_product_id.isdigit():
+            cursor.execute(
+                f"""
+                SELECT quantity, is_digital_download
+                FROM manual_products
+                WHERE id = {placeholder}
+                LIMIT 1
+                """,
+                (int(item_product_id),),
+            )
+            manual_row = cursor.fetchone()
+            if manual_row:
+                manual_payload = dict(manual_row)
+                is_digital_download = _coerce_bool(manual_payload.get("is_digital_download"))
+                if not is_digital_download:
+                    try:
+                        current_quantity = int(manual_payload.get("quantity") or 0)
+                    except (TypeError, ValueError):
+                        current_quantity = 0
+                    next_quantity = max(0, current_quantity - item_quantity)
+                    cursor.execute(
+                        f"""
+                        UPDATE manual_products
+                        SET quantity = {placeholder}, updated_at = {placeholder}
+                        WHERE id = {placeholder}
+                        """,
+                        (next_quantity, now, int(item_product_id)),
+                    )
 
     cursor.execute(
         f"""

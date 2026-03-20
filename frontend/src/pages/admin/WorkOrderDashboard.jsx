@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
 import {
   fetchAdminShippingOrders,
+  fetchAdminOrderItems,
   updateAdminOrderShippingStatus,
   getAdminWorkOrder,
   getTemplate,
@@ -93,6 +94,19 @@ const formatDateTime = (value) => {
   return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString();
 };
 
+const formatMoney = (value) => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '$0.00';
+  return `$${amount.toFixed(2)}`;
+};
+
+const getOrderItemName = (item) => {
+  const title = String(item?.title || '').trim();
+  if (title) return title;
+  const productType = String(item?.product_type || 'product').trim();
+  return `${productType.charAt(0).toUpperCase()}${productType.slice(1)}`;
+};
+
 const escapeHtml = (value) => String(value ?? '')
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
@@ -109,6 +123,23 @@ const getSectionEntries = (order) => {
     if (leftNum !== rightNum) return leftNum - rightNum;
     return String(left?.glassType || '').localeCompare(String(right?.glassType || ''));
   });
+};
+
+const getApiOrigin = () => {
+  const configuredBase = String(import.meta.env.VITE_API_BASE_URL || '/api').trim();
+  if (/^https?:\/\//i.test(configuredBase)) {
+    return configuredBase.replace(/\/api\/?$/, '');
+  }
+  return window.location.origin;
+};
+
+const resolveMediaUrl = (value) => {
+  const url = String(value || '').trim();
+  if (!url) return '';
+  if (/^javascript:/i.test(url)) return '';
+  if (url.startsWith('/uploads/')) return `${getApiOrigin()}${url}`;
+  if (url.startsWith('uploads/')) return `${getApiOrigin()}/${url}`;
+  return url;
 };
 
 const buildWorkOrderPacketHtml = (order, designMarkup) => {
@@ -356,6 +387,9 @@ export default function WorkOrderDashboard() {
   const [shippingLoading, setShippingLoading] = useState(true);
   const [updatingShippingOrderId, setUpdatingShippingOrderId] = useState(null);
   const [shippingTab, setShippingTab] = useState('active');
+  const [selectedShippingOrder, setSelectedShippingOrder] = useState(null);
+  const [selectedShippingOrderItems, setSelectedShippingOrderItems] = useState([]);
+  const [selectedShippingOrderLoading, setSelectedShippingOrderLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [customerSearch, setCustomerSearch] = useState('');
@@ -488,6 +522,33 @@ export default function WorkOrderDashboard() {
     } finally {
       setUpdatingShippingOrderId(null);
     }
+  };
+
+  const openShippingOrder = async (order) => {
+    const orderId = Number(order?.id || 0);
+    if (!orderId) return;
+
+    setSelectedShippingOrder(order);
+    setSelectedShippingOrderLoading(true);
+    setSelectedShippingOrderItems([]);
+
+    try {
+      const res = await fetchAdminOrderItems(orderId);
+      const items = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
+      setSelectedShippingOrderItems(items);
+    } catch (err) {
+      console.error('[WorkOrderDashboard] Failed to load order items:', err);
+      window.toast && window.toast('Failed to load order details', { type: 'error' });
+      setSelectedShippingOrderItems([]);
+    } finally {
+      setSelectedShippingOrderLoading(false);
+    }
+  };
+
+  const closeShippingOrder = () => {
+    setSelectedShippingOrder(null);
+    setSelectedShippingOrderItems([]);
+    setSelectedShippingOrderLoading(false);
   };
 
   // Delete work order
@@ -739,7 +800,7 @@ export default function WorkOrderDashboard() {
                   <th>Total</th>
                   <th>Placed</th>
                   <th>Status</th>
-                  {shippingTab === 'active' && <th>Actions</th>}
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -747,6 +808,7 @@ export default function WorkOrderDashboard() {
                   const orderId = Number(order?.id || 0);
                   const status = String(order?.shipping_status || 'need_to_ship');
                   const isUpdating = updatingShippingOrderId === orderId;
+                  const isLoadingDetails = selectedShippingOrderLoading && Number(selectedShippingOrder?.id || 0) === orderId;
                   return (
                     <tr key={orderId || `${order?.order_number || 'order'}-${order?.created_at || 'unknown'}`}>
                       <td>{order?.order_number || orderId || '-'}</td>
@@ -760,24 +822,33 @@ export default function WorkOrderDashboard() {
                           {SHIPPING_STATUS_LABELS[status] || status}
                         </span>
                       </td>
-                      {shippingTab === 'active' && (
-                        <td>
-                          <div className={styles.shippingActions}>
-                            <button
-                              onClick={() => handleShippingStatusUpdate(order, 'shipped')}
-                              disabled={isUpdating || status !== 'need_to_ship'}
-                            >
-                              {isUpdating && status === 'need_to_ship' ? 'Saving...' : 'Mark Shipped'}
-                            </button>
-                            <button
-                              onClick={() => handleShippingStatusUpdate(order, 'completed')}
-                              disabled={isUpdating || status !== 'shipped'}
-                            >
-                              {isUpdating && status === 'shipped' ? 'Saving...' : 'Complete'}
-                            </button>
-                          </div>
-                        </td>
-                      )}
+                      <td>
+                        <div className={styles.shippingActions}>
+                          <button
+                            className={styles.shippingViewBtn}
+                            onClick={() => openShippingOrder(order)}
+                            disabled={isLoadingDetails}
+                          >
+                            {isLoadingDetails ? 'Loading...' : 'View Order'}
+                          </button>
+                          {shippingTab === 'active' && (
+                            <>
+                              <button
+                                onClick={() => handleShippingStatusUpdate(order, 'shipped')}
+                                disabled={isUpdating || status !== 'need_to_ship'}
+                              >
+                                {isUpdating && status === 'need_to_ship' ? 'Saving...' : 'Mark Shipped'}
+                              </button>
+                              <button
+                                onClick={() => handleShippingStatusUpdate(order, 'completed')}
+                                disabled={isUpdating || status !== 'shipped'}
+                              >
+                                {isUpdating && status === 'shipped' ? 'Saving...' : 'Complete'}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -875,6 +946,94 @@ export default function WorkOrderDashboard() {
             ))}
           </tbody>
         </table>
+      )}
+
+      {selectedShippingOrder && (
+        <div className={styles.modalOverlay} onClick={closeShippingOrder}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <button className={styles.closeBtn} onClick={closeShippingOrder}>&times;</button>
+            <h2>Order: {selectedShippingOrder.order_number || `#${selectedShippingOrder.id}`}</h2>
+
+            <div className={styles.modalGrid}>
+              <div className={styles.modalSection}>
+                <h3>Customer</h3>
+                <p><strong>Name:</strong> {selectedShippingOrder.customer_name || 'Customer'}</p>
+                <p><strong>Email:</strong> {selectedShippingOrder.customer_email || '-'}</p>
+                <p><strong>Status:</strong> {SHIPPING_STATUS_LABELS[selectedShippingOrder.shipping_status] || selectedShippingOrder.shipping_status || '-'}</p>
+              </div>
+              <div className={styles.modalSection}>
+                <h3>Order Details</h3>
+                <p><strong>Placed:</strong> {selectedShippingOrder.created_at ? new Date(selectedShippingOrder.created_at).toLocaleString() : '-'}</p>
+                <p><strong>Subtotal:</strong> {formatMoney(selectedShippingOrder.subtotal_amount)}</p>
+                <p><strong>Shipping:</strong> {formatMoney(selectedShippingOrder.shipping_amount)}</p>
+                <p><strong>Tax:</strong> {formatMoney(selectedShippingOrder.tax_amount)}</p>
+                <p><strong>Total:</strong> {formatMoney(selectedShippingOrder.total_amount)}</p>
+              </div>
+            </div>
+
+            <div className={styles.modalSection}>
+              <h3>Items Ordered</h3>
+              {selectedShippingOrderLoading ? (
+                <LoadingMessage label="Loading order items" />
+              ) : selectedShippingOrderItems.length === 0 ? (
+                <div className={styles.shippingEmpty}>No items found for this order.</div>
+              ) : (
+                <>
+                  <table className={styles.shippingDetailsTable}>
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Type</th>
+                        <th>Qty</th>
+                        <th>Unit Price</th>
+                        <th>Line Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedShippingOrderItems.map((item) => {
+                        const quantity = Math.max(1, Number(item?.quantity || 1));
+                        const unitPrice = Number(item?.price || 0);
+                        return (
+                          <tr key={item?.id || `${item?.product_type || 'item'}-${item?.product_id || ''}-${item?.title || ''}`}>
+                            <td>{getOrderItemName(item)}</td>
+                            <td>{item?.product_type || '-'}</td>
+                            <td>{quantity}</td>
+                            <td>{formatMoney(unitPrice)}</td>
+                            <td>{formatMoney(unitPrice * quantity)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  {selectedShippingOrderItems.some((item) => Boolean(resolveMediaUrl(item?.image_url))) && (
+                    <div className={styles.shippingThumbSection}>
+                      <h4>Product Thumbnails</h4>
+                      <div className={styles.shippingThumbGrid}>
+                        {selectedShippingOrderItems
+                          .filter((item) => Boolean(resolveMediaUrl(item?.image_url)))
+                          .map((item) => (
+                            <figure
+                              className={styles.shippingThumbCard}
+                              key={`thumb-${item?.id || `${item?.product_type || 'item'}-${item?.product_id || ''}`}`}
+                            >
+                              <img
+                                src={resolveMediaUrl(item?.image_url)}
+                                alt={getOrderItemName(item)}
+                                className={styles.shippingThumbImage}
+                                loading="lazy"
+                              />
+                              <figcaption>{getOrderItemName(item)}</figcaption>
+                            </figure>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Preview Modal */}

@@ -249,11 +249,21 @@ def _resolve_cart_product_snapshot(item):
         product = fetch_manual_product(int(product_id)) if product_id.isdigit() else None
         if not product:
             return None
+        if not bool(product.get("is_active", True)):
+            return None
+        is_digital = bool(product.get("is_digital_download"))
+        if not is_digital:
+            try:
+                available_quantity = int(product.get("quantity") or 0)
+            except (TypeError, ValueError):
+                available_quantity = 0
+            if available_quantity <= 0:
+                return None
+
         image_url = None
         images = product.get("images") if isinstance(product.get("images"), list) else []
         if images:
             image_url = images[0].get("image_url")
-        is_digital = bool(product.get("is_digital_download"))
         return {
             "title": product.get("name") or f"Manual product #{product_id}",
             "price": _as_money(product.get("price")),
@@ -1783,6 +1793,16 @@ def customer_add_cart_item():
         if not snapshot:
             return jsonify({"error": "invalid_pattern_product"}), 404
         product_type = "template"
+    else:
+        snapshot = _resolve_cart_product_snapshot({
+            "product_type": normalized_product_type,
+            "product_id": str(product_id),
+        })
+        if not snapshot:
+            if normalized_product_type == "manual":
+                return jsonify({"error": "sold_out_or_unavailable"}), 400
+            return jsonify({"error": "invalid_product"}), 404
+
     clamped_quantity = 1
     upsert_customer_cart_item(customer_id, product_type, str(product_id), clamped_quantity)
     if quantity > 1:
@@ -2380,6 +2400,42 @@ def admin_shipping_orders():
     return jsonify({"items": orders})
 
 
+@api.get("/admin/orders/<int:order_id>/items")
+@require_auth
+def admin_order_items(order_id):
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    items = list_customer_order_items_for_order(order_id)
+    hydrated_items = []
+    for item in items:
+        payload = dict(item or {})
+        product_type = str(payload.get("product_type") or "").strip().lower()
+        product_id = str(payload.get("product_id") or "").strip()
+
+        if product_type == "manual" and product_id.isdigit():
+            product = fetch_manual_product(int(product_id))
+            if product:
+                if not str(payload.get("title") or "").strip():
+                    payload["title"] = product.get("name") or payload.get("title")
+                if not str(payload.get("image_url") or "").strip():
+                    images = product.get("images") if isinstance(product.get("images"), list) else []
+                    first_image = images[0] if images else {}
+                    payload["image_url"] = first_image.get("image_url") or payload.get("image_url")
+
+        elif not str(payload.get("image_url") or "").strip() and product_id.isdigit():
+            listing = fetch_item(int(product_id))
+            if listing:
+                payload["image_url"] = listing.get("image_url") or payload.get("image_url")
+                if not str(payload.get("title") or "").strip():
+                    payload["title"] = listing.get("title") or payload.get("title")
+
+        hydrated_items.append(payload)
+
+    return jsonify({"items": hydrated_items})
+
+
 @api.put("/admin/orders/<int:order_id>/shipping-status")
 @require_auth
 def admin_update_order_shipping_status(order_id):
@@ -2932,6 +2988,7 @@ def _coerce_bool_value(value):
 def create_manual_product_endpoint():
     init_db()
     payload = request.get_json(silent=True) or {}
+    payload["is_active"] = _coerce_bool_value(payload.get("is_active", True))
     payload["quantity"] = _resolve_manual_product_quantity(
         payload.get("quantity"),
         _coerce_bool_value(payload.get("is_digital_download")),
@@ -2974,12 +3031,14 @@ def update_manual_product_endpoint(product_id):
         "discount_percent": product.get("discount_percent"),
         "quantity": product.get("quantity"),
         "is_featured": product.get("is_featured"),
+        "is_active": product.get("is_active", True),
         "is_digital_download": product.get("is_digital_download"),
         "related_links": product.get("related_links"),
     }
     if "images" in payload:
         merged_payload["images"] = payload.get("images")
     merged_payload.update(payload)
+    merged_payload["is_active"] = _coerce_bool_value(merged_payload.get("is_active", True))
     merged_payload["quantity"] = _resolve_manual_product_quantity(
         merged_payload.get("quantity"),
         _coerce_bool_value(merged_payload.get("is_digital_download")),

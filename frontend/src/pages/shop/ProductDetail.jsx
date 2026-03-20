@@ -412,6 +412,11 @@ export default function ProductDetail({ product, products = [] }) {
   
   const handleAddToCart = async () => {
     setCartStatus('')
+    if (isSoldOut) {
+      setCartStatus('This item is sold out.')
+      return
+    }
+
     const isManual = Boolean(product.isManual)
     const resolvedProductId = isManual
       ? String(product.originalData?.id || '').trim()
@@ -455,6 +460,8 @@ export default function ProductDetail({ product, products = [] }) {
   }
 
   const isDigitalDownload = Boolean(product.is_digital_download)
+  const availableQuantity = Number(manualProductDetails?.quantity ?? product.originalData?.quantity)
+  const isSoldOut = Boolean(product.isManual) && !isDigitalDownload && Number.isFinite(availableQuantity) && availableQuantity <= 0
 
   const handleAddToWishlist = async () => {
     setWishlistStatus('')
@@ -613,6 +620,9 @@ export default function ProductDetail({ product, products = [] }) {
                   <span className="discount-badge">{discountPercent}% off</span>
                 </>
               )}
+              {isSoldOut && (
+                <span className="sold-out-pill">Sold out</span>
+              )}
             </div>
             {product.price_currency && product.price_currency !== 'USD' && (
               <div className="currency-note">Prices shown in USD</div>
@@ -696,8 +706,8 @@ export default function ProductDetail({ product, products = [] }) {
           {/* Quantity & Add to Cart */}
           <div className="purchase-section">
             
-            <button className="add-to-cart-btn" onClick={handleAddToCart}>
-              {isDigitalDownload ? 'Buy digital download' : 'Add to cart'}
+            <button className="add-to-cart-btn" onClick={handleAddToCart} disabled={isSoldOut}>
+              {isSoldOut ? 'Sold out' : isDigitalDownload ? 'Buy digital download' : 'Add to cart'}
             </button>
             <button className="wishlist-btn" onClick={handleAddToWishlist}>
               {isWishlisted ? 'In wishlist' : 'Add to wishlist'}

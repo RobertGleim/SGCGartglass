@@ -155,6 +155,9 @@ export default function ProductCard({ product }) {
   const isDigitalDownload = product.is_digital_download === true
   const isPatternProduct = toCategoryList(product.category)
     .some((entry) => normalizeCategory(entry) === 'patterns' || normalizeCategory(entry) === 'pattern')
+  const quantity = Number(product?.quantity ?? product?.originalData?.quantity)
+  const hasInventoryCount = Number.isFinite(quantity)
+  const isSoldOut = !isDigitalDownload && hasInventoryCount && quantity <= 0
   const manualProductId = String(product?.originalData?.id || '').trim()
   const linkedPatternId = String(product?.originalData?.related_links?.pattern_product_id || '').trim()
   const hasLinkedPattern = !isDigitalDownload
@@ -213,6 +216,7 @@ export default function ProductCard({ product }) {
       <article className="product-card">
         <div className="card-image">
           {hasDiscount && <span className="sale-badge">On Sale</span>}
+          {isSoldOut && <span className="sold-out-badge">Sold out</span>}
           {activeImageUrl ? (
             <img src={activeImageUrl} alt={product.title || 'Glass art'} onError={handleCardImageError} />
           ) : (

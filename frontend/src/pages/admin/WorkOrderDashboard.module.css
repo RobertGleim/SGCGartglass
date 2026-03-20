@@ -165,6 +165,71 @@
   cursor: not-allowed;
 }
 
+.shippingViewBtn {
+  border-color: #1d4ed8 !important;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.shippingDetailsTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.shippingDetailsTable th,
+.shippingDetailsTable td {
+  padding: 0.55rem 0.45rem;
+  border-bottom: 1px solid #edf1f7;
+  vertical-align: middle;
+  text-align: left;
+}
+
+.shippingDetailsTable td:nth-child(2) {
+  text-transform: lowercase;
+}
+
+.shippingThumbSection {
+  margin-top: 1rem;
+}
+
+.shippingThumbSection h4 {
+  margin: 0 0 0.65rem;
+  color: #1e3a5f;
+  font-size: 0.95rem;
+}
+
+.shippingThumbGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.7rem;
+}
+
+.shippingThumbCard {
+  margin: 0;
+  border: 1px solid #dce5f3;
+  border-radius: 10px;
+  padding: 0.45rem;
+  background: #f8fbff;
+}
+
+.shippingThumbImage {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #d3deee;
+  display: block;
+}
+
+.shippingThumbCard figcaption {
+  margin-top: 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
 .summary {
   display: flex;
   gap: 1.5rem;
