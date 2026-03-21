@@ -187,6 +187,21 @@ def _resolve_stripe_secret_key():
     return stripe_secret, None
 
 
+def _resolve_stripe_tax_code(item):
+    """Resolve Stripe tax code from env vars, with per-item digital/physical override."""
+    is_digital = bool((item or {}).get("is_digital"))
+    candidate = ""
+    if is_digital:
+        candidate = (os.environ.get("STRIPE_TAX_CODE_DIGITAL") or "").strip()
+    else:
+        candidate = (os.environ.get("STRIPE_TAX_CODE_PHYSICAL") or "").strip()
+
+    if not candidate:
+        candidate = (os.environ.get("STRIPE_TAX_CODE_DEFAULT") or "").strip()
+
+    return candidate or None
+
+
 def _cache_get(key):
     slot = _catalog_cache.get(key) or {}
     if slot.get("value") is None:
@@ -1883,6 +1898,7 @@ def customer_checkout_session():
     line_items = []
     for item in summary["items"]:
         unit_amount = max(50, int(round(float(item.get("price") or 0) * 100)))
+        tax_code = _resolve_stripe_tax_code(item)
         product_data = {
             "name": str(item.get("title") or "Item")[:500],
             "metadata": {
@@ -1891,6 +1907,8 @@ def customer_checkout_session():
                 "is_digital": "true" if bool(item.get("is_digital")) else "false",
             },
         }
+        if tax_code:
+            product_data["tax_code"] = tax_code
         image_url = str(item.get("image_url") or "").strip()
         if image_url.startswith("https://"):
             product_data["images"] = [image_url]
@@ -1898,6 +1916,7 @@ def customer_checkout_session():
             "price_data": {
                 "currency": "usd",
                 "unit_amount": unit_amount,
+                "tax_behavior": "exclusive",
                 "product_data": product_data,
             },
             "quantity": max(1, int(item.get("quantity") or 1)),
@@ -1907,7 +1926,8 @@ def customer_checkout_session():
         "line_items": line_items,
         "mode": "payment",
         "automatic_tax": {"enabled": True},
-        "billing_address_collection": "auto",
+        "billing_address_collection": "required",
+        "customer_creation": "always",
         "success_url": success_url,
         "cancel_url": cancel_url,
         "metadata": {
@@ -1987,6 +2007,7 @@ def guest_checkout_session():
     line_items = []
     for item in summary["items"]:
         unit_amount = max(50, int(round(float(item.get("price") or 0) * 100)))
+        tax_code = _resolve_stripe_tax_code(item)
         product_data = {
             "name": str(item.get("title") or "Item")[:500],
             "metadata": {
@@ -1995,6 +2016,8 @@ def guest_checkout_session():
                 "is_digital": "true" if bool(item.get("is_digital")) else "false",
             },
         }
+        if tax_code:
+            product_data["tax_code"] = tax_code
         image_url = str(item.get("image_url") or "").strip()
         if image_url.startswith("https://"):
             product_data["images"] = [image_url]
@@ -2002,6 +2025,7 @@ def guest_checkout_session():
             "price_data": {
                 "currency": "usd",
                 "unit_amount": unit_amount,
+                "tax_behavior": "exclusive",
                 "product_data": product_data,
             },
             "quantity": 1,
@@ -2014,7 +2038,7 @@ def guest_checkout_session():
         "line_items": line_items,
         "mode": "payment",
         "automatic_tax": {"enabled": True},
-        "billing_address_collection": "auto",
+        "billing_address_collection": "required",
         "success_url": success_url,
         "cancel_url": cancel_url,
         "metadata": {
