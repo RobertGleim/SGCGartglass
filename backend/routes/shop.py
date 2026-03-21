@@ -325,11 +325,10 @@ def _resolve_cart_product_snapshot(item):
 def _calculate_checkout_totals(items):
     item_count = sum(max(1, int(entry.get("quantity", 1))) for entry in items)
     subtotal = _as_money(sum(_as_money(entry.get("line_total")) for entry in items))
-    _has_shippable_items = any(bool(entry.get("requires_shipping", True)) for entry in items)
-    tax_rate = _as_money(os.environ.get("CHECKOUT_TAX_RATE", "0.0825"))  # 8.25% hardcoded default
 
     shipping = 0.0
-    tax = _as_money(subtotal * tax_rate)
+    # Stripe Checkout computes the final tax at payment time.
+    tax = 0.0
     total = _as_money(subtotal + shipping + tax)
 
     return {
@@ -339,6 +338,7 @@ def _calculate_checkout_totals(items):
         "tax": tax,
         "total": total,
         "currency": "USD",
+        "tax_source": "stripe_checkout",
     }
 
 
@@ -710,13 +710,16 @@ def _finalize_paid_checkout_session(session, expected_customer_id=None, send_dow
     summary = _normalize_checkout_snapshot(snapshot, customer_id=customer_id)
     items = summary.get("items") or []
     totals = summary.get("totals") or {}
+    hydrated = _hydrate_checkout_summary_from_session(session, customer_id=customer_id)
 
     if not items:
-        hydrated = _hydrate_checkout_summary_from_session(session, customer_id=customer_id)
         hydrated_items = hydrated.get("items") or []
         if hydrated_items:
             items = hydrated_items
-            totals = hydrated.get("totals") or totals
+
+    hydrated_totals = hydrated.get("totals") or {}
+    if _as_money(hydrated_totals.get("total")) > 0:
+        totals = hydrated_totals
 
     if session_id:
         create_customer_checkout_session_snapshot(
@@ -1900,21 +1903,11 @@ def customer_checkout_session():
             "quantity": max(1, int(item.get("quantity") or 1)),
         })
 
-    # Add tax as an explicit line item so Stripe charges 8.25% tax
-    tax_cents = max(0, int(round(float(summary["totals"]["tax"]) * 100)))
-    if tax_cents > 0:
-        line_items.append({
-            "price_data": {
-                "currency": "usd",
-                "unit_amount": tax_cents,
-                "product_data": {"name": "Tax (8.25%)"},
-            },
-            "quantity": 1,
-        })
-
     session_params = {
         "line_items": line_items,
         "mode": "payment",
+        "automatic_tax": {"enabled": True},
+        "billing_address_collection": "auto",
         "success_url": success_url,
         "cancel_url": cancel_url,
         "metadata": {
@@ -2014,23 +2007,14 @@ def guest_checkout_session():
             "quantity": 1,
         })
 
-    tax_cents = max(0, int(round(float(summary["totals"]["tax"]) * 100)))
-    if tax_cents > 0:
-        line_items.append({
-            "price_data": {
-                "currency": "usd",
-                "unit_amount": tax_cents,
-                "product_data": {"name": "Tax (8.25%)"},
-            },
-            "quantity": 1,
-        })
-
     has_shippable_items = any(bool(item.get("requires_shipping", True)) for item in summary.get("items") or [])
     has_digital_items = any(bool(item.get("is_digital")) for item in summary.get("items") or [])
 
     session_params = {
         "line_items": line_items,
         "mode": "payment",
+        "automatic_tax": {"enabled": True},
+        "billing_address_collection": "auto",
         "success_url": success_url,
         "cancel_url": cancel_url,
         "metadata": {
