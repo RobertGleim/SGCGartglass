@@ -4,6 +4,7 @@ import api, { addCustomerCartItem, fetchManualProductsCached, getTemplatesCached
   approveWorkOrder as apiApproveWorkOrder, getWorkOrderRevisions, getAdminWorkOrderRevisions,
   getTemplateCached, getPublicGlassTypesCached
 } from '../../services/api';
+import { addGuestCartItem } from '../../utils/guestCart';
 import useCustomerAuth from '../../hooks/useCustomerAuth';
 import useAuth from '../../hooks/useAuth';
 import LoadingMessage from '../../components/LoadingMessage';
@@ -2860,8 +2861,24 @@ export default function DesignerPage() {
       return;
     }
 
+    // Allow guest checkout for patterns by adding to guest cart
+    const guestCartItem = {
+      product_type: 'template',
+      product_id: String(template?.id || ''),
+      quantity: 1,
+      title: template?.name || 'Pattern',
+      image_url: template?.preview_url || '',
+      price: Number(template?.price_amount || 0),
+      currency: 'USD',
+      is_digital: true,
+      requires_shipping: false,
+    };
+
     if (!customerToken) {
-      window.location.hash = '#/account/login';
+      // Guest checkout: add to guest cart
+      addGuestCartItem(guestCartItem);
+      window.dispatchEvent(new Event('cart-updated'));
+      setPatternPurchaseStatus(`${template?.name || 'Pattern'} added to cart.`);
       return;
     }
 
