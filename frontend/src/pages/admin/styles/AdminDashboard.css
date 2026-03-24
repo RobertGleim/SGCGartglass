@@ -201,6 +201,17 @@
   margin: 0.75rem 0;
 }
 
+.admin-half-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.admin-half-field {
+  min-width: 0;
+}
+
 .ap-section-1 {
   background: #eef6ff;
   border-color: #1e88e5;
@@ -407,6 +418,28 @@
 
 .input-button-row .multi-select-add-btn {
   flex-shrink: 0;
+}
+
+.price-quantity-inputs.price-quarter-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.price-quantity-inputs.price-triple-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.price-quantity-inputs.price-quarter-row label {
+  min-width: 0;
+}
+
+.price-quantity-inputs.price-triple-row label {
+  min-width: 0;
 }
 
 .multi-select-tags {
@@ -1017,6 +1050,18 @@
     width: 100%;
   }
 
+  .admin-half-row {
+    grid-template-columns: 1fr;
+  }
+
+  .price-quantity-inputs.price-quarter-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .price-quantity-inputs.price-triple-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .watermark-input-group input {
     max-width: 100%;
   }
@@ -1042,5 +1087,15 @@
   .digital-recovery-actions .button {
     width: 8.25rem;
     height: 2.35rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .price-quantity-inputs.price-quarter-row {
+    grid-template-columns: 1fr;
+  }
+
+  .price-quantity-inputs.price-triple-row {
+    grid-template-columns: 1fr;
   }
 }

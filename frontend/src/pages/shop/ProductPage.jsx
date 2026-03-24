@@ -44,7 +44,6 @@ const CATEGORY_TYPE_ALIASES = {
   pattern: 'patterns',
 }
 
-const ALPHABET_FILTERS = ['all', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''), '#']
 const CONTACT_REASONS = [
   'General Question',
   'Custom Order',
@@ -54,12 +53,6 @@ const CONTACT_REASONS = [
   'Pricing',
   'Other',
 ]
-
-const toAlphaBucket = (value) => {
-  const firstChar = String(value || '').trim().charAt(0).toUpperCase()
-  if (/^[A-Z]$/.test(firstChar)) return firstChar
-  return '#'
-}
 
 const normalizeTypeKeyFromCategory = (value) => CATEGORY_TYPE_ALIASES[normalizeCategoryValue(value)] || null
 const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Math.round(Number(rating) || 0))))
@@ -160,7 +153,6 @@ export default function ProductPage({ products }) {
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [priceFilter, setPriceFilter] = useState('any')
-  const [alphaFilter, setAlphaFilter] = useState('all')
   const [activeTab, setActiveTab] = useState('stained-glass-panels')
   const [recentReviews, setRecentReviews] = useState([])
   const [favoritesTotal, setFavoritesTotal] = useState(0)
@@ -252,17 +244,24 @@ export default function ProductPage({ products }) {
     }
 
     return products.filter((product) => {
+      const isDigitalDownload = Boolean(product?.is_digital_download)
       const categories = toCategoryArray(product.category)
       const normalizedTypes = categories
         .map((entry) => normalizeTypeKeyFromCategory(entry))
         .filter(Boolean)
+      const resolvedType = normalizedTypes.length > 0
+        ? normalizedTypes[0]
+        : inferLegacyType(product)
 
-      if (normalizedTypes.length > 0) {
-        return normalizedTypes.includes(activeTab)
+      if (activeTab === 'patterns') {
+        return resolvedType === activeTab
       }
 
-      const inferredType = inferLegacyType(product)
-      return inferredType === activeTab
+      if (isDigitalDownload) {
+        return false
+      }
+
+      return resolvedType === activeTab
     })
   }, [products, activeTab])
 
@@ -329,10 +328,6 @@ export default function ProductPage({ products }) {
         product.title?.toLowerCase().includes(lowerSearch) ||
         product.description?.toLowerCase().includes(lowerSearch)
 
-      const matchesAlpha = alphaFilter === 'all'
-        ? true
-        : toAlphaBucket(product.title) === alphaFilter
-      
       // Price filter
       let matchesPrice = true
       const price = product.price_amount || 0
@@ -341,7 +336,7 @@ export default function ProductPage({ products }) {
       else if (priceFilter === '250to500') matchesPrice = price >= 250 && price <= 500
       else if (priceFilter === 'over500') matchesPrice = price > 500
       
-      return matchesCategory && matchesSearch && matchesPrice && matchesAlpha
+      return matchesCategory && matchesSearch && matchesPrice
     })
 
     return [...result].sort((a, b) => {
@@ -349,7 +344,7 @@ export default function ProductPage({ products }) {
       const right = String(b?.title || '').trim()
       return titleCollator.compare(left, right)
     })
-  }, [sectionProducts, search, selectedCategory, priceFilter, alphaFilter, titleCollator])
+  }, [sectionProducts, search, selectedCategory, priceFilter, titleCollator])
 
   const isSectionComingSoon = sectionProducts.length === 0
 
@@ -362,7 +357,7 @@ export default function ProductPage({ products }) {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, selectedCategory, priceFilter, alphaFilter, activeTab])
+  }, [search, selectedCategory, priceFilter, activeTab])
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -506,23 +501,6 @@ export default function ProductPage({ products }) {
             </button>
           </div>
         </div>
-      </div>
-
-      <div className="shop-alpha-inline" aria-label="Filter products by first letter">
-        {ALPHABET_FILTERS.map((entry) => {
-          const label = entry === 'all' ? 'All' : entry
-          const isActive = alphaFilter === entry
-          return (
-            <button
-              key={entry}
-              type="button"
-              className={`shop-alpha-chip ${isActive ? 'active' : ''}`}
-              onClick={() => setAlphaFilter(entry)}
-            >
-              {label}
-            </button>
-          )
-        })}
       </div>
 
       {/* Main Content Area */}

@@ -799,6 +799,9 @@ export default function AdminDashboard({
   const [templateNameManuallyEdited, setTemplateNameManuallyEdited] = useState(false);
   const [patternOnly, setPatternOnly] = useState(false);
   const [patternOnlyDescription, setPatternOnlyDescription] = useState("");
+  const [productModePhysical, setProductModePhysical] = useState(true);
+  const [productModePattern, setProductModePattern] = useState(false);
+  const [productModeTemplate, setProductModeTemplate] = useState(false);
   const [quantityManuallyEdited, setQuantityManuallyEdited] = useState(false);
   const [isSavingManualProduct, setIsSavingManualProduct] = useState(false);
 
@@ -1157,7 +1160,7 @@ export default function AdminDashboard({
   const setPrimaryTypeCategory = (type) => {
     const label = PRODUCT_TYPE_LABEL_BY_KEY[type] || PRODUCT_TYPE_LABEL_BY_KEY.stainedGlassPanels;
     setManualProduct((prev) => {
-      const nextIsDigitalDownload = type === "patterns" ? true : Boolean(prev.is_digital_download);
+      const nextIsDigitalDownload = type === "patterns";
       return {
         ...prev,
         category: [label, ...removeTypeCategories(prev.category)],
@@ -1171,6 +1174,34 @@ export default function AdminDashboard({
     });
   };
 
+  const setDigitalDownloadState = (nextIsDigitalDownload) => {
+    setManualProduct((prev) => {
+      const nextQuantity = nextIsDigitalDownload
+        ? DIGITAL_DEFAULT_QUANTITY
+        : syncQuantityWithDownloadMode(prev.quantity, false);
+      if (
+        Boolean(prev.is_digital_download) === Boolean(nextIsDigitalDownload)
+        && String(prev.quantity ?? "") === String(nextQuantity)
+      ) {
+        return prev;
+      }
+      return {
+        ...prev,
+        is_digital_download: Boolean(nextIsDigitalDownload),
+        quantity: nextQuantity,
+      };
+    });
+  };
+
+  const applyProductModeSelection = (nextModes) => {
+    setProductModePhysical(Boolean(nextModes.physical));
+    setProductModePattern(Boolean(nextModes.pattern));
+    setProductModeTemplate(Boolean(nextModes.template));
+    setPatternOnly(Boolean(nextModes.pattern));
+    const mainProductIsDigital = !nextModes.physical && (nextModes.pattern || nextModes.template);
+    setDigitalDownloadState(mainProductIsDigital);
+  };
+
   const visibleCategoryTags = removeTypeCategories(manualProduct.category);
   const selectedTypeCategory =
     manualProduct.category
@@ -1180,8 +1211,11 @@ export default function AdminDashboard({
   const patternOptionCount = patternProductOptions.length;
   const linkedProductOptionCount = linkedProductOptions.length;
   const galleryOptionCount = productGalleryOptions.length;
-  const isProductSectionEnabled = true;
-  const isTemplateSectionEnabled = true;
+  const isProductSectionEnabled = editingProduct
+    ? true
+    : productModePhysical || (productModePattern && selectedTypeCategory === "patterns");
+  const isTemplateSectionEnabled = productModePattern || productModeTemplate;
+  const isPatternOrTemplate = productModePattern || productModeTemplate;
   const templateNameFilled = Boolean(String(unifiedTemplate.name || "").trim());
   const shouldRequireProductFields = isProductSectionEnabled && (editingProduct || !templateNameFilled);
 
@@ -1435,14 +1469,14 @@ export default function AdminDashboard({
       return;
     }
 
-    const shouldCreateTemplate = !editingProduct && Boolean(unifiedTemplate.upload_file) && !patternOnly;
+    const shouldCreateTemplate = !editingProduct && productModeTemplate && Boolean(unifiedTemplate.upload_file);
     const hasProductName = Boolean(String(manualProduct.name || "").trim());
     const shouldSaveProduct = isProductSectionEnabled && (editingProduct || hasProductName);
     const creatingTemplateOnly = !editingProduct && !shouldSaveProduct && shouldCreateTemplate;
     const creatingBoth = !editingProduct && shouldSaveProduct && shouldCreateTemplate;
     const shouldCreatePatternCopy =
       !editingProduct
-      && (patternOnly || Boolean(manualProduct.is_digital_download))
+      && productModePattern
       && selectedTypeCategory !== "patterns";
     const creatingPatternOnly = !editingProduct && !shouldSaveProduct && !shouldCreateTemplate && shouldCreatePatternCopy;
 
@@ -1452,7 +1486,7 @@ export default function AdminDashboard({
     }
 
     if (!editingProduct && !shouldSaveProduct && !shouldCreateTemplate && !shouldCreatePatternCopy) {
-      setStatus("Add a product name, upload a template/pattern file, or enable Pattern only.");
+      setStatus("Add a product name, upload a template/pattern file, or select a save mode.");
       return;
     }
 
@@ -1682,23 +1716,29 @@ export default function AdminDashboard({
           relatedLinks.template_name = String(createdTemplate.name || unifiedTemplate.name || "").trim();
         }
 
-        const resolvedIsDigitalProduct =
-          Boolean(unifiedTemplate.is_digital_download) ||
-          selectedTypeCategory === "patterns" ||
-          patternOnly;
+        const resolvedIsDigitalProduct = !productModePhysical && (productModePattern || productModeTemplate);
 
         const productData = {
           // price field stores sale price when discount is present.
           name: manualProduct.name.trim(),
           description: manualProduct.description.trim(),
-          category:
-            manualProduct.category.length > 0 ? manualProduct.category : null,
+          category: (() => {
+            const baseCategory = manualProduct.category.length > 0 ? manualProduct.category : [];
+            if (resolvedIsDigitalProduct && productModePattern && !baseCategory.some(c => String(c).toLowerCase().includes('pattern'))) {
+              return ['Patterns', ...baseCategory];
+            }
+            return baseCategory.length > 0 ? baseCategory : null;
+          })(),
           materials:
             manualProduct.materials.length > 0 ? manualProduct.materials : null,
           width: manualProduct.width ? parseFloat(manualProduct.width) : null,
           height: manualProduct.height ? parseFloat(manualProduct.height) : null,
           depth: manualProduct.depth ? parseFloat(manualProduct.depth) : null,
           price: (() => {
+            if (resolvedIsDigitalProduct) {
+              const digitalPrice = Number(unifiedTemplate.price_amount || 0);
+              return Number.isFinite(digitalPrice) && digitalPrice > 0 ? Number(digitalPrice.toFixed(2)) : 0;
+            }
             const basePrice = Number(manualProduct.price || 0);
             const discountPercent = Number(manualProduct.discount_percent || 0);
             if (!Number.isFinite(basePrice) || basePrice <= 0) return 0;
@@ -1718,7 +1758,9 @@ export default function AdminDashboard({
             if (!Number.isFinite(discountPercent) || discountPercent <= 0) return null;
             return Number(Math.min(100, Math.max(0, discountPercent)).toFixed(2));
           })(),
-          quantity: normalizeQuantityInput(manualProduct.quantity, resolvedIsDigitalProduct),
+          quantity: resolvedIsDigitalProduct
+            ? parseInt(DIGITAL_DEFAULT_QUANTITY, 10)
+            : normalizeQuantityInput(manualProduct.quantity, false),
           is_featured: manualProduct.is_featured,
           is_digital_download: resolvedIsDigitalProduct,
           related_links: {
@@ -1806,11 +1848,10 @@ export default function AdminDashboard({
         }
 
         const resolvedPatternDescription = String(
-          manualProduct.description || patternOnlyDescription || "",
+          manualProduct.description
+          || patternOnlyDescription
+          || `Digital pattern download for ${manualProduct.name || unifiedTemplate.name || "this design"}`,
         ).trim();
-        if (!resolvedPatternDescription) {
-          throw new Error("Pattern description is required.");
-        }
 
         const patternProductData = {
           name: String(manualProduct.name || unifiedTemplate.name || "Pattern").trim(),
@@ -1830,7 +1871,7 @@ export default function AdminDashboard({
           })(),
           old_price: null,
           discount_percent: null,
-          quantity: normalizeQuantityInput(manualProduct.quantity, true),
+          quantity: parseInt(DIGITAL_DEFAULT_QUANTITY, 10),
           is_featured: false,
           is_digital_download: true,
           related_links: {
@@ -2122,6 +2163,9 @@ export default function AdminDashboard({
     setTemplateNameManuallyEdited(false);
     setPatternOnly(false);
     setPatternOnlyDescription(String(product.description || ""));
+    setProductModePhysical(!Boolean(product.is_digital_download));
+    setProductModePattern(Boolean(product.is_digital_download));
+    setProductModeTemplate(false);
     } finally {
       setIsOpeningProductEdit(false);
     }
@@ -2408,6 +2452,9 @@ export default function AdminDashboard({
     setTemplateNameManuallyEdited(false);
     setPatternOnly(false);
     setPatternOnlyDescription("");
+    setProductModePhysical(true);
+    setProductModePattern(false);
+    setProductModeTemplate(false);
   };
 
   const openCustomerEditModal = async (customer) => {
@@ -3313,6 +3360,9 @@ export default function AdminDashboard({
                     setMaterialInput("");
                     setImagePreviews([]);
                     setEditingProduct(null);
+                    setProductModePhysical(true);
+                    setProductModePattern(false);
+                    setProductModeTemplate(false);
                     loadManualProductLinkOptions();
                     setShowManualProductModal(true);
                   }}
@@ -4019,7 +4069,7 @@ export default function AdminDashboard({
                 <h2>
                   {editingProduct
                     ? "Edit Product"
-                    : "Add Product / Digital Template"}
+                    : "Add Product"}
                 </h2>
                 <button
                   className="modal-close"
@@ -4030,12 +4080,81 @@ export default function AdminDashboard({
                 </button>
               </div>
               <form className="modal-form" onSubmit={handleManualProductSubmit}>
-                {/* ── SECTION 1: PRODUCT ───────────────────────────────────── */}
-                {isProductSectionEnabled && (
-                  <div className="ap-section ap-section-1">
-                    <h4 className="ap-section-title">🛍️ Section 1 — Product Listing</h4>
-                <label>
-                  Product Name {shouldRequireProductFields ? "*" : ""}
+                {/* ── UNIFIED PRODUCT FORM ───────────────────────────────── */}
+                <div className="ap-section ap-section-1">
+
+                {/* ── Product Mode Toggles ─── */}
+                <div className="multi-select-wrapper" style={{ marginBottom: "1rem" }}>
+                  <div className="multi-select-row" style={{ gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
+                    <label className="checkbox-label" style={{ marginBottom: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={productModePhysical}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          applyProductModeSelection({
+                            physical: checked,
+                            pattern: productModePattern,
+                            template: productModeTemplate,
+                          });
+                        }}
+                      />
+                      <span>Physical</span>
+                    </label>
+                    <label className="checkbox-label" style={{ marginBottom: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={productModePattern}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          applyProductModeSelection({
+                            physical: productModePhysical,
+                            pattern: checked,
+                            template: productModeTemplate,
+                          });
+                        }}
+                      />
+                      <span>Patterns</span>
+                    </label>
+                    <label className="checkbox-label" style={{ marginBottom: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={productModeTemplate}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          applyProductModeSelection({
+                            physical: productModePhysical,
+                            pattern: productModePattern,
+                            template: checked,
+                          });
+                        }}
+                      />
+                      <span>Template</span>
+                    </label>
+
+                    <fieldset style={{ display: "flex", alignItems: "center", gap: "0.5rem", border: "1px solid #d7dbe4", borderRadius: "6px", padding: "0.25rem 0.5rem", margin: 0 }}>
+                      <legend style={{ fontSize: "0.75rem", fontWeight: 600, color: "#2f3b52", padding: "0 0.25rem" }}>Watermark</legend>
+                      <input
+                        type="checkbox"
+                        checked={enableWatermark}
+                        onChange={(e) => setEnableWatermark(e.target.checked)}
+                        style={{ width: "14px", height: "14px", cursor: "pointer", accentColor: "#1f4ea1" }}
+                      />
+                      {enableWatermark && (
+                        <input
+                          type="text"
+                          value={watermarkText}
+                          onChange={(e) => setWatermarkText(e.target.value)}
+                          placeholder="Watermark text"
+                          style={{ flex: 1, padding: "0.2rem 0.4rem", fontSize: "0.82rem", border: "1px solid #ccc", borderRadius: "4px", width: "auto", minWidth: "120px" }}
+                        />
+                      )}
+                    </fieldset>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "0.75rem" }}>
+                  <span style={{ whiteSpace: "nowrap", fontWeight: 600, color: "#2f3b52", fontSize: "0.95rem" }}>Product Name:</span>
                   <input
                     type="text"
                     value={manualProduct.name}
@@ -4046,12 +4165,12 @@ export default function AdminDashboard({
                       })
                     }
                     placeholder="Enter product name"
-                    required={shouldRequireProductFields}
+                    style={{ flex: 1, width: "auto" }}
                   />
-                </label>
+                </div>
 
                 <label>
-                  Description
+                  <span style={{ fontWeight: 600 }}>Product Description</span>
                   <textarea
                     value={manualProduct.description}
                     onChange={(e) =>
@@ -4062,6 +4181,7 @@ export default function AdminDashboard({
                     }
                     placeholder="Enter product description"
                     rows="4"
+                    style={{ width: "100%" }}
                   />
                 </label>
 
@@ -4094,86 +4214,119 @@ export default function AdminDashboard({
                   </div>
                 </label>
 
-                <label>
-                  Categories
-                  <div className="multi-select-wrapper">
-                    <div className="multi-select-inner">
-                      <div className="multi-select-row">
-                        <div
-                          className="custom-dropdown-container"
-                          ref={categoryDropdownRef}
-                        >
-                          <button
-                            type="button"
-                            className="custom-dropdown-trigger"
-                            onClick={() => {
-                              setShowMaterialDropdown(false);
-                              setShowCategoryDropdown((prev) => !prev);
-                            }}
+                <div className="admin-half-row">
+                  <label className="admin-half-field">
+                    Categories
+                    <div className="multi-select-wrapper">
+                      <div className="multi-select-inner">
+                        <div className="multi-select-row">
+                          <div
+                            className="custom-dropdown-container"
+                            ref={categoryDropdownRef}
                           >
-                            Select a favorite category...
-                            <span className="dropdown-arrow">▼</span>
-                          </button>
-                          {showCategoryDropdown &&
-                            activeFavoriteCategories.length > 0 && (
-                              <div
-                                className="custom-dropdown-menu"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {activeFavoriteCategories.map((cat) => (
-                                  <div
-                                    key={cat}
-                                    className="custom-dropdown-item"
-                                  >
-                                    <button
-                                      type="button"
-                                      className="dropdown-item-text"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (
-                                          !manualProduct.category.includes(cat)
-                                        ) {
-                                          setManualProduct({
-                                            ...manualProduct,
-                                            category: [
-                                              ...manualProduct.category,
-                                              cat,
-                                            ],
-                                          });
-                                        }
-                                        closeFavoriteDropdowns();
-                                      }}
+                            <button
+                              type="button"
+                              className="custom-dropdown-trigger"
+                              onClick={() => {
+                                setShowMaterialDropdown(false);
+                                setShowCategoryDropdown((prev) => !prev);
+                              }}
+                            >
+                              Select a favorite category...
+                              <span className="dropdown-arrow">▼</span>
+                            </button>
+                            {showCategoryDropdown &&
+                              activeFavoriteCategories.length > 0 && (
+                                <div
+                                  className="custom-dropdown-menu"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {activeFavoriteCategories.map((cat) => (
+                                    <div
+                                      key={cat}
+                                      className="custom-dropdown-item"
                                     >
-                                      {cat}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="dropdown-item-delete"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        removeFavoriteCategoryForActiveType(
-                                          cat,
-                                        );
-                                      }}
-                                      title="Remove from favorites"
-                                    >
-                                      ✕
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                        </div>
-                        <div className="input-button-row">
-                          <input
-                            id="category-input"
-                            name="category-input"
-                            type="text"
-                            value={categoryInput}
-                            onChange={(e) => setCategoryInput(e.target.value)}
-                            onKeyPress={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
+                                      <button
+                                        type="button"
+                                        className="dropdown-item-text"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (
+                                            !manualProduct.category.includes(cat)
+                                          ) {
+                                            setManualProduct({
+                                              ...manualProduct,
+                                              category: [
+                                                ...manualProduct.category,
+                                                cat,
+                                              ],
+                                            });
+                                          }
+                                          closeFavoriteDropdowns();
+                                        }}
+                                      >
+                                        {cat}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="dropdown-item-delete"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          removeFavoriteCategoryForActiveType(
+                                            cat,
+                                          );
+                                        }}
+                                        title="Remove from favorites"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                          </div>
+                          <div className="input-button-row">
+                            <input
+                              id="category-input"
+                              name="category-input"
+                              type="text"
+                              value={categoryInput}
+                              onChange={(e) => setCategoryInput(e.target.value)}
+                              onKeyPress={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  if (
+                                    categoryInput.trim() &&
+                                    !manualProduct.category.includes(
+                                      categoryInput.trim(),
+                                    )
+                                  ) {
+                                    setManualProduct({
+                                      ...manualProduct,
+                                      category: [
+                                        ...manualProduct.category,
+                                        categoryInput.trim(),
+                                      ],
+                                    });
+                                    if (
+                                      !activeFavoriteCategories.includes(
+                                        categoryInput.trim(),
+                                      )
+                                    ) {
+                                      addFavoriteCategoryForActiveType(
+                                        categoryInput.trim(),
+                                      );
+                                    }
+                                    setCategoryInput("");
+                                  }
+                                }
+                              }}
+                              placeholder="Type category to add"
+                              className="multi-select-input"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
                                 if (
                                   categoryInput.trim() &&
                                   !manualProduct.category.includes(
@@ -4198,153 +4351,153 @@ export default function AdminDashboard({
                                   }
                                   setCategoryInput("");
                                 }
-                              }
-                            }}
-                            placeholder="Type category to add"
-                            className="multi-select-input"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (
-                                categoryInput.trim() &&
-                                !manualProduct.category.includes(
-                                  categoryInput.trim(),
-                                )
-                              ) {
-                                setManualProduct({
-                                  ...manualProduct,
-                                  category: [
-                                    ...manualProduct.category,
-                                    categoryInput.trim(),
-                                  ],
-                                });
-                                if (
-                                  !activeFavoriteCategories.includes(
-                                    categoryInput.trim(),
-                                  )
-                                ) {
-                                  addFavoriteCategoryForActiveType(
-                                    categoryInput.trim(),
-                                  );
-                                }
-                                setCategoryInput("");
-                              }
-                            }}
-                            title="Add category"
-                            className="multi-select-add-btn"
-                          >
-                            + Add
-                          </button>
+                              }}
+                              title="Add category"
+                              className="multi-select-add-btn"
+                            >
+                              + Add
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                      {visibleCategoryTags.length > 0 && (
-                        <div className="multi-select-tags">
-                          {visibleCategoryTags.map((cat) => (
-                            <div key={cat} className="category-tag">
-                              {cat}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setManualProduct({
-                                    ...manualProduct,
-                                    category: manualProduct.category.filter(
-                                      (c) => c !== cat,
-                                    ),
-                                  });
-                                }}
-                                className="category-tag-remove"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </label>
-
-                <label>
-                  Materials
-                  <div className="multi-select-wrapper">
-                    <div className="multi-select-inner">
-                      <div className="multi-select-row">
-                        <div
-                          className="custom-dropdown-container"
-                          ref={materialDropdownRef}
-                        >
-                          <button
-                            type="button"
-                            className="custom-dropdown-trigger"
-                            onClick={() => {
-                              setShowCategoryDropdown(false);
-                              setShowMaterialDropdown((prev) => !prev);
-                            }}
-                          >
-                            Select a favorite material...
-                            <span className="dropdown-arrow">▼</span>
-                          </button>
-                          {showMaterialDropdown &&
-                            activeFavoriteMaterials.length > 0 && (
-                              <div
-                                className="custom-dropdown-menu"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {activeFavoriteMaterials.map((mat) => (
-                                  <div
-                                    key={mat}
-                                    className="custom-dropdown-item"
-                                  >
-                                    <button
-                                      type="button"
-                                      className="dropdown-item-text"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (
-                                          !manualProduct.materials.includes(mat)
-                                        ) {
-                                          setManualProduct({
-                                            ...manualProduct,
-                                            materials: [
-                                              ...manualProduct.materials,
-                                              mat,
-                                            ],
-                                          });
-                                        }
-                                        closeFavoriteDropdowns();
-                                      }}
-                                    >
-                                      {mat}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="dropdown-item-delete"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        removeFavoriteMaterialForActiveType(
-                                          mat,
-                                        );
-                                      }}
-                                      title="Remove from favorites"
-                                    >
-                                      ✕
-                                    </button>
-                                  </div>
-                                ))}
+                        {visibleCategoryTags.length > 0 && (
+                          <div className="multi-select-tags">
+                            {visibleCategoryTags.map((cat) => (
+                              <div key={cat} className="category-tag">
+                                {cat}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setManualProduct({
+                                      ...manualProduct,
+                                      category: manualProduct.category.filter(
+                                        (c) => c !== cat,
+                                      ),
+                                    });
+                                  }}
+                                  className="category-tag-remove"
+                                >
+                                  ✕
+                                </button>
                               </div>
-                            )}
-                        </div>
-                        <div className="input-button-row">
-                          <input
-                            id="material-input"
-                            name="material-input"
-                            type="text"
-                            value={materialInput}
-                            onChange={(e) => setMaterialInput(e.target.value)}
-                            onKeyPress={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </label>
+
+                  <label className="admin-half-field">
+                    Materials
+                    <div className="multi-select-wrapper">
+                      <div className="multi-select-inner">
+                        <div className="multi-select-row">
+                          <div
+                            className="custom-dropdown-container"
+                            ref={materialDropdownRef}
+                          >
+                            <button
+                              type="button"
+                              className="custom-dropdown-trigger"
+                              onClick={() => {
+                                setShowCategoryDropdown(false);
+                                setShowMaterialDropdown((prev) => !prev);
+                              }}
+                            >
+                              Select a favorite material...
+                              <span className="dropdown-arrow">▼</span>
+                            </button>
+                            {showMaterialDropdown &&
+                              activeFavoriteMaterials.length > 0 && (
+                                <div
+                                  className="custom-dropdown-menu"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {activeFavoriteMaterials.map((mat) => (
+                                    <div
+                                      key={mat}
+                                      className="custom-dropdown-item"
+                                    >
+                                      <button
+                                        type="button"
+                                        className="dropdown-item-text"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (
+                                            !manualProduct.materials.includes(mat)
+                                          ) {
+                                            setManualProduct({
+                                              ...manualProduct,
+                                              materials: [
+                                                ...manualProduct.materials,
+                                                mat,
+                                              ],
+                                            });
+                                          }
+                                          closeFavoriteDropdowns();
+                                        }}
+                                      >
+                                        {mat}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="dropdown-item-delete"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          removeFavoriteMaterialForActiveType(
+                                            mat,
+                                          );
+                                        }}
+                                        title="Remove from favorites"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                          </div>
+                          <div className="input-button-row">
+                            <input
+                              id="material-input"
+                              name="material-input"
+                              type="text"
+                              value={materialInput}
+                              onChange={(e) => setMaterialInput(e.target.value)}
+                              onKeyPress={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  if (
+                                    materialInput.trim() &&
+                                    !manualProduct.materials.includes(
+                                      materialInput.trim(),
+                                    )
+                                  ) {
+                                    setManualProduct({
+                                      ...manualProduct,
+                                      materials: [
+                                        ...manualProduct.materials,
+                                        materialInput.trim(),
+                                      ],
+                                    });
+                                    if (
+                                      !activeFavoriteMaterials.includes(
+                                        materialInput.trim(),
+                                      )
+                                    ) {
+                                      addFavoriteMaterialForActiveType(
+                                        materialInput.trim(),
+                                      );
+                                    }
+                                    setMaterialInput("");
+                                  }
+                                }
+                              }}
+                              placeholder="Type material to add"
+                              className="multi-select-input"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
                                 if (
                                   materialInput.trim() &&
                                   !manualProduct.materials.includes(
@@ -4369,72 +4522,41 @@ export default function AdminDashboard({
                                   }
                                   setMaterialInput("");
                                 }
-                              }
-                            }}
-                            placeholder="Type material to add"
-                            className="multi-select-input"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (
-                                materialInput.trim() &&
-                                !manualProduct.materials.includes(
-                                  materialInput.trim(),
-                                )
-                              ) {
-                                setManualProduct({
-                                  ...manualProduct,
-                                  materials: [
-                                    ...manualProduct.materials,
-                                    materialInput.trim(),
-                                  ],
-                                });
-                                if (
-                                  !activeFavoriteMaterials.includes(
-                                    materialInput.trim(),
-                                  )
-                                ) {
-                                  addFavoriteMaterialForActiveType(
-                                    materialInput.trim(),
-                                  );
-                                }
-                                setMaterialInput("");
-                              }
-                            }}
-                            title="Add material"
-                            className="multi-select-add-btn"
-                          >
-                            + Add
-                          </button>
+                              }}
+                              title="Add material"
+                              className="multi-select-add-btn"
+                            >
+                              + Add
+                            </button>
+                          </div>
                         </div>
+                        {manualProduct.materials.length > 0 && (
+                          <div className="multi-select-tags">
+                            {manualProduct.materials.map((mat) => (
+                              <div key={mat} className="material-tag">
+                                {mat}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setManualProduct({
+                                      ...manualProduct,
+                                      materials: manualProduct.materials.filter(
+                                        (m) => m !== mat,
+                                      ),
+                                    });
+                                  }}
+                                  className="material-tag-remove"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      {manualProduct.materials.length > 0 && (
-                        <div className="multi-select-tags">
-                          {manualProduct.materials.map((mat) => (
-                            <div key={mat} className="material-tag">
-                              {mat}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setManualProduct({
-                                    ...manualProduct,
-                                    materials: manualProduct.materials.filter(
-                                      (m) => m !== mat,
-                                    ),
-                                  });
-                                }}
-                                className="material-tag-remove"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
-                  </div>
-                </label>
+                  </label>
+                </div>
 
                 <div className="size-inputs">
                   <label>
@@ -4487,9 +4609,9 @@ export default function AdminDashboard({
                   </label>
                 </div>
 
-                <div className="price-quantity-inputs">
+                <div className={`price-quantity-inputs ${productModePhysical ? "price-quarter-row" : "price-triple-row"}`}>
                   <label>
-                    Price (regular) {shouldRequireProductFields ? "*" : ""}
+                    Price (regular)
                     <input
                       type="number"
                       step="0.01"
@@ -4502,8 +4624,6 @@ export default function AdminDashboard({
                         })
                       }
                       placeholder="0.00"
-                      style={{ width: "130px" }}
-                      required={shouldRequireProductFields}
                     />
                   </label>
                   <label>
@@ -4539,23 +4659,24 @@ export default function AdminDashboard({
                       readOnly
                     />
                   </label>
-                  <label>
-                    Quantity {shouldRequireProductFields ? "*" : ""}
-                    <input
-                      type="number"
-                      min="0"
-                      value={manualProduct.quantity}
-                      onChange={(e) => {
-                        setQuantityManuallyEdited(true);
-                        setManualProduct({
-                          ...manualProduct,
-                          quantity: e.target.value,
-                        });
-                      }}
-                      placeholder="0"
-                      required={shouldRequireProductFields}
-                    />
-                  </label>
+                  {productModePhysical && (
+                    <label>
+                      Quantity
+                      <input
+                        type="number"
+                        min="0"
+                        value={manualProduct.quantity}
+                        onChange={(e) => {
+                          setQuantityManuallyEdited(true);
+                          setManualProduct({
+                            ...manualProduct,
+                            quantity: e.target.value,
+                          });
+                        }}
+                        placeholder="0"
+                      />
+                    </label>
+                  )}
                 </div>
 
                 <label className="checkbox-label">
@@ -4572,84 +4693,9 @@ export default function AdminDashboard({
                   <span>Feature this product on the home page</span>
                 </label>
 
-                  </div>
-                )}
-
-                {/* ── SECTION 2: DIGITAL TEMPLATE ─────────────── */}
-                {isTemplateSectionEnabled && (
-                  <div className="ap-section ap-section-2">
-                    <h4 className="ap-section-title">📐 Section 2 — Digital Template</h4>
-                    <p className="form-note">
-                      {patternOnly
-                        ? "Upload the pattern file — it saves to the Patterns tab only and auto-links to the new product."
-                        : "Upload the digital template — it saves to Templates and auto-links to the new product."}
-                    </p>
-
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={patternOnly}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setPatternOnly(checked);
-                          setManualProduct((prev) => ({
-                            ...prev,
-                            quantity: resolveAutoQuantityForMode(
-                              prev.quantity,
-                              checked,
-                              quantityManuallyEdited,
-                            ),
-                          }));
-                        }}
-                      />
-                      <span>Pattern only (adds to Patterns tab only, not to Designer/Templates)</span>
-                    </label>
-
-                    {patternOnly && (
-                      <label>
-                        Pattern Description *
-                        <textarea
-                          rows="2"
-                          value={patternOnlyDescription}
-                          onChange={(e) => setPatternOnlyDescription(e.target.value)}
-                          placeholder="Short description for the pattern-only listing"
-                          required={patternOnly}
-                        />
-                      </label>
-                    )}
-
-                    <label>
-                      Template Name *
-                      <input
-                        type="text"
-                        value={unifiedTemplate.name}
-                        onChange={(e) => {
-                          setTemplateNameManuallyEdited(true);
-                          setUnifiedTemplate((prev) => ({
-                            ...prev,
-                            name: e.target.value,
-                          }));
-                        }}
-                        placeholder="Enter template name"
-                        required={Boolean(unifiedTemplate.upload_file)}
-                      />
-                    </label>
-
-                    <label>
-                      Template Category
-                      <input
-                        type="text"
-                        value={unifiedTemplate.category}
-                        onChange={(e) =>
-                          setUnifiedTemplate((prev) => ({
-                            ...prev,
-                            category: e.target.value,
-                          }))
-                        }
-                        placeholder="Examples: Patterns, Floral, Geometric"
-                      />
-                    </label>
-
+                {/* ── Conditional: Difficulty + Digital Price (pattern only) ── */}
+                {productModePattern && (
+                  <>
                     <div className="price-quantity-inputs">
                       <label>
                         Difficulty
@@ -4669,7 +4715,23 @@ export default function AdminDashboard({
                           ))}
                         </select>
                       </label>
-
+                      <label>
+                        Digital Price (USD)
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={unifiedTemplate.price_amount}
+                          onChange={(e) =>
+                            setUnifiedTemplate((prev) => ({
+                              ...prev,
+                              price_amount: e.target.value,
+                              is_digital_download: Number(e.target.value) > 0,
+                            }))
+                          }
+                          placeholder="0.00"
+                        />
+                      </label>
                       <label>
                         Dimensions
                         <input
@@ -4685,231 +4747,159 @@ export default function AdminDashboard({
                         />
                       </label>
                     </div>
+                  </>
+                )}
 
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(unifiedTemplate.is_digital_download)}
-                        onChange={(e) =>
-                          {
-                            const checked = e.target.checked;
-                            setUnifiedTemplate((prev) => ({
-                              ...prev,
-                              is_digital_download: checked,
-                            }));
-                            setManualProduct((prev) => ({
-                              ...prev,
-                              quantity: resolveAutoQuantityForMode(
-                                prev.quantity,
-                                checked,
-                                quantityManuallyEdited,
-                              ),
-                            }));
-                          }
-                        }
-                      />
-                      <span>Digital download (customers can purchase and download instantly)</span>
-                    </label>
+                {/* ── Photos & Video ─────────────────────────── */}
+                <h4 className="ap-section-title" style={{ marginTop: "1.25rem" }}>Photos &amp; Video</h4>
+                <p className="form-note">
+                  Add up to 10 photos and 1 video for the product listing.
+                </p>
+                <div className="image-upload-input">
+                  <input
+                    type="file"
+                    id="image-input"
+                    accept="image/*,video/*"
+                    multiple
+                    onChange={(e) => handleAddImages(e.target.files)}
+                    style={{ display: "none" }}
+                  />
+                  <label htmlFor="image-input" className="upload-button">
+                    + Add Images / Video
+                  </label>
+                </div>
 
-                    {unifiedTemplate.is_digital_download && (
-                      <label>
-                        Digital Price (USD) *
-                        <input
-                          type="number"
-                          min="0.5"
-                          step="0.01"
-                          value={unifiedTemplate.price_amount}
-                          onChange={(e) =>
-                            setUnifiedTemplate((prev) => ({
-                              ...prev,
-                              price_amount: e.target.value,
-                            }))
-                          }
-                          placeholder="0.00"
-                          required={Boolean(unifiedTemplate.is_digital_download)}
-                        />
-                      </label>
-                    )}
-
+                {imagePreviews.length > 0 && (
+                  <div className="image-gallery">
+                    <h4>Added Images ({imagePreviews.length})</h4>
+                    <div className="image-grid">
+                      {imagePreviews.map((preview) => (
+                        <div
+                          key={preview.id}
+                          className="image-item"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {preview.type === "video" ? (
+                            <video src={preview.src} className="image-preview" />
+                          ) : (
+                            <img src={preview.src} alt="Preview" className="image-preview" />
+                          )}
+                          <button
+                            type="button"
+                            className="remove-image-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveImage(preview.id);
+                            }}
+                            title="Remove image"
+                          >
+                            ✕
+                          </button>
+                          {preview.type === "video" && (
+                            <span className="media-badge">Video</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
-                {/* ── SECTION 3: IMAGES / VIDEO ─────────────── */}
-                        <div className="ap-section ap-section-3">
-                          <h4 className="ap-section-title">🖼️ Section 3 — Images / Video</h4>
+                <label className="checkbox-label" style={{ marginTop: "0.5rem" }}>
+                  <input
+                    type="checkbox"
+                    checked={addImagesToGallery}
+                    onChange={(e) => setAddImagesToGallery(e.target.checked)}
+                  />
+                  <span>Add product photos to gallery when submitted (auto-grouped)</span>
+                </label>
 
-                          <p className="form-note">
-                            Add up to 10 photos and 1 video for the product listing.
-                          </p>
-                          <div className="image-upload-input">
-                            <input
-                              type="file"
-                              id="image-input"
-                              accept="image/*,video/*"
-                              multiple
-                              onChange={(e) => handleAddImages(e.target.files)}
-                              style={{ display: "none" }}
-                            />
-                            <label htmlFor="image-input" className="upload-button">
-                              + Add Images / Video
-                            </label>
-                          </div>
-
-                          {imagePreviews.length > 0 && (
-                            <div className="image-gallery">
-                              <h4>Added Images ({imagePreviews.length})</h4>
-                              <div className="image-grid">
-                                {imagePreviews.map((preview) => (
-                                  <div
-                                    key={preview.id}
-                                    className="image-item"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {preview.type === "video" ? (
-                                      <video src={preview.src} className="image-preview" />
-                                    ) : (
-                                      <img src={preview.src} alt="Preview" className="image-preview" />
-                                    )}
-                                    <button
-                                      type="button"
-                                      className="remove-image-btn"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleRemoveImage(preview.id);
-                                      }}
-                                      title="Remove image"
-                                    >
-                                      ✕
-                                    </button>
-                                    {preview.type === "video" && (
-                                      <span className="media-badge">Video</span>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
+                {/* ── Conditional: Pattern/Template file upload ── */}
+                {isPatternOrTemplate && (
+                  <>
+                    <hr className="ap-section-divider" />
+                    <p className="form-note">Upload the {productModePattern && productModeTemplate ? "pattern/template" : productModePattern ? "pattern" : "template"} file and up to 3 reference photos.</p>
+                    <label>
+                      {productModePattern && productModeTemplate ? "Upload Pattern/Template File" : productModePattern ? "Upload Pattern File" : "Upload Template File"}
+                      <input
+                        type="file"
+                        accept=".svg,.pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => {
+                          const nextFile = e.target.files?.[0] || null;
+                          setUnifiedTemplate((prev) => ({
+                            ...prev,
+                            upload_file: nextFile,
+                          }));
+                        }}
+                      />
+                    </label>
+                    {unifiedTemplate.upload_file ? (
+                      <div className="form-note">
+                        Selected file: {unifiedTemplate.upload_file.name}
+                      </div>
+                    ) : null}
+                    <div className="image-upload-input" style={{ marginTop: "0.5rem" }}>
+                      <input
+                        type="file"
+                        id="template-ref-input"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          const toAdd = files.slice(0, 3 - templateRefPhotos.length);
+                          const newPreviews = toAdd.map((file) => ({
+                            id: `${file.name}-${Date.now()}-${Math.random()}`,
+                            src: URL.createObjectURL(file),
+                            file,
+                          }));
+                          setTemplateRefPhotos((prev) => [...prev, ...newPreviews]);
+                          e.target.value = "";
+                        }}
+                        style={{ display: "none" }}
+                        disabled={templateRefPhotos.length >= 3}
+                      />
+                      <label
+                        htmlFor="template-ref-input"
+                        className="upload-button"
+                        style={templateRefPhotos.length >= 3 ? { opacity: 0.5, cursor: "not-allowed" } : {}}
+                      >
+                        + Add Reference Photos ({templateRefPhotos.length}/3)
+                      </label>
+                      <span className="form-note">Reference photos help customers visualize the pattern.</span>
+                    </div>
+                    {templateRefPhotos.length > 0 && (
+                      <div className="image-gallery">
+                        <div className="image-grid">
+                          {templateRefPhotos.map((photo) => (
+                            <div
+                              key={photo.id}
+                              className="image-item"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <img src={photo.src} alt="Ref" className="image-preview" />
+                              <button
+                                type="button"
+                                className="remove-image-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setTemplateRefPhotos((prev) =>
+                                    prev.filter((p) => p.id !== photo.id),
+                                  );
+                                }}
+                                title="Remove photo"
+                              >
+                                ✕
+                              </button>
                             </div>
-                          )}
-
-                          <label className="checkbox-label" style={{ marginTop: "0.5rem" }}>
-                            <input
-                              type="checkbox"
-                              checked={addImagesToGallery}
-                              onChange={(e) => setAddImagesToGallery(e.target.checked)}
-                            />
-                            <span>Add product photos to gallery when submitted (auto-grouped)</span>
-                          </label>
-
-                          {isTemplateSectionEnabled && (
-                            <>
-                              <hr className="ap-section-divider" />
-                              <p className="form-note">Upload the {patternOnly ? "pattern" : "template"} file and up to 3 reference photos.</p>
-                              <label>
-                                {patternOnly ? "Upload Pattern File *" : "Upload Template File *"}
-                                <input
-                                  type="file"
-                                  accept=".svg,.pdf,.jpg,.jpeg,.png"
-                                  onChange={(e) => {
-                                    const nextFile = e.target.files?.[0] || null;
-                                    setUnifiedTemplate((prev) => ({
-                                      ...prev,
-                                      upload_file: nextFile,
-                                    }));
-                                  }}
-                                  required={false}
-                                />
-                              </label>
-                              {unifiedTemplate.upload_file ? (
-                                <div className="form-note">
-                                  Selected template file: {unifiedTemplate.upload_file.name}
-                                </div>
-                              ) : null}
-                              <div className="image-upload-input" style={{ marginTop: "0.5rem" }}>
-                                <input
-                                  type="file"
-                                  id="template-ref-input"
-                                  accept="image/*"
-                                  multiple
-                                  onChange={(e) => {
-                                    const files = Array.from(e.target.files || []);
-                                    const toAdd = files.slice(0, 3 - templateRefPhotos.length);
-                                    const newPreviews = toAdd.map((file) => ({
-                                      id: `${file.name}-${Date.now()}-${Math.random()}`,
-                                      src: URL.createObjectURL(file),
-                                      file,
-                                    }));
-                                    setTemplateRefPhotos((prev) => [...prev, ...newPreviews]);
-                                    e.target.value = "";
-                                  }}
-                                  style={{ display: "none" }}
-                                  disabled={templateRefPhotos.length >= 3}
-                                />
-                                <label
-                                  htmlFor="template-ref-input"
-                                  className="upload-button"
-                                  style={templateRefPhotos.length >= 3 ? { opacity: 0.5, cursor: "not-allowed" } : {}}
-                                >
-                                  + Add Reference Photos ({templateRefPhotos.length}/3)
-                                </label>
-                                <span className="form-note">Reference photos help customers visualize the pattern.</span>
-                              </div>
-                              {templateRefPhotos.length > 0 && (
-                                <div className="image-gallery">
-                                  <div className="image-grid">
-                                    {templateRefPhotos.map((photo) => (
-                                      <div
-                                        key={photo.id}
-                                        className="image-item"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        <img src={photo.src} alt="Ref" className="image-preview" />
-                                        <button
-                                          type="button"
-                                          className="remove-image-btn"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setTemplateRefPhotos((prev) =>
-                                              prev.filter((p) => p.id !== photo.id),
-                                            );
-                                          }}
-                                          title="Remove photo"
-                                        >
-                                          ✕
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </>
-                          )}
+                          ))}
                         </div>
+                      </div>
+                    )}
+                  </>
+                )}
 
-                        {/* ── SECTION 4: WATERMARK ─────────────────────── */}
-                        <div className="ap-section ap-section-4">
-                          <h4 className="ap-section-title">💧 Section 4 — Watermark Settings</h4>
-                          <label className="checkbox-label">
-                            <input
-                              type="checkbox"
-                              checked={enableWatermark}
-                              onChange={(e) => setEnableWatermark(e.target.checked)}
-                            />
-                            <span>Apply watermark to new images</span>
-                          </label>
-                          {enableWatermark && (
-                            <div className="watermark-input-group">
-                              <label>
-                                Watermark Text
-                                <input
-                                  type="text"
-                                  value={watermarkText}
-                                  onChange={(e) => setWatermarkText(e.target.value)}
-                                  placeholder="Enter watermark text"
-                                />
-                              </label>
-                              <span className="form-note">Watermark will appear diagonally across the image.</span>
-                            </div>
-                          )}
-                        </div>
+                </div>
+
+
 
                         {/* ── SECTION 5: RELATED CUSTOMER LINKS ────────── */}
                         <div className="ap-section ap-section-5">
@@ -5049,11 +5039,9 @@ export default function AdminDashboard({
                           <button type="submit" className="button primary">
                             {editingProduct
                               ? "Update Product"
-                              : isTemplateSectionEnabled && isProductSectionEnabled
+                              : isPatternOrTemplate
                                 ? "Save Product + Template"
-                                : isTemplateSectionEnabled
-                                  ? "Save Digital Template"
-                                  : "Add Listing"}
+                                : "Add Listing"}
                           </button>
                         </div>
                       </form>

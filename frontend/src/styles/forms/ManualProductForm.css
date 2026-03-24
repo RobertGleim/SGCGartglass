@@ -349,13 +349,13 @@
 }
 
 .multi-select-add-btn {
-  padding: 0.5rem 0.75rem;
+  padding: 0.2rem 0.45rem;
   background-color: #4CAF50;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   white-space: nowrap;
   transition: background-color 0.2s ease;
 }
@@ -374,20 +374,20 @@
 .multi-select-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
 }
 
 /* Category Tags */
 .category-tag {
   background-color: #e3f2fd;
   border: 1px solid #2196F3;
-  border-radius: 20px;
-  padding: 0.4rem 0.8rem;
+  border-radius: 16px;
+  padding: 0.15rem 0.45rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
+  gap: 0.25rem;
+  font-size: 0.78rem;
   color: #1976D2;
 }
 
@@ -410,12 +410,12 @@
 .material-tag {
   background-color: #f3e5f5;
   border: 1px solid #9c27b0;
-  border-radius: 20px;
-  padding: 0.4rem 0.8rem;
+  border-radius: 16px;
+  padding: 0.15rem 0.45rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
+  gap: 0.25rem;
+  font-size: 0.78rem;
   color: #6a1b9a;
 }
 
