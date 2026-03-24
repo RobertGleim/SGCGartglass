@@ -197,8 +197,23 @@ function App() {
   }, [items, manualProducts])
 
   const featuredItems = useMemo(() => {
-    const featured = allProducts.filter(p => p.is_featured)
-    const nonFeatured = allProducts.filter(p => !p.is_featured)
+    const isDigital = (p) => Boolean(p?.is_digital_download)
+    const categoryIndicatesDigital = (p) => {
+      const cat = p?.category
+      const check = (s) => String(s || '').toLowerCase()
+      if (Array.isArray(cat)) {
+        return cat.some(c => check(c).includes('pattern') || check(c).includes('template'))
+      }
+      return check(cat).includes('pattern') || check(cat).includes('template')
+    }
+    const originalTypeIndicates = (p) => {
+      const t = String(p?.originalData?.type || '').toLowerCase()
+      return t.includes('pattern') || t.includes('template')
+    }
+    const isPhysical = (p) => !isDigital(p) && !categoryIndicatesDigital(p) && !originalTypeIndicates(p)
+
+    const featured = allProducts.filter(p => p.is_featured && isPhysical(p))
+    const nonFeatured = allProducts.filter(p => !p.is_featured && isPhysical(p))
     return [...featured, ...nonFeatured].slice(0, 8)
   }, [allProducts])
 
