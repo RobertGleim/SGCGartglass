@@ -898,9 +898,16 @@ export default function AdminDashboard({
     return "stainedGlassPanels";
   };
 
+  const inferManualProductTab = (product) => {
+    if (Boolean(product?.is_digital_download)) {
+      return "patterns";
+    }
+    return inferProductType(product);
+  };
+
   const patternProductOptions = useMemo(() => {
     const inferred = normalizedManualProducts
-      .filter((entry) => inferProductType(entry) === "patterns")
+      .filter((entry) => inferManualProductTab(entry) === "patterns")
       .map((entry) => ({
         id: entry.id,
         name: (entry.name || `Pattern #${entry.id}`).trim(),
@@ -956,7 +963,7 @@ export default function AdminDashboard({
 
       const matchesType =
         manualProductTypeFilter === "all"
-        || inferProductType(product) === manualProductTypeFilter;
+        || inferManualProductTab(product) === manualProductTypeFilter;
 
       return (
         matchesType
@@ -981,7 +988,7 @@ export default function AdminDashboard({
 
       const matchesType =
         manualProductTypeFilter === "all"
-        || inferProductType(product) === manualProductTypeFilter;
+        || inferManualProductTab(product) === manualProductTypeFilter;
 
       return (
         matchesType
@@ -996,7 +1003,7 @@ export default function AdminDashboard({
   }, [normalizedManualProducts, deactivatedProductSearch, manualProductTypeFilter]);
 
   const filteredPatternProducts = useMemo(
-    () => filteredManualProducts.filter((product) => inferProductType(product) === "patterns"),
+    () => filteredManualProducts.filter((product) => inferManualProductTab(product) === "patterns"),
     [filteredManualProducts],
   );
 
