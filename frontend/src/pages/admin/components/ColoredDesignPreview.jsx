@@ -30,13 +30,15 @@ const getColorName = (hex) => {
   return HEX_COLOR_NAMES[h] || h;
 };
 
-const getFittedSectionLabelFontPx = (sectionNumber, width, height) => {
+const getFittedSectionLabelFontPx = (sectionNumber, width, height, clearancePx = null) => {
   const digits = String(sectionNumber ?? '').length || 1;
   const safeWidth = Math.max(1, Number(width) || 1);
   const safeHeight = Math.max(1, Number(height) || 1);
-  const maxByHeight = safeHeight * 0.68;
-  const maxByWidth = (safeWidth * 0.78) / Math.max(1, digits * 0.62);
-  return Math.max(3, Math.min(18, maxByHeight, maxByWidth));
+  // Slightly smaller labels reduce overlap in tight sections.
+  const maxByHeight = safeHeight * 0.50;
+  const maxByWidth = (safeWidth * 0.60) / Math.max(1, digits * 0.68);
+  const maxByClearance = Number.isFinite(Number(clearancePx)) ? Math.max(2, Number(clearancePx) * 1.55) : 12;
+  return Math.max(2, Math.min(12, maxByHeight, maxByWidth, maxByClearance));
 };
 
 const getStableSectionOrder = (regions = []) => {
@@ -60,6 +62,179 @@ const getStableSectionOrder = (regions = []) => {
       numeric: true,
       sensitivity: 'base',
     });
+  });
+};
+
+const spreadSectionLabelPositions = (labels = []) => {
+  if (!Array.isArray(labels) || labels.length < 2) return labels;
+
+  const clampLabel = (label, x, y) => {
+    const baseX = Number(label.baseCx ?? label.cx ?? 0);
+    const baseY = Number(label.baseCy ?? label.cy ?? 0);
+    const w = Math.max(1, Number(label.w) || 1);
+    const h = Math.max(1, Number(label.h) || 1);
+    const maxDx = Math.max(2, w * 0.34);
+    const maxDy = Math.max(2, h * 0.34);
+    let nextX = Math.max(baseX - maxDx, Math.min(baseX + maxDx, x));
+    let nextY = Math.max(baseY - maxDy, Math.min(baseY + maxDy, y));
+
+    const hasBounds = [label.left, label.top, label.right, label.bottom].every((value) => Number.isFinite(Number(value)));
+    if (hasBounds) {
+      const left = Number(label.left);
+      const top = Number(label.top);
+      const right = Number(label.right);
+      const bottom = Number(label.bottom);
+      const digits = String(label.num ?? '').length || 1;
+      const fontPx = Math.max(2, Number(label.fontPx) || 6);
+      const labelHalfW = (fontPx * 0.62 * digits) / 2;
+      const labelHalfH = (fontPx * 0.58) / 2;
+      const padX = Math.min(10, Math.max(1, w * 0.12, labelHalfW + 0.8));
+      const padY = Math.min(10, Math.max(1, h * 0.12, labelHalfH + 0.8));
+      const minX = left + padX;
+      const maxX = right - padX;
+      const minY = top + padY;
+      const maxY = bottom - padY;
+      if (minX <= maxX) nextX = Math.max(minX, Math.min(maxX, nextX));
+      if (minY <= maxY) nextY = Math.max(minY, Math.min(maxY, nextY));
+    }
+
+    return { x: nextX, y: nextY };
+  };
+
+  const arranged = labels.map((label) => ({
+    ...label,
+    baseCx: Number(label.cx) || 0,
+    baseCy: Number(label.cy) || 0,
+    cx: Number(label.cx) || 0,
+    cy: Number(label.cy) || 0,
+  }));
+
+  for (let pass = 0; pass < 14; pass += 1) {
+    for (let i = 0; i < arranged.length; i += 1) {
+      for (let j = i + 1; j < arranged.length; j += 1) {
+        const a = arranged[i];
+        const b = arranged[j];
+        const dx = b.cx - a.cx;
+        const dy = b.cy - a.cy;
+        const dist = Math.hypot(dx, dy);
+        const aSize = Math.max(4, Number(a.fontPx) || 6);
+        const bSize = Math.max(4, Number(b.fontPx) || 6);
+        const minDist = Math.max(8, (aSize + bSize) * 0.8);
+        if (dist >= minDist) continue;
+
+        const overlap = (minDist - Math.max(0.001, dist)) * 0.5;
+        let ux = dx / Math.max(0.001, dist);
+        let uy = dy / Math.max(0.001, dist);
+        if (!Number.isFinite(ux) || !Number.isFinite(uy)) {
+          const seed = (Number(a.num) || i + 1) * 73 + (Number(b.num) || j + 1) * 37;
+          const theta = (seed % 360) * (Math.PI / 180);
+          ux = Math.cos(theta);
+          uy = Math.sin(theta);
+        }
+
+        const aNext = clampLabel(a, a.cx - ux * overlap, a.cy - uy * overlap);
+        const bNext = clampLabel(b, b.cx + ux * overlap, b.cy + uy * overlap);
+        a.cx = aNext.x;
+        a.cy = aNext.y;
+        b.cx = bNext.x;
+        b.cy = bNext.y;
+      }
+    }
+  }
+
+  return arranged;
+};
+
+const estimateClearanceAtPoint = (x, y, left, top, right, bottom, isInside, maxStep = 22) => {
+  if (typeof isInside !== 'function') return 0;
+  const directions = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+    [0.707, 0.707],
+    [0.707, -0.707],
+    [-0.707, 0.707],
+    [-0.707, -0.707],
+  ];
+
+  let minReach = maxStep;
+  for (const [dx, dy] of directions) {
+    let reach = 0;
+    for (let step = 1; step <= maxStep; step += 1) {
+      const px = x + dx * step;
+      const py = y + dy * step;
+      if (px < left || px > right || py < top || py > bottom || !isInside(px, py)) {
+        reach = step - 1;
+        break;
+      }
+      reach = step;
+    }
+    minReach = Math.min(minReach, reach);
+  }
+
+  return Math.max(0, minReach);
+};
+
+const getBestInteriorPoint = ({ left, top, right, bottom, fallbackX, fallbackY, isInside }) => {
+  const fallback = { x: fallbackX, y: fallbackY, clearancePx: 0 };
+  if (typeof isInside !== 'function') return fallback;
+
+  const width = Math.max(1, right - left);
+  const height = Math.max(1, bottom - top);
+  const maxStep = Math.max(8, Math.min(26, Math.floor(Math.min(width, height) * 0.45)));
+
+  let best = null;
+  const cols = 9;
+  const rows = 9;
+  for (let r = 0; r < rows; r += 1) {
+    for (let c = 0; c < cols; c += 1) {
+      const x = left + ((c + 0.5) / cols) * width;
+      const y = top + ((r + 0.5) / rows) * height;
+      if (!isInside(x, y)) continue;
+      const clearancePx = estimateClearanceAtPoint(x, y, left, top, right, bottom, isInside, maxStep);
+      const dx = x - fallbackX;
+      const dy = y - fallbackY;
+      const distSq = (dx * dx) + (dy * dy);
+      if (!best || clearancePx > best.clearancePx || (clearancePx === best.clearancePx && distSq < best.distSq)) {
+        best = { x, y, clearancePx, distSq };
+      }
+    }
+  }
+
+  if (best) return { x: best.x, y: best.y, clearancePx: best.clearancePx };
+  return fallback;
+};
+
+const getAnchorForSvgElement = (svgEl, geometryEl, bbox) => {
+  const fallback = {
+    x: bbox.x + (bbox.width / 2),
+    y: bbox.y + (bbox.height / 2),
+  };
+  if (!svgEl || !geometryEl || !bbox || bbox.width <= 0 || bbox.height <= 0) return { ...fallback, clearancePx: 0 };
+  if (typeof geometryEl.isPointInFill !== 'function' || typeof svgEl.createSVGPoint !== 'function') {
+    return { ...fallback, clearancePx: 0 };
+  }
+
+  const isInside = (x, y) => {
+    try {
+      const point = svgEl.createSVGPoint();
+      point.x = x;
+      point.y = y;
+      return !!geometryEl.isPointInFill(point);
+    } catch {
+      return false;
+    }
+  };
+
+  return getBestInteriorPoint({
+    left: bbox.x,
+    top: bbox.y,
+    right: bbox.x + bbox.width,
+    bottom: bbox.y + bbox.height,
+    fallbackX: fallback.x,
+    fallbackY: fallback.y,
+    isInside,
   });
 };
 
@@ -340,6 +515,7 @@ export default function ColoredDesignPreview({ designData, template, editable = 
         const num = el.getAttribute('data-section-num');
         try {
           const bbox = el.getBBox();
+          const anchor = getAnchorForSvgElement(svgEl, el, bbox);
           const area = bbox.width * bbox.height;
           const aspect = Math.max(bbox.width, bbox.height) / Math.max(1, Math.min(bbox.width, bbox.height));
           if (bbox.width < MIN_SEGMENT_SIDE || bbox.height < MIN_SEGMENT_SIDE || area < MIN_SEGMENT_AREA || aspect > MAX_SEGMENT_ASPECT) return;
@@ -347,6 +523,9 @@ export default function ColoredDesignPreview({ designData, template, editable = 
             el, id, num,
             cx: bbox.x + bbox.width / 2,
             cy: bbox.y + bbox.height / 2,
+            labelX: anchor.x,
+            labelY: anchor.y,
+            clearancePx: anchor.clearancePx,
             left: bbox.x, top: bbox.y,
             right: bbox.x + bbox.width,
             bottom: bbox.y + bbox.height,
@@ -372,7 +551,15 @@ export default function ColoredDesignPreview({ designData, template, editable = 
       });
 
       // --- Step 4: draw labels (one per numbered section) ---
-      filtered.forEach((s) => {
+      const labels = filtered.map((s) => ({
+        ...s,
+        cx: Number.isFinite(s.labelX) ? s.labelX : s.cx,
+        cy: Number.isFinite(s.labelY) ? s.labelY : s.cy,
+        fontPx: getFittedSectionLabelFontPx(s.num, s.w, s.h, s.clearancePx),
+      }));
+      const arrangedLabels = spreadSectionLabelPositions(labels);
+
+      arrangedLabels.forEach((s) => {
         // Always track center for highlight/popover (even colored sections)
         const elRect = s.el.getBoundingClientRect();
         centers.push({
@@ -384,7 +571,7 @@ export default function ColoredDesignPreview({ designData, template, editable = 
 
         const labelX = s.cx;
         const labelY = s.cy;
-        const fontSize = getFittedSectionLabelFontPx(s.num, s.w, s.h);
+        const fontSize = s.fontPx;
 
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.setAttribute('x', labelX);
