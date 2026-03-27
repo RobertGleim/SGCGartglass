@@ -14,7 +14,7 @@ const toCleanUrl = (value) => {
   const raw = String(value || '').trim()
   if (!raw) return ''
   if (/^javascript:/i.test(raw)) return ''
-  return raw.replace(/^['\"]|['\"]$/g, '')
+  return raw.replace(/^['"]|['"]$/g, '')
 }
 
 const resolveCarouselImageUrl = (item) => {

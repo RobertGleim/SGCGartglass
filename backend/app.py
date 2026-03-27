@@ -257,6 +257,14 @@ def create_app(config_name=None):
             return resp
         return jsonify({'error': 'Image not found'}), 404
 
+    # Serve uploaded product images at /uploads/products/<filename>
+    @app.route("/uploads/products/<path:filename>")
+    def send_product_image(filename):
+        from pathlib import Path
+        from flask import send_from_directory
+        products_dir = Path(app.root_path) / "uploads" / "products"
+        return send_from_directory(str(products_dir), filename)
+
     # Serve uploaded review images at /uploads/reviews/<filename>
     # Supports both configured upload roots and legacy backend/uploads path.
     @app.route("/uploads/reviews/<path:filename>")

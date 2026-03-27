@@ -9,7 +9,6 @@ export default function useCarousel(items, options = {}) {
 
   useEffect(() => {
     if (currentSlide >= totalSlides && totalSlides > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentSlide(0)
     }
   }, [currentSlide, totalSlides])

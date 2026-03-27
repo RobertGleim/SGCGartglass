@@ -827,13 +827,16 @@ def create_manual_product(payload):
     # Insert images if provided
     images = payload.get("images", [])
     for idx, image in enumerate(images):
-        cursor.execute(
-            f"""
-            INSERT INTO product_images (product_id, image_url, media_type, display_order)
-            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder})
-            """,
-            (product_id, image["url"], image.get("type", "image"), idx)
-        )
+        image_url = image.get("url") or image.get("image_url")
+        media_type = image.get("type") or image.get("media_type", "image")
+        if image_url:
+            cursor.execute(
+                f"""
+                INSERT INTO product_images (product_id, image_url, media_type, display_order)
+                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder})
+                """,
+                (product_id, image_url, media_type, idx)
+            )
     
     conn.commit()
     conn.close()

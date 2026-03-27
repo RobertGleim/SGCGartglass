@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styles from './TutorialOverlay.module.css';
 
 const STEPS = [
@@ -47,19 +47,19 @@ export default function TutorialOverlay({ onClose }) {
     }
   }, [step, show]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (step < STEPS.length - 1) setStep(step + 1);
     else {
       localStorage.setItem('tutorialComplete', 'true');
       setShow(false);
       onClose && onClose();
     }
-  };
-  const handleSkip = () => {
+  }, [step, onClose]);
+  const handleSkip = useCallback(() => {
     localStorage.setItem('tutorialComplete', 'true');
     setShow(false);
     onClose && onClose();
-  };
+  }, [onClose]);
   const handleDontShow = () => {
     localStorage.setItem('tutorialComplete', 'true');
     setShow(false);
@@ -73,7 +73,7 @@ export default function TutorialOverlay({ onClose }) {
     }
     if (show) window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [show, step, handleNext, handleSkip]);
+  }, [show, handleNext, handleSkip]);
 
   if (!show) return null;
 

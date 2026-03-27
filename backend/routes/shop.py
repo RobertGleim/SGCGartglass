@@ -2991,6 +2991,43 @@ def _coerce_bool_value(value):
     return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+ALLOWED_PRODUCT_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+ALLOWED_PRODUCT_IMAGE_MIME = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+MAX_PRODUCT_IMAGE_BYTES = 20 * 1024 * 1024
+
+
+@api.post("/admin/product-images/upload")
+@require_auth
+def upload_product_image():
+    """
+    POST /api/admin/product-images/upload
+    Accepts a single multipart file upload. Saves to /uploads/products/<uuid>.ext
+    and returns { image_url: '/uploads/products/<uuid>.ext' }.
+    """
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify({"error": "validation_error", "detail": "No file provided"}), 400
+
+    filename = secure_filename(f.filename or "upload")
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ALLOWED_PRODUCT_IMAGE_EXTENSIONS:
+        return jsonify({"error": "validation_error", "detail": f"Unsupported file type: {ext}"}), 400
+
+    file_bytes = f.read()
+    if len(file_bytes) > MAX_PRODUCT_IMAGE_BYTES:
+        return jsonify({"error": "validation_error", "detail": "File is too large (max 20 MB)"}), 400
+
+    uploads_dir = os.path.join(current_app.root_path, "uploads", "products")
+    os.makedirs(uploads_dir, exist_ok=True)
+    unique_name = f"{uuid.uuid4().hex}{ext}"
+    save_path = os.path.join(uploads_dir, unique_name)
+    with open(save_path, "wb") as fp:
+        fp.write(file_bytes)
+
+    image_url = f"/uploads/products/{unique_name}"
+    return jsonify({"image_url": image_url}), 201
+
+
 @api.post("/manual-products")
 @require_auth
 def create_manual_product_endpoint():

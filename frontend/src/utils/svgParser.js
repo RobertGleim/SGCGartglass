@@ -18,7 +18,6 @@ export function extractRegions(svgElement) {
 }
 
 export function createFabricPath(pathData, regionId) {
-  // eslint-disable-next-line
   const { fabric } = window;
   const path = new fabric.Path(pathData, {
     stroke: '#222',

@@ -8,6 +8,7 @@ const CHECK_INTERVAL = 60 * 1000 // Check every minute
 // Clean up any corrupted tokens on module load
 cleanupCorruptedTokens();
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const CustomerAuthContext = createContext({
   customerToken: '',
   login: async () => {},

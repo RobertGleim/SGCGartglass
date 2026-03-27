@@ -5,7 +5,6 @@ export default function Sidebar({
   categoryCounts,
   selectedCategory,
   setSelectedCategory,
-  totalProducts,
   panelLikesCount = 0,
   averageStarReview = null,
   onOpenCustomOrder,

@@ -87,6 +87,36 @@ def _group_key_expr():
     return db.func.coalesce(GalleryPhoto.submission_group_id, db.cast(GalleryPhoto.id, db.String))
 
 
+def _safe_gallery_photo_dict(item, include_admin_fields=False):
+    try:
+        payload = item.to_dict(include_admin_fields=include_admin_fields)
+    except Exception:
+        payload = {
+            "id": item.id,
+            "panel_name": item.panel_name,
+            "description": item.description if getattr(item, "show_description", True) else None,
+            "category": item.category,
+            "submission_group_id": item.submission_group_id,
+            "is_cover": item.is_cover,
+            "display_name": None if item.hide_submitter_name else item.display_name,
+            "hide_submitter_name": item.hide_submitter_name,
+            "image_url": item.image_url,
+            "template_id": item.template_id,
+            "template_name": None,
+            "show_description": item.show_description,
+            "is_hidden": item.is_hidden,
+            "approval_status": item.approval_status,
+            "created_at": item.created_at.isoformat() if item.created_at else None,
+            "updated_at": item.updated_at.isoformat() if item.updated_at else None,
+        }
+        if include_admin_fields:
+            payload["raw_description"] = item.description
+            payload["raw_display_name"] = item.display_name
+            payload["created_by_role"] = item.created_by_role
+            payload["created_by_id"] = item.created_by_id
+    return _with_absolute_image_url(payload)
+
+
 def _serialize_list(query, include_admin_fields=False, page=None, per_page=None):
     ordered_query = query.order_by(GalleryPhoto.created_at.desc(), GalleryPhoto.id.desc())
 
@@ -136,7 +166,7 @@ def _serialize_list(query, include_admin_fields=False, page=None, per_page=None)
         templates = sorted(templates, key=lambda template: (template.name or "").lower())
 
     response = {
-        "items": [_with_absolute_image_url(item.to_dict(include_admin_fields=include_admin_fields)) for item in items],
+        "items": [_safe_gallery_photo_dict(item, include_admin_fields=include_admin_fields) for item in items],
         "categories": categories,
         "templates": [{"id": template.id, "name": template.name} for template in templates],
     }

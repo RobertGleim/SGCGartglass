@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useAuth from '../../hooks/useAuth';
 import useCustomerAuth from '../../hooks/useCustomerAuth';
 import {
@@ -122,7 +122,7 @@ export default function PhotoGalleryPage() {
     return () => urls.forEach((url) => URL.revokeObjectURL(url));
   }, [photoFiles]);
 
-  const loadPhotos = async () => {
+  const loadPhotos = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -195,7 +195,7 @@ export default function PhotoGalleryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCategory, selectedTemplateId, selectedPhotoId, currentPage]);
 
   useEffect(() => {
     getTemplatesCached()
@@ -231,7 +231,7 @@ export default function PhotoGalleryPage() {
 
   useEffect(() => {
     loadPhotos();
-  }, [selectedCategory, selectedTemplateId, selectedPhotoId, currentPage]);
+  }, [loadPhotos]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -259,7 +259,7 @@ export default function PhotoGalleryPage() {
   const formatTimestamp = (value) => {
     if (!value) return '-';
     const raw = String(value);
-    const hasTz = /([zZ]|[+\-]\d{2}:\d{2})$/.test(raw);
+    const hasTz = /([zZ]|[+-]\d{2}:\d{2})$/.test(raw);
     const normalized = hasTz ? raw : `${raw}Z`;
     const d = new Date(normalized);
     if (Number.isNaN(d.getTime())) return '-';

@@ -30,6 +30,39 @@ const getColorName = (hex) => {
   return HEX_COLOR_NAMES[h] || h;
 };
 
+const getFittedSectionLabelFontPx = (sectionNumber, width, height) => {
+  const digits = String(sectionNumber ?? '').length || 1;
+  const safeWidth = Math.max(1, Number(width) || 1);
+  const safeHeight = Math.max(1, Number(height) || 1);
+  const maxByHeight = safeHeight * 0.68;
+  const maxByWidth = (safeWidth * 0.78) / Math.max(1, digits * 0.62);
+  return Math.max(3, Math.min(18, maxByHeight, maxByWidth));
+};
+
+const getStableSectionOrder = (regions = []) => {
+  if (!Array.isArray(regions) || regions.length === 0) return [];
+  const canvasH = Number(regions[0]?.canvasH) || 600;
+  const rowTolerance = Math.max(4, canvasH * 0.02);
+  return [...regions].sort((a, b) => {
+    const rowA = Math.round((Number(a?.cy) || 0) / rowTolerance);
+    const rowB = Math.round((Number(b?.cy) || 0) / rowTolerance);
+    if (rowA !== rowB) return rowA - rowB;
+
+    const ax = Number(a?.cx) || 0;
+    const bx = Number(b?.cx) || 0;
+    if (Math.abs(ax - bx) > 1) return ax - bx;
+
+    const ay = Number(a?.cy) || 0;
+    const by = Number(b?.cy) || 0;
+    if (Math.abs(ay - by) > 1) return ay - by;
+
+    return String(a?.id || '').localeCompare(String(b?.id || ''), undefined, {
+      numeric: true,
+      sensitivity: 'base',
+    });
+  });
+};
+
 export default function ColoredDesignPreview({ designData, template, editable = false, locked = false, showExportBar = false, onDesignDataChange }) {
   const svgContainerRef = useRef(null);
   const [popover, setPopover] = useState(null); // { sectionId, x, y, color, glassType }
@@ -44,7 +77,7 @@ export default function ColoredDesignPreview({ designData, template, editable = 
     setWorkingSections(designData?.sections || {});
   }, [designData?.sections]);
 
-  const sections = workingSections || {};
+  const sections = useMemo(() => (workingSections || {}), [workingSections]);
   const hasSvg = !!template?.svg_content;
   const isEditingEnabled = editable && hasSvg && !locked;
   const showEditableSvgGuard = editable && !hasSvg && !showExportBar;
@@ -188,15 +221,6 @@ export default function ColoredDesignPreview({ designData, template, editable = 
     svg.setAttribute('height', '100%');
     svg.style.maxWidth = '100%';
 
-    // Get viewBox dimensions for border detection
-    const vbAttr = svg.getAttribute('viewBox');
-    let svgW = 0, svgH = 0;
-    if (vbAttr) {
-      const parts = vbAttr.split(/[\\s,]+/).map(Number);
-      svgW = parts[2] || 0;
-      svgH = parts[3] || 0;
-    }
-
     // Apply colours from sections map and mark fillable sections
     const paths = svg.querySelectorAll('path, polygon, rect, circle, ellipse');
     paths.forEach((el, idx) => {
@@ -248,9 +272,9 @@ export default function ColoredDesignPreview({ designData, template, editable = 
       const EDGE_MARGIN = 5;
       const isTracedSvgTemplate = !!template?.image_url;
       const svgArea = svgW * svgH;
-      const MIN_SEGMENT_AREA = isTracedSvgTemplate ? Math.max(220, svgArea * 0.0022) : 0;
-      const MIN_SEGMENT_SIDE = isTracedSvgTemplate ? 12 : 3;
-      const MAX_SEGMENT_ASPECT = isTracedSvgTemplate ? 10 : 40;
+      const MIN_SEGMENT_AREA = isTracedSvgTemplate ? Math.max(10, svgArea * 0.00003) : 0;
+      const MIN_SEGMENT_SIDE = isTracedSvgTemplate ? 2 : 2;
+      const MAX_SEGMENT_ASPECT = isTracedSvgTemplate ? 120 : 120;
       const sectionIdByNum = {};
       Object.entries(sections).forEach(([id, data]) => {
         const num = Number(data?.sectionNum);
@@ -258,9 +282,9 @@ export default function ColoredDesignPreview({ designData, template, editable = 
           sectionIdByNum[num] = id;
         }
       });
-      const fillableEls = svgEl.querySelectorAll('[data-fillable]');
-      let sectionNum = 0;
-      fillableEls.forEach((el) => {
+      const fillableEls = Array.from(svgEl.querySelectorAll('[data-fillable]'));
+      const candidates = [];
+      fillableEls.forEach((el, idx) => {
         try {
           const bbox = el.getBBox();
           const area = bbox.width * bbox.height;
@@ -276,21 +300,36 @@ export default function ColoredDesignPreview({ designData, template, editable = 
             el.setAttribute('data-border', 'true');
             return;
           }
-          sectionNum++;
           const fallbackId = el.getAttribute('data-section-id');
-          const canonicalId = `sec-${sectionNum}`;
+          candidates.push({
+            id: fallbackId || `seg-${idx}`,
+            fallbackId,
+            el,
+            cx: bbox.x + bbox.width / 2,
+            cy: bbox.y + bbox.height / 2,
+            w: bbox.width,
+            h: bbox.height,
+            canvasH: svgH,
+          });
+        } catch { /* getBBox can fail */ }
+      });
+
+      const orderedCandidates = getStableSectionOrder(candidates);
+      orderedCandidates.forEach((candidate, index) => {
+        const derivedSectionNum = index + 1;
+        const canonicalId = `sec-${derivedSectionNum}`;
+        const fallbackId = candidate.fallbackId;
           const matchedId =
             (fallbackId && sections[fallbackId] ? fallbackId : null) ||
             (sections[canonicalId] ? canonicalId : null) ||
-            sectionIdByNum[sectionNum] ||
+            sectionIdByNum[derivedSectionNum] ||
             fallbackId ||
             canonicalId;
           const sectionData = sections[matchedId];
-          const displayNum = sectionData?.sectionNum || sectionNum;
-          el.setAttribute('data-section-id', String(matchedId));
-          el.setAttribute('data-canonical-id', canonicalId);
-          el.setAttribute('data-section-num', String(displayNum));
-        } catch { /* getBBox can fail */ }
+        const displayNum = sectionData?.sectionNum || derivedSectionNum;
+        candidate.el.setAttribute('data-section-id', String(matchedId));
+        candidate.el.setAttribute('data-canonical-id', canonicalId);
+        candidate.el.setAttribute('data-section-num', String(displayNum));
       });
 
       // --- Step 2: collect all numbered sections ---
@@ -332,13 +371,8 @@ export default function ColoredDesignPreview({ designData, template, editable = 
         return true;
       });
 
-      // --- Step 4: deduplicate close centroids & draw labels ---
-      const placed = [];
+      // --- Step 4: draw labels (one per numbered section) ---
       filtered.forEach((s) => {
-        const tooClose = placed.some(p => Math.abs(p.x - s.cx) < 12 && Math.abs(p.y - s.cy) < 12);
-        if (tooClose) return;
-        placed.push({ x: s.cx, y: s.cy });
-
         // Always track center for highlight/popover (even colored sections)
         const elRect = s.el.getBoundingClientRect();
         centers.push({
@@ -348,35 +382,9 @@ export default function ColoredDesignPreview({ designData, template, editable = 
           cy: elRect.top + elRect.height / 2 - containerRect.top,
         });
 
-        const isSmall = Math.min(s.w, s.h) < 25;
-        let labelX = s.cx;
-        let labelY = s.cy;
-
-        if (isSmall) {
-          const dx = s.cx - svgW / 2;
-          const dy = s.cy - svgH / 2;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const offsetDist = 30;
-          labelX = s.cx + (dx / dist) * offsetDist;
-          labelY = s.cy + (dy / dist) * offsetDist;
-          labelX = Math.max(10, Math.min(svgW - 10, labelX));
-          labelY = Math.max(10, Math.min(svgH - 10, labelY));
-
-          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-          line.setAttribute('x1', s.cx);
-          line.setAttribute('y1', s.cy);
-          line.setAttribute('x2', labelX);
-          line.setAttribute('y2', labelY);
-          line.setAttribute('stroke', '#444');
-          line.setAttribute('stroke-width', '0.8');
-          line.setAttribute('class', 'cdp-lbl-line');
-          line.style.pointerEvents = 'none';
-          svgEl.appendChild(line);
-        }
-
-        const fontSize = isSmall
-          ? Math.max(7, Math.min(svgW, svgH) * 0.02)
-          : Math.max(8, Math.min(s.w, s.h) * 0.18);
+        const labelX = s.cx;
+        const labelY = s.cy;
+        const fontSize = getFittedSectionLabelFontPx(s.num, s.w, s.h);
 
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.setAttribute('x', labelX);
@@ -400,7 +408,7 @@ export default function ColoredDesignPreview({ designData, template, editable = 
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [coloredSvgHtml, hasSvg, sections]);
+  }, [coloredSvgHtml, hasSvg, sections, template?.image_url]);
 
   // Highlight the selected section in the SVG
   useEffect(() => {
@@ -422,8 +430,6 @@ export default function ColoredDesignPreview({ designData, template, editable = 
 
     const target = svgEl.querySelector(`[data-section-id="${highlightedSection}"]`);
     if (!target) {
-      // Debug: list all data-section-id values
-      const allIds = [...svgEl.querySelectorAll('[data-section-id]')].map(el => el.getAttribute('data-section-id'));
       return;
     }
     try {

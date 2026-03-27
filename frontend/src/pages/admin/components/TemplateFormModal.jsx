@@ -261,17 +261,23 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
 
     let isMounted = true;
     const loadLinkOptions = async () => {
-      try {
-        const [templatesResponse, galleryResponse, manualProductsResponse] = await Promise.all([
-          api.get('/templates'),
-          api.get('/admin/gallery/photos'),
-          api.get('/manual-products'),
-        ]);
+      const templatesPromise = api.get('/templates');
+      const galleryPromise = api.get('/admin/gallery/photos', { params: { page: 1, per_page: 50 } })
+        .catch(() => api.get('/gallery/photos', { params: { page: 1, per_page: 50 } }));
+      // Summary mode dramatically reduces payload size and avoids large-response failures.
+      const manualProductsPromise = api.get('/manual-products', { params: { summary: 1 } });
 
-        if (!isMounted) return;
+      const [templatesResult, galleryResult, manualProductsResult] = await Promise.allSettled([
+        templatesPromise,
+        galleryPromise,
+        manualProductsPromise,
+      ]);
 
-        const seenTemplateIds = new Set();
-        const nextTemplateOptions = toArray(templatesResponse)
+      if (!isMounted) return;
+
+      const seenTemplateIds = new Set();
+      const nextTemplateOptions = templatesResult.status === 'fulfilled'
+        ? toArray(templatesResult.value)
           .filter((entry) => entry?.id)
           .map((entry) => ({
             id: entry.id,
@@ -282,10 +288,12 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
             if (seenTemplateIds.has(key)) return false;
             seenTemplateIds.add(key);
             return true;
-          });
+          })
+        : [];
 
-        const seenGalleryIds = new Set();
-        const nextGalleryOptions = toArray(galleryResponse)
+      const seenGalleryIds = new Set();
+      const nextGalleryOptions = galleryResult.status === 'fulfilled'
+        ? toArray(galleryResult.value)
           .filter((entry) => entry?.id)
           .map((entry) => ({
             id: entry.id,
@@ -297,18 +305,24 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
             if (seenGalleryIds.has(key)) return false;
             seenGalleryIds.add(key);
             return true;
-          });
+          })
+        : [];
 
-        setTemplateOptions(nextTemplateOptions);
-        setGalleryOptions(nextGalleryOptions);
-        setManualProducts(toArray(manualProductsResponse));
-      } catch (loadError) {
-        console.error('Failed to load related link options for template form:', loadError);
-        if (!isMounted) return;
-        setTemplateOptions([]);
-        setGalleryOptions([]);
-        setManualProducts([]);
+      const nextManualProducts = manualProductsResult.status === 'fulfilled'
+        ? toArray(manualProductsResult.value)
+        : [];
+
+      if (templatesResult.status === 'rejected' || galleryResult.status === 'rejected' || manualProductsResult.status === 'rejected') {
+        console.warn('Template related-link options loaded with partial failures.', {
+          templatesError: templatesResult.status === 'rejected' ? templatesResult.reason : null,
+          galleryError: galleryResult.status === 'rejected' ? galleryResult.reason : null,
+          manualProductsError: manualProductsResult.status === 'rejected' ? manualProductsResult.reason : null,
+        });
       }
+
+      setTemplateOptions(nextTemplateOptions);
+      setGalleryOptions(nextGalleryOptions);
+      setManualProducts(nextManualProducts);
     };
 
     loadLinkOptions();
@@ -336,14 +350,11 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
     };
   }, [open, onClose]);
 
-  if (!open) return null;
-
   const handleChange = (field, value) => {
     setForm(f => ({ ...f, [field]: value }));
     setError('');
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const processFile = useCallback(async (file) => {
     if (!file) return;
     setError('');
@@ -420,6 +431,8 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
       setUploading(false);
     }
   }, []);
+
+  if (!open) return null;
 
   const handleFileChange = (e) => processFile(e.target.files[0]);
   const handleDrop = (e) => { e.preventDefault(); processFile(e.dataTransfer.files[0]); };

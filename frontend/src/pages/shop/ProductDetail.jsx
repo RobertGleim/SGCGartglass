@@ -435,8 +435,8 @@ export default function ProductDetail({ product, products = [] }) {
       image_url: mainImage || '',
       price: Number(product.price_amount || 0),
       currency: 'USD',
-      is_digital: Boolean(isManual && (manualProductDetails?.is_digital_download || product.originalData?.is_digital_download)),
-      requires_shipping: !Boolean(isManual && (manualProductDetails?.is_digital_download || product.originalData?.is_digital_download)),
+      is_digital: isManual && (manualProductDetails?.is_digital_download || product.originalData?.is_digital_download),
+      requires_shipping: !(isManual && (manualProductDetails?.is_digital_download || product.originalData?.is_digital_download)),
     }
 
     if (!customerToken) {

@@ -121,6 +121,39 @@ const CANVAS_BASE_H = 600;
 const ADMIN_FAVORITE_COLOR_SLOTS = 4;
 const ADMIN_FAVORITE_COLORS_STORAGE_KEY = 'sgcg_admin_favorite_colors_v1';
 
+const getFittedSectionLabelFontPx = (sectionNumber, width, height) => {
+  const digits = String(sectionNumber ?? '').length || 1;
+  const safeWidth = Math.max(1, Number(width) || 1);
+  const safeHeight = Math.max(1, Number(height) || 1);
+  const maxByHeight = safeHeight * 0.68;
+  const maxByWidth = (safeWidth * 0.78) / Math.max(1, digits * 0.62);
+  return Math.max(3, Math.min(18, maxByHeight, maxByWidth));
+};
+
+const getStableSectionOrder = (regions = []) => {
+  if (!Array.isArray(regions) || regions.length === 0) return [];
+  const canvasH = Number(regions[0]?.canvasH) || CANVAS_BASE_H;
+  const rowTolerance = Math.max(4, canvasH * 0.02);
+  return [...regions].sort((a, b) => {
+    const rowA = Math.round((Number(a?.cy) || 0) / rowTolerance);
+    const rowB = Math.round((Number(b?.cy) || 0) / rowTolerance);
+    if (rowA !== rowB) return rowA - rowB;
+
+    const ax = Number(a?.cx) || 0;
+    const bx = Number(b?.cx) || 0;
+    if (Math.abs(ax - bx) > 1) return ax - bx;
+
+    const ay = Number(a?.cy) || 0;
+    const by = Number(b?.cy) || 0;
+    if (Math.abs(ay - by) > 1) return ay - by;
+
+    return String(a?.id || '').localeCompare(String(b?.id || ''), undefined, {
+      numeric: true,
+      sensitivity: 'base',
+    });
+  });
+};
+
 const isHexColor = (value) => /^#([A-Fa-f0-9]{6})$/.test(String(value || '').trim());
 
 const getApiOrigin = () => {
@@ -196,7 +229,6 @@ export default function DesignerPage() {
   // Canvas
   const canvasRef = useRef(null);          // <canvas> element for Fabric / flood-fill
   const fabricRef = useRef(null);          // Fabric.Canvas instance (SVG mode only)
-  const floodCanvasRef = useRef(null);     // offscreen 2D canvas for flood-fill (image mode)
   const floodCtxRef = useRef(null);        // 2D context of the offscreen canvas
   const isFloodFillMode = useRef(false);   // true when using image-template flood fill
   // Line preservation for image templates
@@ -229,10 +261,14 @@ export default function DesignerPage() {
   // Track per-section fills: { [regionId]: { color, glassType, glassTypeId } }
   const sectionFillsRef = useRef({});
   // Counter to force re-render when sections are filled (hides labels)
-  const [fillVersion, setFillVersion] = useState(0);
+  const [, setFillVersion] = useState(0);
 
   // Section label positions for numbered overlays: [{ id, num, cx, cy }]
   const [sectionLabels, setSectionLabels] = useState([]);
+  const sectionLabelsRef = useRef([]);
+  useEffect(() => {
+    sectionLabelsRef.current = Array.isArray(sectionLabels) ? sectionLabels : [];
+  }, [sectionLabels]);
 
   // Border/frame region IDs (flood-fill mode) — not colorable
   const borderRegionsRef = useRef(new Set());
@@ -265,7 +301,6 @@ export default function DesignerPage() {
   const [savingRevision, setSavingRevision] = useState(false);
   const [showRevisionHistory, setShowRevisionHistory] = useState(false);
   const isAdmin = !!authToken && !customerToken; // admin token but no customer token
-  const [templateDefaultsMode, setTemplateDefaultsMode] = useState(false);
   const [bulkLockNotice, setBulkLockNotice] = useState('');
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [isEraseMode, setIsEraseMode] = useState(false);
@@ -432,7 +467,9 @@ export default function DesignerPage() {
           try {
             const revRes = await fetchRevisions(project.work_order_id);
             setRevisions(revRes?.revisions || []);
-          } catch {}
+          } catch {
+            // Ignore revision fetch issues while loading project shell.
+          }
         }
 
         // Load the template if available
@@ -466,7 +503,7 @@ export default function DesignerPage() {
         console.error('[DesignerPage] Failed to load project:', err);
       })
       .finally(() => setLoadingProject(false));
-  }, []); // Only run once on mount
+  }, [isAdmin]);
 
   // ── Admin template defaults mode (?template=<id>&mode=template-defaults) ──────────
   useEffect(() => {
@@ -475,7 +512,6 @@ export default function DesignerPage() {
     const templateId = Number(params.template);
     if (!isAdmin || mode !== 'template-defaults' || !Number.isFinite(templateId) || templateId <= 0) return;
 
-    setTemplateDefaultsMode(true);
     setLoadingProject(true);
     resetTemplateSession();
     getTemplate(templateId)
@@ -555,7 +591,7 @@ export default function DesignerPage() {
         setRevisions(revs);
       })
       .catch(() => {});
-  }, []); // Only run once on mount
+  }, [isAdmin]);
 
   useEffect(() => {
     const params = getQueryParams();
@@ -600,7 +636,7 @@ export default function DesignerPage() {
   }, [resetTemplateSession, selectedTemplate?.id, step, templates]);
   
   // Apply design data to canvas
-  const applyDesignData = async (designData) => {
+  const applyDesignData = useCallback(async (designData) => {
     if (!designData || typeof designData !== 'object') return;
     const normalizedIncomingSections = extractSectionsFromDesignData(designData);
 
@@ -652,7 +688,7 @@ export default function DesignerPage() {
         return;
       }
 
-      const labelIdByNum = new Map((sectionLabels || []).map((label) => [Number(label?.num), Number(label?.id)]));
+      const labelIdByNum = new Map((sectionLabelsRef.current || []).map((label) => [Number(label?.num), Number(label?.id)]));
 
       const parseHexToRgb = (hex) => {
         const cleaned = String(hex || '#000000').replace('#', '');
@@ -886,7 +922,7 @@ export default function DesignerPage() {
       fabricRef.current.renderAll();
     }
     
-  };
+  }, []);
   
   // Auto-submit when project is loaded with submit flag
   useEffect(() => {
@@ -935,7 +971,7 @@ export default function DesignerPage() {
         });
       })
       .catch(() => setGlassTypes([]));
-  }, [step]);
+  }, [applyDesignData, step]);
 
   useEffect(() => {
     if (step !== STEP.DESIGN) return;
@@ -1455,7 +1491,7 @@ export default function DesignerPage() {
     // After a flood-fill, overlay the glass texture on only the pixels that changed.
     // Uses the same multiply + soft-light composite as SVG-mode tiles for consistency.
     // (Kept for fillAll which does a bulk pixel rewrite)
-    function applyTextureOverFlood(ctx, beforeData, w, h, textureImg, fillColor) {
+    function _applyTextureOverFlood(ctx, beforeData, w, h, textureImg, fillColor) {
       const afterData = ctx.getImageData(0, 0, w, h);
       const bPx = beforeData.data;
       const aPx = afterData.data;
@@ -1612,12 +1648,10 @@ export default function DesignerPage() {
           {
             // --- Pass 1: collect all region info ---
             const raw = [];
-            let num = 0;
             for (const [regionId, pixels] of regionPixels) {
-              if (pixels.length < 20) continue;
+              if (pixels.length < 3) continue;
               // Skip border/frame regions
               if (borderRegions.has(regionId)) continue;
-              num++;
               let sumX = 0, sumY = 0;
               let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
               for (const pi of pixels) {
@@ -1632,7 +1666,7 @@ export default function DesignerPage() {
               const cxPx = sumX / pixels.length;
               const cyPx = sumY / pixels.length;
               raw.push({
-                id: regionId, num, cx: cxPx, cy: cyPx,
+                id: regionId, cx: cxPx, cy: cyPx,
                 left: minX, top: minY, right: maxX, bottom: maxY,
                 area: pixels.length,
                 w: maxX - minX, h: maxY - minY,
@@ -1656,34 +1690,21 @@ export default function DesignerPage() {
               return true;
             });
 
-            // --- Pass 3: deduplicate & build final labels ---
+            // --- Pass 3: build final labels (one label per section) ---
             const labels = [];
-            for (const s of filtered) {
-              const tooClose = labels.some(l => {
-                const lx = l.anchorX ?? l.cx;
-                const ly = l.anchorY ?? l.cy;
-                return Math.abs(lx - s.cx) < 15 && Math.abs(ly - s.cy) < 15;
+            const orderedSections = getStableSectionOrder(filtered);
+            for (let index = 0; index < orderedSections.length; index += 1) {
+              const s = orderedSections[index];
+              const sectionNum = index + 1;
+              labels.push({
+                id: s.id,
+                num: sectionNum,
+                cx: s.cx,
+                cy: s.cy,
+                canvasW: CANVAS_W,
+                canvasH: CANVAS_H,
+                fontPx: getFittedSectionLabelFontPx(sectionNum, s.w, s.h),
               });
-              if (tooClose) continue;
-
-              const isSmall = s.area < 400;
-              if (isSmall) {
-                const dx = s.cx - CANVAS_W / 2;
-                const dy = s.cy - CANVAS_H / 2;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                const offsetDist = 35;
-                let labelX = s.cx + (dx / dist) * offsetDist;
-                let labelY = s.cy + (dy / dist) * offsetDist;
-                labelX = Math.max(15, Math.min(CANVAS_W - 15, labelX));
-                labelY = Math.max(15, Math.min(CANVAS_H - 15, labelY));
-                labels.push({
-                  id: s.id, num: s.num, cx: labelX, cy: labelY,
-                  anchorX: s.cx, anchorY: s.cy, small: true,
-                  canvasW: CANVAS_W, canvasH: CANVAS_H,
-                });
-              } else {
-                labels.push({ id: s.id, num: s.num, cx: s.cx, cy: s.cy, canvasW: CANVAS_W, canvasH: CANVAS_H });
-              }
             }
             setSectionLabels(labels);
           }
@@ -1885,7 +1906,7 @@ export default function DesignerPage() {
                 finalScaleX = d.scaleX;
                 finalScaleY = d.scaleY;
                 finalAngle  = d.angle;
-              } catch (_) {
+              } catch {
                 // Fallback: manual scale + center
                 const ox = (CANVAS_W - gW * scaleF) / 2;
                 const oy = (CANVAS_H - gH * scaleF) / 2;
@@ -2004,14 +2025,10 @@ export default function DesignerPage() {
         {
           // --- Pass 1: collect all section info ---
           const raw = [];
-          let num = 0;
-          canvas.getObjects().forEach((obj) => {
+          canvas.getObjects().forEach((obj, objIndex) => {
             if (!obj.selectable || obj._isNoise || obj._isBorder) return;
             const bounds = obj.getBoundingRect();
             if (bounds.width < MIN_SEGMENT_SIDE || bounds.height < MIN_SEGMENT_SIDE) return;
-            num++;
-            obj._sectionNumber = num;
-            obj._sectionId = `sec-${num}`;
             if (!obj._originalStyle) {
               obj._originalStyle = {
                 fill: obj.fill,
@@ -2026,9 +2043,12 @@ export default function DesignerPage() {
             const cx = bounds.left + bounds.width / 2;
             const cy = bounds.top + bounds.height / 2;
             raw.push({
-              id: obj._sectionId,
-              num, cx, cy,
-              left: bounds.left, top: bounds.top,
+              id: `obj-${objIndex}`,
+              obj,
+              cx,
+              cy,
+              left: bounds.left,
+              top: bounds.top,
               right: bounds.left + bounds.width,
               bottom: bounds.top + bounds.height,
               area: bounds.width * bounds.height,
@@ -2056,37 +2076,25 @@ export default function DesignerPage() {
             return true;
           });
 
-          // --- Pass 3: deduplicate close centroids & build final labels ---
+          // --- Pass 3: build final labels (one label per section) ---
           const labels = [];
-          for (const s of filtered) {
-            const tooClose = labels.some(l => {
-              const lx = l.anchorX ?? l.cx;
-              const ly = l.anchorY ?? l.cy;
-              return Math.abs(lx - s.cx) < 15 && Math.abs(ly - s.cy) < 15;
-            });
-            if (tooClose) continue;
-
-            const isSmall = Math.min(s.w, s.h) < 30;
-            if (isSmall) {
-              const dx = s.cx - CANVAS_W / 2;
-              const dy = s.cy - CANVAS_H / 2;
-              const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-              const offsetDist = 35;
-              let labelX = s.cx + (dx / dist) * offsetDist;
-              let labelY = s.cy + (dy / dist) * offsetDist;
-              labelX = Math.max(15, Math.min(CANVAS_W - 15, labelX));
-              labelY = Math.max(15, Math.min(CANVAS_H - 15, labelY));
-              labels.push({
-                id: s.id, num: s.num, cx: labelX, cy: labelY,
-                anchorX: s.cx, anchorY: s.cy, small: true,
-                canvasW: CANVAS_W, canvasH: CANVAS_H,
-              });
-            } else {
-              labels.push({
-                id: s.id, num: s.num, cx: s.cx, cy: s.cy,
-                canvasW: CANVAS_W, canvasH: CANVAS_H,
-              });
+          const orderedSections = getStableSectionOrder(filtered);
+          for (let index = 0; index < orderedSections.length; index += 1) {
+            const s = orderedSections[index];
+            const sectionNum = index + 1;
+            if (s.obj) {
+              s.obj._sectionNumber = sectionNum;
+              s.obj._sectionId = `sec-${sectionNum}`;
             }
+            labels.push({
+              id: `sec-${sectionNum}`,
+              num: sectionNum,
+              cx: s.cx,
+              cy: s.cy,
+              canvasW: CANVAS_W,
+              canvasH: CANVAS_H,
+              fontPx: getFittedSectionLabelFontPx(sectionNum, s.w, s.h),
+            });
           }
           setSectionLabels(labels);
         }
@@ -2267,53 +2275,6 @@ export default function DesignerPage() {
         }
       }
       ctx.putImageData(imageData, 0, 0);
-      // Texture overlay if glass type selected
-      const gt = activeGlassType;
-      const cachedTexture = gt ? textureCacheRef.current.get(gt.id) : null;
-      const texImg = cachedTexture && cachedTexture._supportsReadback !== false ? cachedTexture : null;
-      const isBeveled = !!(gt && (gt.name || '').toLowerCase().includes('bevel'));
-      if (isBeveled) {
-        for (const regionId of unlockedRegionIds) {
-          fillRegionBeveled(ctx, regionId, selectedColor, w, h);
-        }
-      } else if (texImg) {
-        // Build a mask of ALL fillable pixels
-        const maskCvs = document.createElement('canvas');
-        maskCvs.width = w; maskCvs.height = h;
-        const maskCtx = maskCvs.getContext('2d');
-        const maskImg = maskCtx.createImageData(w, h);
-        const mPx = maskImg.data;
-        for (const regionId of unlockedRegionIds) {
-          const pixels = regionPixels.get(regionId);
-          if (!pixels) continue;
-          for (const pi of pixels) {
-            const ci = pi * 4;
-            mPx[ci] = mPx[ci+1] = mPx[ci+2] = mPx[ci+3] = 255;
-          }
-        }
-        maskCtx.putImageData(maskImg, 0, 0);
-        // Textured fill (grayscale texture)
-        const gsTex = grayscaleTiledTexture(texImg, w, h);
-        const texCvs = document.createElement('canvas');
-        texCvs.width = w; texCvs.height = h;
-        const texCtx = texCvs.getContext('2d');
-        texCtx.fillStyle = selectedColor;
-        texCtx.fillRect(0, 0, w, h);
-        texCtx.globalCompositeOperation = 'multiply';
-        texCtx.drawImage(gsTex, 0, 0);
-        texCtx.globalCompositeOperation = 'soft-light';
-        texCtx.globalAlpha = 0.45;
-        texCtx.drawImage(gsTex, 0, 0);
-        texCtx.globalAlpha = 1;
-        texCtx.globalCompositeOperation = 'destination-in';
-        texCtx.drawImage(maskCvs, 0, 0);
-        texCtx.globalCompositeOperation = 'source-over';
-        ctx.drawImage(texCvs, 0, 0);
-      } else {
-        for (const regionId of unlockedRegionIds) {
-          fillRegionGlossy(ctx, regionId, selectedColor, w, h);
-        }
-      }
       // Restore line pixels
       const maskR = lineMaskRef.current;
       const origR = initialImageRef.current;
@@ -2338,39 +2299,14 @@ export default function DesignerPage() {
     if (!canvas) return;
     const gt = activeGlassType;
     const texImg = gt ? textureCacheRef.current.get(gt.id) : null;
-    
-    // Check if this is beveled glass
-    const isBeveled = gt && (gt.name || '').toLowerCase().includes('bevel');
-    
+
     let pattern = null;
-    if (isBeveled) {
-      // Don't create pattern for beveled glass - will apply border effect instead
-      pattern = null;
-    } else if (texImg) {
-      // Build a colour + texture tile for the pattern (grayscale texture)
-      const gsTile = grayscaleTexture(texImg, 120);
-      const tile = document.createElement('canvas');
-      tile.width = 120; tile.height = 120;
-      const tCtx = tile.getContext('2d');
-      tCtx.fillStyle = selectedColor;
-      tCtx.fillRect(0, 0, 120, 120);
-      tCtx.globalCompositeOperation = 'multiply';
-      tCtx.drawImage(gsTile, 0, 0, 120, 120);
-      tCtx.globalCompositeOperation = 'soft-light';
-      tCtx.globalAlpha = 0.45;
-      tCtx.drawImage(gsTile, 0, 0, 120, 120);
-      tCtx.globalAlpha = 1;
-      tCtx.globalCompositeOperation = 'source-over';
+    if (texImg) {
       const { Pattern } = await import('fabric');
-      pattern = new Pattern({ source: tile, repeat: 'repeat' });
-    } else {
-      const glossyTile = createGlossyTile(selectedColor, 120);
-      const { Pattern } = await import('fabric');
-      pattern = new Pattern({ source: glossyTile, repeat: 'repeat' });
+      pattern = new Pattern({ source: texImg, repeat: 'repeat' });
     }
-    
+
     // Apply fill to all objects
-    const applyPromises = [];
     const applyFill = async (obj) => {
       if (!obj) return;
       if (obj.type === 'group' || obj.type === 'Group') {
@@ -2387,11 +2323,7 @@ export default function DesignerPage() {
         if (isSectionLocked(sectionFillsRef.current, sectionIdCandidate, sectionNumCandidate)) {
           return;
         }
-        if (isBeveled) {
-          await applyBeveledEffect(obj, selectedColor);
-        } else {
-          obj.set('fill', pattern || selectedColor);
-        }
+        obj.set('fill', pattern || selectedColor);
         obj._fillColor = selectedColor;
         obj._glassType = gt?.name || null;
         obj.dirty = true;
@@ -2709,7 +2641,7 @@ export default function DesignerPage() {
     }
   }, [isAdmin, selectedTemplate, getCurrentDesignData]);
 
-  const coloredSectionCount = useMemo(() => {
+  const coloredSectionCount = (() => {
     const values = Object.values(sectionFillsRef.current || {});
     return values.filter((entry) => (
       entry
@@ -2717,7 +2649,7 @@ export default function DesignerPage() {
       && typeof entry.color === 'string'
       && entry.color.trim().length > 0
     )).length;
-  }, [fillVersion]);
+  })();
 
   const setBulkLockForColoredSections = useCallback((nextLocked) => {
     if (!isAdmin) return;
@@ -2802,19 +2734,22 @@ export default function DesignerPage() {
   }, [workOrderId]);
 
   // ── Filtered templates ────────────────────────────────────────
-  const normalizeCategory = (value) => String(value || '').trim().toLowerCase();
-  const isDirectMessageTemplate = (template) => normalizeCategory(template?.category) === 'direct message';
-  const toManualProductCategories = (entry) => {
+  const normalizeCategory = useCallback((value) => String(value || '').trim().toLowerCase(), []);
+  const isDirectMessageTemplate = useCallback(
+    (template) => normalizeCategory(template?.category) === 'direct message',
+    [normalizeCategory],
+  );
+  const toManualProductCategories = useCallback((entry) => {
     if (Array.isArray(entry?.category)) {
       return entry.category;
     }
     return entry?.category ? [entry.category] : [];
-  };
-  const isPatternManualProduct = (entry) =>
+  }, []);
+  const isPatternManualProduct = useCallback((entry) =>
     toManualProductCategories(entry).some((category) => {
       const normalized = normalizeCategory(category).replace(/[^a-z0-9]/g, '');
       return normalized === 'pattern' || normalized === 'patterns';
-    });
+    }), [toManualProductCategories, normalizeCategory]);
 
   const filtered = useMemo(() => {
     const sortByTemplateName = (entries) => [...entries].sort((a, b) => {
@@ -2848,7 +2783,7 @@ export default function DesignerPage() {
     const selectedCategory = normalizeCategory(categoryFilter);
     const base = templates.filter((template) => normalizeCategory(template?.category) === selectedCategory);
     return sortByTemplateName(applySearchAndAlpha(base));
-  }, [categoryFilter, templates, isAdmin, templateSearch, templateAlphaFilter]);
+  }, [categoryFilter, templates, isAdmin, templateSearch, templateAlphaFilter, isDirectMessageTemplate, normalizeCategory]);
 
   const handleAddPatternToCart = useCallback(async (event, template, linkedPatternId = '') => {
     event.stopPropagation();
@@ -2983,7 +2918,7 @@ export default function DesignerPage() {
     return !activeTemplateRelatedProducts.some((product) => product.href === activeLinkedPatternHref);
   }, [activeLinkedPatternHref, activeTemplateRelatedProducts]);
 
-  const sectionLegendItems = useMemo(() => {
+  const sectionLegendItems = (() => {
     const sectionNumbers = new Set();
     const colorBySection = new Map();
     const lockBySection = new Map();
@@ -3023,7 +2958,7 @@ export default function DesignerPage() {
         color: colorBySection.get(number) || null,
         locked: lockBySection.get(number) || false,
       }));
-  }, [sectionLabels, fillVersion]);
+  })();
 
   const isClearGlassSelected = !isEraseMode
     && !activeGlassType
@@ -3037,7 +2972,7 @@ export default function DesignerPage() {
     }
   }, [sectionLegendItems, selectedLegendNumber]);
 
-  const selectedLegendDetails = useMemo(() => {
+  const selectedLegendDetails = (() => {
     if (selectedLegendNumber == null) return null;
     const sectionEntries = Object.entries(sectionFillsRef.current || {});
     const sectionNumberById = new Map(
@@ -3069,7 +3004,7 @@ export default function DesignerPage() {
       glassType: matchedFill?.glassType || '',
       locked: toBool(matchedFill?.locked),
     };
-  }, [selectedLegendNumber, fillVersion, sectionLabels]);
+  })();
 
   const toggleSelectedSectionLock = useCallback((targetNumber = null) => {
     const resolvedNumber = Number.isFinite(Number(targetNumber))
@@ -3572,25 +3507,6 @@ export default function DesignerPage() {
                 {/* ── Numbered section labels overlay ── */}
                 {sectionLabels.length > 0 && (
                   <div className={styles.sectionLabelsOverlay}>
-                    {/* Leader lines for small sections */}
-                    <svg
-                      className={styles.leaderLineSvg}
-                      viewBox={`0 0 ${sectionLabels[0]?.canvasW || CANVAS_BASE_W} ${sectionLabels[0]?.canvasH || CANVAS_BASE_H}`}
-                    >
-                      {sectionLabels
-                        .filter((lbl) => lbl.small)
-                        .map((lbl) => (
-                          <line
-                            key={`line-${lbl.id}`}
-                            x1={lbl.anchorX}
-                            y1={lbl.anchorY}
-                            x2={lbl.cx}
-                            y2={lbl.cy}
-                            stroke="#444"
-                            strokeWidth="1"
-                          />
-                        ))}
-                    </svg>
                     {sectionLabels
                       .map((lbl) => {
                       const leftPct = (lbl.cx / lbl.canvasW) * 100;
@@ -3599,7 +3515,11 @@ export default function DesignerPage() {
                         <div
                           key={lbl.id}
                           className={styles.sectionBadge}
-                          style={{ left: `${leftPct}%`, top: `${topPct}%` }}
+                          style={{
+                            left: `${leftPct}%`,
+                            top: `${topPct}%`,
+                            fontSize: `${Math.max(3, Number(lbl.fontPx) || 7)}px`,
+                          }}
                           title={`Section ${lbl.num}`}
                         >
                           {lbl.num}

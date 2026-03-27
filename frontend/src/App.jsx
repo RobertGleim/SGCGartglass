@@ -107,12 +107,6 @@ function App() {
       setItemsLoading(true)
     }
 
-    if (cached?.isFresh && cached?.hasContent) {
-      return () => {
-        isActive = false
-      }
-    }
-
     Promise.allSettled([fetchItems(), fetchManualProducts({ summary: 1 })])
       .then(([itemsResult, manualResult]) => {
         if (!isActive) return

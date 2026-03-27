@@ -59,19 +59,17 @@ export default function CanvasWorkspace({ templateSVG, currentColor, currentGlas
       selection: false,
     });
     fabricCanvasRef.current = fabricCanvas;
+    const map = {};
     try {
       const parsed = parseSVG(templateSVG);
       renderTemplate(fabricCanvas, parsed.regions);
       // Build region map for quick lookup
-      const map = {};
       fabricCanvas.getObjects().forEach(obj => {
         if (obj.regionId) map[obj.regionId] = obj;
       });
     } catch (err) {
-      // removed unused eslint-disable directive
       console.error('Canvas render error:', err);
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRegionMap(map);
     const handleResize = () => {
       const newSize = getCanvasSize();

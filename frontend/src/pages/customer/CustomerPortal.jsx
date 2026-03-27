@@ -57,7 +57,7 @@ export default function CustomerPortal({ manualProducts }) {
   const { customerToken, logout } = useCustomerAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [profile, setProfile] = useState(null)
-  const [addresses, setAddresses] = useState([])
+  const [, setAddresses] = useState([])
   const [favorites, setFavorites] = useState([])
   const [cartItems, setCartItems] = useState([])
   const [orders, setOrders] = useState([])

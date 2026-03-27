@@ -31,7 +31,10 @@ class GalleryPhoto(db.Model):
     template = db.relationship("Template", backref=db.backref("gallery_photos", lazy="dynamic"))
 
     def to_dict(self, include_admin_fields=False):
-        template_name = self.template.name if self.template else None
+        try:
+            template_name = self.template.name if self.template else None
+        except Exception:
+            template_name = None
         data = {
             "id": self.id,
             "panel_name": self.panel_name,

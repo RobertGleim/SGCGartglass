@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import styles from './BottomSheet.module.css';
 
-export default function BottomSheet({ open, onClose, children }) {
+export default function BottomSheet({ open, children }) {
   const [expanded, setExpanded] = useState(false);
   const sheetRef = useRef();
 

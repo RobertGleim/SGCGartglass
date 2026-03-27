@@ -5,7 +5,6 @@ import {
   createCheckoutSession,
   fetchCustomerCartSummary,
   removeCustomerCartItem,
-  updateCustomerCartItem,
 } from '../../services/api'
 import { readGuestCart, removeGuestCartItem } from '../../utils/guestCart'
 import LoadingMessage from '../../components/LoadingMessage'
@@ -122,30 +121,6 @@ export default function CheckoutPage() {
     }
     loadSummary()
   }, [customerToken])
-
-  const handleUpdateQty = async (itemId, quantity) => {
-    const next = Math.max(1, Number(quantity) || 1)
-    if (next > 1) {
-      setStatus(SINGLE_ITEM_WARNING)
-      return
-    }
-    const existingItem = (summary.items || []).find((item) => item.id === itemId)
-    if (!existingItem || Number(existingItem.quantity || 1) === next) {
-      return
-    }
-    try {
-      await updateCustomerCartItem(itemId, { quantity: next })
-      window.dispatchEvent(new Event('cart-updated'))
-      syncSummarySilently()
-    } catch (error) {
-      const apiError = error?.response?.data?.error
-      if (apiError === 'single_item_limit') {
-        setStatus(SINGLE_ITEM_WARNING)
-      } else {
-        setStatus(error?.response?.data?.message || error?.response?.data?.error || error.message || 'Unable to update quantity.')
-      }
-    }
-  }
 
   const handleRemoveItem = async (itemId) => {
     const currentItems = Array.isArray(summary.items) ? summary.items : []

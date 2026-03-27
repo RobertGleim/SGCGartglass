@@ -14,7 +14,7 @@ export default function useGlassTypes() {
       const activeItems = items.filter((g) => (g.is_active ?? g.active) !== false);
       setGlassTypes(activeItems);
       if (activeItems.length > 0) setCurrentGlassType(activeItems[0]);
-    } catch (err) {
+    } catch {
       // Handle error (toast, etc.)
       setGlassTypes([]);
     } finally {

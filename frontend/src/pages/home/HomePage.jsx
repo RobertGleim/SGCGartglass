@@ -11,7 +11,7 @@ const toCleanImageUrl = (value) => {
   if (!raw) return ''
   if (/^javascript:/i.test(raw)) return ''
 
-  const unquoted = raw.replace(/^['\"]|['\"]$/g, '')
+  const unquoted = raw.replace(/^['"]|['"]$/g, '')
 
   if (
     (unquoted.startsWith('[') && unquoted.endsWith(']'))

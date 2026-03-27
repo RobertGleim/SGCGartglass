@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 // import AddEtsyListingForm from "../../components/forms/AddEtsyListingForm";
 import {
   createAdminTemplate,
@@ -13,6 +13,7 @@ import {
   getTemplates,
   sendTemplateToCustomerWorkOrder,
   uploadAdminTemplateImage,
+  uploadProductImage,
   updateAdminReview,
   createAdminReviewInviteCode,
   deleteAdminReviewInviteCode,
@@ -118,6 +119,32 @@ const TEMPLATE_DIFFICULTY_OPTIONS = ["Beginner", "Intermediate", "Advanced"];
 const MANUAL_PRODUCTS_PER_PAGE = 10;
 const SECTION_PAGE_SIZE = 10;
 const ADMIN_ACTIVITY_POPUP_DELAY_MS = 450;
+const PRODUCT_TYPE_CONFIG = [
+  { key: "stainedGlassPanels", label: "Stained Glass Panels", theme: "stainedGlass" },
+  { key: "fusedArt", label: "Fused Art", theme: "stainedGlass" },
+  { key: "laserAndSandblasting", label: "Laser and Sandblasting", theme: "stainedGlass" },
+  { key: "woodArt", label: "Wood Art", theme: "woodwork" },
+];
+const PRODUCT_TYPE_LABEL_BY_KEY = PRODUCT_TYPE_CONFIG.reduce(
+  (acc, entry) => ({ ...acc, [entry.key]: entry.label }),
+  {},
+);
+const CATEGORY_TYPE_ALIASES = {
+  stainedglasspanels: "stainedGlassPanels",
+  stainedglass: "stainedGlassPanels",
+  glass: "stainedGlassPanels",
+  fusedart: "fusedArt",
+  laserandsandblasting: "laserAndSandblasting",
+  laser: "laserAndSandblasting",
+  sandblast: "laserAndSandblasting",
+  sandblasting: "laserAndSandblasting",
+  woodart: "woodArt",
+  woodwork: "woodArt",
+  woodworking: "woodArt",
+  wood: "woodArt",
+  pattern: "patterns",
+  patterns: "patterns",
+};
 
 const createDefaultRelatedLinks = () => ({
   template_id: "",
@@ -216,21 +243,6 @@ const createEmptyRelatedGalleryUpload = () => ({
   template_id: "",
 });
 
-const hasAnyRelatedLinkValue = (relatedLinks) => {
-  if (!relatedLinks || typeof relatedLinks !== "object") return false;
-  return [
-    relatedLinks.template_id,
-    relatedLinks.template_name,
-    relatedLinks.pattern_product_id,
-    relatedLinks.pattern_product_name,
-    relatedLinks.linked_product_id,
-    relatedLinks.linked_product_name,
-    relatedLinks.gallery_photo_id,
-    relatedLinks.gallery_panel_name,
-    relatedLinks.gallery_template_id,
-  ].some((entry) => String(entry || "").trim() !== "");
-};
-
 const getNameFromFile = (file) => String(file?.name || "").replace(/\.[^.]+$/, "").trim();
 
 const readStoredJson = (key, fallback) => {
@@ -316,54 +328,18 @@ const pdfToPngFile = async (file) => {
 };
 
 export default function AdminDashboard({
-  items = [],
   manualProducts = [],
   onRefreshCatalog,
-  onAddItem,
   onAddManualProduct,
   onUpdateManualProduct,
   onDeleteManualProduct,
   onLogout,
 }) {
-  const PRODUCT_TYPE_CONFIG = [
-    { key: "stainedGlassPanels", label: "Stained Glass Panels", theme: "stainedGlass" },
-    { key: "fusedArt", label: "Fused Art", theme: "stainedGlass" },
-    { key: "laserAndSandblasting", label: "Laser and Sandblasting", theme: "stainedGlass" },
-    { key: "woodArt", label: "Wood Art", theme: "woodwork" },
-  ];
-
-  const PRODUCT_TYPE_LABEL_BY_KEY = PRODUCT_TYPE_CONFIG.reduce(
-    (acc, entry) => ({ ...acc, [entry.key]: entry.label }),
-    {},
-  );
-
-  const CATEGORY_TYPE_ALIASES = {
-    stainedglasspanels: "stainedGlassPanels",
-    stainedglass: "stainedGlassPanels",
-    glass: "stainedGlassPanels",
-    fusedart: "fusedArt",
-    laserandsandblasting: "laserAndSandblasting",
-    laser: "laserAndSandblasting",
-    sandblast: "laserAndSandblasting",
-    sandblasting: "laserAndSandblasting",
-    woodart: "woodArt",
-    woodwork: "woodArt",
-    woodworking: "woodArt",
-    wood: "woodArt",
-    pattern: "patterns",
-    patterns: "patterns",
-  };
-
   const createEmptyTypeBuckets = () =>
     PRODUCT_TYPE_CONFIG.reduce(
       (acc, entry) => ({ ...acc, [entry.key]: [] }),
       {},
     );
-
-  const normalizedItems = useMemo(
-    () => ensureArray(items).filter((entry) => entry && typeof entry === "object"),
-    [items],
-  );
 
   const normalizedManualProducts = useMemo(
     () => ensureArray(manualProducts).map(normalizeManualProductRecord).filter(Boolean),
@@ -691,7 +667,6 @@ export default function AdminDashboard({
   const handleResendReviewCode = async (invite) => {
     await regenerateReviewCode(invite, { copy: false, requireEmail: true });
   };
-  // eslint-disable-next-line no-unused-vars
   const [status, setStatus] = useState("");
   const [isRefreshingCatalog, setIsRefreshingCatalog] = useState(false);
   const [manualProductSearch, setManualProductSearch] = useState("");
@@ -783,7 +758,6 @@ export default function AdminDashboard({
   const [unifiedTemplate, setUnifiedTemplate] = useState(createEmptyUnifiedTemplate());
   const [relatedTemplateUpload, setRelatedTemplateUpload] = useState(createEmptyRelatedTemplateUpload());
   const [relatedGalleryUpload, setRelatedGalleryUpload] = useState(createEmptyRelatedGalleryUpload());
-  const [showRelatedLinksSection, setShowRelatedLinksSection] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
   const categoryDropdownRef = useRef(null);
@@ -797,7 +771,6 @@ export default function AdminDashboard({
   const [addImagesToGallery, setAddImagesToGallery] = useState(false);
   const [templateRefPhotos, setTemplateRefPhotos] = useState([]);
   const [templateNameManuallyEdited, setTemplateNameManuallyEdited] = useState(false);
-  const [patternOnly, setPatternOnly] = useState(false);
   const [patternOnlyDescription, setPatternOnlyDescription] = useState("");
   const [productModePhysical, setProductModePhysical] = useState(true);
   const [productModePattern, setProductModePattern] = useState(false);
@@ -854,7 +827,7 @@ export default function AdminDashboard({
     }));
   };
 
-  const inferProductType = (product) => {
+  const inferProductType = useCallback((product) => {
     const categories = Array.isArray(product?.category)
       ? product.category
       : product?.category
@@ -896,14 +869,14 @@ export default function AdminDashboard({
     }
 
     return "stainedGlassPanels";
-  };
+  }, []);
 
-  const inferManualProductTab = (product) => {
-    if (Boolean(product?.is_digital_download)) {
+  const inferManualProductTab = useCallback((product) => {
+    if (product?.is_digital_download) {
       return "patterns";
     }
     return inferProductType(product);
-  };
+  }, [inferProductType]);
 
   const patternProductOptions = useMemo(() => {
     const inferred = normalizedManualProducts
@@ -911,6 +884,7 @@ export default function AdminDashboard({
       .map((entry) => ({
         id: entry.id,
         name: (entry.name || `Pattern #${entry.id}`).trim(),
+        image_url: String(entry.images?.find((i) => i?.media_type !== "video")?.image_url || entry.images?.[0]?.image_url || "").trim(),
       }))
       .filter((entry) => entry.id);
 
@@ -920,6 +894,7 @@ export default function AdminDashboard({
         .map((entry) => ({
           id: entry.id,
           name: (entry.name || `Product #${entry.id}`).trim(),
+          image_url: String(entry.images?.find((i) => i?.media_type !== "video")?.image_url || entry.images?.[0]?.image_url || "").trim(),
         }))
         .filter((entry) => entry.id);
 
@@ -930,7 +905,7 @@ export default function AdminDashboard({
       seen.add(key);
       return true;
     });
-  }, [normalizedManualProducts]);
+  }, [normalizedManualProducts, inferManualProductTab]);
 
   const linkedProductOptions = useMemo(() => {
     const seen = new Set();
@@ -943,6 +918,7 @@ export default function AdminDashboard({
       .map((entry) => ({
         id: entry.id,
         name: String(entry.name || `Product #${entry.id}`).trim(),
+        image_url: String(entry.images?.find((i) => i?.media_type !== "video")?.image_url || entry.images?.[0]?.image_url || "").trim(),
       }))
       .filter((entry) => {
         const key = String(entry.id);
@@ -975,7 +951,7 @@ export default function AdminDashboard({
         )
       );
     });
-  }, [normalizedManualProducts, manualProductSearch, manualProductTypeFilter]);
+  }, [normalizedManualProducts, manualProductSearch, manualProductTypeFilter, inferManualProductTab]);
 
   const filteredDeactivatedProducts = useMemo(() => {
     const deactivatedManualProducts = normalizedManualProducts.filter((product) => !product.is_active);
@@ -1000,11 +976,11 @@ export default function AdminDashboard({
         )
       );
     });
-  }, [normalizedManualProducts, deactivatedProductSearch, manualProductTypeFilter]);
+  }, [normalizedManualProducts, deactivatedProductSearch, manualProductTypeFilter, inferManualProductTab]);
 
   const filteredPatternProducts = useMemo(
     () => filteredManualProducts.filter((product) => inferManualProductTab(product) === "patterns"),
-    [filteredManualProducts],
+    [filteredManualProducts, inferManualProductTab],
   );
 
   const totalManualProductPages = Math.max(
@@ -1085,6 +1061,7 @@ export default function AdminDashboard({
         .map((entry) => ({
           id: entry.id,
           name: String(entry.name || `Template #${entry.id}`).trim(),
+          thumbnail_url: String(entry.thumbnail_url || entry.image_url || "").trim(),
         }))
         .filter((entry) => {
           const key = String(entry.id);
@@ -1106,6 +1083,7 @@ export default function AdminDashboard({
           id: entry.id,
           panel_name: String(entry.panel_name || `Photo #${entry.id}`).trim(),
           template_id: entry.template_id || null,
+          image_url: String(entry.image_url || "").trim(),
         }))
         .filter((entry) => {
           const key = String(entry.id);
@@ -1158,10 +1136,8 @@ export default function AdminDashboard({
     return CATEGORY_TYPE_ALIASES[normalized] || null;
   };
 
-  const isTypeCategory = (value) => Boolean(normalizeTypeFromCategory(value));
-
   const removeTypeCategories = (categories = []) => {
-    return categories.filter((entry) => !isTypeCategory(entry));
+    return categories.filter((entry) => !normalizeTypeFromCategory(entry));
   };
 
   const setPrimaryTypeCategory = (type) => {
@@ -1204,7 +1180,6 @@ export default function AdminDashboard({
     setProductModePhysical(Boolean(nextModes.physical));
     setProductModePattern(Boolean(nextModes.pattern));
     setProductModeTemplate(Boolean(nextModes.template));
-    setPatternOnly(Boolean(nextModes.pattern));
     const mainProductIsDigital = !nextModes.physical && (nextModes.pattern || nextModes.template);
     setDigitalDownloadState(mainProductIsDigital);
   };
@@ -1223,8 +1198,6 @@ export default function AdminDashboard({
     : productModePhysical || (productModePattern && selectedTypeCategory === "patterns");
   const isTemplateSectionEnabled = productModePattern || productModeTemplate;
   const isPatternOrTemplate = productModePattern || productModeTemplate;
-  const templateNameFilled = Boolean(String(unifiedTemplate.name || "").trim());
-  const shouldRequireProductFields = isProductSectionEnabled && (editingProduct || !templateNameFilled);
 
   const closeFavoriteDropdowns = () => {
     setShowCategoryDropdown(false);
@@ -1482,9 +1455,9 @@ export default function AdminDashboard({
     const creatingTemplateOnly = !editingProduct && !shouldSaveProduct && shouldCreateTemplate;
     const creatingBoth = !editingProduct && shouldSaveProduct && shouldCreateTemplate;
     const shouldCreatePatternCopy =
-      !editingProduct
-      && productModePattern
-      && selectedTypeCategory !== "patterns";
+      productModePattern
+      && selectedTypeCategory !== "patterns"
+      && (!editingProduct || Boolean(relatedTemplateUpload.file || unifiedTemplate.upload_file));
     const creatingPatternOnly = !editingProduct && !shouldSaveProduct && !shouldCreateTemplate && shouldCreatePatternCopy;
 
     if (!isProductSectionEnabled && !isTemplateSectionEnabled) {
@@ -1531,9 +1504,16 @@ export default function AdminDashboard({
       let templateCreatePayload = null;
       let savedProduct = null;
       let processedImages = [];
+      let linkedTemplateNotice = "";
+      let patternPreferredImageUrl = "";
       let relatedLinks = {
         ...createDefaultRelatedLinks(),
         ...(manualProduct.related_links || {}),
+      };
+      const isNotFoundError = (err) => {
+        const status = Number(err?.response?.status || 0);
+        const code = String(err?.response?.data?.error || "").toLowerCase();
+        return status === 404 || code === "not_found";
       };
 
       if (shouldCreateTemplate) {
@@ -1558,6 +1538,7 @@ export default function AdminDashboard({
           if (!uploadedImageUrl) {
             throw new Error("Template image upload failed.");
           }
+          patternPreferredImageUrl = uploadedImageUrl;
         }
 
         templateCreatePayload = {
@@ -1593,41 +1574,70 @@ export default function AdminDashboard({
       }
 
       if (shouldSaveProduct) {
-      // Convert File objects to data URLs for images
+      // Upload new File objects to the server; re-upload legacy data: URLs to get server paths.
         processedImages = [];
 
         for (const img of manualProduct.images || []) {
           if (img instanceof File) {
-            const dataUrl = await new Promise((resolve) => {
-              const reader = new FileReader();
-              reader.onload = (e) => resolve(e.target.result);
-              reader.readAsDataURL(img);
-            });
-            processedImages.push({
-              url: dataUrl,
-              type: img.type.startsWith("video") ? "video" : "image",
-            });
+            const formData = new FormData();
+            formData.append("file", img);
+            const uploadResult = await uploadProductImage(formData);
+            const uploadedUrl = String(uploadResult?.image_url || "").trim();
+            if (uploadedUrl) {
+              processedImages.push({
+                image_url: uploadedUrl,
+                media_type: img.type.startsWith("video") ? "video" : "image",
+              });
+            }
           } else if (img.image_url) {
+            const existingUrl = String(img.image_url || "").trim();
+            // Legacy records may store full data: URLs; re-upload to get a server path.
+            if (existingUrl.startsWith("data:") && existingUrl.includes(",")) {
+              try {
+                const resp = await fetch(existingUrl);
+                const blob = await resp.blob();
+                const ext = blob.type === "image/png" ? ".png" : blob.type === "image/webp" ? ".webp" : ".jpg";
+                const file = new File([blob], `migrated${ext}`, { type: blob.type });
+                const formData = new FormData();
+                formData.append("file", file);
+                const uploadResult = await uploadProductImage(formData);
+                const uploadedUrl = String(uploadResult?.image_url || "").trim();
+                if (uploadedUrl) {
+                  processedImages.push({
+                    image_url: uploadedUrl,
+                    media_type: img.media_type || "image",
+                  });
+                  continue;
+                }
+              } catch {
+                // Fall through to keep the original data: URL as a last resort
+              }
+            }
             processedImages.push({
-              image_url: img.image_url,
+              image_url: existingUrl,
               media_type: img.media_type || "image",
             });
           }
         }
 
-        if (!createdTemplate?.id && relatedTemplateUpload.file) {
-          if (relatedTemplateUpload.file.size > MAX_TEMPLATE_UPLOAD_BYTES) {
+        const linkedTemplateSourceFile = relatedTemplateUpload.file || unifiedTemplate.upload_file;
+
+        if (!createdTemplate?.id && linkedTemplateSourceFile) {
+          if (linkedTemplateSourceFile.size > MAX_TEMPLATE_UPLOAD_BYTES) {
             throw new Error("Linked template upload is too large (max 50 MB).");
           }
-          const linkedTemplateName = String(relatedTemplateUpload.name || "").trim()
-            || getNameFromFile(relatedTemplateUpload.file)
+          const linkedTemplateName = String(relatedTemplateUpload.name || unifiedTemplate.name || "").trim()
+            || getNameFromFile(linkedTemplateSourceFile)
             || "Linked Template";
+          const linkedTemplateCategory = String(
+            relatedTemplateUpload.category || (productModeTemplate && !productModePattern ? "Template" : "Patterns"),
+          ).trim() || "Patterns";
 
-          const uploadedFileName = String(relatedTemplateUpload.file?.name || "").toLowerCase();
-          const isPdfUpload = uploadedFileName.endsWith(".pdf") || relatedTemplateUpload.file?.type === "application/pdf";
+          const uploadedFileName = String(linkedTemplateSourceFile?.name || "").toLowerCase();
+          const isPdfUpload = uploadedFileName.endsWith(".pdf") || linkedTemplateSourceFile?.type === "application/pdf";
           const fileForUpload = isPdfUpload
-            ? await pdfToPngFile(relatedTemplateUpload.file)
-            : relatedTemplateUpload.file;
+            ? await pdfToPngFile(linkedTemplateSourceFile)
+            : linkedTemplateSourceFile;
           const fileType = String(fileForUpload?.type || "");
           if (!fileType.startsWith("image/")) {
             throw new Error("Linked template upload supports PDF or image files only.");
@@ -1640,10 +1650,11 @@ export default function AdminDashboard({
           if (!uploadedImageUrl) {
             throw new Error("Linked template image upload failed.");
           }
+          patternPreferredImageUrl = uploadedImageUrl;
 
           const uploadedTemplate = await createAdminTemplate({
             name: linkedTemplateName,
-            category: String(relatedTemplateUpload.category || "Patterns").trim() || "Patterns",
+            category: linkedTemplateCategory,
             template_type: "image",
             image_url: uploadedImageUrl,
             thumbnail_url: uploadedImageUrl,
@@ -1655,10 +1666,13 @@ export default function AdminDashboard({
             setProductTemplateOptions((prev) => {
               const exists = prev.some((entry) => String(entry.id) === String(uploadedTemplate.id));
               if (exists) return prev;
-              return [{ id: uploadedTemplate.id, name: String(uploadedTemplate.name || "").trim() }, ...prev];
+              return [{ id: uploadedTemplate.id, name: String(uploadedTemplate.name || "").trim(), thumbnail_url: String(uploadedTemplate.thumbnail_url || uploadedTemplate.image_url || "").trim() }, ...prev];
             });
             relatedLinks.template_id = String(uploadedTemplate.id);
-            relatedLinks.template_name = String(uploadedTemplate.name || relatedTemplateUpload.name || "").trim();
+              relatedLinks.template_name = String(
+                uploadedTemplate.name || relatedTemplateUpload.name || unifiedTemplate.name || "",
+              ).trim();
+            linkedTemplateNotice = relatedLinks.template_name || linkedTemplateName;
           }
         }
 
@@ -1795,8 +1809,24 @@ export default function AdminDashboard({
         };
 
         if (editingProduct) {
-          savedProduct = await onUpdateManualProduct(editingProduct.id, productData);
-          setStatus("Product updated successfully!");
+          try {
+            savedProduct = await onUpdateManualProduct(editingProduct.id, productData);
+            setStatus(
+              linkedTemplateNotice
+                ? `Product updated successfully. Linked pattern/template: ${linkedTemplateNotice}.`
+                : "Product updated successfully!",
+            );
+          } catch (error) {
+            if (!isNotFoundError(error)) {
+              throw error;
+            }
+            savedProduct = await onAddManualProduct(productData);
+            setStatus(
+              linkedTemplateNotice
+                ? `Original product was missing, so a new one was created. Linked pattern/template: ${linkedTemplateNotice}.`
+                : "Original product was missing, so a new product was created.",
+            );
+          }
         } else {
           savedProduct = await onAddManualProduct(productData);
         }
@@ -1805,11 +1835,20 @@ export default function AdminDashboard({
       if (shouldCreatePatternCopy) {
         const patternTypeLabel = PRODUCT_TYPE_LABEL_BY_KEY.patterns || "Patterns";
         const nonTypeCategories = removeTypeCategories(manualProduct.category || []);
-        const existingPatternId = relatedLinks.pattern_product_id
+        const existingPatternIdRaw = relatedLinks.pattern_product_id
           ? Number(relatedLinks.pattern_product_id)
           : createdTemplate?.related_links?.pattern_product_id
             ? Number(createdTemplate.related_links.pattern_product_id)
             : null;
+        const hasLinkedPatternInCatalog = Number.isFinite(existingPatternIdRaw)
+          && normalizedManualProducts.some((entry) => Number(entry?.id) === Number(existingPatternIdRaw));
+        // Guard: never update the editing product itself as if it were the pattern product
+        // (self-referential pattern_product_id corrupts the physical product)
+        const existingPatternId = !hasLinkedPatternInCatalog
+          ? null
+          : editingProduct && existingPatternIdRaw === Number(editingProduct.id)
+            ? null
+            : existingPatternIdRaw;
 
         const referenceImages = [];
         for (const entry of templateRefPhotos) {
@@ -1817,42 +1856,63 @@ export default function AdminDashboard({
           if (!(file instanceof File) || !String(file.type || "").startsWith("image/")) {
             continue;
           }
-          const dataUrl = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.readAsDataURL(file);
-          });
-          referenceImages.push({
-            url: dataUrl,
-            type: "image",
-          });
+          const formData = new FormData();
+          formData.append("file", file);
+          const uploadResult = await uploadProductImage(formData);
+          const uploadedUrl = String(uploadResult?.image_url || "").trim();
+          if (uploadedUrl) {
+            referenceImages.push({
+              image_url: uploadedUrl,
+              media_type: "image",
+            });
+          }
         }
 
-        const patternImages = referenceImages.length > 0
-          ? referenceImages
-          : processedImages.filter((entry) => {
-            const mediaType = String(entry.media_type || entry.type || "").toLowerCase();
-            return mediaType !== "video";
-          });
+        if (!patternPreferredImageUrl && relatedLinks.template_id) {
+          const selectedTemplate = productTemplateOptions.find(
+            (entry) => String(entry?.id) === String(relatedLinks.template_id),
+          );
+          patternPreferredImageUrl = String(
+            selectedTemplate?.thumbnail_url || selectedTemplate?.image_url || "",
+          ).trim();
+        }
 
-        if (patternImages.length === 0 && unifiedTemplate.upload_file) {
+        const preferredTemplateImage = patternPreferredImageUrl
+          ? [{ image_url: patternPreferredImageUrl, media_type: "image" }]
+          : [];
+
+        const rawPatternImages = preferredTemplateImage.length > 0
+          ? preferredTemplateImage
+          : referenceImages.length > 0
+            ? referenceImages
+            : processedImages.filter((entry) => {
+              const mediaType = String(entry.media_type || entry.type || "").toLowerCase();
+              return mediaType !== "video";
+            });
+
+        if (rawPatternImages.length === 0 && unifiedTemplate.upload_file) {
           const uploadFile = (() => {
             const fileName = String(unifiedTemplate.upload_file?.name || "").toLowerCase();
             const isPdf = fileName.endsWith(".pdf") || unifiedTemplate.upload_file?.type === "application/pdf";
             return isPdf ? null : unifiedTemplate.upload_file;
           })();
           if (uploadFile && String(uploadFile.type || "").startsWith("image/")) {
-            const dataUrl = await new Promise((resolve) => {
-              const reader = new FileReader();
-              reader.onload = (e) => resolve(e.target.result);
-              reader.readAsDataURL(uploadFile);
-            });
-            patternImages.push({
-              url: dataUrl,
-              type: "image",
-            });
+            const formData = new FormData();
+            formData.append("file", uploadFile);
+            const uploadResult = await uploadProductImage(formData);
+            const uploadedUrl = String(uploadResult?.image_url || "").trim();
+            if (uploadedUrl) {
+              rawPatternImages.push({
+                image_url: uploadedUrl,
+                media_type: "image",
+              });
+            }
           }
         }
+
+        // Keep the same image set for the derived pattern. Legacy data URLs are re-uploaded
+        // earlier when possible, and retaining fallback URLs prevents empty-image pattern copies.
+        const patternImages = rawPatternImages;
 
         const resolvedPatternDescription = String(
           manualProduct.description
@@ -1893,11 +1953,33 @@ export default function AdminDashboard({
             gallery_template_id: null,
           },
           images: patternImages,
+          // In edit mode with an existing pattern, omit the images key entirely when we have
+          // no clean server-hosted images to send – this preserves the pattern's stored photos.
+          ...(editingProduct && existingPatternId && patternImages.length === 0 ? { images: undefined } : {}),
         };
 
-        const savedPatternProduct = existingPatternId
-          ? await onUpdateManualProduct(existingPatternId, patternProductData)
-          : await onAddManualProduct(patternProductData);
+        let savedPatternProduct = null;
+        if (existingPatternId) {
+          try {
+            savedPatternProduct = await onUpdateManualProduct(existingPatternId, patternProductData);
+          } catch (error) {
+            if (!isNotFoundError(error)) {
+              throw error;
+            }
+
+            // The previously linked pattern was deleted; create a fresh replacement.
+            const fallbackPatternData = {
+              ...patternProductData,
+              related_links: {
+                ...(patternProductData.related_links || {}),
+                pattern_product_id: null,
+              },
+            };
+            savedPatternProduct = await onAddManualProduct(fallbackPatternData);
+          }
+        } else {
+          savedPatternProduct = await onAddManualProduct(patternProductData);
+        }
         if (savedPatternProduct?.id) {
           relatedLinks.pattern_product_id = String(savedPatternProduct.id);
           relatedLinks.pattern_product_name = String(
@@ -2050,14 +2132,12 @@ export default function AdminDashboard({
         setUnifiedTemplate(createEmptyUnifiedTemplate());
         setRelatedTemplateUpload(createEmptyRelatedTemplateUpload());
         setRelatedGalleryUpload(createEmptyRelatedGalleryUpload());
-        setShowRelatedLinksSection(false);
         setImagePreviews([]);
         setEnableWatermark(true); // Always reset to true after submission
         setWatermarkText("SGCG ART GLASS"); // Reset to default text
         setAddImagesToGallery(false);
         setTemplateRefPhotos([]);
         setTemplateNameManuallyEdited(false);
-        setPatternOnly(false);
         setPatternOnlyDescription("");
       }
       await loadManualProductLinkOptions();
@@ -2157,20 +2237,13 @@ export default function AdminDashboard({
     setUnifiedTemplate(createEmptyUnifiedTemplate());
     setRelatedTemplateUpload(createEmptyRelatedTemplateUpload());
     setRelatedGalleryUpload(createEmptyRelatedGalleryUpload());
-    setShowRelatedLinksSection(
-      hasAnyRelatedLinkValue(existingRelatedLinks)
-      || Boolean(existingRelatedLinks?.template_id)
-      || Boolean(existingRelatedLinks?.pattern_product_id)
-      || Boolean(existingRelatedLinks?.gallery_photo_id),
-    );
     setCategoryInput("");
     setMaterialInput("");
     setShowManualProductModal(true);
     setQuantityManuallyEdited(true);
     setTemplateNameManuallyEdited(false);
-    setPatternOnly(false);
     setPatternOnlyDescription(String(product.description || ""));
-    setProductModePhysical(!Boolean(product.is_digital_download));
+    setProductModePhysical(!product.is_digital_download);
     setProductModePattern(Boolean(product.is_digital_download));
     setProductModeTemplate(false);
     } finally {
@@ -2209,10 +2282,9 @@ export default function AdminDashboard({
 
     const isCurrentlyActive = product?.is_active !== 0 && product?.is_active !== false;
     const nextActive = !isCurrentlyActive;
-    const actionLabel = nextActive ? "activate" : "deactivate";
     const confirmMessage = nextActive
-      ? `Reactivate \"${product.name}\" and show it on the site?`
-      : `Deactivate \"${product.name}\" and remove it from the site?`;
+      ? `Reactivate "${product.name}" and show it on the site?`
+      : `Deactivate "${product.name}" and remove it from the site?`;
 
     if (!window.confirm(confirmMessage)) {
       return;
@@ -2448,7 +2520,6 @@ export default function AdminDashboard({
     setUnifiedTemplate(createEmptyUnifiedTemplate());
     setRelatedTemplateUpload(createEmptyRelatedTemplateUpload());
     setRelatedGalleryUpload(createEmptyRelatedGalleryUpload());
-    setShowRelatedLinksSection(false);
     setCategoryInput("");
     setMaterialInput("");
     setImagePreviews([]);
@@ -2457,7 +2528,6 @@ export default function AdminDashboard({
     setAddImagesToGallery(false);
     setTemplateRefPhotos([]);
     setTemplateNameManuallyEdited(false);
-    setPatternOnly(false);
     setPatternOnlyDescription("");
     setProductModePhysical(true);
     setProductModePattern(false);
@@ -2777,8 +2847,8 @@ export default function AdminDashboard({
       const heightText = toDimensionPart(patternProduct.height);
       const depthText = toDimensionPart(patternProduct.depth);
       const derivedDimensions = [
-        widthText && heightText ? `${widthText}\" x ${heightText}\"` : "",
-        depthText ? `Depth ${depthText}\"` : "",
+        widthText && heightText ? `${widthText}" x ${heightText}"` : "",
+        depthText ? `Depth ${depthText}"` : "",
       ]
         .filter(Boolean)
         .join(" · ");
@@ -3362,7 +3432,6 @@ export default function AdminDashboard({
                     setUnifiedTemplate(createEmptyUnifiedTemplate());
                     setRelatedTemplateUpload(createEmptyRelatedTemplateUpload());
                     setRelatedGalleryUpload(createEmptyRelatedGalleryUpload());
-                    setShowRelatedLinksSection(false);
                     setCategoryInput("");
                     setMaterialInput("");
                     setImagePreviews([]);
@@ -4942,6 +5011,19 @@ export default function AdminDashboard({
                                 </option>
                               ))}
                             </select>
+                            {(() => {
+                              const selId = String(manualProduct.related_links?.template_id || "");
+                              if (!selId) return null;
+                              const sel = productTemplateOptions.find((e) => String(e.id) === selId);
+                              const thumb = resolveMediaUrl(sel?.thumbnail_url || "");
+                              return thumb ? (
+                                <img
+                                  src={thumb}
+                                  alt={sel?.name || "Template preview"}
+                                  style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "4px", marginTop: "6px", display: "block" }}
+                                />
+                              ) : null;
+                            })()}
                           </label>
 
                           <label>
@@ -4971,6 +5053,19 @@ export default function AdminDashboard({
                                 </option>
                               ))}
                             </select>
+                            {(() => {
+                              const selId = String(manualProduct.related_links?.pattern_product_id || "");
+                              if (!selId) return null;
+                              const sel = patternProductOptions.find((e) => String(e.id) === selId);
+                              const thumb = resolveMediaUrl(sel?.image_url || "");
+                              return thumb ? (
+                                <img
+                                  src={thumb}
+                                  alt={sel?.name || "Pattern preview"}
+                                  style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "4px", marginTop: "6px", display: "block" }}
+                                />
+                              ) : null;
+                            })()}
                           </label>
 
                           <label>
@@ -5000,6 +5095,19 @@ export default function AdminDashboard({
                                 </option>
                               ))}
                             </select>
+                            {(() => {
+                              const selId = String(manualProduct.related_links?.linked_product_id || "");
+                              if (!selId) return null;
+                              const sel = linkedProductOptions.find((e) => String(e.id) === selId);
+                              const thumb = resolveMediaUrl(sel?.image_url || "");
+                              return thumb ? (
+                                <img
+                                  src={thumb}
+                                  alt={sel?.name || "Product preview"}
+                                  style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "4px", marginTop: "6px", display: "block" }}
+                                />
+                              ) : null;
+                            })()}
                           </label>
 
                           <label>
@@ -5032,8 +5140,25 @@ export default function AdminDashboard({
                                 </option>
                               ))}
                             </select>
+                            {(() => {
+                              const selId = String(manualProduct.related_links?.gallery_photo_id || "");
+                              if (!selId) return null;
+                              const sel = productGalleryOptions.find((e) => String(e.id) === selId);
+                              const thumb = resolveMediaUrl(sel?.image_url || "");
+                              return thumb ? (
+                                <img
+                                  src={thumb}
+                                  alt={sel?.panel_name || "Gallery preview"}
+                                  style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "4px", marginTop: "6px", display: "block" }}
+                                />
+                              ) : null;
+                            })()}
                           </label>
                         </div>
+
+                        {status ? (
+                          <p className="form-note" role="status" aria-live="polite">{status}</p>
+                        ) : null}
 
                         <div className="modal-actions">
                           <button

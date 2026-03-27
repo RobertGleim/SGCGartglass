@@ -6,7 +6,7 @@ from flask import Blueprint, jsonify, request, current_app
 from sqlalchemy import func
 from werkzeug.utils import secure_filename
 
-from ..models import db, Template, TemplateRegion
+from ..models import db, GalleryPhoto, Template, TemplateRegion
 from ..auth import decode_token
 from ..db import (
     create_manual_product,
@@ -572,6 +572,12 @@ def delete_template(template_id):
 
         hard = request.args.get("hard", "").lower() in ("true", "1", "yes")
         if hard:
+            # Defensive cleanup: old databases may not enforce ON DELETE SET NULL,
+            # so clear gallery references before removing the template.
+            GalleryPhoto.query.filter(GalleryPhoto.template_id == template_id).update(
+                {GalleryPhoto.template_id: None},
+                synchronize_session=False,
+            )
             db.session.delete(template)
             db.session.commit()
             return jsonify({"success": True, "message": "Template permanently deleted"}), 200

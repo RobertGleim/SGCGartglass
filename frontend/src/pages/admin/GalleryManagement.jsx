@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   deleteAdminGalleryPhoto,
   getAdminGalleryPhotos,
@@ -122,7 +122,7 @@ export default function GalleryManagement() {
     mergeIncomingFiles(event.dataTransfer?.files || []);
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const approvalStatus = statusFilter === 'all' ? undefined : statusFilter;
@@ -154,11 +154,11 @@ export default function GalleryManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, currentPage]);
 
   useEffect(() => {
     loadData();
-  }, [statusFilter, currentPage]);
+  }, [loadData]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -273,7 +273,7 @@ export default function GalleryManagement() {
   const formatTimestamp = (value) => {
     if (!value) return '-';
     const raw = String(value);
-    const hasTz = /([zZ]|[+\-]\d{2}:\d{2})$/.test(raw);
+    const hasTz = /([zZ]|[+-]\d{2}:\d{2})$/.test(raw);
     const normalized = hasTz ? raw : `${raw}Z`;
     const d = new Date(normalized);
     if (Number.isNaN(d.getTime())) return '-';

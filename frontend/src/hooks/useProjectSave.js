@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../services/api';
 
 export default function useProjectSave({ templateId, filledRegions, initialProjectId, initialProjectName }) {
@@ -10,7 +10,7 @@ export default function useProjectSave({ templateId, filledRegions, initialProje
   const lastSavedData = useRef(null);
 
   // Collect design data
-  function collectDesignData() {
+  const collectDesignData = useCallback(() => {
     const regions = Object.entries(filledRegions).map(([regionId, data]) => ({
       regionId,
       color: data.color,
@@ -22,10 +22,10 @@ export default function useProjectSave({ templateId, filledRegions, initialProje
       project_name: projectName,
       design_data: { regions, completionPercentage },
     };
-  }
+  }, [filledRegions, templateId, projectName]);
 
   // Save project
-  async function saveProject(manual = false) {
+  const saveProject = useCallback(async (manual = false) => {
     setIsSaving(true);
     setError(null);
     const data = collectDesignData();
@@ -44,7 +44,7 @@ export default function useProjectSave({ templateId, filledRegions, initialProje
     } finally {
       setIsSaving(false);
     }
-  }
+  }, [collectDesignData, projectId]);
 
   // Auto-save every 60s if changes detected
   useEffect(() => {
@@ -55,7 +55,7 @@ export default function useProjectSave({ templateId, filledRegions, initialProje
       }
     }, 60000);
     return () => clearInterval(interval);
-  }, [filledRegions, projectName, templateId, collectDesignData, saveProject]);
+  }, [collectDesignData, saveProject]);
 
   // Manual save (Ctrl+S)
   useEffect(() => {
@@ -67,7 +67,7 @@ export default function useProjectSave({ templateId, filledRegions, initialProje
     }
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [filledRegions, projectName, templateId]);
+  }, [saveProject]);
 
   return {
     projectId,

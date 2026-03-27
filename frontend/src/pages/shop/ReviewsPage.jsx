@@ -53,7 +53,6 @@ export default function ReviewsPage() {
   const [sortBy, setSortBy] = useState('suggested')
   const [ratingFilter, setRatingFilter] = useState('all')
   const [inviteCode, setInviteCode] = useState('')
-  const [inviteInfo, setInviteInfo] = useState(null)
   const [inviteStatus, setInviteStatus] = useState('')
   const [isValidatingCode, setIsValidatingCode] = useState(false)
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false)
@@ -104,13 +103,11 @@ export default function ReviewsPage() {
 
     setIsValidatingCode(true)
     try {
-      const response = await validateReviewInviteCode(nextCode)
-      setInviteInfo(response?.invite || null)
+      await validateReviewInviteCode(nextCode)
       setInviteCode(nextCode)
       setIsSubmitModalOpen(true)
       setInviteStatus('Code accepted. Complete your review form.')
     } catch (error) {
-      setInviteInfo(null)
       setInviteStatus(error?.response?.data?.error || error?.message || 'Invalid review code.')
     } finally {
       setIsValidatingCode(false)
@@ -213,12 +210,6 @@ export default function ReviewsPage() {
     }
     return [...filtered].sort((a, b) => b.createdAtMs - a.createdAtMs)
   }, [normalizedReviews, sortBy, ratingFilter])
-
-  const toProductHref = (review) => {
-    const productId = String(review.product_id || '').trim()
-    if (!productId) return '#/product'
-    return review.product_type === 'manual' ? `#/product/m-${productId}` : `#/product/${productId}`
-  }
 
   return (
     <main className="reviews-page">
