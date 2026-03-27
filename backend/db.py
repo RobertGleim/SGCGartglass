@@ -860,36 +860,19 @@ def fetch_manual_products():
     conn = get_db()
     cursor = conn.cursor()
     
-    # Try with image_data column first, fall back without if column doesn't exist
-    include_image_data = False
-    try:
-        cursor.execute(
-            """
-            SELECT
-                p.*,
-                i.image_url AS product_image_url,
-                i.image_data AS product_image_data,
-                i.media_type AS product_image_media_type
-            FROM manual_products p
-            LEFT JOIN product_images i ON i.product_id = p.id
-            ORDER BY p.created_at DESC, i.display_order ASC
-            """
-        )
-        include_image_data = True
-    except Exception:
-        # Column doesn't exist; query without image_data
-        cursor.execute(
-            """
-            SELECT
-                p.*,
-                i.image_url AS product_image_url,
-                i.media_type AS product_image_media_type
-            FROM manual_products p
-            LEFT JOIN product_images i ON i.product_id = p.id
-            ORDER BY p.created_at DESC, i.display_order ASC
-            """
-        )
-    
+    # Query without image_data by default (fallback-safe approach)
+    # image_data will be fetched separately if needed
+    cursor.execute(
+        """
+        SELECT
+            p.*,
+            i.image_url AS product_image_url,
+            i.media_type AS product_image_media_type
+        FROM manual_products p
+        LEFT JOIN product_images i ON i.product_id = p.id
+        ORDER BY p.created_at DESC, i.display_order ASC
+        """
+    )
     rows = cursor.fetchall()
 
     products = []
@@ -901,8 +884,6 @@ def fetch_manual_products():
         product = by_id.get(product_id)
         if not product:
             payload.pop("product_image_url", None)
-            if include_image_data:
-                payload.pop("product_image_data", None)
             payload.pop("product_image_media_type", None)
             product = payload
 
@@ -931,17 +912,36 @@ def fetch_manual_products():
                 "image_url": image_url,
                 "media_type": payload.get("product_image_media_type") or "image",
             }
-            if include_image_data:
-                img_data = payload.get("product_image_data")
-                if img_data:
-                    try:
-                        if isinstance(img_data, bytes):
-                            img_dict["image_data"] = img_data.hex()
-                        elif isinstance(img_data, str):
-                            img_dict["image_data"] = img_data
-                    except (AttributeError, ValueError, TypeError):
-                        pass
             product["images"].append(img_dict)
+    
+    # Try to fetch image_data separately if the column exists (production optimization)
+    try:
+        is_mysql = _use_mysql()
+        placeholder = "%s" if is_mysql else "?"
+        for product_id_val, product in by_id.items():
+            cursor.execute(
+                f"SELECT image_url, image_data FROM product_images WHERE product_id = {placeholder} ORDER BY display_order",
+                (product_id_val,)
+            )
+            image_rows = cursor.fetchall()
+            if image_rows:
+                product["images"] = []
+                for img_row in image_rows:
+                    img_row_dict = dict(img_row)
+                    img_data = img_row_dict.get("image_data")
+                    img_dict = {"image_url": img_row_dict.get("image_url", "")}
+                    if img_data:
+                        try:
+                            if isinstance(img_data, bytes):
+                                img_dict["image_data"] = img_data.hex()
+                            elif isinstance(img_data, str):
+                                img_dict["image_data"] = img_data
+                        except (AttributeError, ValueError, TypeError):
+                            pass
+                    product["images"].append(img_dict)
+    except Exception:
+        # image_data column doesn't exist, that's fine - use the URLs from above
+        pass
     
     conn.close()
     return products
@@ -1063,28 +1063,11 @@ def fetch_manual_products_catalog():
         preview_image_url = product.pop("preview_image_url", None)
         preview_media_type = product.pop("preview_media_type", None)
         
-        if include_image_data:
-            preview_image_data = product.pop("preview_image_data", None)
-        else:
-            preview_image_data = None
-        
         if preview_image_url:
-            img_dict = {
+            product["images"] = [{
                 "image_url": preview_image_url,
                 "media_type": preview_media_type or "image",
-            }
-            # Convert binary preview_image_data to hex string for JSON serialization
-            if preview_image_data:
-                try:
-                    if isinstance(preview_image_data, bytes):
-                        img_dict["image_data"] = preview_image_data.hex()
-                    elif isinstance(preview_image_data, str):
-                        # Already hex string, keep as is
-                        img_dict["image_data"] = preview_image_data
-                except (AttributeError, ValueError, TypeError):
-                    # If conversion fails, skip the image_data field
-                    pass
-            product["images"] = [img_dict]
+            }]
         else:
             product["images"] = []
             
@@ -1127,30 +1110,39 @@ def fetch_manual_product(product_id):
         except (json.JSONDecodeError, TypeError):
             pass  # Keep as string if not valid JSON
     
-    # Fetch images for this product
-    cursor.execute(
-        f"SELECT image_url, image_data, media_type FROM product_images WHERE product_id = {placeholder} ORDER BY display_order",
-        (product_id,)
-    )
-    images = cursor.fetchall()
-    product["images"] = []
-    for img in images:
-        img_dict = dict(img)
-        # Convert binary image_data to hex string for JSON serialization
-        if img_dict.get("image_data"):
-            try:
-                if isinstance(img_dict["image_data"], bytes):
-                    img_dict["image_data"] = img_dict["image_data"].hex()
-                elif isinstance(img_dict["image_data"], str):
-                    # Already hex string, keep as is
-                    pass
-                else:
-                    # Remove incompatible data types
+    # Fetch images for this product - try with image_data, fall back to just URLs
+    try:
+        cursor.execute(
+            f"SELECT image_url, image_data, media_type FROM product_images WHERE product_id = {placeholder} ORDER BY display_order",
+            (product_id,)
+        )
+        images = cursor.fetchall()
+        product["images"] = []
+        for img in images:
+            img_dict = dict(img)
+            # Convert binary image_data to hex string for JSON serialization
+            if img_dict.get("image_data"):
+                try:
+                    if isinstance(img_dict["image_data"], bytes):
+                        img_dict["image_data"] = img_dict["image_data"].hex()
+                    elif isinstance(img_dict["image_data"], str):
+                        # Already hex string, keep as is
+                        pass
+                    else:
+                        # Remove incompatible data types
+                        img_dict.pop("image_data", None)
+                except (AttributeError, ValueError, TypeError) as e:
+                    # If conversion fails, remove the field to avoid serialization errors
                     img_dict.pop("image_data", None)
-            except (AttributeError, ValueError, TypeError) as e:
-                # If conversion fails, remove the field to avoid serialization errors
-                img_dict.pop("image_data", None)
-        product["images"].append(img_dict)
+            product["images"].append(img_dict)
+    except Exception:
+        # image_data column doesn't exist; query without it
+        cursor.execute(
+            f"SELECT image_url, media_type FROM product_images WHERE product_id = {placeholder} ORDER BY display_order",
+            (product_id,)
+        )
+        images = cursor.fetchall()
+        product["images"] = [dict(img) for img in images]
     product["is_active"] = _coerce_bool(product.get("is_active", 1))
     product["is_digital_download"] = _coerce_bool(product.get("is_digital_download"))
     product["related_links"] = _deserialize_related_links(product.get("related_links"))
