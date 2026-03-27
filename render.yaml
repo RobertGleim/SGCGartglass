@@ -13,7 +13,7 @@ services:
         value: https://sgcgartglass.onrender.com
       # Allow the production frontend to call the API (CORS)
       - key: CORS_ORIGINS
-        value: https://sgcgartglass.onrender.com
+        value: https://sgcgart.com,https://www.sgcgart.com,https://sgcgartglass.onrender.com
       # Hostinger SMTP settings
       - key: MAIL_SERVER
         value: smtp.hostinger.com
