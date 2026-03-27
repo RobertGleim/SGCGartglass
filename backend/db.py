@@ -859,18 +859,37 @@ def create_manual_product(payload):
 def fetch_manual_products():
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute(
-        """
-        SELECT
-            p.*,
-            i.image_url AS product_image_url,
-            i.image_data AS product_image_data,
-            i.media_type AS product_image_media_type
-        FROM manual_products p
-        LEFT JOIN product_images i ON i.product_id = p.id
-        ORDER BY p.created_at DESC, i.display_order ASC
-        """
-    )
+    
+    # Try with image_data column first, fall back without if column doesn't exist
+    include_image_data = False
+    try:
+        cursor.execute(
+            """
+            SELECT
+                p.*,
+                i.image_url AS product_image_url,
+                i.image_data AS product_image_data,
+                i.media_type AS product_image_media_type
+            FROM manual_products p
+            LEFT JOIN product_images i ON i.product_id = p.id
+            ORDER BY p.created_at DESC, i.display_order ASC
+            """
+        )
+        include_image_data = True
+    except Exception:
+        # Column doesn't exist; query without image_data
+        cursor.execute(
+            """
+            SELECT
+                p.*,
+                i.image_url AS product_image_url,
+                i.media_type AS product_image_media_type
+            FROM manual_products p
+            LEFT JOIN product_images i ON i.product_id = p.id
+            ORDER BY p.created_at DESC, i.display_order ASC
+            """
+        )
+    
     rows = cursor.fetchall()
 
     products = []
@@ -882,7 +901,8 @@ def fetch_manual_products():
         product = by_id.get(product_id)
         if not product:
             payload.pop("product_image_url", None)
-            payload.pop("product_image_data", None)
+            if include_image_data:
+                payload.pop("product_image_data", None)
             payload.pop("product_image_media_type", None)
             product = payload
 
@@ -907,14 +927,20 @@ def fetch_manual_products():
 
         image_url = payload.get("product_image_url")
         if image_url:
-            img_data = payload.get("product_image_data")
             img_dict = {
                 "image_url": image_url,
                 "media_type": payload.get("product_image_media_type") or "image",
             }
-            # Convert binary image_data to hex string for JSON serialization
-            if img_data:
-                img_dict["image_data"] = img_data.hex() if isinstance(img_data, bytes) else img_data
+            if include_image_data:
+                img_data = payload.get("product_image_data")
+                if img_data:
+                    try:
+                        if isinstance(img_data, bytes):
+                            img_dict["image_data"] = img_data.hex()
+                        elif isinstance(img_data, str):
+                            img_dict["image_data"] = img_data
+                    except (AttributeError, ValueError, TypeError):
+                        pass
             product["images"].append(img_dict)
     
     conn.close()
@@ -925,7 +951,10 @@ def fetch_manual_products_catalog():
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute(
+    # Try with image_data subquery, fall back without if column doesn't exist
+    include_image_data = False
+    try:
+        cursor.execute(
         """
         SELECT
             p.id,
@@ -969,8 +998,50 @@ def fetch_manual_products_catalog():
             ) AS preview_media_type
         FROM manual_products p
         ORDER BY p.created_at DESC
-        """
-    )
+            """
+        )
+        include_image_data = True
+    except Exception:
+        # image_data column doesn't exist; query without it
+        cursor.execute(
+            """
+            SELECT
+                p.id,
+                p.name,
+                p.description,
+                p.category,
+                p.materials,
+                p.width,
+                p.height,
+                p.depth,
+                p.price,
+                p.old_price,
+                p.discount_percent,
+                p.quantity,
+                p.is_featured,
+                p.is_active,
+                p.is_digital_download,
+                p.related_links,
+                p.created_at,
+                p.updated_at,
+                (
+                    SELECT pi.image_url
+                    FROM product_images pi
+                    WHERE pi.product_id = p.id
+                    ORDER BY pi.display_order
+                    LIMIT 1
+                ) AS preview_image_url,
+                (
+                    SELECT pi.media_type
+                    FROM product_images pi
+                    WHERE pi.product_id = p.id
+                    ORDER BY pi.display_order
+                    LIMIT 1
+                ) AS preview_media_type
+            FROM manual_products p
+            ORDER BY p.created_at DESC
+            """
+        )
     rows = cursor.fetchall()
 
     products = []
@@ -990,8 +1061,12 @@ def fetch_manual_products_catalog():
                 pass
 
         preview_image_url = product.pop("preview_image_url", None)
-        preview_image_data = product.pop("preview_image_data", None)
         preview_media_type = product.pop("preview_media_type", None)
+        
+        if include_image_data:
+            preview_image_data = product.pop("preview_image_data", None)
+        else:
+            preview_image_data = None
         
         if preview_image_url:
             img_dict = {
@@ -1000,7 +1075,15 @@ def fetch_manual_products_catalog():
             }
             # Convert binary preview_image_data to hex string for JSON serialization
             if preview_image_data:
-                img_dict["image_data"] = preview_image_data.hex() if isinstance(preview_image_data, bytes) else preview_image_data
+                try:
+                    if isinstance(preview_image_data, bytes):
+                        img_dict["image_data"] = preview_image_data.hex()
+                    elif isinstance(preview_image_data, str):
+                        # Already hex string, keep as is
+                        img_dict["image_data"] = preview_image_data
+                except (AttributeError, ValueError, TypeError):
+                    # If conversion fails, skip the image_data field
+                    pass
             product["images"] = [img_dict]
         else:
             product["images"] = []
@@ -1055,7 +1138,18 @@ def fetch_manual_product(product_id):
         img_dict = dict(img)
         # Convert binary image_data to hex string for JSON serialization
         if img_dict.get("image_data"):
-            img_dict["image_data"] = img_dict["image_data"].hex() if isinstance(img_dict["image_data"], bytes) else img_dict["image_data"]
+            try:
+                if isinstance(img_dict["image_data"], bytes):
+                    img_dict["image_data"] = img_dict["image_data"].hex()
+                elif isinstance(img_dict["image_data"], str):
+                    # Already hex string, keep as is
+                    pass
+                else:
+                    # Remove incompatible data types
+                    img_dict.pop("image_data", None)
+            except (AttributeError, ValueError, TypeError) as e:
+                # If conversion fails, remove the field to avoid serialization errors
+                img_dict.pop("image_data", None)
         product["images"].append(img_dict)
     product["is_active"] = _coerce_bool(product.get("is_active", 1))
     product["is_digital_download"] = _coerce_bool(product.get("is_digital_download"))
