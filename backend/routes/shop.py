@@ -3025,7 +3025,7 @@ def upload_product_image():
         fp.write(file_bytes)
 
     image_url = f"/uploads/products/{unique_name}"
-    return jsonify({"image_url": image_url}), 201
+    return jsonify({"image_url": image_url, "image_data": file_bytes.hex()}), 201
 
 
 @api.post("/manual-products")

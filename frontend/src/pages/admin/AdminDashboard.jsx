@@ -106,6 +106,38 @@ const resolveMediaUrl = (value) => {
   return `${getApiOrigin()}/${raw.replace(/^\.?\//, "")}`;
 };
 
+/**
+ * Convert an image object (with optional image_data hex field) to a displayable URL.
+ * Prefers image_data blob URL over image_url if image_data is available.
+ */
+const resolveImageObjectToUrl = (imageObj) => {
+  if (!imageObj || typeof imageObj !== "object") {
+    return resolveMediaUrl(String(imageObj || ""));
+  }
+
+  // If image_data is available (hex string), convert to blob URL
+  if (imageObj.image_data && typeof imageObj.image_data === "string") {
+    try {
+      const hexStr = imageObj.image_data.trim();
+      if (hexStr) {
+        const bytes = new Uint8Array(hexStr.length / 2);
+        for (let i = 0; i < hexStr.length; i += 2) {
+          bytes[i / 2] = parseInt(hexStr.substr(i, 2), 16);
+        }
+        const mediaType = imageObj.media_type || "image/jpeg";
+        const blob = new Blob([bytes], { type: mediaType });
+        return URL.createObjectURL(blob);
+      }
+    } catch (err) {
+      // Log but continue to image_url fallback
+      console.warn("Failed to convert image_data hex to blob:", err);
+    }
+  }
+
+  // Fallback to image_url
+  return resolveMediaUrl(imageObj.image_url || "");
+};
+
 const FACEBOOK_POSTED_STORAGE_KEY = "adminFbPostedManualProducts";
 const STAR_SCALE = [1, 2, 3, 4, 5];
 const MAX_MANUAL_UPLOAD_PHOTOS = 10;
@@ -1587,6 +1619,7 @@ export default function AdminDashboard({
               processedImages.push({
                 image_url: uploadedUrl,
                 media_type: img.type.startsWith("video") ? "video" : "image",
+                ...(uploadResult?.image_data ? { image_data: uploadResult.image_data } : {}),
               });
             }
           } else if (img.image_url) {
@@ -1606,6 +1639,7 @@ export default function AdminDashboard({
                   processedImages.push({
                     image_url: uploadedUrl,
                     media_type: img.media_type || "image",
+                    ...(uploadResult?.image_data ? { image_data: uploadResult.image_data } : {}),
                   });
                   continue;
                 }
@@ -1616,6 +1650,7 @@ export default function AdminDashboard({
             processedImages.push({
               image_url: existingUrl,
               media_type: img.media_type || "image",
+              ...(img.image_data ? { image_data: img.image_data } : {}),
             });
           }
         }
@@ -3594,7 +3629,7 @@ export default function AdminDashboard({
                               />
                             ) : (
                               <img
-                                src={resolveMediaUrl(product.images[0].image_url)}
+                                src={resolveImageObjectToUrl(product.images[0])}
                                 alt={product.name}
                               />
                             )
@@ -3781,7 +3816,7 @@ export default function AdminDashboard({
                               />
                             ) : (
                               <img
-                                src={resolveMediaUrl(product.images[0].image_url)}
+                                src={resolveImageObjectToUrl(product.images[0])}
                                 alt={product.name}
                               />
                             )

@@ -258,10 +258,43 @@ def create_app(config_name=None):
         return jsonify({'error': 'Image not found'}), 404
 
     # Serve uploaded product images at /uploads/products/<filename>
+    # First tries database blob storage (image_data), falls back to filesystem
     @app.route("/uploads/products/<path:filename>")
     def send_product_image(filename):
         from pathlib import Path
-        from flask import send_from_directory
+        from flask import send_from_directory, send_file
+        import io
+        from backend.db import get_db, _use_mysql
+        
+        # Try to find image_data in database by filename
+        try:
+            conn = get_db()
+            cursor = conn.cursor()
+            is_mysql = _use_mysql()
+            placeholder = "%s" if is_mysql else "?"
+            
+            cursor.execute(
+                f"SELECT image_data, media_type FROM product_images WHERE image_url = {placeholder} OR image_url = {placeholder} LIMIT 1",
+                (f"/uploads/products/{filename}", filename)
+            )
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                row_dict = dict(row)
+                image_data = row_dict.get("image_data")
+                media_type = row_dict.get("media_type") or "image/jpeg"
+                if image_data:
+                    return send_file(
+                        io.BytesIO(image_data),
+                        mimetype=media_type,
+                        as_attachment=False,
+                        download_name=filename
+                    )
+        except Exception as e:
+            # Log and continue to filesystem fallback
+            app.logger.debug(f"Error fetching product image from DB: {e}")
+        
+        # Fallback to filesystem
         products_dir = Path(app.root_path) / "uploads" / "products"
         return send_from_directory(str(products_dir), filename)
 

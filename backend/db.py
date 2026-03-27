@@ -289,8 +289,10 @@ def init_db(force=False):
             id {id_column},
             product_id INTEGER NOT NULL,
             image_url {text_type} NOT NULL,
+            image_data LONGBLOB,
             media_type VARCHAR(50) DEFAULT 'image',
             display_order INTEGER DEFAULT 0,
+            created_at VARCHAR(50),
             FOREIGN KEY (product_id) REFERENCES manual_products(id) ON DELETE CASCADE
         )
         """
@@ -644,6 +646,8 @@ def init_db(force=False):
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_review_invite_codes_product ON review_invite_codes(product_type, product_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_manual_products_created_at ON manual_products(created_at DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_product_images_product_order ON product_images(product_id, display_order)")
+        cursor.execute("ALTER TABLE product_images ADD COLUMN IF NOT EXISTS image_data LONGBLOB")
+        cursor.execute("ALTER TABLE product_images ADD COLUMN IF NOT EXISTS created_at VARCHAR(50)")
 
     conn.commit()
     conn.close()
@@ -829,13 +833,22 @@ def create_manual_product(payload):
     for idx, image in enumerate(images):
         image_url = image.get("url") or image.get("image_url")
         media_type = image.get("type") or image.get("media_type", "image")
+        image_data_hex = image.get("image_data")
         if image_url:
+            # Convert hex string back to binary if present
+            image_data_binary = None
+            if image_data_hex:
+                try:
+                    image_data_binary = bytes.fromhex(image_data_hex) if isinstance(image_data_hex, str) else image_data_hex
+                except (ValueError, TypeError):
+                    pass  # If hex conversion fails, just use None
+            
             cursor.execute(
                 f"""
-                INSERT INTO product_images (product_id, image_url, media_type, display_order)
-                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder})
+                INSERT INTO product_images (product_id, image_url, image_data, media_type, display_order, created_at)
+                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
                 """,
-                (product_id, image_url, media_type, idx)
+                (product_id, image_url, image_data_binary, media_type, idx, now)
             )
     
     conn.commit()
@@ -851,6 +864,7 @@ def fetch_manual_products():
         SELECT
             p.*,
             i.image_url AS product_image_url,
+            i.image_data AS product_image_data,
             i.media_type AS product_image_media_type
         FROM manual_products p
         LEFT JOIN product_images i ON i.product_id = p.id
@@ -868,6 +882,7 @@ def fetch_manual_products():
         product = by_id.get(product_id)
         if not product:
             payload.pop("product_image_url", None)
+            payload.pop("product_image_data", None)
             payload.pop("product_image_media_type", None)
             product = payload
 
@@ -892,12 +907,15 @@ def fetch_manual_products():
 
         image_url = payload.get("product_image_url")
         if image_url:
-            product["images"].append(
-                {
-                    "image_url": image_url,
-                    "media_type": payload.get("product_image_media_type") or "image",
-                }
-            )
+            img_data = payload.get("product_image_data")
+            img_dict = {
+                "image_url": image_url,
+                "media_type": payload.get("product_image_media_type") or "image",
+            }
+            # Convert binary image_data to hex string for JSON serialization
+            if img_data:
+                img_dict["image_data"] = img_data.hex() if isinstance(img_data, bytes) else img_data
+            product["images"].append(img_dict)
     
     conn.close()
     return products
@@ -934,7 +952,21 @@ def fetch_manual_products_catalog():
                 WHERE pi.product_id = p.id
                 ORDER BY pi.display_order
                 LIMIT 1
-            ) AS preview_image_url
+            ) AS preview_image_url,
+            (
+                SELECT pi.image_data
+                FROM product_images pi
+                WHERE pi.product_id = p.id
+                ORDER BY pi.display_order
+                LIMIT 1
+            ) AS preview_image_data,
+            (
+                SELECT pi.media_type
+                FROM product_images pi
+                WHERE pi.product_id = p.id
+                ORDER BY pi.display_order
+                LIMIT 1
+            ) AS preview_media_type
         FROM manual_products p
         ORDER BY p.created_at DESC
         """
@@ -958,7 +990,21 @@ def fetch_manual_products_catalog():
                 pass
 
         preview_image_url = product.pop("preview_image_url", None)
-        product["images"] = [{"image_url": preview_image_url, "media_type": "image"}] if preview_image_url else []
+        preview_image_data = product.pop("preview_image_data", None)
+        preview_media_type = product.pop("preview_media_type", None)
+        
+        if preview_image_url:
+            img_dict = {
+                "image_url": preview_image_url,
+                "media_type": preview_media_type or "image",
+            }
+            # Convert binary preview_image_data to hex string for JSON serialization
+            if preview_image_data:
+                img_dict["image_data"] = preview_image_data.hex() if isinstance(preview_image_data, bytes) else preview_image_data
+            product["images"] = [img_dict]
+        else:
+            product["images"] = []
+            
         product["is_active"] = _coerce_bool(product.get("is_active", 1))
         product["is_digital_download"] = _coerce_bool(product.get("is_digital_download"))
         product["related_links"] = _deserialize_related_links(product.get("related_links"))
@@ -1000,11 +1046,17 @@ def fetch_manual_product(product_id):
     
     # Fetch images for this product
     cursor.execute(
-        f"SELECT image_url, media_type FROM product_images WHERE product_id = {placeholder} ORDER BY display_order",
+        f"SELECT image_url, image_data, media_type FROM product_images WHERE product_id = {placeholder} ORDER BY display_order",
         (product_id,)
     )
     images = cursor.fetchall()
-    product["images"] = [dict(img) for img in images]
+    product["images"] = []
+    for img in images:
+        img_dict = dict(img)
+        # Convert binary image_data to hex string for JSON serialization
+        if img_dict.get("image_data"):
+            img_dict["image_data"] = img_dict["image_data"].hex() if isinstance(img_dict["image_data"], bytes) else img_dict["image_data"]
+        product["images"].append(img_dict)
     product["is_active"] = _coerce_bool(product.get("is_active", 1))
     product["is_digital_download"] = _coerce_bool(product.get("is_digital_download"))
     product["related_links"] = _deserialize_related_links(product.get("related_links"))
@@ -1064,18 +1116,28 @@ def update_manual_product(product_id, payload):
         # Delete old images
         cursor.execute(f"DELETE FROM product_images WHERE product_id = {placeholder}", (product_id,))
         # Insert new images
+        now = datetime.utcnow().isoformat() if hasattr(datetime, 'utcnow') else None
         for idx, image in enumerate(payload["images"]):
             # Handle both new uploads (with "url" and "type") and existing images (with "image_url" and "media_type")
             image_url = image.get("url") or image.get("image_url")
             media_type = image.get("type") or image.get("media_type", "image")
+            image_data_hex = image.get("image_data")
             
             if image_url:  # Only insert if we have a valid image URL
+                # Convert hex string back to binary if present
+                image_data_binary = None
+                if image_data_hex:
+                    try:
+                        image_data_binary = bytes.fromhex(image_data_hex) if isinstance(image_data_hex, str) else image_data_hex
+                    except (ValueError, TypeError):
+                        pass  # If hex conversion fails, just use None
+                
                 cursor.execute(
                     f"""
-                    INSERT INTO product_images (product_id, image_url, media_type, display_order)
-                    VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder})
+                    INSERT INTO product_images (product_id, image_url, image_data, media_type, display_order, created_at)
+                    VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
                     """,
-                    (product_id, image_url, media_type, idx)
+                    (product_id, image_url, image_data_binary, media_type, idx, now)
                 )
     
     conn.commit()
