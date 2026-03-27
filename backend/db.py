@@ -222,6 +222,34 @@ def get_db():
     raise RuntimeError("DATABASE_URL (or POSTGRES_URL) must point to PostgreSQL.")
 
 
+def _add_column_if_missing(cursor, is_postgres, is_mysql, table, column, col_type):
+    """Add a column to a table if it doesn't already exist, handling all three DB backends."""
+    try:
+        if is_postgres:
+            cursor.execute(
+                f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {col_type}"
+            )
+        elif is_mysql:
+            # MySQL doesn't support IF NOT EXISTS for ADD COLUMN; check information_schema
+            cursor.execute(
+                "SELECT COUNT(*) FROM information_schema.columns "
+                "WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s",
+                (table, column)
+            )
+            row = cursor.fetchone()
+            count = list(row)[0] if row else 0
+            if count == 0:
+                cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+        else:
+            # SQLite: check pragma
+            cursor.execute(f"PRAGMA table_info({table})")
+            cols = [r[1] for r in cursor.fetchall()]
+            if column not in cols:
+                cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+    except Exception:
+        pass  # Column already exists or DB doesn't support it — safe to ignore
+
+
 def init_db(force=False):
     global _schema_initialized
     if _schema_initialized and not force:
@@ -283,13 +311,14 @@ def init_db(force=False):
         )
         """
     )
+    blob_type = "BYTEA" if is_postgres else "LONGBLOB" if is_mysql else "BLOB"
     cursor.execute(
         f"""
         CREATE TABLE IF NOT EXISTS product_images (
             id {id_column},
             product_id INTEGER NOT NULL,
             image_url {text_type} NOT NULL,
-            image_data LONGBLOB,
+            image_data {blob_type},
             media_type VARCHAR(50) DEFAULT 'image',
             display_order INTEGER DEFAULT 0,
             created_at VARCHAR(50),
@@ -646,8 +675,8 @@ def init_db(force=False):
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_review_invite_codes_product ON review_invite_codes(product_type, product_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_manual_products_created_at ON manual_products(created_at DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_product_images_product_order ON product_images(product_id, display_order)")
-        cursor.execute("ALTER TABLE product_images ADD COLUMN IF NOT EXISTS image_data LONGBLOB")
-        cursor.execute("ALTER TABLE product_images ADD COLUMN IF NOT EXISTS created_at VARCHAR(50)")
+        _add_column_if_missing(cursor, is_postgres, is_mysql, "product_images", "image_data", "BYTEA" if is_postgres else "LONGBLOB" if is_mysql else "BLOB")
+        _add_column_if_missing(cursor, is_postgres, is_mysql, "product_images", "created_at", "VARCHAR(50)")
 
     conn.commit()
     conn.close()
