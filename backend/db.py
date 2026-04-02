@@ -981,7 +981,6 @@ def fetch_manual_products_catalog():
     cursor = conn.cursor()
 
     # Try with image_data subquery, fall back without if column doesn't exist
-    include_image_data = False
     try:
         cursor.execute(
         """
@@ -1029,7 +1028,6 @@ def fetch_manual_products_catalog():
         ORDER BY p.created_at DESC
             """
         )
-        include_image_data = True
     except Exception:
         # image_data column doesn't exist; query without it
         cursor.execute(
@@ -1090,6 +1088,8 @@ def fetch_manual_products_catalog():
                 pass
 
         preview_image_url = product.pop("preview_image_url", None)
+        # Never expose raw preview binary data in JSON responses.
+        product.pop("preview_image_data", None)
         preview_media_type = product.pop("preview_media_type", None)
         
         if preview_image_url:
