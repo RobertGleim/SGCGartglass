@@ -142,6 +142,18 @@ const resolveMediaUrl = (value) => {
   return url;
 };
 
+const sanitizePreviewFileBase = (order) => {
+  const raw = String(order?.work_order_number || `work-order-${order?.id || 'preview'}`).trim().toLowerCase();
+  const cleaned = raw.replace(/[^a-z0-9-_]+/g, '-').replace(/^-+|-+$/g, '');
+  return cleaned || 'work-order-preview';
+};
+
+const sanitizeDownloadFileBase = (value, fallback = 'download') => {
+  const raw = String(value || '').trim().toLowerCase();
+  const cleaned = raw.replace(/[^a-z0-9-_]+/g, '-').replace(/^-+|-+$/g, '');
+  return cleaned || fallback;
+};
+
 const buildWorkOrderPacketHtml = (order, designMarkup) => {
   const statusLabel = STATUS_LABELS[order?.status_key] || order?.status || 'Unknown';
   const sectionRows = getSectionEntries(order)
@@ -551,6 +563,43 @@ export default function WorkOrderDashboard() {
     setSelectedShippingOrderLoading(false);
   };
 
+  const downloadShippingItemImage = async (item) => {
+    const imageSrc = resolveMediaUrl(item?.image_url);
+    if (!imageSrc) {
+      window.toast && window.toast('No image available for this item', { type: 'error' });
+      return;
+    }
+
+    try {
+      const response = await fetch(imageSrc);
+      if (!response.ok) {
+        throw new Error(`shipping_image_download_failed_${response.status}`);
+      }
+      const blob = await response.blob();
+      const extension = blob.type === 'image/jpeg'
+        ? 'jpg'
+        : blob.type === 'image/png'
+          ? 'png'
+          : blob.type === 'image/webp'
+            ? 'webp'
+            : 'png';
+      const orderBase = sanitizeDownloadFileBase(selectedShippingOrder?.order_number || selectedShippingOrder?.id, 'order');
+      const productBase = sanitizeDownloadFileBase(getOrderItemName(item), 'item');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${orderBase}-${productBase}.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      window.toast && window.toast('Product image downloaded', { type: 'success' });
+    } catch (err) {
+      console.error('[WorkOrderDashboard] Failed to download shipping item image:', err);
+      window.toast && window.toast('Failed to download product image', { type: 'error' });
+    }
+  };
+
   // Delete work order
   const handleDelete = async (orderId, e) => {
     if (e) e.stopPropagation();
@@ -619,6 +668,128 @@ export default function WorkOrderDashboard() {
   const closePreview = () => setSelectedOrder(null);
 
   const canExportOrderPacket = selectedOrder && EXPORTABLE_STATUS_KEYS.has(selectedOrder.status_key);
+
+  const downloadSelectedOrderPreview = async () => {
+    if (!selectedOrder || selectedOrderLoading) return;
+
+    try {
+      const svgEl = previewRef.current?.querySelector('svg');
+      const fileBase = sanitizePreviewFileBase(selectedOrder);
+
+      if (svgEl) {
+        const serialized = new XMLSerializer().serializeToString(svgEl);
+        const blob = new Blob([serialized], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${fileBase}-preview.svg`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        window.toast && window.toast('Work order preview downloaded', { type: 'success' });
+        return;
+      }
+
+      const imageSrc = resolveMediaUrl(
+        selectedOrder?.designData?.preview_url
+        || selectedOrder?.designData?.dataUrl
+        || selectedOrder?.templateThumbnail
+        || selectedOrder?.templateData?.thumbnail_url
+        || selectedOrder?.templateData?.image_url
+      );
+
+      if (!imageSrc) {
+        window.toast && window.toast('No preview available to download', { type: 'error' });
+        return;
+      }
+
+      const response = await fetch(imageSrc);
+      if (!response.ok) {
+        throw new Error(`preview_download_failed_${response.status}`);
+      }
+      const blob = await response.blob();
+      const extension = blob.type === 'image/jpeg' ? 'jpg' : blob.type === 'image/png' ? 'png' : 'png';
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${fileBase}-preview.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      window.toast && window.toast('Work order preview downloaded', { type: 'success' });
+    } catch (err) {
+      console.error('[WorkOrderDashboard] Failed to download work order preview:', err);
+      window.toast && window.toast('Failed to download work order preview', { type: 'error' });
+    }
+  };
+
+  const printSelectedOrderPreview = async () => {
+    if (!selectedOrder || selectedOrderLoading) return;
+
+    try {
+      const svgEl = previewRef.current?.querySelector('svg');
+      let imageMarkup = '';
+
+      if (svgEl) {
+        imageMarkup = new XMLSerializer().serializeToString(svgEl);
+      } else {
+        const imageSrc = resolveMediaUrl(
+          selectedOrder?.designData?.preview_url
+          || selectedOrder?.designData?.dataUrl
+          || selectedOrder?.templateThumbnail
+          || selectedOrder?.templateData?.thumbnail_url
+          || selectedOrder?.templateData?.image_url
+        );
+        if (!imageSrc) {
+          window.toast && window.toast('No preview available to print', { type: 'error' });
+          return;
+        }
+        imageMarkup = `<img src="${escapeHtml(imageSrc)}" alt="Work order preview" />`;
+      }
+
+      const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1100,height=900');
+      if (!printWindow) {
+        window.toast && window.toast('Popup blocked while opening print preview', { type: 'error' });
+        return;
+      }
+      printWindow.document.write(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(selectedOrder?.work_order_number || `Work Order ${selectedOrder?.id || ''}`)} Preview</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #ffffff;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+      }
+      img, svg {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        object-fit: contain;
+      }
+      @page {
+        margin: 0.5in;
+      }
+    </style>
+  </head>
+  <body>${imageMarkup}</body>
+</html>`);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => printWindow.print(), 250);
+    } catch (err) {
+      console.error('[WorkOrderDashboard] Failed to print work order preview:', err);
+      window.toast && window.toast('Failed to print work order preview', { type: 'error' });
+    }
+  };
 
   const getPrintableDesignMarkup = () => {
     const svgEl = previewRef.current?.querySelector('svg');
@@ -1024,6 +1195,13 @@ export default function WorkOrderDashboard() {
                                 loading="lazy"
                               />
                               <figcaption>{getOrderItemName(item)}</figcaption>
+                              <button
+                                type="button"
+                                className={styles.shippingThumbDownloadBtn}
+                                onClick={() => downloadShippingItemImage(item)}
+                              >
+                                Download Image
+                              </button>
                             </figure>
                           ))}
                       </div>
@@ -1074,6 +1252,22 @@ export default function WorkOrderDashboard() {
                     : isRevisionLocked(selectedOrder.designData)
                       ? 'Unlock Revision'
                       : 'Lock Final Revision'}
+                </button>
+              </div>
+              <div className={styles.previewActions}>
+                <button
+                  className={styles.previewActionBtn}
+                  onClick={downloadSelectedOrderPreview}
+                  disabled={selectedOrderLoading}
+                >
+                  Download Preview
+                </button>
+                <button
+                  className={styles.previewActionBtn}
+                  onClick={printSelectedOrderPreview}
+                  disabled={selectedOrderLoading}
+                >
+                  Print Preview
                 </button>
               </div>
               {selectedOrderLoading ? (

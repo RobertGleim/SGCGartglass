@@ -26,6 +26,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 from ..auth import create_token, require_auth, require_customer
+from ..services.pattern_render_service import render_numbered_pattern_raster
 from ..db import (
     fetch_item,
     fetch_items,
@@ -78,6 +79,7 @@ from ..db import (
     mark_pattern_downloads_emailed,
     upsert_customer_pattern_download,
     get_customer_pattern_download_by_token,
+    get_manual_product_download_metadata,
     has_verified_purchase,
     list_customer_review_options,
     list_reviews_for_product,
@@ -978,6 +980,130 @@ def _send_admin_order_email(order_number, total_amount, customer_name):
 def _resolve_pattern_download_url(download_token):
     api_url = _resolve_api_public_url()
     return f"{api_url}/pattern-downloads/{quote(download_token)}"
+
+
+def _resolve_pattern_image_bytes(record):
+    image_data = record.get("image_data")
+    if image_data:
+        if isinstance(image_data, memoryview):
+            image_data = image_data.tobytes()
+        return image_data
+
+    image_url = str(record.get("image_url") or "").strip()
+    if not image_url:
+        return None
+
+    if image_url.startswith("data:"):
+        try:
+            header, encoded = image_url.split(",", 1)
+            if ";base64" in header:
+                return base64.b64decode(encoded)
+            return unquote_to_bytes(encoded)
+        except Exception:
+            current_app.logger.exception("failed to decode data-url pattern image for token %s", record.get("download_token") or "runtime")
+            return None
+
+    if image_url.startswith("/uploads/"):
+        relative_path = image_url.lstrip("/").replace("/", os.sep)
+        file_path = os.path.join(current_app.root_path, relative_path)
+        if os.path.isfile(file_path):
+            try:
+                with open(file_path, "rb") as handle:
+                    return handle.read()
+            except OSError:
+                current_app.logger.exception("failed to read pattern image file %s", file_path)
+    return None
+
+
+def _build_pattern_download_response(record, download_token=None):
+    if not record:
+        return jsonify({"error": "download_unavailable"}), 404
+
+    safe_base = secure_filename(str(record.get("pattern_name") or "sgcg-pattern").strip()) or "sgcg-pattern"
+
+    svg_content = record.get("svg_content")
+    if svg_content:
+        return send_file(
+            BytesIO(svg_content.encode("utf-8")),
+            mimetype="image/svg+xml",
+            as_attachment=True,
+            download_name=f"{safe_base}.svg",
+        )
+
+    if str(record.get("template_type") or "").strip().lower() == "image":
+        numbered_bytes = render_numbered_pattern_raster(_resolve_pattern_image_bytes({**record, "download_token": download_token}))
+        if numbered_bytes:
+            return send_file(
+                BytesIO(numbered_bytes),
+                mimetype="image/png",
+                as_attachment=True,
+                download_name=f"{safe_base}.png",
+            )
+
+    image_data = record.get("image_data")
+    if image_data:
+        if isinstance(image_data, memoryview):
+            image_data = image_data.tobytes()
+        mime_type = record.get("image_mime") or "application/octet-stream"
+        extension = mimetypes.guess_extension(mime_type) or ".bin"
+        if extension == ".jpe":
+            extension = ".jpg"
+        return send_file(
+            BytesIO(image_data),
+            mimetype=mime_type,
+            as_attachment=True,
+            download_name=f"{safe_base}{extension}",
+        )
+
+    image_url = str(record.get("image_url") or "").strip()
+    if image_url.startswith("data:"):
+        try:
+            header, encoded = image_url.split(",", 1)
+            mime_type = header[5:].split(";", 1)[0] or "application/octet-stream"
+            if ";base64" in header:
+                raw_bytes = base64.b64decode(encoded)
+            else:
+                raw_bytes = unquote_to_bytes(encoded)
+            extension = mimetypes.guess_extension(mime_type) or ".bin"
+            if extension == ".jpe":
+                extension = ".jpg"
+            return send_file(
+                BytesIO(raw_bytes),
+                mimetype=mime_type,
+                as_attachment=True,
+                download_name=f"{safe_base}{extension}",
+            )
+        except Exception:
+            current_app.logger.exception("failed to decode data-url pattern download for token %s", download_token or "admin")
+
+    if image_url.startswith("/uploads/templates/"):
+        file_name = image_url.rsplit("/", 1)[-1]
+        uploads_dir = os.path.join(current_app.root_path, "uploads", "templates")
+        file_path = os.path.join(uploads_dir, file_name)
+        if os.path.isfile(file_path):
+            mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+            extension = os.path.splitext(file_path)[1] or ".bin"
+            return send_file(
+                file_path,
+                mimetype=mime_type,
+                as_attachment=True,
+                download_name=f"{safe_base}{extension}",
+            )
+
+    if image_url.startswith("/uploads/"):
+        relative_path = image_url.lstrip("/").replace("/", os.sep)
+        file_path = os.path.join(current_app.root_path, relative_path)
+        if os.path.isfile(file_path):
+            mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+            extension = os.path.splitext(file_path)[1] or ".bin"
+            return send_file(
+                file_path,
+                mimetype=mime_type,
+                as_attachment=True,
+                download_name=f"{safe_base}{extension}",
+            )
+
+    return jsonify({"error": "download_unavailable"}), 404
 
 
 def _send_customer_pattern_download_email(customer_email, customer_name, downloads):
@@ -2285,82 +2411,34 @@ def download_pattern_asset(download_token):
     if not record:
         return jsonify({"error": "not_found"}), 404
 
-    pattern_name = str(record.get("pattern_name") or record.get("template_name") or "pattern").strip() or "pattern"
-    safe_base = secure_filename(pattern_name) or "pattern"
-    template_type = str(record.get("template_type") or "svg").strip().lower()
+    return _build_pattern_download_response(record, download_token=download_token)
 
-    if template_type == "svg" and record.get("svg_content"):
-        return send_file(
-            BytesIO(str(record.get("svg_content") or "").encode("utf-8")),
-            mimetype="image/svg+xml",
-            as_attachment=True,
-            download_name=f"{safe_base}.svg",
-        )
 
-    image_data = record.get("image_data")
-    if image_data:
-        if isinstance(image_data, memoryview):
-            image_data = image_data.tobytes()
-        mime_type = record.get("image_mime") or "application/octet-stream"
-        extension = mimetypes.guess_extension(mime_type) or ".bin"
-        if extension == ".jpe":
-            extension = ".jpg"
-        return send_file(
-            BytesIO(image_data),
-            mimetype=mime_type,
-            as_attachment=True,
-            download_name=f"{safe_base}{extension}",
-        )
+@api.get("/admin/manual-products/<int:product_id>/pattern-download")
+@require_auth
+def admin_download_manual_product_pattern(product_id):
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
 
-    image_url = str(record.get("image_url") or "").strip()
-    if image_url.startswith("data:"):
-        try:
-            header, encoded = image_url.split(",", 1)
-            mime_type = header[5:].split(";", 1)[0] or "application/octet-stream"
-            if ";base64" in header:
-                raw_bytes = base64.b64decode(encoded)
-            else:
-                raw_bytes = unquote_to_bytes(encoded)
-            extension = mimetypes.guess_extension(mime_type) or ".bin"
-            if extension == ".jpe":
-                extension = ".jpg"
-            return send_file(
-                BytesIO(raw_bytes),
-                mimetype=mime_type,
-                as_attachment=True,
-                download_name=f"{safe_base}{extension}",
-            )
-        except Exception:
-            current_app.logger.exception("failed to decode data-url pattern download for token %s", download_token)
+    product = fetch_manual_product(product_id)
+    if not product:
+        return jsonify({"error": "not_found"}), 404
+    if not bool(product.get("is_digital_download")):
+        return jsonify({"error": "not_digital_download"}), 400
 
-    if image_url.startswith("/uploads/templates/"):
-        file_name = image_url.rsplit("/", 1)[-1]
-        uploads_dir = os.path.join(current_app.root_path, "uploads", "templates")
-        file_path = os.path.join(uploads_dir, file_name)
-        if os.path.isfile(file_path):
-            mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
-            extension = os.path.splitext(file_path)[1] or ".bin"
-            return send_file(
-                file_path,
-                mimetype=mime_type,
-                as_attachment=True,
-                download_name=f"{safe_base}{extension}",
-            )
-
-    if image_url.startswith("/uploads/"):
-        relative_path = image_url.lstrip("/").replace("/", os.sep)
-        file_path = os.path.join(current_app.root_path, relative_path)
-        if os.path.isfile(file_path):
-            mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
-            extension = os.path.splitext(file_path)[1] or ".bin"
-            return send_file(
-                file_path,
-                mimetype=mime_type,
-                as_attachment=True,
-                download_name=f"{safe_base}{extension}",
-            )
-
-    return jsonify({"error": "download_unavailable"}), 404
+    record = get_manual_product_download_metadata(product_id) or {}
+    if not record:
+        images = product.get("images") if isinstance(product.get("images"), list) else []
+        first_image = images[0] if images else {}
+        record = {
+            "pattern_name": product.get("name") or f"Pattern #{product_id}",
+            "pattern_description": product.get("description"),
+            "pattern_source_type": "manual",
+            "manual_product_id": product_id,
+            "image_url": first_image.get("image_url") or first_image.get("url") or "",
+        }
+    return _build_pattern_download_response(record, download_token=f"admin:{product_id}")
 
 
 @api.get("/customer/orders/<int:order_id>/items")

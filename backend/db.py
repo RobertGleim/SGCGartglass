@@ -2870,6 +2870,7 @@ def _fetch_manual_product_download_metadata(cursor, manual_product_id):
             p.description,
             p.price,
             p.is_digital_download,
+            p.related_links,
             (
                 SELECT pi.image_url
                 FROM product_images pi
@@ -2888,17 +2889,46 @@ def _fetch_manual_product_download_metadata(cursor, manual_product_id):
         return None
 
     payload = dict(row)
+    related_links = _deserialize_related_links(payload.get("related_links")) or {}
+    template_metadata = None
+    template_id = related_links.get("template_id")
+    if template_id not in (None, ""):
+        try:
+            template_metadata = _fetch_template_download_metadata(cursor, int(template_id))
+        except (TypeError, ValueError):
+            template_metadata = None
+
+    template_image_url = (template_metadata or {}).get("image_url")
+    template_image_data = (template_metadata or {}).get("image_data")
+    template_image_mime = (template_metadata or {}).get("image_mime")
+    template_svg_content = (template_metadata or {}).get("svg_content")
     return {
         "pattern_id": payload.get("id"),
         "pattern_name": payload.get("name"),
         "pattern_description": payload.get("description"),
         "pattern_source_type": "manual",
         "manual_product_id": payload.get("id"),
+        "template_id": (template_metadata or {}).get("template_id") or related_links.get("template_id"),
+        "template_name": (template_metadata or {}).get("template_name") or related_links.get("template_name"),
+        "template_description": (template_metadata or {}).get("template_description"),
+        "template_type": (template_metadata or {}).get("template_type"),
         "price_amount": payload.get("price"),
         "price_currency": "USD",
-        "image_url": payload.get("image_url"),
+        "svg_content": template_svg_content,
+        "image_url": template_image_url or payload.get("image_url"),
+        "image_data": template_image_data,
+        "image_mime": template_image_mime,
+        "thumbnail_url": (template_metadata or {}).get("thumbnail_url"),
         "is_active": _coerce_bool(payload.get("is_digital_download")),
     }
+
+
+def get_manual_product_download_metadata(manual_product_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    metadata = _fetch_manual_product_download_metadata(cursor, manual_product_id)
+    conn.close()
+    return metadata
 
 
 def upsert_customer_pattern_download(customer_id, product_type, product_id, order_id=None, customer_email=None):

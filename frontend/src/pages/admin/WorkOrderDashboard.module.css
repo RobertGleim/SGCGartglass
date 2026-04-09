@@ -230,6 +230,23 @@
   word-break: break-word;
 }
 
+.shippingThumbDownloadBtn {
+  width: 100%;
+  margin-top: 0.55rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid #1d4ed8;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.shippingThumbDownloadBtn:hover {
+  background: #dbeafe;
+}
+
 .summary {
   display: flex;
   gap: 1.5rem;
@@ -496,6 +513,37 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.previewActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.previewActionBtn {
+  padding: 0.55rem 0.95rem;
+  border: 1px solid #c58f5a;
+  border-radius: 9px;
+  background: #fff7ef;
+  color: #7a532c;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, transform 0.2s;
+}
+
+.previewActionBtn:hover:not(:disabled) {
+  background: #f9ecdc;
+  border-color: #8b5e34;
+  transform: translateY(-1px);
+}
+
+.previewActionBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .previewImg {
   max-width: 100%;
   max-height: 300px;

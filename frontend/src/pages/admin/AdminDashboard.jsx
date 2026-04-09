@@ -10,6 +10,7 @@ import {
   fetchCustomers,
   getCustomerDetails,
   publishManualProductToFacebook,
+  downloadAdminManualProductPattern,
   getTemplates,
   sendTemplateToCustomerWorkOrder,
   uploadAdminTemplateImage,
@@ -104,6 +105,48 @@ const resolveMediaUrl = (value) => {
 
   if (raw.startsWith("/")) return `${getApiOrigin()}${raw}`;
   return `${getApiOrigin()}/${raw.replace(/^\.?\//, "")}`;
+};
+
+const downloadBlobFile = (blob, fileName) => {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+};
+
+const sanitizeDownloadBaseName = (value, fallback = "download") => {
+  const normalized = String(value || "")
+    .trim()
+    .replace(/[<>:"/\\|?*\x00-\x1F]+/g, "-")
+    .replace(/\s+/g, " ");
+  return normalized || fallback;
+};
+
+const extensionFromUrl = (value) => {
+  try {
+    const target = new URL(String(value || ""), window.location.origin);
+    const cleanPath = target.pathname || "";
+    const match = cleanPath.match(/(\.[a-z0-9]+)$/i);
+    return match ? match[1].toLowerCase() : "";
+  } catch {
+    return "";
+  }
+};
+
+const extensionFromMimeType = (mimeType) => {
+  const normalized = String(mimeType || "").toLowerCase();
+  if (normalized.includes("svg")) return ".svg";
+  if (normalized.includes("png")) return ".png";
+  if (normalized.includes("webp")) return ".webp";
+  if (normalized.includes("gif")) return ".gif";
+  if (normalized.includes("jpeg") || normalized.includes("jpg")) return ".jpg";
+  if (normalized.includes("pdf")) return ".pdf";
+  if (normalized.startsWith("video/")) return ".mp4";
+  return "";
 };
 
 /**
@@ -2527,6 +2570,50 @@ export default function AdminDashboard({
       return;
     } finally {
       setActiveFacebookShareId("");
+    }
+  };
+
+  const handleDownloadPreviewImage = async (preview, options = {}) => {
+    const sourceUrl = String(options.sourceUrl || preview?.downloadUrl || preview?.src || "").trim();
+    if (!sourceUrl) {
+      setStatus("No downloadable file was found for this image.");
+      return;
+    }
+
+    try {
+      const response = await fetch(sourceUrl);
+      if (!response.ok) {
+        throw new Error(`Download failed (${response.status})`);
+      }
+      const blob = await response.blob();
+      const explicitName = String(options.fileName || "").trim();
+      const fallbackBase = sanitizeDownloadBaseName(editingProduct?.name || manualProduct?.name || "product-image");
+      const extension = extensionFromUrl(sourceUrl) || extensionFromMimeType(blob.type) || ".jpg";
+      downloadBlobFile(blob, explicitName || `${fallbackBase}${extension}`);
+    } catch (error) {
+      setStatus(error?.message || "Unable to download this image.");
+    }
+  };
+
+  const handleDownloadPatternCustomerCopy = async () => {
+    const productId = Number(editingProduct?.id || 0);
+    if (!productId) {
+      setStatus("Open a saved pattern product before downloading the customer copy.");
+      return;
+    }
+
+    try {
+      const blob = await downloadAdminManualProductPattern(productId);
+      const fallbackName = sanitizeDownloadBaseName(editingProduct?.name || manualProduct?.name || "sgcg-pattern");
+      const extension = extensionFromMimeType(blob?.type) || ".jpg";
+      downloadBlobFile(blob, `${fallbackName}${extension}`);
+    } catch (error) {
+      setStatus(
+        error?.response?.data?.detail
+        || error?.response?.data?.error
+        || error?.message
+        || "Unable to download the customer pattern file.",
+      );
     }
   };
 
@@ -5011,6 +5098,19 @@ export default function AdminDashboard({
                               {preview.type === "video" && (
                                 <span className="media-badge">Video</span>
                               )}
+                              <button
+                                type="button"
+                                className="button"
+                                style={{ marginTop: "0.5rem", width: "100%" }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadPreviewImage(preview, {
+                                    fileName: `${sanitizeDownloadBaseName(editingProduct?.name || manualProduct?.name || "product-image")}-${preview.id}`,
+                                  });
+                                }}
+                              >
+                                Download
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -5057,16 +5157,46 @@ export default function AdminDashboard({
                       <div className="image-gallery" style={{ marginTop: "0.5rem" }}>
                         <h4>Current Pattern Image</h4>
                         <div className="image-grid">
-                          <div className="image-item">
-                            {unifiedTemplate.existing_upload_preview.media_type === "video" ? (
-                              <video src={unifiedTemplate.existing_upload_preview.url} className="image-preview" />
-                            ) : (
-                              <img
-                                src={unifiedTemplate.existing_upload_preview.url}
-                                alt={unifiedTemplate.existing_upload_preview.name || "Current pattern image"}
-                                className="image-preview"
-                              />
-                            )}
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "stretch",
+                              gap: "0.5rem",
+                              maxWidth: "140px",
+                            }}
+                          >
+                            <div className="image-item">
+                              {unifiedTemplate.existing_upload_preview.media_type === "video" ? (
+                                <video src={unifiedTemplate.existing_upload_preview.url} className="image-preview" />
+                              ) : (
+                                <img
+                                  src={unifiedTemplate.existing_upload_preview.url}
+                                  alt={unifiedTemplate.existing_upload_preview.name || "Current pattern image"}
+                                  className="image-preview"
+                                />
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              style={{
+                                width: "100%",
+                                padding: 0,
+                                border: "none",
+                                background: "transparent",
+                                color: "#1f5fa6",
+                                textAlign: "left",
+                                textDecoration: "underline",
+                                cursor: "pointer",
+                                font: "inherit",
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownloadPatternCustomerCopy();
+                              }}
+                            >
+                              Download Customer Copy
+                            </button>
                           </div>
                         </div>
                         <span className="form-note">Current saved pattern asset. Upload a new file above to replace it.</span>
