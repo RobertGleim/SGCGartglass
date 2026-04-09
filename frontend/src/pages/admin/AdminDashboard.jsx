@@ -330,6 +330,7 @@ const createEmptyUnifiedTemplate = () => ({
   is_digital_download: false,
   price_amount: "",
   upload_file: null,
+  existing_upload_preview: null,
   related_links: createDefaultRelatedLinks(),
 });
 
@@ -1302,6 +1303,7 @@ export default function AdminDashboard({
     : productModePhysical || (productModePattern && selectedTypeCategory === "patterns");
   const isTemplateSectionEnabled = productModePattern || productModeTemplate;
   const isPatternOrTemplate = productModePattern || productModeTemplate;
+  const shouldShowProductMediaSection = !(editingProduct && isPatternOrTemplate && !productModePhysical);
 
   const closeFavoriteDropdowns = () => {
     setShowCategoryDropdown(false);
@@ -2295,17 +2297,32 @@ export default function AdminDashboard({
     await loadManualProductLinkOptions();
     setProductType(inferredType);
     setEditingProduct(product);
+    const isDigitalPatternProduct = Boolean(product.is_digital_download);
     const existingImages = (product.images || []).map((img, idx) => ({
       id: `existing-${idx}`,
-      src: img.image_url,
+      src: resolveImageObjectToUrl(img),
       type: img.media_type === "video" ? "video" : "image",
       isExisting: true,
     }));
-    setImagePreviews(existingImages);
+    setImagePreviews(isDigitalPatternProduct ? [] : existingImages);
     const existingRelatedLinks =
       product?.related_links && typeof product.related_links === "object"
         ? product.related_links
         : createDefaultRelatedLinks();
+    const existingPatternUploadPreview = isDigitalPatternProduct
+      ? (() => {
+          const firstImage = (product.images || []).find((img) => String(img?.media_type || "image").toLowerCase() !== "video");
+          const previewUrl = firstImage ? resolveImageObjectToUrl(firstImage) : "";
+          if (!previewUrl) {
+            return null;
+          }
+          return {
+            name: String(product.name || "Current pattern image").trim() || "Current pattern image",
+            url: previewUrl,
+            media_type: String(firstImage?.media_type || "image").toLowerCase(),
+          };
+        })()
+      : null;
 
     setManualProduct({
       name: product.name || "",
@@ -2349,11 +2366,16 @@ export default function AdminDashboard({
         gallery_template_id: existingRelatedLinks?.gallery_template_id ? String(existingRelatedLinks.gallery_template_id) : "",
       },
     });
-    setUnifiedTemplate(createEmptyUnifiedTemplate());
+    setUnifiedTemplate({
+      ...createEmptyUnifiedTemplate(),
+      name: product.name || "",
+      existing_upload_preview: existingPatternUploadPreview,
+    });
     setRelatedTemplateUpload(createEmptyRelatedTemplateUpload());
     setRelatedGalleryUpload(createEmptyRelatedGalleryUpload());
     setCategoryInput("");
     setMaterialInput("");
+    setTemplateRefPhotos([]);
     setShowManualProductModal(true);
     setQuantityManuallyEdited(true);
     setTemplateNameManuallyEdited(false);
@@ -4939,68 +4961,72 @@ export default function AdminDashboard({
                   </>
                 )}
 
-                {/* ── Photos & Video ─────────────────────────── */}
-                <h4 className="ap-section-title" style={{ marginTop: "1.25rem" }}>Photos &amp; Video</h4>
-                <p className="form-note">
-                  Add up to 10 photos and 1 video for the product listing.
-                </p>
-                <div className="image-upload-input">
-                  <input
-                    type="file"
-                    id="image-input"
-                    accept="image/*,video/*"
-                    multiple
-                    onChange={(e) => handleAddImages(e.target.files)}
-                    style={{ display: "none" }}
-                  />
-                  <label htmlFor="image-input" className="upload-button">
-                    + Add Images / Video
-                  </label>
-                </div>
-
-                {imagePreviews.length > 0 && (
-                  <div className="image-gallery">
-                    <h4>Added Images ({imagePreviews.length})</h4>
-                    <div className="image-grid">
-                      {imagePreviews.map((preview) => (
-                        <div
-                          key={preview.id}
-                          className="image-item"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {preview.type === "video" ? (
-                            <video src={preview.src} className="image-preview" />
-                          ) : (
-                            <img src={preview.src} alt="Preview" className="image-preview" />
-                          )}
-                          <button
-                            type="button"
-                            className="remove-image-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveImage(preview.id);
-                            }}
-                            title="Remove image"
-                          >
-                            ✕
-                          </button>
-                          {preview.type === "video" && (
-                            <span className="media-badge">Video</span>
-                          )}
-                        </div>
-                      ))}
+                {shouldShowProductMediaSection && (
+                  <>
+                    {/* ── Photos & Video ─────────────────────────── */}
+                    <h4 className="ap-section-title" style={{ marginTop: "1.25rem" }}>Photos &amp; Video</h4>
+                    <p className="form-note">
+                      Add up to 10 photos and 1 video for the product listing.
+                    </p>
+                    <div className="image-upload-input">
+                      <input
+                        type="file"
+                        id="image-input"
+                        accept="image/*,video/*"
+                        multiple
+                        onChange={(e) => handleAddImages(e.target.files)}
+                        style={{ display: "none" }}
+                      />
+                      <label htmlFor="image-input" className="upload-button">
+                        + Add Images / Video
+                      </label>
                     </div>
-                  </div>
-                )}
 
-                <label className="checkbox-label" style={{ marginTop: "0.5rem" }}>
-                  <input
-                    type="checkbox"
-                    checked={addImagesToGallery}
-                    onChange={(e) => setAddImagesToGallery(e.target.checked)}
-                  />
-                  <span>Add product photos to gallery when submitted (auto-grouped)</span>
-                </label>
+                    {imagePreviews.length > 0 && (
+                      <div className="image-gallery">
+                        <h4>Added Images ({imagePreviews.length})</h4>
+                        <div className="image-grid">
+                          {imagePreviews.map((preview) => (
+                            <div
+                              key={preview.id}
+                              className="image-item"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {preview.type === "video" ? (
+                                <video src={preview.src} className="image-preview" />
+                              ) : (
+                                <img src={preview.src} alt="Preview" className="image-preview" />
+                              )}
+                              <button
+                                type="button"
+                                className="remove-image-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveImage(preview.id);
+                                }}
+                                title="Remove image"
+                              >
+                                ✕
+                              </button>
+                              {preview.type === "video" && (
+                                <span className="media-badge">Video</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <label className="checkbox-label" style={{ marginTop: "0.5rem" }}>
+                      <input
+                        type="checkbox"
+                        checked={addImagesToGallery}
+                        onChange={(e) => setAddImagesToGallery(e.target.checked)}
+                      />
+                      <span>Add product photos to gallery when submitted (auto-grouped)</span>
+                    </label>
+                  </>
+                )}
 
                 {/* ── Conditional: Pattern/Template file upload ── */}
                 {isPatternOrTemplate && (
@@ -5017,6 +5043,7 @@ export default function AdminDashboard({
                           setUnifiedTemplate((prev) => ({
                             ...prev,
                             upload_file: nextFile,
+                            existing_upload_preview: nextFile ? null : prev.existing_upload_preview,
                           }));
                         }}
                       />
@@ -5024,6 +5051,25 @@ export default function AdminDashboard({
                     {unifiedTemplate.upload_file ? (
                       <div className="form-note">
                         Selected file: {unifiedTemplate.upload_file.name}
+                      </div>
+                    ) : null}
+                    {!unifiedTemplate.upload_file && unifiedTemplate.existing_upload_preview ? (
+                      <div className="image-gallery" style={{ marginTop: "0.5rem" }}>
+                        <h4>Current Pattern Image</h4>
+                        <div className="image-grid">
+                          <div className="image-item">
+                            {unifiedTemplate.existing_upload_preview.media_type === "video" ? (
+                              <video src={unifiedTemplate.existing_upload_preview.url} className="image-preview" />
+                            ) : (
+                              <img
+                                src={unifiedTemplate.existing_upload_preview.url}
+                                alt={unifiedTemplate.existing_upload_preview.name || "Current pattern image"}
+                                className="image-preview"
+                              />
+                            )}
+                          </div>
+                        </div>
+                        <span className="form-note">Current saved pattern asset. Upload a new file above to replace it.</span>
                       </div>
                     ) : null}
                     <div className="image-upload-input" style={{ marginTop: "0.5rem" }}>
