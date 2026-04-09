@@ -10,6 +10,7 @@ import base64
 import mimetypes
 import os
 import hashlib
+import re
 import secrets
 import time
 import uuid
@@ -2991,6 +2992,65 @@ def _coerce_bool_value(value):
     return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _parse_manual_dimension_value(field_name, value):
+    label = str(field_name or "Dimension").replace("_", " ").strip().title()
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise ValueError(f"{label} must be a number like 25.25 or a fraction like 48 3/8.")
+    if isinstance(value, Decimal):
+        parsed_value = float(value)
+    elif isinstance(value, (int, float)):
+        parsed_value = float(value)
+    else:
+        raw_value = str(value).strip()
+        if not raw_value:
+            return None
+
+        normalized_value = raw_value.replace("“", '"').replace("”", '"').replace("″", '"')
+        normalized_value = re.sub(r"\s+", " ", normalized_value)
+        normalized_value = re.sub(r"^([+]?\d+)-(\d+\s*/\s*\d+)$", r"\1 \2", normalized_value)
+        normalized_value = re.sub(r'\s*(?:inches?|inch|in\.?|["])\s*$', "", normalized_value, flags=re.IGNORECASE).strip()
+
+        if not normalized_value:
+            raise ValueError(f"{label} must be a number like 25.25 or a fraction like 48 3/8.")
+
+        if re.fullmatch(r"[+]?(?:\d+(?:\.\d+)?|\.\d+)", normalized_value):
+            parsed_value = float(normalized_value)
+        else:
+            mixed_fraction_match = re.fullmatch(r"([+]?\d+)\s+(\d+)\s*/\s*(\d+)", normalized_value)
+            if mixed_fraction_match:
+                whole = int(mixed_fraction_match.group(1))
+                numerator = int(mixed_fraction_match.group(2))
+                denominator = int(mixed_fraction_match.group(3))
+                if denominator == 0:
+                    raise ValueError(f"{label} must be a valid fraction with a non-zero denominator.")
+                parsed_value = whole + (numerator / denominator)
+            else:
+                fraction_match = re.fullmatch(r"([+]?\d+)\s*/\s*(\d+)", normalized_value)
+                if not fraction_match:
+                    raise ValueError(f"{label} must be a number like 25.25 or a fraction like 48 3/8.")
+                numerator = int(fraction_match.group(1))
+                denominator = int(fraction_match.group(2))
+                if denominator == 0:
+                    raise ValueError(f"{label} must be a valid fraction with a non-zero denominator.")
+                parsed_value = numerator / denominator
+
+    if parsed_value < 0:
+        raise ValueError(f"{label} must be zero or greater.")
+    return parsed_value
+
+
+def _normalize_manual_product_dimensions(payload):
+    normalized_payload = dict(payload or {})
+    for field_name in ("width", "height", "depth"):
+        normalized_payload[field_name] = _parse_manual_dimension_value(
+            field_name,
+            normalized_payload.get(field_name),
+        )
+    return normalized_payload
+
+
 ALLOWED_PRODUCT_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 ALLOWED_PRODUCT_IMAGE_MIME = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 MAX_PRODUCT_IMAGE_BYTES = 20 * 1024 * 1024
@@ -3038,6 +3098,10 @@ def create_manual_product_endpoint():
         payload.get("quantity"),
         _coerce_bool_value(payload.get("is_digital_download")),
     )
+    try:
+        payload = _normalize_manual_product_dimensions(payload)
+    except ValueError as exc:
+        return jsonify({"error": "invalid_dimension", "detail": str(exc)}), 400
     if not payload.get("name") or not payload.get("name").strip():
         return jsonify({"error": "missing_name", "detail": "Product name is required"}), 400
     if not payload.get("description") or not payload.get("description").strip():
@@ -3088,6 +3152,10 @@ def update_manual_product_endpoint(product_id):
         merged_payload.get("quantity"),
         _coerce_bool_value(merged_payload.get("is_digital_download")),
     )
+    try:
+        merged_payload = _normalize_manual_product_dimensions(merged_payload)
+    except ValueError as exc:
+        return jsonify({"error": "invalid_dimension", "detail": str(exc)}), 400
 
     if not merged_payload.get("name"):
         return jsonify({"error": "missing_name"}), 400

@@ -233,6 +233,78 @@ const resolveAutoQuantityForMode = (
   return syncQuantityWithDownloadMode(normalized, isDigitalDownload);
 };
 
+const parseManualDimensionValue = (label, value) => {
+  const rawValue = String(value ?? "").trim();
+  if (!rawValue) {
+    return { value: null, error: null };
+  }
+
+  const normalizedValue = rawValue
+    .replace(/[“”″]/g, '"')
+    .replace(/\s+/g, " ")
+    .replace(/^([+]?\d+)-(\d+\s*\/\s*\d+)$/, "$1 $2")
+    .replace(/\s*(?:inches?|inch|in\.?|["])?\s*$/i, "")
+    .trim();
+
+  if (!normalizedValue) {
+    return {
+      value: null,
+      error: `${label} must be a number like 25.25 or a fraction like 48 3/8.`,
+    };
+  }
+
+  const decimalMatch = normalizedValue.match(/^[+]?(?:\d+(?:\.\d+)?|\.\d+)$/);
+  if (decimalMatch) {
+    const parsedValue = Number(normalizedValue);
+    if (Number.isFinite(parsedValue) && parsedValue >= 0) {
+      return { value: parsedValue, error: null };
+    }
+  }
+
+  const mixedFractionMatch = normalizedValue.match(/^([+]?\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+  if (mixedFractionMatch) {
+    const whole = Number(mixedFractionMatch[1]);
+    const numerator = Number(mixedFractionMatch[2]);
+    const denominator = Number(mixedFractionMatch[3]);
+    if (denominator > 0) {
+      return { value: whole + (numerator / denominator), error: null };
+    }
+  }
+
+  const fractionMatch = normalizedValue.match(/^([+]?\d+)\s*\/\s*(\d+)$/);
+  if (fractionMatch) {
+    const numerator = Number(fractionMatch[1]);
+    const denominator = Number(fractionMatch[2]);
+    if (denominator > 0) {
+      return { value: numerator / denominator, error: null };
+    }
+  }
+
+  return {
+    value: null,
+    error: `${label} must be a number like 25.25 or a fraction like 48 3/8.`,
+  };
+};
+
+const normalizeManualProductDimensions = (product) => {
+  const fields = [
+    ["width", "Width"],
+    ["height", "Height"],
+    ["depth", "Depth"],
+  ];
+
+  const normalized = {};
+  for (const [fieldName, label] of fields) {
+    const result = parseManualDimensionValue(label, product?.[fieldName]);
+    if (result.error) {
+      return { normalized: null, error: result.error };
+    }
+    normalized[fieldName] = result.value;
+  }
+
+  return { normalized, error: null };
+};
+
 const createEmptyManualProduct = () => ({
   name: "",
   images: [],
@@ -1510,6 +1582,14 @@ export default function AdminDashboard({
       return;
     }
 
+    const normalizedDimensionsResult = normalizeManualProductDimensions(manualProduct);
+    if (normalizedDimensionsResult.error) {
+      setStatus(normalizedDimensionsResult.error);
+      return;
+    }
+
+    const normalizedDimensions = normalizedDimensionsResult.normalized;
+
     if (shouldCreateTemplate) {
       if (!unifiedTemplate.name.trim()) {
         setStatus("Digital template name is required.");
@@ -1787,9 +1867,9 @@ export default function AdminDashboard({
           })(),
           materials:
             manualProduct.materials.length > 0 ? manualProduct.materials : null,
-          width: manualProduct.width ? parseFloat(manualProduct.width) : null,
-          height: manualProduct.height ? parseFloat(manualProduct.height) : null,
-          depth: manualProduct.depth ? parseFloat(manualProduct.depth) : null,
+          width: normalizedDimensions.width,
+          height: normalizedDimensions.height,
+          depth: normalizedDimensions.depth,
           price: (() => {
             if (resolvedIsDigitalProduct) {
               const digitalPrice = Number(unifiedTemplate.price_amount || 0);
@@ -1960,9 +2040,9 @@ export default function AdminDashboard({
           description: resolvedPatternDescription,
           category: [patternTypeLabel, ...nonTypeCategories],
           materials: manualProduct.materials.length > 0 ? manualProduct.materials : null,
-          width: manualProduct.width ? parseFloat(manualProduct.width) : null,
-          height: manualProduct.height ? parseFloat(manualProduct.height) : null,
-          depth: manualProduct.depth ? parseFloat(manualProduct.depth) : null,
+          width: normalizedDimensions.width,
+          height: normalizedDimensions.height,
+          depth: normalizedDimensions.depth,
           price: (() => {
             const digitalPrice = Number(unifiedTemplate.price_amount);
             if (Number.isFinite(digitalPrice) && digitalPrice > 0) {
@@ -4673,8 +4753,7 @@ export default function AdminDashboard({
                   <label>
                     Width (inches)
                     <input
-                      type="number"
-                      step="0.01"
+                      type="text"
                       value={manualProduct.width}
                       onChange={(e) =>
                         setManualProduct({
@@ -4682,15 +4761,14 @@ export default function AdminDashboard({
                           width: e.target.value,
                         })
                       }
-                      placeholder="0.00"
+                      placeholder="48 3/8 or 25.25"
                       style={{ width: "130px" }}
                     />
                   </label>
                   <label>
                     Height (inches)
                     <input
-                      type="number"
-                      step="0.01"
+                      type="text"
                       value={manualProduct.height}
                       onChange={(e) =>
                         setManualProduct({
@@ -4698,15 +4776,14 @@ export default function AdminDashboard({
                           height: e.target.value,
                         })
                       }
-                      placeholder="0.00"
+                      placeholder="48 3/8 or 25.25"
                       style={{ width: "130px" }}
                     />
                   </label>
                   <label>
                     Depth (inches)
                     <input
-                      type="number"
-                      step="0.01"
+                      type="text"
                       value={manualProduct.depth}
                       onChange={(e) =>
                         setManualProduct({
@@ -4714,11 +4791,12 @@ export default function AdminDashboard({
                           depth: e.target.value,
                         })
                       }
-                      placeholder="0.00"
+                      placeholder="48 3/8 or 25.25"
                       style={{ width: "130px" }}
                     />
                   </label>
                 </div>
+                <p className="form-note">Dimensions accept decimals or fractions, for example 25.25, 3/8, or 48 3/8 inch.</p>
 
                 <div className={`price-quantity-inputs ${productModePhysical ? "price-quarter-row" : "price-triple-row"}`}>
                   <label>
