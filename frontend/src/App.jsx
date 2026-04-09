@@ -88,8 +88,6 @@ function App() {
     logout: customerLogout,
   } = useCustomerAuth()
 
-  const shouldLoadFullManualProducts = route.path === '/admin'
-
   useEffect(() => {
     const needsCatalog = ['/', '/product', '/admin', '/account'].includes(route.path)
     if (!needsCatalog || catalogLoaded) {
@@ -109,10 +107,7 @@ function App() {
       setItemsLoading(true)
     }
 
-    Promise.allSettled([
-      fetchItems(),
-      shouldLoadFullManualProducts ? fetchManualProducts() : fetchManualProducts({ summary: 1 }),
-    ])
+    Promise.allSettled([fetchItems(), fetchManualProducts({ summary: 1 })])
       .then(([itemsResult, manualResult]) => {
         if (!isActive) return
 
@@ -161,7 +156,7 @@ function App() {
         window.clearTimeout(retryTimerId)
       }
     }
-  }, [route.path, catalogLoaded, catalogRetryTick, shouldLoadFullManualProducts])
+  }, [route.path, catalogLoaded, catalogRetryTick])
 
   useEffect(() => {
     if (!catalogLoaded) return
@@ -245,7 +240,7 @@ function App() {
     try {
       const [itemsResult, manualResult] = await Promise.allSettled([
         fetchItems(),
-        shouldLoadFullManualProducts ? fetchManualProducts() : fetchManualProducts({ summary: 1 }),
+        fetchManualProducts({ summary: 1 }),
       ])
 
       if (itemsResult.status !== 'fulfilled') {

@@ -19,6 +19,7 @@ import {
   createAdminReviewInviteCode,
   deleteAdminReviewInviteCode,
   fetchAdminDigitalCheckoutSessions,
+  fetchManualProduct,
   recoverAdminCheckoutSession,
   resendAdminCheckoutDownloadEmail,
   submitGalleryPhoto,
@@ -2348,11 +2349,23 @@ export default function AdminDashboard({
   const handleEditProduct = async (product) => {
     setIsOpeningProductEdit(true);
     try {
-    const inferredType = inferProductType(product);
-    const existingCategories = Array.isArray(product.category)
-      ? product.category
-      : product.category
-        ? [product.category]
+    let productRecord = product;
+
+    try {
+      const fullProduct = await fetchManualProduct(product.id);
+      if (fullProduct && typeof fullProduct === "object") {
+        productRecord = fullProduct;
+      }
+    } catch (error) {
+      console.error("[AdminDashboard] Failed to load full product details for edit:", error);
+      setStatus("Using catalog data only because full product details could not be loaded.");
+    }
+
+    const inferredType = inferProductType(productRecord);
+    const existingCategories = Array.isArray(productRecord.category)
+      ? productRecord.category
+      : productRecord.category
+        ? [productRecord.category]
         : [];
     const normalizedCategories = [
       PRODUCT_TYPE_LABEL_BY_KEY[inferredType] ||
@@ -2362,9 +2375,9 @@ export default function AdminDashboard({
 
     await loadManualProductLinkOptions();
     setProductType(inferredType);
-    setEditingProduct(product);
-    const isDigitalPatternProduct = Boolean(product.is_digital_download);
-    const existingImages = (product.images || []).map((img, idx) => ({
+    setEditingProduct(productRecord);
+    const isDigitalPatternProduct = Boolean(productRecord.is_digital_download);
+    const existingImages = (productRecord.images || []).map((img, idx) => ({
       id: `existing-${idx}`,
       src: resolveImageObjectToUrl(img),
       type: img.media_type === "video" ? "video" : "image",
@@ -2372,18 +2385,18 @@ export default function AdminDashboard({
     }));
     setImagePreviews(isDigitalPatternProduct ? [] : existingImages);
     const existingRelatedLinks =
-      product?.related_links && typeof product.related_links === "object"
-        ? product.related_links
+      productRecord?.related_links && typeof productRecord.related_links === "object"
+        ? productRecord.related_links
         : createDefaultRelatedLinks();
     const existingPatternUploadPreview = isDigitalPatternProduct
       ? (() => {
-          const firstImage = (product.images || []).find((img) => String(img?.media_type || "image").toLowerCase() !== "video");
+            const firstImage = (productRecord.images || []).find((img) => String(img?.media_type || "image").toLowerCase() !== "video");
           const previewUrl = firstImage ? resolveImageObjectToUrl(firstImage) : "";
           if (!previewUrl) {
             return null;
           }
           return {
-            name: String(product.name || "Current pattern image").trim() || "Current pattern image",
+              name: String(productRecord.name || "Current pattern image").trim() || "Current pattern image",
             url: previewUrl,
             media_type: String(firstImage?.media_type || "image").toLowerCase(),
           };
@@ -2391,38 +2404,38 @@ export default function AdminDashboard({
       : null;
 
     setManualProduct({
-      name: product.name || "",
-      images: product.images || [],
-      description: product.description || "",
+      name: productRecord.name || "",
+      images: productRecord.images || [],
+      description: productRecord.description || "",
       category: normalizedCategories,
-      materials: Array.isArray(product.materials)
-        ? product.materials
-        : product.materials
-          ? [product.materials]
+      materials: Array.isArray(productRecord.materials)
+        ? productRecord.materials
+        : productRecord.materials
+          ? [productRecord.materials]
           : [],
-      width: product.width?.toString() || "",
-      height: product.height?.toString() || "",
-      depth: product.depth?.toString() || "",
+      width: productRecord.width?.toString() || "",
+      height: productRecord.height?.toString() || "",
+      depth: productRecord.depth?.toString() || "",
       price: (() => {
-        const regular = Number(product.old_price || product.price || 0);
+        const regular = Number(productRecord.old_price || productRecord.price || 0);
         return Number.isFinite(regular) && regular > 0 ? regular.toString() : "";
       })(),
       discount_percent: (() => {
-        const explicit = Number(product.discount_percent || 0);
+        const explicit = Number(productRecord.discount_percent || 0);
         if (Number.isFinite(explicit) && explicit > 0) return explicit.toString();
-        const regular = Number(product.old_price || 0);
-        const sale = Number(product.price || 0);
+        const regular = Number(productRecord.old_price || 0);
+        const sale = Number(productRecord.price || 0);
         if (regular > 0 && sale > 0 && regular > sale) {
           return Number((((regular - sale) / regular) * 100).toFixed(2)).toString();
         }
         return "";
       })(),
       quantity: syncQuantityWithDownloadMode(
-        product.quantity?.toString() || "",
-        Boolean(product.is_digital_download),
+        productRecord.quantity?.toString() || "",
+        Boolean(productRecord.is_digital_download),
       ),
-      is_featured: product.is_featured === 1 || product.is_featured === true,
-      is_digital_download: Boolean(product.is_digital_download),
+      is_featured: productRecord.is_featured === 1 || productRecord.is_featured === true,
+      is_digital_download: Boolean(productRecord.is_digital_download),
       related_links: {
         ...createDefaultRelatedLinks(),
         ...existingRelatedLinks,
@@ -2434,7 +2447,7 @@ export default function AdminDashboard({
     });
     setUnifiedTemplate({
       ...createEmptyUnifiedTemplate(),
-      name: product.name || "",
+      name: productRecord.name || "",
       existing_upload_preview: existingPatternUploadPreview,
     });
     setRelatedTemplateUpload(createEmptyRelatedTemplateUpload());
@@ -2445,9 +2458,9 @@ export default function AdminDashboard({
     setShowManualProductModal(true);
     setQuantityManuallyEdited(true);
     setTemplateNameManuallyEdited(false);
-    setPatternOnlyDescription(String(product.description || ""));
-    setProductModePhysical(!product.is_digital_download);
-    setProductModePattern(Boolean(product.is_digital_download));
+    setPatternOnlyDescription(String(productRecord.description || ""));
+    setProductModePhysical(!productRecord.is_digital_download);
+    setProductModePattern(Boolean(productRecord.is_digital_download));
     setProductModeTemplate(false);
     } finally {
       setIsOpeningProductEdit(false);
