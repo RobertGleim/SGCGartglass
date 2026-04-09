@@ -149,6 +149,26 @@ const extensionFromMimeType = (mimeType) => {
   return "";
 };
 
+const mimeTypeFromExtension = (extension, fallbackMediaType = "") => {
+  const normalizedExtension = String(extension || "").toLowerCase();
+  if (normalizedExtension === ".png") return "image/png";
+  if (normalizedExtension === ".webp") return "image/webp";
+  if (normalizedExtension === ".gif") return "image/gif";
+  if (normalizedExtension === ".svg") return "image/svg+xml";
+  if (normalizedExtension === ".jpg" || normalizedExtension === ".jpeg" || normalizedExtension === ".jpe") return "image/jpeg";
+  if (normalizedExtension === ".mp4") return "video/mp4";
+  if (normalizedExtension === ".mov") return "video/quicktime";
+  if (normalizedExtension === ".webm") return "video/webm";
+
+  const normalizedMediaType = String(fallbackMediaType || "").trim().toLowerCase();
+  if (normalizedMediaType.startsWith("image/") || normalizedMediaType.startsWith("video/")) {
+    return normalizedMediaType;
+  }
+
+  if (normalizedMediaType === "video") return "video/mp4";
+  return "image/jpeg";
+};
+
 /**
  * Convert an image object (with optional image_data hex field) to a displayable URL.
  * Prefers image_data blob URL over image_url if image_data is available.
@@ -167,7 +187,10 @@ const resolveImageObjectToUrl = (imageObj) => {
         for (let i = 0; i < hexStr.length; i += 2) {
           bytes[i / 2] = parseInt(hexStr.substr(i, 2), 16);
         }
-        const mediaType = imageObj.media_type || "image/jpeg";
+        const mediaType = mimeTypeFromExtension(
+          extensionFromUrl(imageObj.image_url || ""),
+          imageObj.media_type,
+        );
         const blob = new Blob([bytes], { type: mediaType });
         return URL.createObjectURL(blob);
       }
