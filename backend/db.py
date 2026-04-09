@@ -949,7 +949,7 @@ def fetch_manual_products():
         placeholder = "%s" if is_mysql else "?"
         for product_id_val, product in by_id.items():
             cursor.execute(
-                f"SELECT image_url, image_data FROM product_images WHERE product_id = {placeholder} ORDER BY display_order",
+                f"SELECT image_url, image_data, media_type FROM product_images WHERE product_id = {placeholder} ORDER BY display_order",
                 (product_id_val,)
             )
             image_rows = cursor.fetchall()
@@ -958,7 +958,10 @@ def fetch_manual_products():
                 for img_row in image_rows:
                     img_row_dict = dict(img_row)
                     img_data = img_row_dict.get("image_data")
-                    img_dict = {"image_url": img_row_dict.get("image_url", "")}
+                    img_dict = {
+                        "image_url": img_row_dict.get("image_url", ""),
+                        "media_type": img_row_dict.get("media_type") or "image",
+                    }
                     if img_data:
                         try:
                             if isinstance(img_data, bytes):

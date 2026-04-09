@@ -5079,29 +5079,30 @@ export default function AdminDashboard({
                               className="image-item"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              {preview.type === "video" ? (
-                                <video src={preview.src} className="image-preview" />
-                              ) : (
-                                <img src={preview.src} alt="Preview" className="image-preview" />
-                              )}
+                              <div className="image-media-frame">
+                                {preview.type === "video" ? (
+                                  <video src={preview.src} className="image-preview" />
+                                ) : (
+                                  <img src={preview.src} alt="Preview" className="image-preview" />
+                                )}
+                                <button
+                                  type="button"
+                                  className="remove-image-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveImage(preview.id);
+                                  }}
+                                  title="Remove image"
+                                >
+                                  ✕
+                                </button>
+                                {preview.type === "video" && (
+                                  <span className="media-badge">Video</span>
+                                )}
+                              </div>
                               <button
                                 type="button"
-                                className="remove-image-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRemoveImage(preview.id);
-                                }}
-                                title="Remove image"
-                              >
-                                ✕
-                              </button>
-                              {preview.type === "video" && (
-                                <span className="media-badge">Video</span>
-                              )}
-                              <button
-                                type="button"
-                                className="button"
-                                style={{ marginTop: "0.5rem", width: "100%" }}
+                                className="button image-download-btn"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleDownloadPreviewImage(preview, {

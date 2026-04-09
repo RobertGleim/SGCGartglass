@@ -604,7 +604,14 @@
 }
 
 .image-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.image-media-frame {
   position: relative;
+  width: 100%;
   border-radius: 4px;
   overflow: hidden;
   background-color: #e0e0e0;
@@ -618,6 +625,10 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.image-download-btn {
+  width: 100%;
 }
 
 .remove-image-btn {
