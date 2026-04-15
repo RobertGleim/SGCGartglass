@@ -1,4 +1,4 @@
-name: Build and Deploy to Hostinger
+name: Deploy Frontend and Backend
 
 on:
   push:

@@ -180,9 +180,9 @@ c:/Users/rglei/OneDrive/Desktop/Sgcg/.venv/Scripts/python.exe migrate_all_sqlite
 
 See repo and docs for license. Replace `frontend/public/brand-logo.svg` with your logo as needed.
 
-## Auto-deploy on push (frontend + backend)
+## Auto-deploy on push
 
-The repo includes `.github/workflows/deploy.yml` to auto-deploy frontend and backend on pushes to `main` (only when relevant files change).
+The repo includes `.github/workflows/deploy.yml` to run one GitHub Actions deployment pipeline for frontend and backend changes. That workflow deploys the Hostinger frontend and triggers the Render backend deploy hook.
 
 Set these GitHub repository secrets:
 
@@ -205,5 +205,10 @@ Behavior:
 - Runs `npm install` + `npm run build` in `frontend/`
 - Builds hashed assets into `dist/assets/`
 - Deploys with `rsync --delete` so the server always matches the latest commit
-- Triggers Render backend deployment automatically when backend files change
+- Triggers the Render backend deploy hook when backend files change
 - Performs post-deploy smoke checks for frontend and backend health
+
+Backend deploys:
+
+- Disable Render Auto-Deploy in the Render dashboard for the backend service.
+- Leave the GitHub Actions deploy hook as the only backend deployment trigger so each commit causes one deployment pipeline instead of duplicate backend deploys.
