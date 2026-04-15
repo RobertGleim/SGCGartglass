@@ -100,6 +100,10 @@ def create_app(config_name=None):
     # SQLAlchemy
     db.init_app(app)
 
+    @app.route("/", methods=["GET", "HEAD"])
+    def root_probe():
+        return jsonify({"status": "ok", "service": "sgcg-backend"})
+
     # Health check: GET /api/health
     @app.route("/api/health", methods=["GET"])
     def health():
