@@ -27,9 +27,9 @@ Flask-Mail==0.9.1
 gunicorn==22.0.0
 
 # --- Image validation (glass type textures: 256x256 PNG/JPG) ---
-Pillow==12.1.1
+Pillow==12.2.0
 stripe==11.1.0
 
 # --- Development & testing ---
-pytest==8.3.2
+pytest==9.0.3
 pytest-flask==1.3.0

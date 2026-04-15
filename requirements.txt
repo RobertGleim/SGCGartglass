@@ -9,11 +9,11 @@ gunicorn==22.0.0
 python-dotenv==1.0.0
 PyMySQL==1.1.1
 psycopg[binary]==3.3.3
-Pillow==12.1.1
+Pillow==12.2.0
 stripe==11.1.0
 
 # Development
-pytest==8.3.2
+pytest==9.0.3
 
 # Testing
 pytest-flask==1.3.0
