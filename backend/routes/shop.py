@@ -22,6 +22,7 @@ from urllib import request as urllib_request
 from urllib.error import HTTPError, URLError
 
 from flask import Blueprint, jsonify, request, g, current_app, send_file
+from sqlalchemy import func
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
@@ -222,7 +223,7 @@ def _cache_set(key, value):
 
 
 def _catalog_cache_invalidate(*keys):
-    targets = keys or ("items", "manual_products")
+    targets = keys or ("items", "manual_products", "manual_products_summary")
     for key in targets:
         _catalog_cache[key] = {"value": None, "expires_at": 0}
 
@@ -571,15 +572,17 @@ def _resolve_digital_item_identity_by_title(title):
     try:
         from ..models import Template as TemplateModel
 
-        template = TemplateModel.query.filter(TemplateModel.is_digital_download.is_(True)).all()
-        for entry in template:
-            if str(entry.name or "").strip().lower() == normalized_title:
-                return {"product_type": "template", "product_id": str(entry.id), "is_digital": True}
+        entry = TemplateModel.query.filter(
+            TemplateModel.is_digital_download.is_(True),
+            func.lower(TemplateModel.name) == normalized_title,
+        ).first()
+        if entry:
+            return {"product_type": "template", "product_id": str(entry.id), "is_digital": True}
     except Exception:
         pass
 
     try:
-        manual_products = fetch_manual_products() or []
+        manual_products = fetch_manual_products_catalog() or []
         for entry in manual_products:
             if not bool(entry.get("is_digital_download")):
                 continue
@@ -3032,16 +3035,18 @@ def list_manual_products():
     try:
         init_db()
         summary_mode = str(request.args.get("summary") or "").strip().lower() in {"1", "true", "yes"}
-        cache_key = "manual_products_summary" if summary_mode else "manual_products"
+        cache_key = "manual_products_summary" if summary_mode else None
 
-        cached_products = _cache_get(cache_key)
-        if cached_products is not None:
-            return jsonify(cached_products), 200
+        if cache_key is not None:
+            cached_products = _cache_get(cache_key)
+            if cached_products is not None:
+                return jsonify(cached_products), 200
 
         products = fetch_manual_products_catalog() if summary_mode else fetch_manual_products()
         if products is None:
             products = []
-        _cache_set(cache_key, products)
+        if cache_key is not None:
+            _cache_set(cache_key, products)
         return jsonify(products), 200
     except Exception as exc:
         return jsonify({"error": "server_error", "detail": str(exc)}), 500

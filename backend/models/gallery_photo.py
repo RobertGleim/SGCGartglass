@@ -1,6 +1,7 @@
 """
 Photo gallery model for user/admin submitted project photos.
 """
+from sqlalchemy.orm import deferred
 from . import db
 
 
@@ -17,7 +18,7 @@ class GalleryPhoto(db.Model):
     display_name = db.Column(db.String(120), nullable=True)
     hide_submitter_name = db.Column(db.Boolean, nullable=False, default=False)
     image_url = db.Column(db.String(500), nullable=False)
-    image_data = db.Column(db.LargeBinary, nullable=True)
+    image_data = deferred(db.Column(db.LargeBinary, nullable=True))
     image_mime = db.Column(db.String(80), nullable=True)
     template_id = db.Column(db.Integer, db.ForeignKey("templates.id", ondelete="SET NULL"), nullable=True, index=True)
     show_description = db.Column(db.Boolean, nullable=False, default=True)

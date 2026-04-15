@@ -111,7 +111,7 @@ def _resolve_existing_pattern_product(template: Template):
         if linked_product:
             return linked_product
 
-    manual_products = fetch_manual_products() or []
+    manual_products = fetch_manual_products_catalog() or []
     for entry in manual_products:
         entry_links = entry.get("related_links") if isinstance(entry, dict) else None
         if not isinstance(entry_links, dict):
@@ -358,11 +358,6 @@ def upload_template_image():
 
         image_url = f"/uploads/templates/{unique_name}"
 
-        # Stash bytes in app-level cache so create_template can persist to DB
-        if not hasattr(current_app, '_upload_cache'):
-            current_app._upload_cache = {}
-        current_app._upload_cache[image_url] = (file_bytes, mime_type)
-
         return jsonify({"image_url": image_url}), 201
     except Exception as e:
         return jsonify({"error": "server_error", "detail": str(e)}), 500
@@ -399,12 +394,10 @@ def create_template():
         elif image_url:
             template_type = "image"
 
-        # Retrieve cached image bytes (from upload-image endpoint)
+        # Read image bytes back from disk when persisting the template record.
         image_data = None
         image_mime = None
-        if image_url and hasattr(current_app, '_upload_cache') and image_url in current_app._upload_cache:
-            image_data, image_mime = current_app._upload_cache.pop(image_url)
-        elif image_url and not image_url.startswith('http'):
+        if image_url and not image_url.startswith('http'):
             # Try reading from disk as fallback
             try:
                 disk_path = os.path.join(current_app.root_path, image_url.lstrip('/'))
