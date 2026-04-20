@@ -170,6 +170,52 @@ const mimeTypeFromExtension = (extension, fallbackMediaType = "") => {
   return "image/jpeg";
 };
 
+const hexStringToBytes = (value) => {
+  const hexStr = String(value || "").trim();
+  if (!hexStr) return null;
+  const bytes = new Uint8Array(hexStr.length / 2);
+  for (let i = 0; i < hexStr.length; i += 2) {
+    bytes[i / 2] = parseInt(hexStr.substr(i, 2), 16);
+  }
+  return bytes;
+};
+
+const createGalleryUploadFileFromImage = async (imageObj, fallbackBaseName = "gallery-image") => {
+  if (!imageObj || typeof imageObj !== "object") return null;
+
+  const sourceUrl = resolveMediaUrl(imageObj.image_url || "");
+  const extension = extensionFromUrl(sourceUrl) || extensionFromMimeType(imageObj.media_type) || ".jpg";
+  const mimeType = mimeTypeFromExtension(extension, imageObj.media_type);
+  const safeBaseName = sanitizeDownloadBaseName(fallbackBaseName, "gallery-image");
+
+  if (imageObj.image_data && typeof imageObj.image_data === "string") {
+    try {
+      const bytes = hexStringToBytes(imageObj.image_data);
+      if (bytes && bytes.length > 0) {
+        return new File([bytes], `${safeBaseName}${extension}`, { type: mimeType });
+      }
+    } catch (error) {
+      console.warn("Failed to convert existing product image_data into an upload file:", error);
+    }
+  }
+
+  if (!sourceUrl) return null;
+
+  try {
+    const response = await fetch(sourceUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to read existing image (${response.status})`);
+    }
+    const blob = await response.blob();
+    const blobExtension = extensionFromMimeType(blob.type) || extension;
+    const blobMimeType = blob.type || mimeType;
+    return new File([blob], `${safeBaseName}${blobExtension}`, { type: blobMimeType });
+  } catch (error) {
+    console.warn("Failed to fetch existing product image for gallery upload:", error);
+    return null;
+  }
+};
+
 /**
  * Convert an image object (with optional image_data hex field) to a displayable URL.
  * Prefers image_data blob URL over image_url if image_data is available.
@@ -182,12 +228,8 @@ const resolveImageObjectToUrl = (imageObj) => {
   // If image_data is available (hex string), convert to blob URL
   if (imageObj.image_data && typeof imageObj.image_data === "string") {
     try {
-      const hexStr = imageObj.image_data.trim();
-      if (hexStr) {
-        const bytes = new Uint8Array(hexStr.length / 2);
-        for (let i = 0; i < hexStr.length; i += 2) {
-          bytes[i / 2] = parseInt(hexStr.substr(i, 2), 16);
-        }
+      const bytes = hexStringToBytes(imageObj.image_data);
+      if (bytes && bytes.length > 0) {
         const mediaType = mimeTypeFromExtension(
           extensionFromUrl(imageObj.image_url || ""),
           imageObj.media_type,
@@ -1625,10 +1667,9 @@ export default function AdminDashboard({
     const manualProductSnapshot = manualProduct;
     const selectedTypeCategorySnapshot = selectedTypeCategory;
     const addImagesToGallerySnapshot = Boolean(addImagesToGallery);
-    const galleryImageFilesSnapshot = Array.isArray(imagePreviews)
+    const galleryImagePreviewSnapshot = Array.isArray(imagePreviews)
       ? imagePreviews
-        .filter((entry) => entry?.type !== "video" && entry?.file)
-        .map((entry) => entry.file)
+        .filter((entry) => entry?.type !== "video")
         .slice(0, MAX_MANUAL_UPLOAD_PHOTOS)
       : [];
 
@@ -1685,10 +1726,7 @@ export default function AdminDashboard({
     }
 
     setIsSavingManualProduct(true);
-    setStatus(editingProduct ? "Updating product..." : "Saving listing in background...");
-    if (!editingProduct) {
-      handleCloseModal();
-    }
+    setStatus(editingProduct ? "Updating product..." : "Saving listing...");
 
     try {
       let createdTemplate = null;
@@ -2198,7 +2236,31 @@ export default function AdminDashboard({
         }
       }
 
-      if (addImagesToGallerySnapshot && savedProduct?.id && galleryImageFilesSnapshot.length > 0) {
+      if (addImagesToGallerySnapshot && savedProduct?.id && galleryImagePreviewSnapshot.length > 0) {
+        const galleryImageFilesSnapshot = [];
+        for (const entry of galleryImagePreviewSnapshot) {
+          if (entry?.file instanceof File) {
+            galleryImageFilesSnapshot.push(entry.file);
+            continue;
+          }
+
+          const existingIndex = String(entry?.id || "").startsWith("existing-")
+            ? Number(String(entry.id).replace("existing-", ""))
+            : NaN;
+          const existingImage = Number.isFinite(existingIndex)
+            ? manualProductSnapshot?.images?.[existingIndex]
+            : null;
+          const fallbackBaseName = `${savedProduct.name || manualProductSnapshot.name || "product-gallery"}-${galleryImageFilesSnapshot.length + 1}`;
+          const uploadFile = await createGalleryUploadFileFromImage(existingImage, fallbackBaseName);
+          if (uploadFile) {
+            galleryImageFilesSnapshot.push(uploadFile);
+          }
+        }
+
+        if (galleryImageFilesSnapshot.length === 0) {
+          throw new Error("Unable to prepare the selected product photos for gallery upload.");
+        }
+
         const galleryPayload = new FormData();
         galleryPayload.append(
           "panel_name",
@@ -2238,41 +2300,38 @@ export default function AdminDashboard({
           relatedLinks.gallery_panel_name = firstGalleryPanelName;
           relatedLinks.gallery_template_id = firstGalleryTemplateId ? String(firstGalleryTemplateId) : "";
 
-          if (!editingProduct) {
-            await onUpdateManualProduct(savedProduct.id, {
-              related_links: {
-                template_id: relatedLinks.template_id
-                  ? Number(relatedLinks.template_id)
-                  : null,
-                template_name: relatedLinks.template_name || null,
-                pattern_product_id: relatedLinks.pattern_product_id
-                  ? Number(relatedLinks.pattern_product_id)
-                    : null,
-                  pattern_product_name: relatedLinks.pattern_product_name || null,
-                  linked_product_id: relatedLinks.linked_product_id
-                    ? Number(relatedLinks.linked_product_id)
-                    : null,
-                  linked_product_name: relatedLinks.linked_product_name || null,
-                  gallery_photo_id: firstGalleryId,
-                  gallery_panel_name: firstGalleryPanelName,
-                  gallery_template_id: firstGalleryTemplateId,
-                },
-              });
-            }
+          await onUpdateManualProduct(savedProduct.id, {
+            related_links: {
+              template_id: relatedLinks.template_id
+                ? Number(relatedLinks.template_id)
+                : null,
+              template_name: relatedLinks.template_name || null,
+              pattern_product_id: relatedLinks.pattern_product_id
+                ? Number(relatedLinks.pattern_product_id)
+                : null,
+              pattern_product_name: relatedLinks.pattern_product_name || null,
+              linked_product_id: relatedLinks.linked_product_id
+                ? Number(relatedLinks.linked_product_id)
+                : null,
+              linked_product_name: relatedLinks.linked_product_name || null,
+              gallery_photo_id: firstGalleryId,
+              gallery_panel_name: firstGalleryPanelName,
+              gallery_template_id: firstGalleryTemplateId,
+            },
+          });
 
-            setProductGalleryOptions((prev) => {
-              const exists = prev.some((entry) => String(entry.id) === String(firstGalleryId));
-              if (exists) return prev;
-              return [
-                {
-                  id: firstGalleryId,
-                  panel_name: firstGalleryPanelName || `Photo #${firstGalleryId}`,
-                  template_id: firstGalleryTemplateId,
-                },
-                ...prev,
-              ];
-            });
-          }
+          setProductGalleryOptions((prev) => {
+            const exists = prev.some((entry) => String(entry.id) === String(firstGalleryId));
+            if (exists) return prev;
+            return [
+              {
+                id: firstGalleryId,
+                panel_name: firstGalleryPanelName || `Photo #${firstGalleryId}`,
+                template_id: firstGalleryTemplateId,
+              },
+              ...prev,
+            ];
+          });
         }
       }
 
@@ -2311,23 +2370,25 @@ export default function AdminDashboard({
         setStatus("Manual product added successfully!");
       }
 
-      // Close modal and reset state (for edit mode; create mode is already background-closed)
-      if (editingProduct) {
-        setShowManualProductModal(false);
-        setEditingProduct(null);
-        setManualProduct(createEmptyManualProduct());
-        setQuantityManuallyEdited(false);
-        setUnifiedTemplate(createEmptyUnifiedTemplate());
-        setRelatedTemplateUpload(createEmptyRelatedTemplateUpload());
-        setRelatedGalleryUpload(createEmptyRelatedGalleryUpload());
-        setImagePreviews([]);
-        setEnableWatermark(true); // Always reset to true after submission
-        setWatermarkText("SGCG ART GLASS"); // Reset to default text
-        setAddImagesToGallery(false);
-        setTemplateRefPhotos([]);
-        setTemplateNameManuallyEdited(false);
-        setPatternOnlyDescription("");
-      }
+      // Close modal and reset state after a successful save so gallery uploads
+      // and related-link updates can complete against the current form state.
+      setShowManualProductModal(false);
+      setEditingProduct(null);
+      setManualProduct(createEmptyManualProduct());
+      setQuantityManuallyEdited(false);
+      setUnifiedTemplate(createEmptyUnifiedTemplate());
+      setRelatedTemplateUpload(createEmptyRelatedTemplateUpload());
+      setRelatedGalleryUpload(createEmptyRelatedGalleryUpload());
+      setImagePreviews([]);
+      setEnableWatermark(true); // Always reset to true after submission
+      setWatermarkText("SGCG ART GLASS"); // Reset to default text
+      setAddImagesToGallery(false);
+      setTemplateRefPhotos([]);
+      setTemplateNameManuallyEdited(false);
+      setPatternOnlyDescription("");
+      setProductModePhysical(true);
+      setProductModePattern(false);
+      setProductModeTemplate(false);
       await loadManualProductLinkOptions();
     } catch (error) {
       // Check if it's an authentication error
