@@ -380,6 +380,40 @@
   position: relative;
   box-shadow: 0 8px 32px rgba(0,0,0,0.2);
 }
+
+.modalHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding-right: 2.5rem;
+}
+
+.modalHeaderRow h2 {
+  margin: 0;
+}
+
+.modalPrintBtn {
+  padding: 0.55rem 0.95rem;
+  border-radius: 10px;
+  border: 1px solid #1d4ed8;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.modalPrintBtn:hover:not(:disabled) {
+  background: #dbeafe;
+}
+
+.modalPrintBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .closeBtn {
   position: absolute;
   top: 1rem;
@@ -707,6 +741,12 @@
 }
 
 @media (max-width: 560px) {
+  .modalHeaderRow {
+    flex-direction: column;
+    align-items: flex-start;
+    padding-right: 0;
+  }
+
   .filters > * {
     flex: 1 1 100%;
   }

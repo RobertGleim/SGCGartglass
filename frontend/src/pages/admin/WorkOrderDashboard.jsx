@@ -589,6 +589,179 @@ export default function WorkOrderDashboard() {
     setSelectedShippingOrderLoading(false);
   };
 
+  const printShippingWorkOrder = () => {
+    if (!selectedShippingOrder || selectedShippingOrderLoading) return;
+
+    try {
+      const addressLines = formatOrderAddressLines(selectedShippingOrder.shipping_address);
+      const itemRows = selectedShippingOrderItems.map((item) => {
+        const quantity = Math.max(1, Number(item?.quantity || 1));
+        const unitPrice = Number(item?.price || 0);
+        return `
+          <tr>
+            <td>${escapeHtml(getOrderItemName(item))}</td>
+            <td>${escapeHtml(String(item?.product_type || '-'))}</td>
+            <td>${quantity}</td>
+            <td>${escapeHtml(formatMoney(unitPrice))}</td>
+            <td>${escapeHtml(formatMoney(unitPrice * quantity))}</td>
+          </tr>`;
+      }).join('');
+
+      const thumbnailMarkup = selectedShippingOrderItems
+        .filter((item) => Boolean(resolveMediaUrl(item?.image_url)))
+        .map((item) => `
+          <figure class="thumb-card">
+            <img src="${escapeHtml(resolveMediaUrl(item?.image_url))}" alt="${escapeHtml(getOrderItemName(item))}" />
+            <figcaption>${escapeHtml(getOrderItemName(item))}</figcaption>
+          </figure>`)
+        .join('');
+
+      const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1100,height=900');
+      if (!printWindow) {
+        window.toast && window.toast('Popup blocked while opening print preview', { type: 'error' });
+        return;
+      }
+
+      printWindow.document.write(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(selectedShippingOrder.order_number || `Order ${selectedShippingOrder.id || ''}`)}</title>
+    <style>
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        margin: 0;
+        padding: 24px;
+        color: #1f2937;
+        background: #ffffff;
+      }
+      h1 {
+        margin: 0 0 24px;
+        font-size: 28px;
+      }
+      h2 {
+        margin: 0 0 10px;
+        font-size: 22px;
+      }
+      h3 {
+        margin: 0 0 10px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #4169e1;
+        font-size: 18px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-bottom: 24px;
+      }
+      .section {
+        margin-bottom: 24px;
+      }
+      p {
+        margin: 8px 0;
+      }
+      .address {
+        margin-top: 6px;
+        line-height: 1.5;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th, td {
+        border-bottom: 1px solid #e5e7eb;
+        padding: 10px 8px;
+        text-align: left;
+      }
+      th {
+        font-weight: 700;
+        color: #334155;
+      }
+      .thumb-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .thumb-card {
+        margin: 0;
+        border: 1px solid #dbe4f0;
+        border-radius: 10px;
+        padding: 10px;
+        background: #f8fbff;
+      }
+      .thumb-card img {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid #d3deee;
+        display: block;
+      }
+      .thumb-card figcaption {
+        margin-top: 8px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      @media print {
+        body {
+          padding: 0;
+        }
+      }
+      @page {
+        margin: 0.5in;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Order: ${escapeHtml(selectedShippingOrder.order_number || `#${selectedShippingOrder.id || ''}`)}</h1>
+    <div class="grid">
+      <div class="section">
+        <h3>Customer</h3>
+        <p><strong>Name:</strong> ${escapeHtml(selectedShippingOrder.customer_name || 'Customer')}</p>
+        <p><strong>Email:</strong> ${escapeHtml(selectedShippingOrder.customer_email || '-')}</p>
+        <p><strong>Status:</strong> ${escapeHtml(SHIPPING_STATUS_LABELS[selectedShippingOrder.shipping_status] || selectedShippingOrder.shipping_status || '-')}</p>
+        <p><strong>Shipping Address:</strong></p>
+        <div class="address">${addressLines.length > 0 ? addressLines.map((line) => `<div>${escapeHtml(line)}</div>`).join('') : '<div>No shipping address captured.</div>'}</div>
+      </div>
+      <div class="section">
+        <h3>Order Details</h3>
+        <p><strong>Placed:</strong> ${escapeHtml(selectedShippingOrder.created_at ? new Date(selectedShippingOrder.created_at).toLocaleString() : '-')}</p>
+        <p><strong>Subtotal:</strong> ${escapeHtml(formatMoney(selectedShippingOrder.subtotal_amount))}</p>
+        <p><strong>Shipping:</strong> ${escapeHtml(formatMoney(selectedShippingOrder.shipping_amount))}</p>
+        <p><strong>Tax:</strong> ${escapeHtml(formatMoney(selectedShippingOrder.tax_amount))}</p>
+        <p><strong>Total:</strong> ${escapeHtml(formatMoney(selectedShippingOrder.total_amount))}</p>
+      </div>
+    </div>
+    <div class="section">
+      <h3>Items Ordered</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Type</th>
+            <th>Qty</th>
+            <th>Unit Price</th>
+            <th>Line Total</th>
+          </tr>
+        </thead>
+        <tbody>${itemRows || '<tr><td colspan="5">No items found for this order.</td></tr>'}</tbody>
+      </table>
+    </div>
+    ${thumbnailMarkup ? `<div class="section"><h3>Product Thumbnails</h3><div class="thumb-grid">${thumbnailMarkup}</div></div>` : ''}
+  </body>
+</html>`);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => printWindow.print(), 250);
+    } catch (err) {
+      console.error('[WorkOrderDashboard] Failed to print shipping work order:', err);
+      window.toast && window.toast('Failed to print work order', { type: 'error' });
+    }
+  };
+
   const downloadShippingItemImage = async (item) => {
     const imageSrc = resolveMediaUrl(item?.image_url);
     if (!imageSrc) {
@@ -1149,7 +1322,17 @@ export default function WorkOrderDashboard() {
         <div className={styles.modalOverlay} onClick={closeShippingOrder}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <button className={styles.closeBtn} onClick={closeShippingOrder}>&times;</button>
-            <h2>Order: {selectedShippingOrder.order_number || `#${selectedShippingOrder.id}`}</h2>
+            <div className={styles.modalHeaderRow}>
+              <h2>Order: {selectedShippingOrder.order_number || `#${selectedShippingOrder.id}`}</h2>
+              <button
+                type="button"
+                className={styles.modalPrintBtn}
+                onClick={printShippingWorkOrder}
+                disabled={selectedShippingOrderLoading}
+              >
+                Print Work Order
+              </button>
+            </div>
 
             <div className={styles.modalGrid}>
               <div className={styles.modalSection}>
