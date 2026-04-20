@@ -100,6 +100,32 @@ const formatMoney = (value) => {
   return `$${amount.toFixed(2)}`;
 };
 
+const parseOrderAddress = (value) => {
+  if (!value) return null;
+  if (typeof value === 'object' && !Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value || ''));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const formatOrderAddressLines = (value) => {
+  const address = parseOrderAddress(value);
+  if (!address) return [];
+
+  const line1 = String(address.line1 || '').trim();
+  const line2 = String(address.line2 || '').trim();
+  const city = String(address.city || '').trim();
+  const state = String(address.state || '').trim();
+  const postalCode = String(address.postal_code || '').trim();
+  const country = String(address.country || '').trim();
+
+  const localityLine = [city, state, postalCode].filter(Boolean).join(', ').replace(', ,', ',');
+  return [line1, line2, localityLine, country].filter(Boolean);
+};
+
 const getOrderItemName = (item) => {
   const title = String(item?.title || '').trim();
   if (title) return title;
@@ -1131,6 +1157,16 @@ export default function WorkOrderDashboard() {
                 <p><strong>Name:</strong> {selectedShippingOrder.customer_name || 'Customer'}</p>
                 <p><strong>Email:</strong> {selectedShippingOrder.customer_email || '-'}</p>
                 <p><strong>Status:</strong> {SHIPPING_STATUS_LABELS[selectedShippingOrder.shipping_status] || selectedShippingOrder.shipping_status || '-'}</p>
+                <p><strong>Shipping Address:</strong></p>
+                {formatOrderAddressLines(selectedShippingOrder.shipping_address).length > 0 ? (
+                  <div className={styles.addressBlock}>
+                    {formatOrderAddressLines(selectedShippingOrder.shipping_address).map((line) => (
+                      <div key={line}>{line}</div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={styles.addressFallback}>No shipping address captured.</p>
+                )}
               </div>
               <div className={styles.modalSection}>
                 <h3>Order Details</h3>

@@ -413,6 +413,17 @@
   margin: 0.5rem 0;
 }
 
+.addressBlock {
+  margin-top: 0.35rem;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.addressFallback {
+  margin-top: 0.2rem;
+  color: #64748b;
+}
+
 .exportHint {
   color: #6b5b43;
   font-size: 0.95rem;
