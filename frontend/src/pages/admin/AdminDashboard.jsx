@@ -1667,10 +1667,10 @@ export default function AdminDashboard({
     const manualProductSnapshot = manualProduct;
     const selectedTypeCategorySnapshot = selectedTypeCategory;
     const addImagesToGallerySnapshot = Boolean(addImagesToGallery);
-    const galleryImagePreviewSnapshot = Array.isArray(imagePreviews)
+    const firstGalleryImagePreviewSnapshot = Array.isArray(imagePreviews)
       ? imagePreviews
         .filter((entry) => entry?.type !== "video")
-        .slice(0, MAX_MANUAL_UPLOAD_PHOTOS)
+        .slice(0, 1)
       : [];
 
     const shouldCreateTemplate = !editingProduct && productModeTemplate && Boolean(unifiedTemplate.upload_file);
@@ -2236,28 +2236,24 @@ export default function AdminDashboard({
         }
       }
 
-      if (addImagesToGallerySnapshot && savedProduct?.id && galleryImagePreviewSnapshot.length > 0) {
-        const galleryImageFilesSnapshot = [];
-        for (const entry of galleryImagePreviewSnapshot) {
-          if (entry?.file instanceof File) {
-            galleryImageFilesSnapshot.push(entry.file);
-            continue;
-          }
+      if (addImagesToGallerySnapshot && savedProduct?.id && firstGalleryImagePreviewSnapshot.length > 0) {
+        const [firstGalleryEntry] = firstGalleryImagePreviewSnapshot;
+        let firstGalleryFile = null;
 
-          const existingIndex = String(entry?.id || "").startsWith("existing-")
-            ? Number(String(entry.id).replace("existing-", ""))
+        if (firstGalleryEntry?.file instanceof File) {
+          firstGalleryFile = firstGalleryEntry.file;
+        } else {
+          const existingIndex = String(firstGalleryEntry?.id || "").startsWith("existing-")
+            ? Number(String(firstGalleryEntry.id).replace("existing-", ""))
             : NaN;
           const existingImage = Number.isFinite(existingIndex)
             ? manualProductSnapshot?.images?.[existingIndex]
             : null;
-          const fallbackBaseName = `${savedProduct.name || manualProductSnapshot.name || "product-gallery"}-${galleryImageFilesSnapshot.length + 1}`;
-          const uploadFile = await createGalleryUploadFileFromImage(existingImage, fallbackBaseName);
-          if (uploadFile) {
-            galleryImageFilesSnapshot.push(uploadFile);
-          }
+          const fallbackBaseName = `${savedProduct.name || manualProductSnapshot.name || "product-gallery"}-1`;
+          firstGalleryFile = await createGalleryUploadFileFromImage(existingImage, fallbackBaseName);
         }
 
-        if (galleryImageFilesSnapshot.length === 0) {
+        if (!(firstGalleryFile instanceof File)) {
           throw new Error("Unable to prepare the selected product photos for gallery upload.");
         }
 
@@ -2273,9 +2269,7 @@ export default function AdminDashboard({
         }
         galleryPayload.append("display_name", "SGCG Art");
         galleryPayload.append("hide_submitter_name", "false");
-        galleryImageFilesSnapshot.forEach((file) => {
-          galleryPayload.append("photos", file);
-        });
+        galleryPayload.append("photos", firstGalleryFile);
 
         const galleryResult = await submitGalleryPhoto(galleryPayload);
         const galleryItems = Array.isArray(galleryResult?.items)
@@ -5225,7 +5219,7 @@ export default function AdminDashboard({
                         checked={addImagesToGallery}
                         onChange={(e) => setAddImagesToGallery(e.target.checked)}
                       />
-                      <span>Add product photos to gallery when submitted (auto-grouped)</span>
+                      <span>Add first product photo to gallery when submitted</span>
                     </label>
                   </>
                 )}

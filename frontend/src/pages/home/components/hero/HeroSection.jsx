@@ -15,7 +15,7 @@ export default function HeroSection() {
       <div className="hero-panel">
         <div className="hero-card">
             <div className="card-image">
-                <img src="/logo1.jpg" alt="Gallery glass art" className="image" />
+                <img src="/logo-mark.svg" alt="SGCG Art Glass logo" className="image" />
             </div>
         </div>
       </div>

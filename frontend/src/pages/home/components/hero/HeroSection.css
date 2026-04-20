@@ -61,6 +61,20 @@
   animation: float-in 1s ease-out;
 }
 
+.card-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-image .image {
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
 .hero-label {
   font-size: 0.65rem;
   letter-spacing: 0.15em;
