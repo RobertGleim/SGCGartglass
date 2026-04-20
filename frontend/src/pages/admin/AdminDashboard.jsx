@@ -1622,6 +1622,16 @@ export default function AdminDashboard({
       return;
     }
 
+    const manualProductSnapshot = manualProduct;
+    const selectedTypeCategorySnapshot = selectedTypeCategory;
+    const addImagesToGallerySnapshot = Boolean(addImagesToGallery);
+    const galleryImageFilesSnapshot = Array.isArray(imagePreviews)
+      ? imagePreviews
+        .filter((entry) => entry?.type !== "video" && entry?.file)
+        .map((entry) => entry.file)
+        .slice(0, MAX_MANUAL_UPLOAD_PHOTOS)
+      : [];
+
     const shouldCreateTemplate = !editingProduct && productModeTemplate && Boolean(unifiedTemplate.upload_file);
     const hasProductName = Boolean(String(manualProduct.name || "").trim());
     const shouldSaveProduct = isProductSectionEnabled && (editingProduct || hasProductName);
@@ -2188,61 +2198,55 @@ export default function AdminDashboard({
         }
       }
 
-      if (addImagesToGallery && savedProduct?.id && Array.isArray(imagePreviews) && imagePreviews.length > 0) {
-        const imageFiles = imagePreviews
-          .filter((entry) => entry?.type !== "video" && entry?.file)
-          .map((entry) => entry.file)
-          .slice(0, MAX_MANUAL_UPLOAD_PHOTOS);
+      if (addImagesToGallerySnapshot && savedProduct?.id && galleryImageFilesSnapshot.length > 0) {
+        const galleryPayload = new FormData();
+        galleryPayload.append(
+          "panel_name",
+          String(savedProduct.name || manualProductSnapshot.name || "Product Gallery").trim(),
+        );
+        galleryPayload.append("description", String(manualProductSnapshot.description || "").trim());
+        galleryPayload.append("category", String(selectedTypeCategorySnapshot || "").trim());
+        if (relatedLinks.template_id || createdTemplate?.id) {
+          galleryPayload.append("template_id", String(relatedLinks.template_id || createdTemplate.id));
+        }
+        galleryPayload.append("display_name", "SGCG Art");
+        galleryPayload.append("hide_submitter_name", "false");
+        galleryImageFilesSnapshot.forEach((file) => {
+          galleryPayload.append("photos", file);
+        });
 
-        if (imageFiles.length > 0) {
-          const galleryPayload = new FormData();
-          galleryPayload.append(
-            "panel_name",
-            String(savedProduct.name || manualProduct.name || "Product Gallery").trim(),
-          );
-          galleryPayload.append("description", String(manualProduct.description || "").trim());
-          galleryPayload.append("category", String(selectedTypeCategory || "").trim());
-          if (relatedLinks.template_id || createdTemplate?.id) {
-            galleryPayload.append("template_id", String(relatedLinks.template_id || createdTemplate.id));
-          }
-          galleryPayload.append("display_name", "SGCG Art");
-          galleryPayload.append("hide_submitter_name", "false");
-          imageFiles.forEach((file) => {
-            galleryPayload.append("photos", file);
-          });
+        const galleryResult = await submitGalleryPhoto(galleryPayload);
+        const galleryItems = Array.isArray(galleryResult?.items)
+          ? galleryResult.items
+          : Array.isArray(galleryResult)
+            ? galleryResult
+            : [];
+        const firstCreated = galleryItems[0] || galleryResult?.photo || galleryResult;
 
-          const galleryResult = await submitGalleryPhoto(galleryPayload);
-          const galleryItems = Array.isArray(galleryResult?.items)
-            ? galleryResult.items
-            : Array.isArray(galleryResult)
-              ? galleryResult
-              : [];
-          const firstCreated = galleryItems[0] || galleryResult?.photo || galleryResult;
+        if (firstCreated?.id) {
+          const firstGalleryId = Number(firstCreated.id);
+          const firstGalleryPanelName = String(
+            firstCreated.panel_name || savedProduct.name || manualProductSnapshot.name || "Product Gallery",
+          ).trim();
+          const firstGalleryTemplateId = firstCreated.template_id
+            ? Number(firstCreated.template_id)
+            : relatedLinks.template_id
+              ? Number(relatedLinks.template_id)
+              : null;
 
-          if (firstCreated?.id) {
-            const firstGalleryId = Number(firstCreated.id);
-            const firstGalleryPanelName = String(
-              firstCreated.panel_name || savedProduct.name || manualProduct.name || "Product Gallery",
-            ).trim();
-            const firstGalleryTemplateId = firstCreated.template_id
-              ? Number(firstCreated.template_id)
-              : relatedLinks.template_id
-                ? Number(relatedLinks.template_id)
-                : null;
+          relatedLinks.gallery_photo_id = String(firstGalleryId);
+          relatedLinks.gallery_panel_name = firstGalleryPanelName;
+          relatedLinks.gallery_template_id = firstGalleryTemplateId ? String(firstGalleryTemplateId) : "";
 
-            relatedLinks.gallery_photo_id = String(firstGalleryId);
-            relatedLinks.gallery_panel_name = firstGalleryPanelName;
-            relatedLinks.gallery_template_id = firstGalleryTemplateId ? String(firstGalleryTemplateId) : "";
-
-            if (!editingProduct) {
-              await onUpdateManualProduct(savedProduct.id, {
-                related_links: {
-                  template_id: relatedLinks.template_id
-                    ? Number(relatedLinks.template_id)
-                    : null,
-                  template_name: relatedLinks.template_name || null,
-                  pattern_product_id: relatedLinks.pattern_product_id
-                    ? Number(relatedLinks.pattern_product_id)
+          if (!editingProduct) {
+            await onUpdateManualProduct(savedProduct.id, {
+              related_links: {
+                template_id: relatedLinks.template_id
+                  ? Number(relatedLinks.template_id)
+                  : null,
+                template_name: relatedLinks.template_name || null,
+                pattern_product_id: relatedLinks.pattern_product_id
+                  ? Number(relatedLinks.pattern_product_id)
                     : null,
                   pattern_product_name: relatedLinks.pattern_product_name || null,
                   linked_product_id: relatedLinks.linked_product_id
