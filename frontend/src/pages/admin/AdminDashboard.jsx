@@ -138,6 +138,16 @@ const extensionFromUrl = (value) => {
   }
 };
 
+const sortFavoriteValues = (values) =>
+  [...values]
+    .filter((value) => String(value || "").trim().length > 0)
+    .sort((left, right) =>
+      String(left || "").localeCompare(String(right || ""), undefined, {
+        sensitivity: "base",
+        numeric: true,
+      }),
+    );
+
 const extensionFromMimeType = (mimeType) => {
   const normalized = String(mimeType || "").toLowerCase();
   if (normalized.includes("svg")) return ".svg";
@@ -915,27 +925,33 @@ export default function AdminDashboard({
         return {
           ...emptyBuckets,
           stainedGlassPanels: Array.isArray(parsed?.stainedGlassPanels)
-            ? parsed.stainedGlassPanels
+            ? sortFavoriteValues(parsed.stainedGlassPanels)
             : Array.isArray(parsed?.stainedGlass)
-              ? parsed.stainedGlass
+              ? sortFavoriteValues(parsed.stainedGlass)
               : [],
-          fusedArt: Array.isArray(parsed?.fusedArt) ? parsed.fusedArt : [],
+          fusedArt: Array.isArray(parsed?.fusedArt)
+            ? sortFavoriteValues(parsed.fusedArt)
+            : [],
           laserAndSandblasting: Array.isArray(parsed?.laserAndSandblasting)
-            ? parsed.laserAndSandblasting
+            ? sortFavoriteValues(parsed.laserAndSandblasting)
             : [],
           woodArt: Array.isArray(parsed?.woodArt)
-            ? parsed.woodArt
+            ? sortFavoriteValues(parsed.woodArt)
             : Array.isArray(parsed?.woodwork)
-              ? parsed.woodwork
+              ? sortFavoriteValues(parsed.woodwork)
               : [],
-          patterns: Array.isArray(parsed?.patterns) ? parsed.patterns : [],
+          patterns: Array.isArray(parsed?.patterns)
+            ? sortFavoriteValues(parsed.patterns)
+            : [],
         };
       }
 
       const legacyCategories = readStoredJson("favoriteCategories", []);
       return {
         ...createEmptyTypeBuckets(),
-        stainedGlassPanels: Array.isArray(legacyCategories) ? legacyCategories : [],
+        stainedGlassPanels: Array.isArray(legacyCategories)
+          ? sortFavoriteValues(legacyCategories)
+          : [],
       };
     },
   );
@@ -945,27 +961,33 @@ export default function AdminDashboard({
       return {
         ...createEmptyTypeBuckets(),
         stainedGlassPanels: Array.isArray(parsed?.stainedGlassPanels)
-          ? parsed.stainedGlassPanels
+          ? sortFavoriteValues(parsed.stainedGlassPanels)
           : Array.isArray(parsed?.stainedGlass)
-            ? parsed.stainedGlass
+            ? sortFavoriteValues(parsed.stainedGlass)
             : [],
-        fusedArt: Array.isArray(parsed?.fusedArt) ? parsed.fusedArt : [],
+        fusedArt: Array.isArray(parsed?.fusedArt)
+          ? sortFavoriteValues(parsed.fusedArt)
+          : [],
         laserAndSandblasting: Array.isArray(parsed?.laserAndSandblasting)
-          ? parsed.laserAndSandblasting
+          ? sortFavoriteValues(parsed.laserAndSandblasting)
           : [],
         woodArt: Array.isArray(parsed?.woodArt)
-          ? parsed.woodArt
+          ? sortFavoriteValues(parsed.woodArt)
           : Array.isArray(parsed?.woodwork)
-            ? parsed.woodwork
+            ? sortFavoriteValues(parsed.woodwork)
             : [],
-        patterns: Array.isArray(parsed?.patterns) ? parsed.patterns : [],
+        patterns: Array.isArray(parsed?.patterns)
+          ? sortFavoriteValues(parsed.patterns)
+          : [],
       };
     }
 
     const legacyMaterials = readStoredJson("favoriteMaterials", []);
     return {
       ...createEmptyTypeBuckets(),
-      stainedGlassPanels: Array.isArray(legacyMaterials) ? legacyMaterials : [],
+      stainedGlassPanels: Array.isArray(legacyMaterials)
+        ? sortFavoriteValues(legacyMaterials)
+        : [],
     };
   });
   const [manualProduct, setManualProduct] = useState(createEmptyManualProduct());
@@ -1004,7 +1026,7 @@ export default function AdminDashboard({
 
       return {
         ...prev,
-        [productType]: [...currentValues, value],
+        [productType]: sortFavoriteValues([...currentValues, value]),
       };
     });
   };
@@ -1018,7 +1040,7 @@ export default function AdminDashboard({
 
       return {
         ...prev,
-        [productType]: [...currentValues, value],
+        [productType]: sortFavoriteValues([...currentValues, value]),
       };
     });
   };

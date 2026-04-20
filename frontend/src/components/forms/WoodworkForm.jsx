@@ -7,6 +7,16 @@ const MAX_IMAGE_BYTES = 20 * 1024 * 1024
 const MAX_VIDEO_BYTES = 80 * 1024 * 1024
 const MAX_TOTAL_BYTES = 120 * 1024 * 1024
 
+const sortFavoriteValues = (values) =>
+  [...values]
+    .filter((value) => String(value || '').trim().length > 0)
+    .sort((left, right) =>
+      String(left || '').localeCompare(String(right || ''), undefined, {
+        sensitivity: 'base',
+        numeric: true,
+      }),
+    )
+
 export default function WoodworkForm({
   editingProduct,
   manualProduct,
@@ -329,7 +339,7 @@ export default function WoodworkForm({
                       if (categoryInput.trim() && !manualProduct.category.includes(categoryInput.trim())) {
                         setManualProduct({...manualProduct, category: [...manualProduct.category, categoryInput.trim()]})
                         if (!favoriteCategories.includes(categoryInput.trim())) {
-                          setFavoriteCategories([...favoriteCategories, categoryInput.trim()])
+                          setFavoriteCategories(sortFavoriteValues([...favoriteCategories, categoryInput.trim()]))
                         }
                         setCategoryInput('')
                       }
@@ -350,7 +360,7 @@ export default function WoodworkForm({
                       if (categoryInput.trim() && !manualProduct.category.includes(categoryInput.trim())) {
                         setManualProduct({...manualProduct, category: [...manualProduct.category, categoryInput.trim()]})
                         if (!favoriteCategories.includes(categoryInput.trim())) {
-                          setFavoriteCategories([...favoriteCategories, categoryInput.trim()])
+                          setFavoriteCategories(sortFavoriteValues([...favoriteCategories, categoryInput.trim()]))
                         }
                         setCategoryInput('')
                       }
@@ -409,7 +419,7 @@ export default function WoodworkForm({
                       if (materialInput.trim() && !manualProduct.materials.includes(materialInput.trim())) {
                         setManualProduct({...manualProduct, materials: [...manualProduct.materials, materialInput.trim()]})
                         if (!favoriteMaterials.includes(materialInput.trim())) {
-                          setFavoriteMaterials([...favoriteMaterials, materialInput.trim()])
+                          setFavoriteMaterials(sortFavoriteValues([...favoriteMaterials, materialInput.trim()]))
                         }
                         setMaterialInput('')
                       }
@@ -430,7 +440,7 @@ export default function WoodworkForm({
                       if (materialInput.trim() && !manualProduct.materials.includes(materialInput.trim())) {
                         setManualProduct({...manualProduct, materials: [...manualProduct.materials, materialInput.trim()]})
                         if (!favoriteMaterials.includes(materialInput.trim())) {
-                          setFavoriteMaterials([...favoriteMaterials, materialInput.trim()])
+                          setFavoriteMaterials(sortFavoriteValues([...favoriteMaterials, materialInput.trim()]))
                         }
                         setMaterialInput('')
                       }
