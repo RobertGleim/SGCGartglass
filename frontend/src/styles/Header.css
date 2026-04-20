@@ -15,7 +15,7 @@
 .logo-block {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 0.95rem;
 }
 
 .logo-block img {
@@ -24,6 +24,59 @@
   max-height: 86px;
   object-fit: contain;
   display: block;
+}
+
+.header-origin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding-left: 0.15rem;
+}
+
+.header-origin-text {
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #163058;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.header-origin-flag {
+  position: relative;
+  width: 42px;
+  min-width: 42px;
+  height: 28px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(19, 40, 74, 0.16);
+  background: repeating-linear-gradient(
+    to bottom,
+    #b22234 0,
+    #b22234 2.12px,
+    #ffffff 2.12px,
+    #ffffff 4.24px
+  );
+}
+
+.header-origin-flag-canton {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 54%;
+  background:
+    radial-gradient(circle at 20% 22%, #ffffff 0 0.7px, transparent 0.8px),
+    radial-gradient(circle at 50% 22%, #ffffff 0 0.7px, transparent 0.8px),
+    radial-gradient(circle at 80% 22%, #ffffff 0 0.7px, transparent 0.8px),
+    radial-gradient(circle at 35% 42%, #ffffff 0 0.7px, transparent 0.8px),
+    radial-gradient(circle at 65% 42%, #ffffff 0 0.7px, transparent 0.8px),
+    radial-gradient(circle at 20% 64%, #ffffff 0 0.7px, transparent 0.8px),
+    radial-gradient(circle at 50% 64%, #ffffff 0 0.7px, transparent 0.8px),
+    radial-gradient(circle at 80% 64%, #ffffff 0 0.7px, transparent 0.8px),
+    radial-gradient(circle at 35% 84%, #ffffff 0 0.7px, transparent 0.8px),
+    radial-gradient(circle at 65% 84%, #ffffff 0 0.7px, transparent 0.8px),
+    #3c3b6e;
 }
 
 .logo-title {
@@ -162,6 +215,10 @@
     width: 132px;
     max-height: 86px;
   }
+
+  .header-origin-text {
+    font-size: 0.84rem;
+  }
 }
 
 /* Large phones (480px+) */
@@ -171,12 +228,16 @@
   }
   
   .logo-block {
-    gap: 0;
+    gap: 1rem;
   }
   
   .logo-block img {
     width: 148px;
     max-height: 92px;
+  }
+
+  .header-origin-text {
+    font-size: 0.88rem;
   }
 }
 
@@ -187,12 +248,16 @@
   }
   
   .logo-block {
-    gap: 0;
+    gap: 1.15rem;
   }
   
   .logo-block img {
     width: 164px;
     max-height: 96px;
+  }
+
+  .header-origin-text {
+    font-size: 0.92rem;
   }
   
   .nav-toggle {
@@ -231,5 +296,19 @@
 @media (min-width: 1024px) {
   .nav-links {
     gap: 2rem;
+  }
+
+  .logo-block {
+    gap: 1.25rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .header-origin-text {
+    display: none;
+  }
+
+  .header-origin-badge {
+    padding-left: 0;
   }
 }

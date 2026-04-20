@@ -73,6 +73,12 @@ export default function Header({ brandName, authToken, customerToken }) {
     <header className="site-header">
       <div className="logo-block">
         <img src="/logo.png" alt="SGCG Art Glass logo" />
+        <div className="header-origin-badge" aria-label="HandCrafted in the USA">
+          <span className="header-origin-flag" aria-hidden="true">
+            <span className="header-origin-flag-canton" />
+          </span>
+          <span className="header-origin-text">HandCrafted in the USA</span>
+        </div>
       </div>
       <button className="nav-toggle" onClick={() => setMenuOpen(v => !v)} aria-label="Toggle menu">
         <span className="nav-toggle-icon">☰</span>
