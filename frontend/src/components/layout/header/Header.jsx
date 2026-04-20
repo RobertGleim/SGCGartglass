@@ -72,7 +72,7 @@ export default function Header({ brandName, authToken, customerToken }) {
   return (
     <header className="site-header">
       <div className="logo-block">
-        <img src="/logo-mark.svg" alt="SGCG Art Glass logo" />
+        <img src="/logo.png" alt="SGCG Art Glass logo" />
       </div>
       <button className="nav-toggle" onClick={() => setMenuOpen(v => !v)} aria-label="Toggle menu">
         <span className="nav-toggle-icon">☰</span>

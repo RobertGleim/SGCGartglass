@@ -3,6 +3,7 @@ import os
 import uuid
 
 from flask import Blueprint, jsonify, request
+from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
 
 from ..auth import decode_token
@@ -272,55 +273,69 @@ def create_gallery_photo():
 
     submission_group_id = uuid.uuid4().hex
     created_photos = []
+    saved_paths = []
     total_bytes = 0
-    for index, file in enumerate(valid_files):
-        original_name = secure_filename(file.filename)
-        ext = os.path.splitext(original_name)[1].lower()
-        mime_type = (file.content_type or "").lower()
-        if ext not in ALLOWED_EXTENSIONS or (mime_type and mime_type not in ALLOWED_MIME):
-            return jsonify({"error": "validation_error", "detail": f"Unsupported image type: {ext or 'unknown'}"}), 400
+    try:
+        for index, file in enumerate(valid_files):
+            original_name = secure_filename(file.filename)
+            ext = os.path.splitext(original_name)[1].lower()
+            mime_type = (file.content_type or "").lower()
+            if ext not in ALLOWED_EXTENSIONS or (mime_type and mime_type not in ALLOWED_MIME):
+                return jsonify({"error": "validation_error", "detail": f"Unsupported image type: {ext or 'unknown'}"}), 400
 
-        file_bytes = file.read()
-        file_size = len(file_bytes)
-        if file_size > MAX_SINGLE_PHOTO_BYTES:
-            return jsonify({
-                "error": "validation_error",
-                "detail": f"{original_name or 'A photo'} is too large to upload. Please use a smaller file.",
-            }), 400
-        total_bytes += file_size
-        if total_bytes > MAX_TOTAL_PHOTO_BYTES:
-            return jsonify({
-                "error": "validation_error",
-                "detail": "This upload is too large to process. Please reduce the number of photos or file sizes.",
-            }), 400
+            file_bytes = file.read()
+            file_size = len(file_bytes)
+            if file_size > MAX_SINGLE_PHOTO_BYTES:
+                return jsonify({
+                    "error": "validation_error",
+                    "detail": f"{original_name or 'A photo'} is too large to upload. Please use a smaller file.",
+                }), 400
+            total_bytes += file_size
+            if total_bytes > MAX_TOTAL_PHOTO_BYTES:
+                return jsonify({
+                    "error": "validation_error",
+                    "detail": "This upload is too large to process. Please reduce the number of photos or file sizes.",
+                }), 400
 
-        unique_name = f"{uuid.uuid4().hex}{ext}"
-        saved_path = os.path.join(uploads_dir, unique_name)
-        with open(saved_path, "wb") as output:
-            output.write(file_bytes)
+            unique_name = f"{uuid.uuid4().hex}{ext}"
+            saved_path = os.path.join(uploads_dir, unique_name)
+            with open(saved_path, "wb") as output:
+                output.write(file_bytes)
+            saved_paths.append(saved_path)
 
-        photo = GalleryPhoto(
-            panel_name=panel_name,
-            description=description,
-            category=category,
-            submission_group_id=submission_group_id,
-            is_cover=(index == 0),
-            display_name=display_name,
-            hide_submitter_name=hide_submitter_name,
-            image_url=f"/uploads/gallery/{unique_name}",
-            image_data=file_bytes,
-            image_mime=mime_type,
-            template_id=template_id,
-            show_description=True,
-            is_hidden=False,
-            approval_status=approval_status,
-            created_by_role=role,
-            created_by_id=created_by,
-        )
-        db.session.add(photo)
-        created_photos.append(photo)
+            photo = GalleryPhoto(
+                panel_name=panel_name,
+                description=description,
+                category=category,
+                submission_group_id=submission_group_id,
+                is_cover=(index == 0),
+                display_name=display_name,
+                hide_submitter_name=hide_submitter_name,
+                image_url=f"/uploads/gallery/{unique_name}",
+                image_data=file_bytes,
+                image_mime=mime_type,
+                template_id=template_id,
+                show_description=True,
+                is_hidden=False,
+                approval_status=approval_status,
+                created_by_role=role,
+                created_by_id=created_by,
+            )
+            db.session.add(photo)
+            db.session.flush()
+            created_photos.append(photo)
 
-    db.session.commit()
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        for saved_path in saved_paths:
+            try:
+                if os.path.exists(saved_path):
+                    os.remove(saved_path)
+            except OSError:
+                pass
+        raise
+
     return jsonify({
         "submission_group_id": submission_group_id,
         "items": [_with_absolute_image_url(photo.to_dict(include_admin_fields=True)) for photo in created_photos],
