@@ -616,12 +616,19 @@ export default function WorkOrderDashboard() {
           </figure>`)
         .join('');
 
-      const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1100,height=900');
+      const printWindow = window.open('about:blank', '_blank', 'width=1100,height=900');
       if (!printWindow) {
         window.toast && window.toast('Popup blocked while opening print preview', { type: 'error' });
         return;
       }
 
+      try {
+        printWindow.opener = null;
+      } catch {
+        // Ignore if the browser blocks assigning opener.
+      }
+
+      printWindow.document.open();
       printWindow.document.write(`<!doctype html>
 <html lang="en">
   <head>
@@ -755,7 +762,10 @@ export default function WorkOrderDashboard() {
 </html>`);
       printWindow.document.close();
       printWindow.focus();
-      setTimeout(() => printWindow.print(), 250);
+      printWindow.onload = () => {
+        printWindow.focus();
+        printWindow.print();
+      };
     } catch (err) {
       console.error('[WorkOrderDashboard] Failed to print shipping work order:', err);
       window.toast && window.toast('Failed to print work order', { type: 'error' });
