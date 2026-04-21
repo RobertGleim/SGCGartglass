@@ -1894,8 +1894,10 @@ export default function AdminDashboard({
     const creatingTemplateOnly = !editingProduct && !shouldSaveProduct && shouldCreateTemplate;
     const creatingBoth = !editingProduct && shouldSaveProduct && shouldCreateTemplate;
     const hasNewTemplateReferencePhotos = templateRefPhotos.some((entry) => entry?.file instanceof File);
+    const isEditingDigitalPatternProduct = Boolean(editingProduct?.is_digital_download);
     const shouldCreatePatternCopy =
       productModePattern
+      && !isEditingDigitalPatternProduct
       && selectedTypeCategory !== "patterns"
       && (
         !editingProduct
@@ -2227,7 +2229,9 @@ export default function AdminDashboard({
             (entry) => String(entry?.media_type || entry?.type || "image").toLowerCase() !== "video",
           );
           const primaryPatternImage = imageEntries.slice(0, 1);
-          const remainingPatternImages = imageEntries.slice(1);
+          const remainingPatternImages = isEditingDigitalPatternProduct
+            ? []
+            : imageEntries.slice(1);
           productImagesForSave = mergeUniqueProductImages([
             ...primaryPatternImage,
             ...referenceImages,
