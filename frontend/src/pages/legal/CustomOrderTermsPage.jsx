@@ -48,7 +48,7 @@ export default function CustomOrderTermsPage() {
 
         <h2>Contact</h2>
         <p>
-          Email: <a href="mailto:sgcgart@gmail.com">sgcgart@gmail.com</a>
+          Email: <a href="mailto:customersupport@sgcgart.com">customersupport@sgcgart.com</a>
         </p>
       </section>
     </main>
