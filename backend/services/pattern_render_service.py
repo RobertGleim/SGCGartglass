@@ -16,13 +16,13 @@ def _get_fitted_section_label_font_px(section_number, width, height, clearance_p
     digits = len(str(section_number or "")) or 1
     safe_width = max(1.0, float(width or 1))
     safe_height = max(1.0, float(height or 1))
-    max_by_height = safe_height * 0.50
-    max_by_width = (safe_width * 0.60) / max(1.0, digits * 0.68)
+    max_by_height = safe_height * 0.34
+    max_by_width = (safe_width * 0.78) / max(1.0, digits * 0.92)
     if clearance_px is not None:
-        max_by_clearance = max(2.0, float(clearance_px) * 1.55)
+        max_by_clearance = max(2.0, float(clearance_px) * 1.1)
     else:
-        max_by_clearance = 12.0
-    return max(2.0, min(12.0, max_by_height, max_by_width, max_by_clearance))
+        max_by_clearance = 10.0
+    return max(4.0, min(18.0, max_by_height, max_by_width, max_by_clearance))
 
 
 def _get_stable_section_order(regions):
@@ -345,13 +345,34 @@ def _collect_numbered_regions(region_map, region_pixels, canvas_width, canvas_he
 
 
 def _load_font(size):
-    rounded_size = max(10, int(round(size)))
+    rounded_size = max(4, int(round(size)))
     for font_name in ("DejaVuSans.ttf", "arial.ttf"):
         try:
             return ImageFont.truetype(font_name, rounded_size)
         except OSError:
             continue
     return ImageFont.load_default()
+
+
+def _fit_draw_font(draw, text, label):
+    available_width = max(6.0, float(label.get("right", 0) or 0) - float(label.get("left", 0) or 0) - 4.0)
+    available_height = max(6.0, float(label.get("bottom", 0) or 0) - float(label.get("top", 0) or 0) - 4.0)
+    font_px = max(4.0, float(label.get("fontPx") or 8.0))
+
+    while font_px >= 4.0:
+        font = _load_font(font_px)
+        stroke_width = max(1, int(round(font_px * 0.08)))
+        bbox = draw.textbbox((0, 0), text, font=font, stroke_width=stroke_width)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+        if text_width <= available_width and text_height <= available_height:
+            return font, stroke_width, bbox
+        font_px -= 1.0
+
+    font = _load_font(4)
+    stroke_width = 1
+    bbox = draw.textbbox((0, 0), text, font=font, stroke_width=stroke_width)
+    return font, stroke_width, bbox
 
 
 def render_numbered_pattern_raster(image_bytes):
@@ -390,11 +411,10 @@ def render_numbered_pattern_raster(image_bytes):
 
     draw = ImageDraw.Draw(base)
     for label in labels:
-        font = _load_font(max(11, float(label.get("fontPx") or 10) * 2.1))
         text = str(label["num"])
         anchor_x = float(label.get("cx") or 0)
         anchor_y = float(label.get("cy") or 0)
-        bbox = draw.textbbox((0, 0), text, font=font, stroke_width=2)
+        font, stroke_width, bbox = _fit_draw_font(draw, text, label)
         text_x = anchor_x - ((bbox[2] - bbox[0]) / 2.0)
         text_y = anchor_y - ((bbox[3] - bbox[1]) / 2.0)
         draw.text(
@@ -402,7 +422,7 @@ def render_numbered_pattern_raster(image_bytes):
             text,
             fill=(17, 17, 17),
             font=font,
-            stroke_width=2,
+            stroke_width=stroke_width,
             stroke_fill=(255, 255, 255),
         )
 

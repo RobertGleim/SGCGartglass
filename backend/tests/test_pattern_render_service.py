@@ -2,7 +2,7 @@ from io import BytesIO
 
 from PIL import Image, ImageDraw
 
-from backend.services.pattern_render_service import render_numbered_pattern_raster
+from backend.services.pattern_render_service import _get_fitted_section_label_font_px, render_numbered_pattern_raster
 
 
 def _two_box_pattern_bytes():
@@ -44,3 +44,11 @@ def test_render_numbered_pattern_raster_draws_labels_inside_regions():
 
 def test_render_numbered_pattern_raster_returns_none_for_invalid_input():
     assert render_numbered_pattern_raster(b"not-an-image") is None
+
+
+def test_fitted_section_label_font_px_shrinks_for_small_crowded_regions():
+    large_single_digit = _get_fitted_section_label_font_px(8, width=80, height=80, clearance_px=20)
+    small_three_digit = _get_fitted_section_label_font_px(123, width=22, height=14, clearance_px=4)
+
+    assert large_single_digit > small_three_digit
+    assert small_three_digit <= 6
