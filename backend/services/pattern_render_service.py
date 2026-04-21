@@ -12,6 +12,8 @@ CANVAS_HEIGHT = 600
 BACKGROUND_RGB = (248, 244, 239)
 LINE_LUMINANCE_THRESHOLD = 208
 MIN_LINE_COMPONENT_PIXELS = 10
+MAX_EXISTING_LABEL_COMPONENT_PIXELS = 140
+MAX_EXISTING_LABEL_BOX_PX = 24
 
 
 def _get_fitted_section_label_font_px(section_number, width, height, clearance_px=None):
@@ -202,11 +204,11 @@ def _is_dark_line_pixel(red, green, blue):
     return luminance <= LINE_LUMINANCE_THRESHOLD
 
 
-def _filter_small_line_components(mask, width, height, min_pixels=MIN_LINE_COMPONENT_PIXELS):
+def _collect_dark_components(mask, width, height):
     if not mask:
-        return mask
+        return []
 
-    filtered = [0] * (width * height)
+    components = []
     visited = [False] * (width * height)
     neighbor_offsets = (-1, 1, -width, width, -width - 1, -width + 1, width - 1, width + 1)
 
@@ -216,13 +218,21 @@ def _filter_small_line_components(mask, width, height, min_pixels=MIN_LINE_COMPO
 
         queue = deque([start_index])
         visited[start_index] = True
-        component = []
+        pixels = []
+        min_x = width
+        min_y = height
+        max_x = 0
+        max_y = 0
 
         while queue:
             current = queue.pop()
-            component.append(current)
+            pixels.append(current)
             x = current % width
             y = current // width
+            min_x = min(min_x, x)
+            min_y = min(min_y, y)
+            max_x = max(max_x, x)
+            max_y = max(max_y, y)
 
             for offset in neighbor_offsets:
                 neighbor = current + offset
@@ -235,11 +245,68 @@ def _filter_small_line_components(mask, width, height, min_pixels=MIN_LINE_COMPO
                 visited[neighbor] = True
                 queue.append(neighbor)
 
-        if len(component) >= min_pixels:
-            for pixel_index in component:
+        components.append(
+            {
+                "pixels": pixels,
+                "area": len(pixels),
+                "left": min_x,
+                "top": min_y,
+                "right": max_x,
+                "bottom": max_y,
+            }
+        )
+
+    return components
+
+
+def _filter_small_line_components(mask, width, height, min_pixels=MIN_LINE_COMPONENT_PIXELS):
+    if not mask:
+        return mask
+
+    filtered = [0] * (width * height)
+    for component in _collect_dark_components(mask, width, height):
+        if component["area"] >= min_pixels:
+            for pixel_index in component["pixels"]:
                 filtered[pixel_index] = 1
 
     return filtered
+
+
+def _erase_existing_label_components(image):
+    width, height = image.size
+    pixel_access = image.load()
+    dark_mask = [0] * (width * height)
+    for y in range(height):
+        row_offset = y * width
+        for x in range(width):
+            red, green, blue = pixel_access[x, y]
+            if _is_dark_line_pixel(red, green, blue):
+                dark_mask[row_offset + x] = 1
+
+    for component in _collect_dark_components(dark_mask, width, height):
+        component_width = component["right"] - component["left"] + 1
+        component_height = component["bottom"] - component["top"] + 1
+        if (
+            component["area"] > MAX_EXISTING_LABEL_COMPONENT_PIXELS
+            or component_width > MAX_EXISTING_LABEL_BOX_PX
+            or component_height > MAX_EXISTING_LABEL_BOX_PX
+        ):
+            continue
+
+        for pixel_index in component["pixels"]:
+            x = pixel_index % width
+            y = pixel_index // width
+            for dy in (-1, 0, 1):
+                ny = y + dy
+                if ny < 0 or ny >= height:
+                    continue
+                for dx in (-1, 0, 1):
+                    nx = x + dx
+                    if nx < 0 or nx >= width:
+                        continue
+                    pixel_access[nx, ny] = BACKGROUND_RGB
+
+    return image
 
 
 def _expand_line_mask(mask, width, height):
@@ -478,6 +545,7 @@ def render_numbered_pattern_raster(image_bytes):
     fitted = source.resize((draw_width, draw_height), Image.Resampling.LANCZOS)
     canvas.alpha_composite(fitted, (offset_x, offset_y))
     base = canvas.convert("RGB")
+    base = _erase_existing_label_components(base)
     pixel_access = base.load()
     mask = _build_line_mask(pixel_access, CANVAS_WIDTH, CANVAS_HEIGHT)
 

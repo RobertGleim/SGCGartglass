@@ -72,3 +72,29 @@ def test_build_line_mask_ignores_light_texture_noise():
     assert mask[(5 * image.width) + 20] == 0
     assert mask[(5 * image.width) + 5] == 1
     assert mask[(5 * image.width) + 18] == 1
+
+
+def test_render_numbered_pattern_raster_replaces_existing_labels_instead_of_doubling():
+    first_render = render_numbered_pattern_raster(_two_box_pattern_bytes())
+    second_render = render_numbered_pattern_raster(first_render)
+
+    assert first_render is not None
+    assert second_render is not None
+
+    with Image.open(BytesIO(first_render)) as first_image, Image.open(BytesIO(second_render)) as second_image:
+        first_rgb = first_image.convert("RGB")
+        second_rgb = second_image.convert("RGB")
+
+        def count_dark_pixels(image):
+            total = 0
+            for x in range(image.width):
+                for y in range(image.height):
+                    red, green, blue = image.getpixel((x, y))
+                    if red < 90 and green < 90 and blue < 90:
+                        total += 1
+            return total
+
+        first_dark = count_dark_pixels(first_rgb)
+        second_dark = count_dark_pixels(second_rgb)
+
+    assert second_dark <= int(first_dark * 1.12)
