@@ -2196,8 +2196,11 @@ export default function AdminDashboard({
 
         const resolvedIsDigitalProduct = !productModePhysical && (productModePattern || productModeTemplate);
 
+        const shouldManagePatternReferencePhotos = resolvedIsDigitalProduct && (
+          selectedTypeCategory === "patterns" || isEditingDigitalPatternProduct
+        );
         let productImagesForSave = processedImages;
-        if (resolvedIsDigitalProduct && selectedTypeCategory === "patterns") {
+        if (shouldManagePatternReferencePhotos) {
           const referenceImages = [];
           for (const entry of templateRefPhotos) {
             const file = entry?.file;
@@ -5782,20 +5785,24 @@ export default function AdminDashboard({
                               className="image-item"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <img src={photo.src} alt="Ref" className="image-preview" />
-                              <button
-                                type="button"
-                                className="remove-image-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setTemplateRefPhotos((prev) =>
-                                    prev.filter((p) => p.id !== photo.id),
-                                  );
-                                }}
-                                title="Remove photo"
-                              >
-                                ✕
-                              </button>
+                              <div className="image-media-frame">
+                                <img src={photo.src} alt="Ref" className="image-preview" />
+                                <button
+                                  type="button"
+                                  className="remove-image-btn"
+                                  style={{ opacity: 1 }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setTemplateRefPhotos((prev) =>
+                                      prev.filter((p) => p.id !== photo.id),
+                                    );
+                                  }}
+                                  title="Remove photo"
+                                  aria-label="Remove reference photo"
+                                >
+                                  ✕
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
