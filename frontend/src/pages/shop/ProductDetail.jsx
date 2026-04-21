@@ -582,27 +582,29 @@ export default function ProductDetail({ product, products = [] }) {
             </div>
           )}
           
-          {/* Main image on the right */}
-          <div 
-            className={`main-image-container ${showThumbnails ? 'with-thumbnails' : 'single-image'}`}
-            onClick={() => setShowZoom(true)}
-            style={{ cursor: 'zoom-in' }}
-          >
-            {mainImage ? (
-              images[selectedImage]?.media_type === 'video' ? (
-                <video src={mainImage} controls className="main-image" />
+          <div className="main-image-panel">
+            {/* Main image on the right */}
+            <div 
+              className={`main-image-container ${showThumbnails ? 'with-thumbnails' : 'single-image'}`}
+              onClick={() => setShowZoom(true)}
+              style={{ cursor: 'zoom-in' }}
+            >
+              {mainImage ? (
+                images[selectedImage]?.media_type === 'video' ? (
+                  <video src={mainImage} controls className="main-image" />
+                ) : (
+                  <img src={mainImage} alt={product.title} className="main-image" />
+                )
               ) : (
-                <img src={mainImage} alt={product.title} className="main-image" />
-              )
-            ) : (
-              <div className="image-placeholder">No image available</div>
+                <div className="image-placeholder">No image available</div>
+              )}
+            </div>
+            {isDigitalPatternListing && mainImage && (
+              <p className="pattern-image-note">
+                This is a digital pattern only. All other photos are for references.
+              </p>
             )}
           </div>
-          {isDigitalPatternListing && mainImage && (
-            <p className="pattern-image-note">
-              This is a digital pattern only. All other photos are for references.
-            </p>
-          )}
         </div>
 
         {/* Product Info Section */}
