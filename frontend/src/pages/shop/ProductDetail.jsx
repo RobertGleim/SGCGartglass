@@ -460,6 +460,7 @@ export default function ProductDetail({ product, products = [] }) {
   }
 
   const isDigitalDownload = Boolean(product.is_digital_download)
+  const isDigitalPatternListing = isDigitalDownload && isPatternProductEntry(manualProductDetails || product?.originalData || product)
   const primaryPriceLabel = isDigitalDownload ? 'Digital Price' : 'Price'
   const availableQuantity = Number(manualProductDetails?.quantity ?? product.originalData?.quantity)
   const isSoldOut = Boolean(product.isManual) && !isDigitalDownload && Number.isFinite(availableQuantity) && availableQuantity <= 0
@@ -597,6 +598,11 @@ export default function ProductDetail({ product, products = [] }) {
               <div className="image-placeholder">No image available</div>
             )}
           </div>
+          {isDigitalPatternListing && mainImage && (
+            <p className="pattern-image-note">
+              This is a digital pattern only. All other photos are for references.
+            </p>
+          )}
         </div>
 
         {/* Product Info Section */}
