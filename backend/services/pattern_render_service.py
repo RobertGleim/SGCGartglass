@@ -10,6 +10,8 @@ from PIL import Image, ImageDraw, ImageFont
 CANVAS_WIDTH = 840
 CANVAS_HEIGHT = 600
 BACKGROUND_RGB = (248, 244, 239)
+LINE_LUMINANCE_THRESHOLD = 208
+MIN_LINE_COMPONENT_PIXELS = 10
 
 
 def _get_fitted_section_label_font_px(section_number, width, height, clearance_px=None):
@@ -193,6 +195,87 @@ def _spread_section_label_positions(labels):
                 second["cx"], second["cy"] = clamp_label(second, second["cx"] + (unit_x * overlap), second["cy"] + (unit_y * overlap))
 
     return arranged
+
+
+def _is_dark_line_pixel(red, green, blue):
+    luminance = (0.299 * red) + (0.587 * green) + (0.114 * blue)
+    return luminance <= LINE_LUMINANCE_THRESHOLD
+
+
+def _filter_small_line_components(mask, width, height, min_pixels=MIN_LINE_COMPONENT_PIXELS):
+    if not mask:
+        return mask
+
+    filtered = [0] * (width * height)
+    visited = [False] * (width * height)
+    neighbor_offsets = (-1, 1, -width, width, -width - 1, -width + 1, width - 1, width + 1)
+
+    for start_index, value in enumerate(mask):
+        if not value or visited[start_index]:
+            continue
+
+        queue = deque([start_index])
+        visited[start_index] = True
+        component = []
+
+        while queue:
+            current = queue.pop()
+            component.append(current)
+            x = current % width
+            y = current // width
+
+            for offset in neighbor_offsets:
+                neighbor = current + offset
+                if neighbor < 0 or neighbor >= width * height or visited[neighbor] or not mask[neighbor]:
+                    continue
+                nx = neighbor % width
+                ny = neighbor // width
+                if abs(nx - x) > 1 or abs(ny - y) > 1:
+                    continue
+                visited[neighbor] = True
+                queue.append(neighbor)
+
+        if len(component) >= min_pixels:
+            for pixel_index in component:
+                filtered[pixel_index] = 1
+
+    return filtered
+
+
+def _expand_line_mask(mask, width, height):
+    if not mask:
+        return mask
+
+    expanded = list(mask)
+    for index, value in enumerate(mask):
+        if not value:
+            continue
+        x = index % width
+        y = index // width
+        for dy in (-1, 0, 1):
+            ny = y + dy
+            if ny < 0 or ny >= height:
+                continue
+            row_offset = ny * width
+            for dx in (-1, 0, 1):
+                nx = x + dx
+                if nx < 0 or nx >= width:
+                    continue
+                expanded[row_offset + nx] = 1
+    return expanded
+
+
+def _build_line_mask(pixel_access, width, height):
+    mask = [0] * (width * height)
+    for y in range(height):
+        row_offset = y * width
+        for x in range(width):
+            red, green, blue = pixel_access[x, y]
+            if _is_dark_line_pixel(red, green, blue):
+                mask[row_offset + x] = 1
+
+    cleaned = _filter_small_line_components(mask, width, height)
+    return _expand_line_mask(cleaned, width, height)
 
 
 def _build_region_map(mask, width, height):
@@ -396,13 +479,7 @@ def render_numbered_pattern_raster(image_bytes):
     canvas.alpha_composite(fitted, (offset_x, offset_y))
     base = canvas.convert("RGB")
     pixel_access = base.load()
-    mask = [0] * (CANVAS_WIDTH * CANVAS_HEIGHT)
-    for y in range(CANVAS_HEIGHT):
-        row_offset = y * CANVAS_WIDTH
-        for x in range(CANVAS_WIDTH):
-            red, green, blue = pixel_access[x, y]
-            if abs(red - BACKGROUND_RGB[0]) > 20 or abs(green - BACKGROUND_RGB[1]) > 20 or abs(blue - BACKGROUND_RGB[2]) > 20:
-                mask[row_offset + x] = 1
+    mask = _build_line_mask(pixel_access, CANVAS_WIDTH, CANVAS_HEIGHT)
 
     region_map, region_pixels = _build_region_map(mask, CANVAS_WIDTH, CANVAS_HEIGHT)
     labels = _collect_numbered_regions(region_map, region_pixels, CANVAS_WIDTH, CANVAS_HEIGHT)

@@ -2,7 +2,7 @@ from io import BytesIO
 
 from PIL import Image, ImageDraw
 
-from backend.services.pattern_render_service import _get_fitted_section_label_font_px, render_numbered_pattern_raster
+from backend.services.pattern_render_service import _build_line_mask, _get_fitted_section_label_font_px, render_numbered_pattern_raster
 
 
 def _two_box_pattern_bytes():
@@ -52,3 +52,23 @@ def test_fitted_section_label_font_px_shrinks_for_small_crowded_regions():
 
     assert large_single_digit > small_three_digit
     assert small_three_digit <= 6
+
+
+def test_build_line_mask_ignores_light_texture_noise():
+    image = Image.new("RGB", (24, 24), (248, 244, 239))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((5, 5, 18, 18), outline=(12, 12, 12), width=2)
+
+    for x in range(2, 10):
+        image.putpixel((x, 20), (226, 218, 210))
+    for point in ((20, 3), (21, 4), (20, 5), (3, 21), (4, 22), (5, 21)):
+        image.putpixel(point, (70, 68, 66))
+
+    mask = _build_line_mask(image.load(), image.width, image.height)
+
+    assert mask[(20 * image.width) + 2] == 0
+    assert mask[(20 * image.width) + 9] == 0
+    assert mask[(3 * image.width) + 20] == 0
+    assert mask[(5 * image.width) + 20] == 0
+    assert mask[(5 * image.width) + 5] == 1
+    assert mask[(5 * image.width) + 18] == 1
