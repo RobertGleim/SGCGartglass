@@ -18,7 +18,7 @@ psycopg[binary]==3.3.3
 
 # --- Configuration & mail ---
 # Load SECRET_KEY, DATABASE_URL, etc. from .env (never commit .env)
-python-dotenv==1.0.0
+python-dotenv==1.2.2
 # Send work order notification emails to admin
 Flask-Mail==0.9.1
 
