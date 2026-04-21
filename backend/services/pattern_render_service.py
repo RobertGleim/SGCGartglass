@@ -293,18 +293,14 @@ def _erase_existing_label_components(image):
         ):
             continue
 
-        for pixel_index in component["pixels"]:
-            x = pixel_index % width
-            y = pixel_index // width
-            for dy in (-1, 0, 1):
-                ny = y + dy
-                if ny < 0 or ny >= height:
-                    continue
-                for dx in (-1, 0, 1):
-                    nx = x + dx
-                    if nx < 0 or nx >= width:
-                        continue
-                    pixel_access[nx, ny] = BACKGROUND_RGB
+        pad = 2
+        left = max(0, component["left"] - pad)
+        top = max(0, component["top"] - pad)
+        right = min(width - 1, component["right"] + pad)
+        bottom = min(height - 1, component["bottom"] + pad)
+        for y in range(top, bottom + 1):
+            for x in range(left, right + 1):
+                pixel_access[x, y] = BACKGROUND_RGB
 
     return image
 
@@ -343,6 +339,19 @@ def _build_line_mask(pixel_access, width, height):
 
     cleaned = _filter_small_line_components(mask, width, height)
     return _expand_line_mask(cleaned, width, height)
+
+
+def _render_clean_line_art(image):
+    width, height = image.size
+    cleaned = Image.new("RGB", (width, height), BACKGROUND_RGB)
+    source_pixels = image.load()
+    output_pixels = cleaned.load()
+    for y in range(height):
+        for x in range(width):
+            red, green, blue = source_pixels[x, y]
+            if _is_dark_line_pixel(red, green, blue):
+                output_pixels[x, y] = (17, 17, 17)
+    return cleaned
 
 
 def _build_region_map(mask, width, height):
@@ -546,6 +555,7 @@ def render_numbered_pattern_raster(image_bytes):
     canvas.alpha_composite(fitted, (offset_x, offset_y))
     base = canvas.convert("RGB")
     base = _erase_existing_label_components(base)
+    base = _render_clean_line_art(base)
     pixel_access = base.load()
     mask = _build_line_mask(pixel_access, CANVAS_WIDTH, CANVAS_HEIGHT)
 
