@@ -50,6 +50,12 @@ const getRoute = () => {
   if (parts[0] === 'privacy') {
     return { path: '/privacy', params: {} }
   }
+  if (parts[0] === 'custom-order-terms') {
+    return { path: '/custom-order-terms', params: {} }
+  }
+  if (parts[0] === 'repair-warranty') {
+    return { path: '/repair-warranty', params: {} }
+  }
   if (parts[0] === 'faq') {
     return { path: '/faq', params: {} }
   }

@@ -4,34 +4,58 @@ export default function PrivacyPolicyPage() {
   return (
     <main className="legal-page">
       <section className="legal-page-card">
-        <h1>SGCG Privacy Policy</h1>
+        <h1>Privacy Policy</h1>
+        <p><strong>Effective Date:</strong> April 21, 2026</p>
+
         <p>
-          Your privacy is important to us. SGCG collects personal information only to process and
-          fulfill your order efficiently.
+          SGCG Art ("we," "our," or "us") operates www.sgcgart.com. This Privacy Policy explains
+          how we collect, use, and protect your information.
         </p>
-        <p>
-          We do not sell, rent, or share your personal information with third parties unless
-          required by law or with your explicit consent.
-        </p>
-        <p>
-          Payment details are processed securely through Stripe, using industry-standard encryption
-          and security controls.
-        </p>
+
         <h2>Information We Collect</h2>
         <ul>
-          <li>Contact details such as name, email, phone number, and shipping address.</li>
-          <li>Order details needed to fulfill purchases and provide customer support.</li>
-          <li>Account information when you choose to create an online account.</li>
+          <li>Name</li>
+          <li>Email address</li>
+          <li>Shipping and billing address</li>
+          <li>Payment information (processed securely via third-party providers)</li>
         </ul>
-        <h2>How We Use Information</h2>
+
+        <h2>How We Use Your Information</h2>
         <ul>
-          <li>To process orders, send order updates, and deliver products.</li>
-          <li>To provide customer service, including invoice and order history support.</li>
-          <li>To comply with legal obligations.</li>
+          <li>To process and fulfill orders</li>
+          <li>To communicate with you about your order</li>
+          <li>To improve our services</li>
         </ul>
+
+        <h2>Sharing Information</h2>
+        <p>
+          We do not sell your personal information. We only share data with trusted third parties
+          as necessary to process payments and deliver orders.
+        </p>
+
+        <h2>Cookies</h2>
+        <p>Our website may use cookies to enhance user experience and track site performance.</p>
+
+        <h2>Data Security</h2>
+        <p>
+          We take reasonable measures to protect your information but cannot guarantee absolute
+          security.
+        </p>
+
+        <h2>Your Rights</h2>
+        <p>
+          You may request access, correction, or deletion of your personal data by contacting us.
+        </p>
+
+        <h2>Changes to This Policy</h2>
+        <p>
+          We may update this Privacy Policy at any time. Continued use of the site means you accept
+          those changes.
+        </p>
+
         <h2>Contact</h2>
         <p>
-          For privacy questions, contact <a href="mailto:Customersupport@sgcgart.com">Customersupport@sgcgart.com</a>.
+          Email: <a href="mailto:customersupport@sgcgart.com">customersupport@sgcgart.com</a>
         </p>
       </section>
     </main>

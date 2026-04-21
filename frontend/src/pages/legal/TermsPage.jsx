@@ -4,138 +4,127 @@ export default function TermsPage() {
   return (
     <main className="legal-page">
       <section className="legal-page-card">
-        <h1>SGCG Terms and Conditions</h1>
-        <ol className="legal-list">
-          <li>
-            <h2>Products, Content, and Specifications</h2>
-            <p>
-              SGCG strives to ensure that all information on this website is complete, accurate,
-              and up to date. However, as all products are handcrafted, human and technical
-              errors may occur.
-            </p>
-            <p>
-              All features, content, specifications, products, and prices described or displayed
-              on this website are subject to change at any time without notice.
-            </p>
-            <p>
-              Please note that the color and appearance of stained glass may vary due to the
-              organic nature of glass, lighting, photography, and monitor settings. We make every
-              effort to accurately represent each product.
-            </p>
-          </li>
-          <li>
-            <h2>Shipping and Delivery</h2>
-            <p>
-              SGCG offers free standard shipping within the United States via USPS Ground.
-            </p>
-            <ul>
-              <li>A tracking number will be emailed to you upon shipment.</li>
-              <li>Orders valued at $200 or more may require a signature upon delivery for security.</li>
-              <li>
-                Please verify your shipping address carefully during checkout. SGCG is not
-                responsible for lost or undeliverable packages due to incorrect addresses.
-              </li>
-              <li>All shipments are insured and can be tracked on www.USPS.com.</li>
-            </ul>
-          </li>
-          <li>
-            <h2>Damaged Shipments</h2>
-            <p>
-              In the unlikely event your order arrives damaged, please contact us within 5 days of
-              receipt at <a href="mailto:Customersupport@sgcgart.com">Customersupport@sgcgart.com</a>.
-            </p>
-            <p>Include the following in your email:</p>
-            <ol>
-              <li>Name and Order Number</li>
-              <li>Phone Number</li>
-              <li>Shipping Address</li>
-              <li>Photos of the damaged item(s) and the shipping box</li>
-            </ol>
-            <p>Important:</p>
-            <ul>
-              <li>
-                Do not discard the item, packaging, or shipping materials until we confirm
-                otherwise in writing.
-              </li>
-              <li>USPS may require an inspection before authorizing an insurance claim.</li>
-              <li>Once the claim is approved, SGCG will issue a refund or replacement as appropriate.</li>
-            </ul>
-          </li>
-          <li>
-            <h2>Privacy and Security</h2>
-            <p>
-              Your privacy is important to us. SGCG collects personal information only to process
-              and fulfill your order efficiently.
-            </p>
-            <p>
-              We do not sell, rent, or share your personal information with third parties unless
-              required by law or with your explicit consent.
-            </p>
-            <p>
-              All payments are securely processed through Stripe, ensuring industry-standard
-              encryption and security.
-            </p>
-          </li>
-          <li>
-            <h2>Ordering and Payment</h2>
-            <p>Orders may be placed online through our website.</p>
-            <p>We accept the following payment methods:</p>
-            <ul>
-              <li>Visa</li>
-              <li>MasterCard</li>
-              <li>American Express</li>
-              <li>Discover</li>
-            </ul>
-            <p>
-              SGCG does not offer credit terms at this time. All orders must be paid in full at
-              checkout.
-            </p>
-          </li>
-          <li>
-            <h2>Order History and Invoice Copies</h2>
-            <p>
-              Customers who create an online account can access their order history and download
-              invoice copies at any time by logging into the My Account section.
-            </p>
-            <p>
-              If you did not create an account at the time of purchase, please contact our
-              customer service team to request an invoice copy.
-            </p>
-          </li>
-          <li>
-            <h2>Updating Account Information</h2>
-            <p>
-              Please ensure your account information, including your shipping address and email,
-              is current before placing an order.
-            </p>
-            <p>You can update this information at any time by logging into your account.</p>
-          </li>
-          <li>
-            <h2>Returns and Replacements</h2>
-            <p>
-              Because each stained glass panel is handcrafted and made to order, returns are not
-              accepted except in cases of damage during shipping (see Section 3).
-            </p>
-            <p>
-              If you have any concerns about your order, please contact our team prior to purchase
-              for clarification or assistance.
-            </p>
-          </li>
-          <li>
-            <h2>Local Pickup</h2>
-            <p>Local pickup is available by appointment only.</p>
-            <p>
-              Please contact us to arrange a convenient pickup time after placing your order.
-            </p>
-          </li>
-          <li>
-            <h2>Contact Information</h2>
-            <p>
-              If you have any questions regarding these Terms or your order, please email us at{' '}
-              <a href="mailto:Customersupport@sgcgart.com">Customersupport@sgcgart.com</a>.
-            </p>
-          </li>
-        </ol>
+        <h1>Terms of Service</h1>
+        <p><strong>Effective Date:</strong> April 21, 2026</p>
+
+        <h2>1. Business Information</h2>
+        <p>
+          SGCG Art is a sole proprietorship operating in the State of Texas. By accessing or
+          purchasing from www.sgcgart.com, you agree to be bound by these Terms of Service.
+        </p>
+
+        <h2>2. Products, Content, and Specifications</h2>
+        <p>
+          All products are handcrafted, and approximately 90% are made-to-order. Due to the nature
+          of stained glass artistry, slight variations in color, texture, and design may occur and
+          are not considered defects.
+        </p>
+        <p>
+          All products are provided "as is" and "as available," without warranties of any kind,
+          either express or implied, including but not limited to merchantability or fitness for a
+          particular purpose.
+        </p>
+        <p>SGCG Art reserves the right to modify or discontinue products at any time without notice.</p>
+
+        <h2>3. Ordering and Payment</h2>
+        <p>Full payment is required at the time of purchase.</p>
+        <p>
+          SGCG Art reserves the right to refuse or cancel any order at its sole discretion,
+          including but not limited to cases involving suspected fraud, pricing errors, or product
+          availability issues.
+        </p>
+
+        <h2>4. Processing Time</h2>
+        <p>
+          Orders are typically processed within <strong>2-4 weeks</strong>, depending on the
+          complexity of the design and level of customization.
+        </p>
+
+        <h2>5. Shipping and Delivery</h2>
+        <p>
+          Shipping is available within the United States only. Additional shipping charges may apply
+          to Alaska and Puerto Rico.
+        </p>
+        <p>
+          Delivery timeframes are estimates and are not guaranteed. Once an order is transferred to
+          the shipping carrier, risk of loss and ownership passes to the customer.
+        </p>
+        <p>
+          SGCG Art is not responsible for delays caused by carriers or events outside of its
+          control.
+        </p>
+
+        <h2>6. Damaged Shipments</h2>
+        <p>
+          If your order arrives damaged, you must contact SGCG Art within <strong>5 days of delivery</strong>.
+        </p>
+        <ul>
+          <li>Retain all original packaging.</li>
+          <li>Provide clear photos of the damaged item and packaging.</li>
+        </ul>
+        <p>Failure to meet these requirements may result in denial of the claim.</p>
+
+        <h2>7. Returns and Cancellations</h2>
+        <p>All sales are final.</p>
+        <p>
+          Orders may not be canceled once production has begun, including when work on stained
+          glass panels has started.
+        </p>
+        <p>Limited exceptions may be made at the sole discretion of SGCG Art prior to production.</p>
+
+        <h2>8. Local Pickup</h2>
+        <p>
+          Local pickup is available upon request. Customers must contact SGCG Art to arrange pickup
+          details.
+        </p>
+        <p>
+          Orders not picked up within a reasonable timeframe may be subject to cancellation at the
+          discretion of SGCG Art.
+        </p>
+
+        <h2>9. Sales Tax</h2>
+        <p>Applicable Texas sales tax will be collected on all orders where required by law.</p>
+
+        <h2>10. Privacy and Security</h2>
+        <p>
+          SGCG Art collects customer information including name, email address, shipping address,
+          and payment details for the purpose of order fulfillment and communication.
+        </p>
+        <p>
+          Customer information is not sold or shared with third parties, except as necessary to
+          process payments and complete transactions.
+        </p>
+
+        <h2>11. Limitation of Liability</h2>
+        <p>
+          To the fullest extent permitted by law, SGCG Art shall not be liable for any indirect,
+          incidental, special, or consequential damages, including but not limited to loss of
+          profits, data, or use.
+        </p>
+
+        <h2>12. Force Majeure</h2>
+        <p>
+          SGCG Art shall not be held liable for any delay or failure to perform resulting from
+          causes beyond its reasonable control, including but not limited to natural disasters,
+          supply chain disruptions, labor shortages, or carrier delays.
+        </p>
+
+        <h2>13. Governing Law</h2>
+        <p>
+          These Terms shall be governed by and construed in accordance with the laws of the State
+          of Texas. Any disputes shall be resolved in the appropriate courts of Texas.
+        </p>
+
+        <h2>14. Changes to Terms</h2>
+        <p>
+          SGCG Art reserves the right to update or modify these Terms at any time without prior
+          notice. Continued use of the website constitutes acceptance of those changes.
+        </p>
+
+        <h2>15. Contact Information</h2>
+        <p>
+          Email: <a href="mailto:sgcgart@gmail.com">sgcgart@gmail.com</a>
+        </p>
       </section>
     </main>
   )

@@ -153,6 +153,7 @@ export default function ProductCard({ product }) {
     ? Math.round(((product.old_price - product.price_amount) / product.old_price) * 100)
     : 0
   const isDigitalDownload = product.is_digital_download === true
+  const primaryPriceLabel = isDigitalDownload ? 'Digital Price' : hasDiscount ? 'Sale price' : 'Price'
   const isPatternProduct = toCategoryList(product.category)
     .some((entry) => normalizeCategory(entry) === 'patterns' || normalizeCategory(entry) === 'pattern')
   const quantity = Number(product?.quantity ?? product?.originalData?.quantity)
@@ -229,12 +230,12 @@ export default function ProductCard({ product }) {
             <div className="price-row">
               {hasDiscount ? (
                 <>
-                  <span className="sale-price">Sale price ${product.price_amount || '0'}</span>
-                  <span className="regular-price">(reg ${product.old_price || '0'})</span>
+                  <span className="sale-price">{primaryPriceLabel} ${product.price_amount || '0'}</span>
+                  <span className="regular-price">(Regular price ${product.old_price || '0'})</span>
                 </>
               ) : (
                 <span className="price">
-                  ${product.price_amount || '0'}
+                  {primaryPriceLabel} ${product.price_amount || '0'}
                 </span>
               )}
               {hasDiscount && (

@@ -460,6 +460,7 @@ export default function ProductDetail({ product, products = [] }) {
   }
 
   const isDigitalDownload = Boolean(product.is_digital_download)
+  const primaryPriceLabel = isDigitalDownload ? 'Digital Price' : 'Price'
   const availableQuantity = Number(manualProductDetails?.quantity ?? product.originalData?.quantity)
   const isSoldOut = Boolean(product.isManual) && !isDigitalDownload && Number.isFinite(availableQuantity) && availableQuantity <= 0
 
@@ -613,7 +614,7 @@ export default function ProductDetail({ product, products = [] }) {
           {/* Pricing Section */}
           <div className="pricing-section">
             <div className="price-info">
-              <span className="current-price">${product.price_amount || '0'}</span>
+              <span className="current-price">{primaryPriceLabel} ${product.price_amount || '0'}</span>
               {hasDiscount && (
                 <>
                   <span className="old-price">${product.old_price}</span>
