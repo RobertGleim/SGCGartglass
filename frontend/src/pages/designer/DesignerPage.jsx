@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import api, { addCustomerCartItem, fetchManualProductsCached, getTemplatesCached, saveProject, submitWorkOrder, getProject, getTemplate,
   getWorkOrder, getAdminWorkOrder, createCustomerRevision, createAdminRevision,
   approveWorkOrder as apiApproveWorkOrder, getWorkOrderRevisions, getAdminWorkOrderRevisions,
-  getTemplateCached, getPublicGlassTypesCached
+  getPublicGlassTypesCached
 } from '../../services/api';
 import { addGuestCartItem } from '../../utils/guestCart';
 import useCustomerAuth from '../../hooks/useCustomerAuth';
@@ -416,6 +416,14 @@ const resolveBackendAssetUrl = (value, fallbackFolder = '') => {
   return `${getApiOrigin()}/${value}`;
 };
 
+const appendAssetVersion = (url, version) => {
+  const baseUrl = String(url || '').trim();
+  const versionValue = String(version || '').trim();
+  if (!baseUrl || !versionValue) return baseUrl;
+  const separator = baseUrl.includes('?') ? '&' : '?';
+  return `${baseUrl}${separator}v=${encodeURIComponent(versionValue)}`;
+};
+
 const getTextureLoadUrl = (textureUrl) => {
   try {
     const absoluteUrl = new URL(textureUrl, window.location.origin);
@@ -797,7 +805,7 @@ export default function DesignerPage() {
         const templateId = templateData?.id || wo.project?.template_id;
         let template = templateData;
 
-        if (templateId && !template?.svg_content && !template?.image_url) {
+        if (templateId) {
           try {
             const tplRes = await getTemplate(templateId);
             template = tplRes?.template || tplRes;
@@ -3430,12 +3438,16 @@ export default function DesignerPage() {
                       resetTemplateSession();
                       // Fetch full template (with svg_content / image_url) before entering designer
                       try {
-                        const full = await getTemplateCached(t.id);
+                        const full = await getTemplate(t.id);
                         // API response interceptor already extracts .data, so full IS the data
                         setSelectedTemplate(full);
                         if (full?.default_design_data && typeof full.default_design_data === 'object') {
                           woDesignDataRef.current = full.default_design_data;
                         }
+                                const src = appendAssetVersion(
+                                  resolveBackendAssetUrl(selectedTemplate.image_url, '/uploads/templates'),
+                                  selectedTemplate.updated_at || selectedTemplate.image_url,
+                                );
                       } catch (err) {
                         console.error('[DesignerPage] Template fetch failed:', err);
                         setSelectedTemplate(t); // fallback to gallery data
