@@ -1340,6 +1340,8 @@ export default function AdminDashboard({
       .filter((entry) => {
         if (!entry?.id) return false;
         if (editingProduct && String(entry.id) === String(editingProduct.id)) return false;
+        if (Boolean(entry.is_digital_download)) return false;
+        if (inferManualProductTab(entry) === "patterns") return false;
         return true;
       })
       .map((entry) => ({
@@ -1353,7 +1355,7 @@ export default function AdminDashboard({
         seen.add(key);
         return true;
       });
-  }, [normalizedManualProducts, editingProduct]);
+  }, [normalizedManualProducts, editingProduct, inferManualProductTab]);
 
   const filteredManualProducts = useMemo(() => {
     const activeManualProducts = normalizedManualProducts.filter((product) => product.is_active);
@@ -2315,6 +2317,9 @@ export default function AdminDashboard({
           }
           if (createdTemplate?.related_links?.pattern_product_id) {
             return Number(createdTemplate.related_links.pattern_product_id);
+          }
+          if (unifiedTemplate.related_links?.pattern_product_id) {
+            return Number(unifiedTemplate.related_links.pattern_product_id);
           }
 
           const linkedTemplateId = relatedLinks.template_id
