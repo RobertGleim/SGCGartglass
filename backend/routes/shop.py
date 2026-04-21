@@ -3136,7 +3136,27 @@ def _normalize_manual_product_dimensions(payload):
 
 ALLOWED_PRODUCT_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 ALLOWED_PRODUCT_IMAGE_MIME = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+ALLOWED_PRODUCT_VIDEO_EXTENSIONS = {".mp4", ".m4v", ".mov", ".webm", ".avi", ".mkv", ".mpeg", ".mpg", ".ogv", ".wmv"}
 MAX_PRODUCT_IMAGE_BYTES = 20 * 1024 * 1024
+MAX_PRODUCT_VIDEO_BYTES = 80 * 1024 * 1024
+
+
+def _is_allowed_product_upload_extension(extension: str) -> bool:
+    normalized_extension = str(extension or "").strip().lower()
+    if normalized_extension in ALLOWED_PRODUCT_IMAGE_EXTENSIONS or normalized_extension in ALLOWED_PRODUCT_VIDEO_EXTENSIONS:
+        return True
+
+    guessed_mime, _ = mimetypes.guess_type(f"upload{normalized_extension}")
+    return bool(guessed_mime and guessed_mime.startswith("video/"))
+
+
+def _is_video_product_upload_extension(extension: str) -> bool:
+    normalized_extension = str(extension or "").strip().lower()
+    if normalized_extension in ALLOWED_PRODUCT_VIDEO_EXTENSIONS:
+        return True
+
+    guessed_mime, _ = mimetypes.guess_type(f"upload{normalized_extension}")
+    return bool(guessed_mime and guessed_mime.startswith("video/"))
 
 
 @api.post("/admin/product-images/upload")
@@ -3153,12 +3173,14 @@ def upload_product_image():
 
     filename = secure_filename(f.filename or "upload")
     ext = os.path.splitext(filename)[1].lower()
-    if ext not in ALLOWED_PRODUCT_IMAGE_EXTENSIONS:
+    if not _is_allowed_product_upload_extension(ext):
         return jsonify({"error": "validation_error", "detail": f"Unsupported file type: {ext}"}), 400
 
     file_bytes = f.read()
-    if len(file_bytes) > MAX_PRODUCT_IMAGE_BYTES:
-        return jsonify({"error": "validation_error", "detail": "File is too large (max 20 MB)"}), 400
+    max_file_size = MAX_PRODUCT_VIDEO_BYTES if _is_video_product_upload_extension(ext) else MAX_PRODUCT_IMAGE_BYTES
+    if len(file_bytes) > max_file_size:
+        max_mb = 80 if max_file_size == MAX_PRODUCT_VIDEO_BYTES else 20
+        return jsonify({"error": "validation_error", "detail": f"File is too large (max {max_mb} MB)"}), 400
 
     uploads_dir = os.path.join(current_app.root_path, "uploads", "products")
     os.makedirs(uploads_dir, exist_ok=True)

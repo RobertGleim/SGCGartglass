@@ -148,6 +148,53 @@ const sortFavoriteValues = (values) =>
       }),
     );
 
+const PRODUCT_UPLOAD_IMAGE_EXTENSIONS = new Set([
+  ".jpg",
+  ".jpeg",
+  ".jpe",
+  ".png",
+  ".gif",
+  ".webp",
+  ".svg",
+  ".bmp",
+  ".heic",
+  ".heif",
+  ".avif",
+]);
+
+const PRODUCT_UPLOAD_VIDEO_EXTENSIONS = new Set([
+  ".mp4",
+  ".m4v",
+  ".mov",
+  ".webm",
+  ".avi",
+  ".mkv",
+  ".mpeg",
+  ".mpg",
+  ".ogv",
+  ".wmv",
+]);
+
+const extensionFromFileName = (fileName) => {
+  const normalized = String(fileName || "").trim().toLowerCase();
+  const lastDot = normalized.lastIndexOf(".");
+  return lastDot >= 0 ? normalized.slice(lastDot) : "";
+};
+
+const isVideoFile = (file) => {
+  const normalizedType = String(file?.type || "").toLowerCase();
+  if (normalizedType.startsWith("video/")) return true;
+  return PRODUCT_UPLOAD_VIDEO_EXTENSIONS.has(extensionFromFileName(file?.name));
+};
+
+const isImageFile = (file) => {
+  const normalizedType = String(file?.type || "").toLowerCase();
+  if (normalizedType.startsWith("image/")) return true;
+  return PRODUCT_UPLOAD_IMAGE_EXTENSIONS.has(extensionFromFileName(file?.name));
+};
+
+const isSupportedProductUploadFile = (file) => isImageFile(file) || isVideoFile(file);
+
 const extensionFromMimeType = (mimeType) => {
   const normalized = String(mimeType || "").toLowerCase();
   if (normalized.includes("svg")) return ".svg";
@@ -1002,6 +1049,7 @@ export default function AdminDashboard({
   const [categoryInput, setCategoryInput] = useState("");
   const [materialInput, setMaterialInput] = useState("");
   const [imagePreviews, setImagePreviews] = useState([]);
+  const [manualProductStatusTone, setManualProductStatusTone] = useState("neutral");
   const [enableWatermark, setEnableWatermark] = useState(true);
   const [watermarkText, setWatermarkText] = useState("SGCG ART GLASS");
   const [addImagesToGallery, setAddImagesToGallery] = useState(false);
@@ -1016,6 +1064,21 @@ export default function AdminDashboard({
 
   const activeFavoriteCategories = favoriteCategoriesByType[productType] || [];
   const activeFavoriteMaterials = favoriteMaterialsByType[productType] || [];
+
+  const clearManualProductStatus = () => {
+    setStatus("");
+    setManualProductStatusTone("neutral");
+  };
+
+  const setManualProductErrorStatus = (message) => {
+    setStatus(message);
+    setManualProductStatusTone("error");
+  };
+
+  const setManualProductInfoStatus = (message) => {
+    setStatus(message);
+    setManualProductStatusTone("neutral");
+  };
 
   const addFavoriteCategoryForActiveType = (value) => {
     setFavoriteCategoriesByType((prev) => {
@@ -1545,46 +1608,46 @@ export default function AdminDashboard({
 
     const existingPhotoCount = imagePreviews.filter((preview) => preview.type !== "video").length;
     const existingVideoCount = imagePreviews.filter((preview) => preview.type === "video").length;
-    const incomingPhotoCount = incomingFiles.filter((file) => !file.type.startsWith("video")).length;
-    const incomingVideoCount = incomingFiles.filter((file) => file.type.startsWith("video")).length;
+    const incomingPhotoCount = incomingFiles.filter((file) => isImageFile(file) && !isVideoFile(file)).length;
+    const incomingVideoCount = incomingFiles.filter((file) => isVideoFile(file)).length;
 
     if (existingPhotoCount + incomingPhotoCount > MAX_MANUAL_UPLOAD_PHOTOS) {
-      setStatus(`Upload is too large. Please reduce the number of photos to ${MAX_MANUAL_UPLOAD_PHOTOS} or fewer.`);
+      setManualProductErrorStatus(`Upload is too large. Please reduce the number of photos to ${MAX_MANUAL_UPLOAD_PHOTOS} or fewer.`);
       return;
     }
 
     if (existingVideoCount + incomingVideoCount > MAX_MANUAL_UPLOAD_VIDEOS) {
-      setStatus(`Only ${MAX_MANUAL_UPLOAD_VIDEOS} video is allowed per listing.`);
+      setManualProductErrorStatus(`Only ${MAX_MANUAL_UPLOAD_VIDEOS} video is allowed per listing.`);
       return;
     }
 
     const invalidType = incomingFiles.find(
-      (file) => !file.type.startsWith("image/") && !file.type.startsWith("video/"),
+      (file) => !isSupportedProductUploadFile(file),
     );
     if (invalidType) {
-      setStatus(`Unsupported file type: ${invalidType.name}`);
+      setManualProductErrorStatus(`Unsupported file type: ${invalidType.name}`);
       return;
     }
 
     const tooLargeImage = incomingFiles.find(
-      (file) => file.type.startsWith("image/") && file.size > MAX_MANUAL_IMAGE_BYTES,
+      (file) => isImageFile(file) && !isVideoFile(file) && file.size > MAX_MANUAL_IMAGE_BYTES,
     );
     if (tooLargeImage) {
-      setStatus(`${tooLargeImage.name} is too large to upload. Please use a smaller image file.`);
+      setManualProductErrorStatus(`${tooLargeImage.name} is too large to upload. Please use a smaller image file.`);
       return;
     }
 
     const tooLargeVideo = incomingFiles.find(
-      (file) => file.type.startsWith("video/") && file.size > MAX_MANUAL_VIDEO_BYTES,
+      (file) => isVideoFile(file) && file.size > MAX_MANUAL_VIDEO_BYTES,
     );
     if (tooLargeVideo) {
-      setStatus(`${tooLargeVideo.name} is too large to upload. Please trim or compress the video.`);
+      setManualProductErrorStatus(`${tooLargeVideo.name} is too large to upload. Please trim or compress the video.`);
       return;
     }
 
     const incomingTotalBytes = incomingFiles.reduce((sum, file) => sum + (file?.size || 0), 0);
     if (incomingTotalBytes > MAX_MANUAL_TOTAL_BYTES) {
-      setStatus("This upload is too large. Please reduce the number of photos/videos or file sizes.");
+      setManualProductErrorStatus("This upload is too large. Please reduce the number of photos/videos or file sizes.");
       return;
     }
 
@@ -1592,7 +1655,7 @@ export default function AdminDashboard({
 
     for (const file of incomingFiles) {
       // Skip watermark for videos
-      const isVideo = file.type.startsWith("video");
+      const isVideo = isVideoFile(file);
       let processedFile = file;
 
       // Apply watermark to images only
@@ -1620,7 +1683,7 @@ export default function AdminDashboard({
             ...prev,
             images: [...(prev.images || []), ...newPreviews.map((p) => p.file)],
           }));
-          setStatus('');
+          clearManualProductStatus();
         }
       };
       reader.readAsDataURL(processedFile);
@@ -1707,12 +1770,12 @@ export default function AdminDashboard({
     const creatingPatternOnly = !editingProduct && !shouldSaveProduct && !shouldCreateTemplate && shouldCreatePatternCopy;
 
     if (!isProductSectionEnabled && !isTemplateSectionEnabled) {
-      setStatus("Select at least one section to save.");
+      setManualProductErrorStatus("Select at least one section to save.");
       return;
     }
 
     if (!editingProduct && !shouldSaveProduct && !shouldCreateTemplate && !shouldCreatePatternCopy) {
-      setStatus("Add a product name, upload a template/pattern file, or select a save mode.");
+      setManualProductErrorStatus("Add a product name, upload a template/pattern file, or select a save mode.");
       return;
     }
 
@@ -1720,13 +1783,13 @@ export default function AdminDashboard({
       unifiedTemplate.is_digital_download
       && (!String(unifiedTemplate.price_amount).trim() || Number(unifiedTemplate.price_amount) < 0.5)
     ) {
-      setStatus("Digital downloads require a price of at least $0.50.");
+      setManualProductErrorStatus("Digital downloads require a price of at least $0.50.");
       return;
     }
 
     const normalizedDimensionsResult = normalizeManualProductDimensions(manualProduct);
     if (normalizedDimensionsResult.error) {
-      setStatus(normalizedDimensionsResult.error);
+      setManualProductErrorStatus(normalizedDimensionsResult.error);
       return;
     }
 
@@ -1734,21 +1797,21 @@ export default function AdminDashboard({
 
     if (shouldCreateTemplate) {
       if (!unifiedTemplate.name.trim()) {
-        setStatus("Digital template name is required.");
+        setManualProductErrorStatus("Digital template name is required.");
         return;
       }
       if (!unifiedTemplate.upload_file) {
-        setStatus("Upload an SVG, PDF, JPG, or PNG for the digital template.");
+        setManualProductErrorStatus("Upload an SVG, PDF, JPG, or PNG for the digital template.");
         return;
       }
       if (unifiedTemplate.upload_file.size > MAX_TEMPLATE_UPLOAD_BYTES) {
-        setStatus("Digital template file is too large (max 50 MB).");
+        setManualProductErrorStatus("Digital template file is too large (max 50 MB).");
         return;
       }
     }
 
     setIsSavingManualProduct(true);
-    setStatus(editingProduct ? "Updating product..." : "Saving listing...");
+    setManualProductInfoStatus(editingProduct ? "Updating product..." : "Saving listing...");
 
     try {
       let createdTemplate = null;
@@ -1837,7 +1900,7 @@ export default function AdminDashboard({
             if (uploadedUrl) {
               processedImages.push({
                 image_url: uploadedUrl,
-                media_type: img.type.startsWith("video") ? "video" : "image",
+                media_type: isVideoFile(img) ? "video" : "image",
                 ...(uploadResult?.image_data ? { image_data: uploadResult.image_data } : {}),
               });
             }
@@ -2412,9 +2475,9 @@ export default function AdminDashboard({
         error.message.includes("Unauthorized") ||
         error.message.includes("401")
       ) {
-        setStatus("Session expired. Please log out and log back in.");
+        setManualProductErrorStatus("Session expired. Please log out and log back in.");
       } else {
-        setStatus(
+        setManualProductErrorStatus(
           `Error: ${
             error?.response?.data?.detail
             || error?.response?.data?.error
@@ -2536,6 +2599,7 @@ export default function AdminDashboard({
     setCategoryInput("");
     setMaterialInput("");
     setTemplateRefPhotos([]);
+    clearManualProductStatus();
     setShowManualProductModal(true);
     setQuantityManuallyEdited(true);
     setTemplateNameManuallyEdited(false);
@@ -2870,6 +2934,7 @@ export default function AdminDashboard({
     setTemplateRefPhotos([]);
     setTemplateNameManuallyEdited(false);
     setPatternOnlyDescription("");
+    clearManualProductStatus();
     setProductModePhysical(true);
     setProductModePattern(false);
     setProductModeTemplate(false);
@@ -3780,6 +3845,7 @@ export default function AdminDashboard({
                     setProductModePhysical(true);
                     setProductModePattern(false);
                     setProductModeTemplate(false);
+                    clearManualProductStatus();
                     loadManualProductLinkOptions();
                     setShowManualProductModal(true);
                   }}
@@ -5176,7 +5242,7 @@ export default function AdminDashboard({
                       <input
                         type="file"
                         id="image-input"
-                        accept="image/*,video/*"
+                        accept="image/*,video/*,.mp4,.m4v,.mov,.webm,.avi,.mkv,.mpeg,.mpg,.ogv,.wmv"
                         multiple
                         onChange={(e) => handleAddImages(e.target.files)}
                         style={{ display: "none" }}
@@ -5564,7 +5630,13 @@ export default function AdminDashboard({
                         </div>
 
                         {status ? (
-                          <p className="form-note" role="status" aria-live="polite">{status}</p>
+                          <p
+                            className={`form-note manual-product-status${manualProductStatusTone === "error" ? " is-error" : ""}`}
+                            role="status"
+                            aria-live="polite"
+                          >
+                            {status}
+                          </p>
                         ) : null}
 
                         <div className="modal-actions">

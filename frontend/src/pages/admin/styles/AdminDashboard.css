@@ -237,6 +237,11 @@
   border-color: #c62828;
 }
 
+.manual-product-status.is-error {
+  color: #c62828;
+  font-weight: 600;
+}
+
 .product-form-wrapper .modal-overlay::-webkit-scrollbar,
 .product-form-wrapper .modal-content::-webkit-scrollbar,
 .product-form-wrapper .custom-dropdown-menu::-webkit-scrollbar {
