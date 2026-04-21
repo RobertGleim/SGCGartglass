@@ -19,6 +19,7 @@ from ..services.template_service import (
     parse_svg_regions,
     generate_thumbnail_png,
 )
+from ..services.pattern_render_service import render_numbered_pattern_raster
 
 # Public: GET /api/templates, GET /api/templates/<id>
 templates_bp = Blueprint("templates", __name__)
@@ -30,6 +31,13 @@ DEFAULT_LIMIT = 12
 MAX_LIMIT = 50
 MAX_TEMPLATE_UPLOAD_BYTES = 50 * 1024 * 1024
 PATTERN_DEFAULT_QUANTITY = 999
+
+
+def _prepare_uploaded_template_image(file_bytes, extension, mime_type):
+    normalized_bytes = render_numbered_pattern_raster(file_bytes)
+    if normalized_bytes:
+        return normalized_bytes, ".png", "image/png"
+    return file_bytes, extension, mime_type
 
 
 def _require_admin(handler):
@@ -347,6 +355,7 @@ def upload_template_image():
                 "detail": "File is too large to upload. Please use a file smaller than 50 MB.",
             }), 400
         mime_type = f.content_type or f"image/{ext.lstrip('.')}"
+        file_bytes, ext, mime_type = _prepare_uploaded_template_image(file_bytes, ext, mime_type)
 
         # Also save to disk as a cache
         uploads_dir = os.path.join(current_app.root_path, "uploads", "templates")
