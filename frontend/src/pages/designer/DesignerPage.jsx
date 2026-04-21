@@ -3787,7 +3787,7 @@ export default function DesignerPage() {
               >
                 <canvas ref={canvasRef} />
                 {/* ── Numbered section labels overlay ── */}
-                {sectionLabels.length > 0 && (
+                {selectedTemplate?.template_type !== 'image' && sectionLabels.length > 0 && (
                   <div className={styles.sectionLabelsOverlay}>
                     {sectionLabels
                       .map((lbl) => {
