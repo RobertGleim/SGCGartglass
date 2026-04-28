@@ -124,6 +124,8 @@ export const removeCustomerCartItem = (itemId) => api.delete(`/customer/cart/ite
 export const fetchCustomerCartSummary = () => api.get('/customer/cart/summary');
 export const createCheckoutSession = (payload = {}) => api.post('/customer/checkout/session', payload);
 export const createGuestCheckoutSession = (payload) => api.post('/checkout/session', payload);
+export const fetchCustomerCheckoutPreview = (payload = {}) => api.post('/customer/checkout/preview', payload);
+export const fetchGuestCheckoutPreview = (payload = {}) => api.post('/checkout/preview', payload);
 export const confirmCheckoutSession = (sessionId) => api.post('/customer/checkout/session/confirm', { session_id: sessionId });
 export const fetchCustomerOrders = () => api.get('/customer/orders');
 export const fetchCustomerOrderItems = (orderId) => api.get(`/customer/orders/${orderId}/items`);

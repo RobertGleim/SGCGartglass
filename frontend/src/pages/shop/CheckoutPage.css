@@ -187,6 +187,16 @@
   color: #444;
 }
 
+.checkout-summary-row-discount {
+  color: #166534;
+  font-weight: 600;
+}
+
+.checkout-summary-row-discount-meta {
+  color: #2f4f73;
+  font-size: 0.84rem;
+}
+
 .checkout-summary-total {
   display: flex;
   justify-content: space-between;
@@ -194,6 +204,33 @@
   font-weight: 700;
   color: var(--primary, #2c3e50);
   margin-bottom: 1.25rem;
+}
+
+.checkout-preview-error,
+.checkout-preview-warning,
+.checkout-preview-applied {
+  margin: 0 0 0.6rem;
+  font-size: 0.8rem;
+  border-radius: 8px;
+  padding: 0.42rem 0.55rem;
+}
+
+.checkout-preview-error {
+  color: #7f1d1d;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.checkout-preview-warning {
+  color: #7c2d12;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+}
+
+.checkout-preview-applied {
+  color: #14532d;
+  background: #ecfdf3;
+  border: 1px solid #bbf7d0;
 }
 
 /* ─── Stripe checkout button ────────────────────────────────────────────── */
@@ -217,6 +254,28 @@
   border-radius: 8px;
   padding: 0.56rem 0.62rem;
   font-size: 0.92rem;
+}
+
+.checkout-discount-apply-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.45rem;
+}
+
+.checkout-apply-code-btn {
+  border: 1px solid #4f46e5;
+  border-radius: 8px;
+  padding: 0.56rem 0.75rem;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.checkout-apply-code-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .checkout-input-group input:focus {

@@ -3,6 +3,8 @@ import useCustomerAuth from '../../hooks/useCustomerAuth'
 import {
   createGuestCheckoutSession,
   createCheckoutSession,
+  fetchCustomerCheckoutPreview,
+  fetchGuestCheckoutPreview,
   fetchCustomerCartSummary,
   removeCustomerCartItem,
 } from '../../services/api'
@@ -67,14 +69,24 @@ export default function CheckoutPage() {
   const [redirecting, setRedirecting] = useState(false)
   const [guestEmail, setGuestEmail] = useState('')
   const [discountCode, setDiscountCode] = useState('')
+  const [appliedDiscountCode, setAppliedDiscountCode] = useState('')
+  const [previewError, setPreviewError] = useState('')
+  const [previewWarnings, setPreviewWarnings] = useState([])
+  const [previewDiscount, setPreviewDiscount] = useState(null)
+  const [previewTotals, setPreviewTotals] = useState(null)
 
   const canCheckout = (summary.items || []).length > 0
   const isSingleItemWarning = status === SINGLE_ITEM_WARNING
 
   const totals = useMemo(
-    () => summary.totals || { subtotal: 0, shipping: 0, tax: 0, total: 0, currency: 'USD' },
-    [summary.totals],
+    () => previewTotals || summary.totals || { subtotal: 0, shipping: 0, tax: 0, total: 0, currency: 'USD' },
+    [previewTotals, summary.totals],
   )
+
+  const normalizedGuestEmail = String(guestEmail || '').trim().toLowerCase()
+  const normalizedCode = String(appliedDiscountCode || '').trim().toUpperCase()
+  const codeSavings = Number(previewDiscount?.manual_amount ?? totals.manual_discount_amount ?? 0)
+  const newCustomerSavings = Number(previewDiscount?.auto_amount ?? totals.auto_discount_amount ?? 0)
 
   const loadSummary = async () => {
     setLoading(true)
@@ -126,6 +138,79 @@ export default function CheckoutPage() {
     loadSummary()
   }, [customerToken])
 
+  useEffect(() => {
+    let isActive = true
+    let debounceTimer = null
+
+    const runPreview = async () => {
+      if (!(summary.items || []).length) {
+        if (!isActive) return
+        setPreviewError('')
+        setPreviewWarnings([])
+        setPreviewDiscount(null)
+        setPreviewTotals(null)
+        return
+      }
+
+      if (!customerToken) {
+        if (!normalizedGuestEmail) {
+          if (!isActive) return
+          setPreviewError('Enter your email to validate new-customer savings.')
+          setPreviewWarnings([])
+          setPreviewDiscount(null)
+          setPreviewTotals(summary.totals || null)
+          return
+        }
+        if (!normalizedGuestEmail.includes('@') || !normalizedGuestEmail.split('@')[1]?.includes('.')) {
+          if (!isActive) return
+          setPreviewError('Please enter a valid email address.')
+          setPreviewWarnings([])
+          setPreviewDiscount(null)
+          setPreviewTotals(summary.totals || null)
+          return
+        }
+      }
+
+      try {
+        const response = customerToken
+          ? await fetchCustomerCheckoutPreview({ discount_code: normalizedCode || undefined })
+          : await fetchGuestCheckoutPreview({
+              customer_email: normalizedGuestEmail,
+              discount_code: normalizedCode || undefined,
+              items: (summary.items || []).map((item) => ({
+                product_type: item.product_type,
+                product_id: item.product_id,
+                quantity: item.quantity || 1,
+              })),
+            })
+
+        if (!isActive) return
+        setPreviewError('')
+        setPreviewWarnings(Array.isArray(response?.warnings) ? response.warnings : [])
+        setPreviewDiscount(response?.discount || null)
+        setPreviewTotals(response?.totals || summary.totals || null)
+      } catch (error) {
+        if (!isActive) return
+        setPreviewError(error?.response?.data?.detail || error?.response?.data?.error || 'Unable to validate discount.')
+        setPreviewWarnings([])
+        setPreviewDiscount(null)
+        setPreviewTotals(summary.totals || null)
+      }
+    }
+
+    debounceTimer = window.setTimeout(runPreview, 180)
+    return () => {
+      isActive = false
+      if (debounceTimer) {
+        window.clearTimeout(debounceTimer)
+      }
+    }
+  }, [customerToken, normalizedCode, normalizedGuestEmail, summary.items, summary.totals])
+
+  const handleApplyDiscountCode = () => {
+    setAppliedDiscountCode(String(discountCode || '').trim().toUpperCase())
+  }
+
   const handleRemoveItem = async (itemId) => {
     const currentItems = Array.isArray(summary.items) ? summary.items : []
     const nextItems = currentItems.filter((item) => item.id !== itemId)
@@ -156,9 +241,6 @@ export default function CheckoutPage() {
     setStatus('')
     setRedirecting(true)
     try {
-      const normalizedCode = String(discountCode || '').trim().toUpperCase()
-      const normalizedGuestEmail = String(guestEmail || '').trim().toLowerCase()
-
       if (!customerToken) {
         if (!normalizedGuestEmail || !normalizedGuestEmail.includes('@') || !normalizedGuestEmail.split('@')[1]?.includes('.')) {
           throw new Error('Please enter a valid email before checkout.')
@@ -227,8 +309,32 @@ export default function CheckoutPage() {
                 <div className="checkout-summary-lines">
                   <div className="checkout-summary-row">
                     <span>Subtotal ({totals.item_count || 0} {(totals.item_count || 0) === 1 ? 'item' : 'items'})</span>
-                    <span>${Number(totals.subtotal || 0).toFixed(2)}</span>
+                    <span>${Number((totals.pre_discount_subtotal ?? totals.subtotal) || 0).toFixed(2)}</span>
                   </div>
+                  {Number(totals.discount_amount || 0) > 0 && (
+                    <>
+                      {codeSavings > 0 ? (
+                        <div className="checkout-summary-row checkout-summary-row-discount-meta">
+                          <span>
+                            {previewDiscount?.code
+                              ? `Code ${previewDiscount.code} Savings`
+                              : 'Discount Code Savings'}
+                          </span>
+                          <span>- ${codeSavings.toFixed(2)}</span>
+                        </div>
+                      ) : null}
+                      {newCustomerSavings > 0 ? (
+                        <div className="checkout-summary-row checkout-summary-row-discount-meta">
+                          <span>New Customer Savings</span>
+                          <span>- ${newCustomerSavings.toFixed(2)}</span>
+                        </div>
+                      ) : null}
+                      <div className="checkout-summary-row checkout-summary-row-discount">
+                        <span>Total Discount Savings</span>
+                        <span>- ${Number(totals.discount_amount || 0).toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="checkout-summary-row">
                       <span>Free shipping (USA)</span>
                       <span>Free</span>
@@ -242,6 +348,21 @@ export default function CheckoutPage() {
                   <span>Total</span>
                   <span>${Number(totals.total || 0).toFixed(2)} {totals.currency || 'USD'}</span>
                 </div>
+
+                {previewError ? <p className="checkout-preview-error">{previewError}</p> : null}
+                {previewWarnings.map((warning, index) => (
+                  <p key={`preview-warning-${index}`} className="checkout-preview-warning">{warning}</p>
+                ))}
+
+                {previewDiscount && Number(totals.discount_amount || 0) > 0 ? (
+                  <p className="checkout-preview-applied">
+                    {codeSavings > 0 && newCustomerSavings > 0
+                      ? `Both discounts applied: code ${previewDiscount?.code || ''} on regular items, and new customer discount on sale items.`
+                      : previewDiscount?.source === 'new_customer_auto'
+                        ? 'New customer discount applied.'
+                        : `Discount code ${previewDiscount?.code || ''} applied.`}
+                  </p>
+                ) : null}
 
                 <form
                   onSubmit={(e) => { e.preventDefault(); handleStripeCheckout() }}
@@ -264,14 +385,30 @@ export default function CheckoutPage() {
 
                   <label className="checkout-input-group" htmlFor="checkout-discount-code">
                     <span>Discount code (optional)</span>
-                    <input
-                      id="checkout-discount-code"
-                      type="text"
-                      value={discountCode}
-                      onChange={(event) => setDiscountCode(event.target.value.toUpperCase())}
-                      placeholder="SALE10"
-                      autoComplete="off"
-                    />
+                    <div className="checkout-discount-apply-row">
+                      <input
+                        id="checkout-discount-code"
+                        type="text"
+                        value={discountCode}
+                        onChange={(event) => {
+                          const nextCode = event.target.value.toUpperCase()
+                          setDiscountCode(nextCode)
+                          if (!nextCode.trim()) {
+                            setAppliedDiscountCode('')
+                          }
+                        }}
+                        placeholder="SALE10"
+                        autoComplete="off"
+                      />
+                      <button
+                        type="button"
+                        className="checkout-apply-code-btn"
+                        onClick={handleApplyDiscountCode}
+                        disabled={!discountCode.trim()}
+                      >
+                        Apply
+                      </button>
+                    </div>
                   </label>
 
                   <p className="checkout-discount-note">New customers automatically receive 10% off at checkout.</p>

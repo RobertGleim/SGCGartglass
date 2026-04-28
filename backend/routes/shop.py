@@ -271,6 +271,7 @@ def _resolve_cart_product_snapshot(item):
             "product_id": product_id,
             "requires_shipping": False,
             "is_digital": True,
+            "is_on_sale": False,
         }
 
     if product_type == "manual":
@@ -292,15 +293,20 @@ def _resolve_cart_product_snapshot(item):
         images = product.get("images") if isinstance(product.get("images"), list) else []
         if images:
             image_url = images[0].get("image_url")
+        current_price = _as_money(product.get("price"))
+        old_price = _as_money(product.get("old_price"))
+        explicit_discount = _as_money(product.get("discount_percent"))
+        is_on_sale = bool((old_price > current_price and old_price > 0) or explicit_discount > 0)
         return {
             "title": product.get("name") or f"Manual product #{product_id}",
-            "price": _as_money(product.get("price")),
+            "price": current_price,
             "currency": "USD",
             "image_url": image_url,
             "product_type": "manual",
             "product_id": product_id,
             "requires_shipping": not is_digital,
             "is_digital": is_digital,
+            "is_on_sale": is_on_sale,
         }
 
     if product_type == "invoice":
@@ -347,6 +353,7 @@ def _resolve_cart_product_snapshot(item):
         "product_id": product_id,
         "requires_shipping": True,
         "is_digital": False,
+        "is_on_sale": False,
     }
 
 
@@ -423,8 +430,22 @@ def _resolve_checkout_discount(customer_email, discount_code_raw=None):
     if requested_code:
         row = get_discount_code_by_code(requested_code)
         if not row:
+            if auto_discount:
+                return {
+                    "requested_code": requested_code,
+                    "auto_discount": auto_discount,
+                    "manual_discount": None,
+                    "resolved_discount": auto_discount,
+                }, None
             return None, "Invalid discount code."
         if not _discount_code_is_active(row):
+            if auto_discount:
+                return {
+                    "requested_code": requested_code,
+                    "auto_discount": auto_discount,
+                    "manual_discount": None,
+                    "resolved_discount": auto_discount,
+                }, None
             return None, "Discount code is inactive or expired."
 
         manual_discount = {
@@ -437,29 +458,87 @@ def _resolve_checkout_discount(customer_email, discount_code_raw=None):
 
     chosen = None
     if auto_discount and manual_discount:
-        chosen = manual_discount if float(manual_discount.get("percent") or 0.0) >= float(auto_discount.get("percent") or 0.0) else auto_discount
-    elif manual_discount:
-        chosen = manual_discount
+        # For non-sale items, whichever percent is higher should win.
+        chosen = manual_discount if float(manual_discount.get("percent") or 0.0) > float(auto_discount.get("percent") or 0.0) else auto_discount
     elif auto_discount:
         chosen = auto_discount
+    elif manual_discount:
+        chosen = manual_discount
 
-    return chosen, None
+    return {
+        "requested_code": requested_code,
+        "auto_discount": auto_discount,
+        "manual_discount": manual_discount,
+        "resolved_discount": chosen,
+    }, None
 
 
-def _apply_discount_to_summary(summary, discount):
+def _format_item_title_list(titles, max_items=4):
+    normalized = [str(title or "").strip() for title in (titles or []) if str(title or "").strip()]
+    if not normalized:
+        return ""
+    visible = normalized[:max_items]
+    suffix = ""
+    hidden_count = len(normalized) - len(visible)
+    if hidden_count > 0:
+        suffix = f" (+{hidden_count} more)"
+    return ", ".join(visible) + suffix
+
+
+def _apply_discount_to_summary(summary, discount_context):
     base_items = list(summary.get("items") or [])
-    if not discount or not base_items:
+    if not discount_context or not base_items:
         return summary
 
-    percent = max(0.0, min(95.0, float(discount.get("percent") or 0.0)))
-    if percent <= 0:
+    auto_discount = discount_context.get("auto_discount") if isinstance(discount_context, dict) else None
+    manual_discount = discount_context.get("manual_discount") if isinstance(discount_context, dict) else None
+    auto_percent = max(0.0, min(95.0, float((auto_discount or {}).get("percent") or 0.0)))
+    manual_percent = max(0.0, min(95.0, float((manual_discount or {}).get("percent") or 0.0)))
+
+    if auto_percent <= 0 and manual_percent <= 0:
         return summary
 
     discounted_items = []
+    discounted_line_items = 0
+    manual_applied_titles = []
+    auto_applied_titles = []
+    manual_excluded_sale_titles = []
+    manual_discount_amount = 0.0
+    auto_discount_amount = 0.0
+
     for item in base_items:
         quantity = max(1, int(item.get("quantity") or 1))
         unit_price = _as_money(item.get("price"))
-        discounted_unit = _as_money(max(0.5, unit_price * (1.0 - (percent / 100.0))))
+        title = str(item.get("title") or "Item")
+        is_sale_item = bool(item.get("is_on_sale", False))
+
+        applied_percent = 0.0
+        applied_source = None
+
+        if auto_percent > 0:
+            applied_percent = auto_percent
+            applied_source = "new_customer_auto"
+
+        if manual_percent > 0:
+            if is_sale_item:
+                manual_excluded_sale_titles.append(title)
+            elif manual_percent > applied_percent:
+                applied_percent = manual_percent
+                applied_source = "manual_code"
+
+        if applied_percent > 0:
+            discounted_unit = _as_money(max(0.5, unit_price * (1.0 - (applied_percent / 100.0))))
+            discounted_line_items += 1
+            line_savings = _as_money(max(0.0, (unit_price - discounted_unit) * quantity))
+            if applied_source == "manual_code":
+                manual_applied_titles.append(title)
+                manual_discount_amount = _as_money(manual_discount_amount + line_savings)
+            elif applied_source == "new_customer_auto":
+                auto_applied_titles.append(title)
+                auto_discount_amount = _as_money(auto_discount_amount + line_savings)
+        else:
+            discounted_unit = unit_price
+
         discounted_items.append({
             **item,
             "price": discounted_unit,
@@ -471,16 +550,102 @@ def _apply_discount_to_summary(summary, discount):
     discount_amount = _as_money(max(0.0, base_subtotal - _as_money(discounted_totals.get("subtotal"))))
     discounted_totals["pre_discount_subtotal"] = base_subtotal
     discounted_totals["discount_amount"] = discount_amount
-    discounted_totals["discount_percent"] = percent
+
+    discount_source = None
+    display_percent = 0.0
+    if manual_applied_titles and auto_applied_titles:
+        discount_source = "mixed"
+        display_percent = max(manual_percent, auto_percent)
+    elif manual_applied_titles:
+        discount_source = "manual_code"
+        display_percent = manual_percent
+    elif auto_applied_titles:
+        discount_source = "new_customer_auto"
+        display_percent = auto_percent
+
+    discounted_totals["discount_percent"] = display_percent
+    discounted_totals["manual_discount_amount"] = _as_money(manual_discount_amount)
+    discounted_totals["auto_discount_amount"] = _as_money(auto_discount_amount)
+
+    primary_discount = None
+    if discount_source == "manual_code":
+        primary_discount = manual_discount
+    elif discount_source == "new_customer_auto":
+        primary_discount = auto_discount
+    elif discount_source == "mixed":
+        primary_discount = {
+            "source": "mixed",
+            "code": (manual_discount or {}).get("code"),
+            "code_id": (manual_discount or {}).get("code_id"),
+            "name": "Mixed discount",
+            "percent": display_percent,
+        }
+
+    if not primary_discount:
+        return {
+            "items": discounted_items,
+            "totals": discounted_totals,
+            "discount": None,
+        }
 
     return {
         "items": discounted_items,
         "totals": discounted_totals,
         "discount": {
-            **discount,
+            **primary_discount,
             "amount": discount_amount,
+            "eligible_item_count": discounted_line_items,
+            "manual_percent": manual_percent if manual_percent > 0 else None,
+            "auto_percent": auto_percent if auto_percent > 0 else None,
+            "manual_amount": _as_money(manual_discount_amount),
+            "auto_amount": _as_money(auto_discount_amount),
+            "manual_applied_titles": manual_applied_titles,
+            "auto_applied_titles": auto_applied_titles,
+            "manual_excluded_sale_titles": manual_excluded_sale_titles,
         },
     }
+
+
+def _build_checkout_pricing_preview(summary, customer_email, discount_code_raw=None):
+    discount_context, discount_error = _resolve_checkout_discount(customer_email, discount_code_raw)
+    if discount_error:
+        return None, discount_error
+
+    discounted_summary = _apply_discount_to_summary(summary, discount_context)
+    discount_payload = discounted_summary.get("discount") or None
+    warnings = []
+    requested_code = str(discount_code_raw or "").strip()
+    has_sale_items = any(bool(entry.get("is_on_sale", False)) for entry in discounted_summary.get("items") or [])
+    source = str((discount_payload or {}).get("source") or "").strip().lower()
+
+    if requested_code and has_sale_items:
+        warnings.append("Heads up: discount codes apply only to regular-price items. Sale items are excluded from code discounts.")
+
+    if source == "mixed":
+        manual_percent = float((discount_payload or {}).get("manual_percent") or 0.0)
+        auto_percent = float((discount_payload or {}).get("auto_percent") or 0.0)
+        code = str((discount_payload or {}).get("code") or requested_code).strip().upper()
+        manual_items_text = _format_item_title_list((discount_payload or {}).get("manual_applied_titles") or [])
+        auto_items_text = _format_item_title_list((discount_payload or {}).get("auto_applied_titles") or [])
+        if manual_items_text:
+            warnings.append(
+                f"Applied code {code} ({manual_percent:.0f}%) to regular-price items: {manual_items_text}."
+            )
+        if auto_items_text:
+            warnings.append(
+                f"Applied new customer discount ({auto_percent:.0f}%) to sale items: {auto_items_text}."
+            )
+
+    if discount_payload and _as_money(discount_payload.get("amount")) <= 0:
+        warnings.append("This code did not match any eligible regular-price items in your cart.")
+
+    return {
+        "items": discounted_summary.get("items") or [],
+        "totals": discounted_summary.get("totals") or {},
+        "discount": discount_payload,
+        "warnings": warnings,
+        "has_sale_items": has_sale_items,
+    }, None
 
 
 def _build_checkout_summary(customer_id):
@@ -504,6 +669,7 @@ def _build_checkout_summary(customer_id):
             "currency": snapshot.get("currency") or "USD",
             "requires_shipping": bool(snapshot.get("requires_shipping", True)),
             "is_digital": bool(snapshot.get("is_digital", False)),
+            "is_on_sale": bool(snapshot.get("is_on_sale", False)),
         })
 
     totals = _calculate_checkout_totals(detailed)
@@ -539,6 +705,7 @@ def _build_checkout_summary_from_items(items_payload):
             "currency": snapshot.get("currency") or "USD",
             "requires_shipping": bool(snapshot.get("requires_shipping", True)),
             "is_digital": bool(snapshot.get("is_digital", False)),
+            "is_on_sale": bool(snapshot.get("is_on_sale", False)),
         })
 
     totals = _calculate_checkout_totals(detailed)
@@ -2163,6 +2330,48 @@ def customer_remove_cart_item(item_id):
     return jsonify({"success": True})
 
 
+@api.post("/customer/checkout/preview")
+@require_customer
+def customer_checkout_preview():
+    init_db()
+    payload = request.get_json(silent=True) or {}
+    customer_id = g.auth_payload.get("customer_id")
+    customer = fetch_customer_by_id(customer_id) or {}
+    customer_email = _normalize_checkout_email(customer.get("email"))
+    summary = _build_checkout_summary(customer_id)
+
+    preview, discount_error = _build_checkout_pricing_preview(
+        summary,
+        customer_email,
+        payload.get("discount_code"),
+    )
+    if discount_error:
+        return jsonify({"error": "invalid_discount_code", "detail": discount_error}), 400
+
+    return jsonify(preview), 200
+
+
+@api.post("/checkout/preview")
+def guest_checkout_preview():
+    init_db()
+    payload = request.get_json(silent=True) or {}
+    customer_email = _normalize_checkout_email(payload.get("customer_email"))
+    if not customer_email or "@" not in customer_email or "." not in customer_email.split("@")[-1]:
+        return jsonify({"error": "missing_customer_email", "detail": "A valid email is required to preview discounts."}), 400
+
+    items_payload = payload.get("items") if isinstance(payload.get("items"), list) else []
+    summary = _build_checkout_summary_from_items(items_payload)
+    preview, discount_error = _build_checkout_pricing_preview(
+        summary,
+        customer_email,
+        payload.get("discount_code"),
+    )
+    if discount_error:
+        return jsonify({"error": "invalid_discount_code", "detail": discount_error}), 400
+
+    return jsonify(preview), 200
+
+
 @api.post("/customer/checkout/session")
 @require_customer
 def customer_checkout_session():
@@ -2199,10 +2408,14 @@ def customer_checkout_session():
 
     customer_email = _normalize_checkout_email(customer.get("email"))
     requested_discount_code = str(payload.get("discount_code") or "").strip().upper()
-    resolved_discount, discount_error = _resolve_checkout_discount(customer_email, requested_discount_code)
+    preview, discount_error = _build_checkout_pricing_preview(summary, customer_email, requested_discount_code)
     if discount_error:
         return jsonify({"error": "invalid_discount_code", "detail": discount_error}), 400
-    summary = _apply_discount_to_summary(summary, resolved_discount)
+    summary = {
+        "items": preview.get("items") or [],
+        "totals": preview.get("totals") or {},
+        "discount": preview.get("discount") or None,
+    }
 
     line_items = []
     for item in summary["items"]:
@@ -2236,11 +2449,12 @@ def customer_checkout_session():
         "customer_email": customer.get("email") or "",
     }
     payment_metadata = {"customer_id": str(customer_id)}
-    if resolved_discount:
-        session_metadata["discount_source"] = str(resolved_discount.get("source") or "")
-        session_metadata["discount_percent"] = str(resolved_discount.get("percent") or "")
-        session_metadata["discount_code"] = str(resolved_discount.get("code") or "")
-        session_metadata["discount_code_id"] = str(resolved_discount.get("code_id") or "")
+    applied_discount = summary.get("discount") or {}
+    if applied_discount:
+        session_metadata["discount_source"] = str(applied_discount.get("source") or "")
+        session_metadata["discount_percent"] = str(applied_discount.get("percent") or "")
+        session_metadata["discount_code"] = str(applied_discount.get("code") or "")
+        session_metadata["discount_code_id"] = str(applied_discount.get("code_id") or "")
         payment_metadata.update(session_metadata)
 
     session_params = {
@@ -2328,10 +2542,14 @@ def guest_checkout_session():
     cancel_url = f"{frontend_url}/#/checkout"
 
     requested_discount_code = str(payload.get("discount_code") or "").strip().upper()
-    resolved_discount, discount_error = _resolve_checkout_discount(customer_email, requested_discount_code)
+    preview, discount_error = _build_checkout_pricing_preview(summary, customer_email, requested_discount_code)
     if discount_error:
         return jsonify({"error": "invalid_discount_code", "detail": discount_error}), 400
-    summary = _apply_discount_to_summary(summary, resolved_discount)
+    summary = {
+        "items": preview.get("items") or [],
+        "totals": preview.get("totals") or {},
+        "discount": preview.get("discount") or None,
+    }
 
     line_items = []
     for item in summary["items"]:
@@ -2371,11 +2589,12 @@ def guest_checkout_session():
         "guest_checkout": "true",
         "customer_email": customer_email,
     }
-    if resolved_discount:
-        session_metadata["discount_source"] = str(resolved_discount.get("source") or "")
-        session_metadata["discount_percent"] = str(resolved_discount.get("percent") or "")
-        session_metadata["discount_code"] = str(resolved_discount.get("code") or "")
-        session_metadata["discount_code_id"] = str(resolved_discount.get("code_id") or "")
+    applied_discount = summary.get("discount") or {}
+    if applied_discount:
+        session_metadata["discount_source"] = str(applied_discount.get("source") or "")
+        session_metadata["discount_percent"] = str(applied_discount.get("percent") or "")
+        session_metadata["discount_code"] = str(applied_discount.get("code") or "")
+        session_metadata["discount_code_id"] = str(applied_discount.get("code_id") or "")
         payment_metadata.update(session_metadata)
 
     session_params = {
