@@ -65,6 +65,8 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState('')
   const [redirecting, setRedirecting] = useState(false)
+  const [guestEmail, setGuestEmail] = useState('')
+  const [discountCode, setDiscountCode] = useState('')
 
   const canCheckout = (summary.items || []).length > 0
   const isSingleItemWarning = status === SINGLE_ITEM_WARNING
@@ -91,6 +93,8 @@ export default function CheckoutPage() {
 
   const loadGuestSummary = () => {
     const items = readGuestCart()
+    const rememberedEmail = String(window.localStorage.getItem('sgcg_guest_checkout_email') || '')
+    setGuestEmail(rememberedEmail)
     setSummary({
       items,
       totals: computeLocalTotals(items),
@@ -152,14 +156,26 @@ export default function CheckoutPage() {
     setStatus('')
     setRedirecting(true)
     try {
+      const normalizedCode = String(discountCode || '').trim().toUpperCase()
+      const normalizedGuestEmail = String(guestEmail || '').trim().toLowerCase()
+
+      if (!customerToken) {
+        if (!normalizedGuestEmail || !normalizedGuestEmail.includes('@') || !normalizedGuestEmail.split('@')[1]?.includes('.')) {
+          throw new Error('Please enter a valid email before checkout.')
+        }
+        window.localStorage.setItem('sgcg_guest_checkout_email', normalizedGuestEmail)
+      }
+
       const response = customerToken
-        ? await createCheckoutSession()
+        ? await createCheckoutSession({ discount_code: normalizedCode || undefined })
         : await createGuestCheckoutSession({
             items: (summary.items || []).map((item) => ({
               product_type: item.product_type,
               product_id: item.product_id,
               quantity: item.quantity || 1,
             })),
+            customer_email: normalizedGuestEmail,
+            discount_code: normalizedCode || undefined,
           })
       const url = response?.url
       if (!url) throw new Error('No checkout URL returned.')
@@ -177,6 +193,7 @@ export default function CheckoutPage() {
         <header className="checkout-header">
           <h2>Order Preview</h2>
           <p className="checkout-header-sub">Review your items before proceeding to payment. Once you continue to Stripe, the order is final.</p>
+          <p className="checkout-offer-note">All new customers get 10% off automatically at checkout.</p>
         </header>
 
         {status && (
@@ -230,6 +247,35 @@ export default function CheckoutPage() {
                   onSubmit={(e) => { e.preventDefault(); handleStripeCheckout() }}
                   className="checkout-form"
                 >
+                  {!customerToken && (
+                    <label className="checkout-input-group" htmlFor="checkout-email">
+                      <span>Email for receipt & discount</span>
+                      <input
+                        id="checkout-email"
+                        type="email"
+                        value={guestEmail}
+                        onChange={(event) => setGuestEmail(event.target.value)}
+                        placeholder="you@example.com"
+                        autoComplete="email"
+                        required
+                      />
+                    </label>
+                  )}
+
+                  <label className="checkout-input-group" htmlFor="checkout-discount-code">
+                    <span>Discount code (optional)</span>
+                    <input
+                      id="checkout-discount-code"
+                      type="text"
+                      value={discountCode}
+                      onChange={(event) => setDiscountCode(event.target.value.toUpperCase())}
+                      placeholder="SALE10"
+                      autoComplete="off"
+                    />
+                  </label>
+
+                  <p className="checkout-discount-note">New customers automatically receive 10% off at checkout.</p>
+
                   <button
                     type="submit"
                     id="checkout-button"

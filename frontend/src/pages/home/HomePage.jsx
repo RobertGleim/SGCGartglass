@@ -56,6 +56,21 @@ export default function HomePage({ featuredItems, itemsLoading }) {
   const [recentReviews, setRecentReviews] = useState([])
   const [activeReviewIndex, setActiveReviewIndex] = useState(0)
   const [reviewAnimationKey, setReviewAnimationKey] = useState(0)
+  const [showNewCustomerOffer, setShowNewCustomerOffer] = useState(false)
+
+  useEffect(() => {
+    const storageKey = 'sgcg_new_customer_offer_dismissed_at'
+    const dismissedAt = Number(window.localStorage.getItem(storageKey) || 0)
+    const oneDayMs = 24 * 60 * 60 * 1000
+    if (!dismissedAt || (Date.now() - dismissedAt) > oneDayMs) {
+      setShowNewCustomerOffer(true)
+    }
+  }, [])
+
+  const dismissOffer = () => {
+    window.localStorage.setItem('sgcg_new_customer_offer_dismissed_at', String(Date.now()))
+    setShowNewCustomerOffer(false)
+  }
 
   useEffect(() => {
     let isActive = true
@@ -95,6 +110,18 @@ export default function HomePage({ featuredItems, itemsLoading }) {
 
   return (
     <main>
+      {showNewCustomerOffer ? (
+        <div className="new-customer-offer-overlay" role="dialog" aria-modal="true" aria-label="New customer discount offer">
+          <div className="new-customer-offer-card">
+            <button type="button" className="new-customer-offer-close" onClick={dismissOffer} aria-label="Close offer">×</button>
+            <p className="new-customer-offer-pill">Limited Welcome Offer</p>
+            <h2>All New Customers Get 10% Off</h2>
+            <p>Your discount is automatically applied at checkout for your first purchase email.</p>
+            <button type="button" className="new-customer-offer-cta" onClick={dismissOffer}>Shop & Save 10%</button>
+          </div>
+        </div>
+      ) : null}
+
       <HeroSection />
 
       <section className="featured" style={{ margin: '0 auto' }}>

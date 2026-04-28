@@ -19,7 +19,10 @@ import {
   uploadProductImage,
   updateAdminReview,
   createAdminReviewInviteCode,
+  createAdminDiscountCode,
   deleteAdminReviewInviteCode,
+  fetchAdminHomepageInsights,
+  fetchAdminDiscountCodes,
   fetchAdminDigitalCheckoutSessions,
   fetchManualProduct,
   recoverAdminCheckoutSession,
@@ -77,6 +80,14 @@ const isDirectMessageTemplate = (template) =>
 const canUseTemplateForCustomer = (template, customerId) => {
   if (!isDirectMessageTemplate(template)) return true;
   return Number(template?.assigned_customer_id || 0) === Number(customerId || 0);
+};
+
+const formatInsightCount = (value) => Number(value || 0).toLocaleString();
+
+const trendDirectionSymbol = (direction) => {
+  if (direction === "up") return "▲";
+  if (direction === "down") return "▼";
+  return "•";
 };
 
 const getApiOrigin = () => {
@@ -805,6 +816,27 @@ export default function AdminDashboard({
   const [activeProductDeleteId, setActiveProductDeleteId] = useState("");
   const [activeProductToggleId, setActiveProductToggleId] = useState("");
   const [activeFacebookShareId, setActiveFacebookShareId] = useState("");
+  const [customerInsight, setCustomerInsight] = useState({
+    total_clicks: 0,
+    clicks_today: 0,
+    monthly_clicks: 0,
+    daily_delta: 0,
+    monthly_delta: 0,
+    daily_trend: "flat",
+    monthly_trend: "flat",
+  });
+  const [isLoadingCustomerInsight, setIsLoadingCustomerInsight] = useState(false);
+  const [discountCodes, setDiscountCodes] = useState([]);
+  const [discountCodeStatus, setDiscountCodeStatus] = useState("");
+  const [isSavingDiscountCode, setIsSavingDiscountCode] = useState(false);
+  const [discountCodeForm, setDiscountCodeForm] = useState({
+    name: "",
+    code: "",
+    discount_percent: "10",
+    limit_type: "uses",
+    max_uses: "100",
+    valid_days: "7",
+  });
   const [reviewInviteForm, setReviewInviteForm] = useState({
     platform: "etsy",
     product_name: "",
@@ -812,13 +844,76 @@ export default function AdminDashboard({
     note: "",
   });
 
+  const loadCustomerInsight = useCallback(async () => {
+    setIsLoadingCustomerInsight(true);
+    try {
+      const res = await fetchAdminHomepageInsights();
+      if (res && typeof res === "object") {
+        setCustomerInsight((prev) => ({ ...prev, ...res }));
+      }
+    } catch {
+      setCustomerInsight((prev) => ({ ...prev }));
+    } finally {
+      setIsLoadingCustomerInsight(false);
+    }
+  }, []);
+
+  const loadDiscountCodes = useCallback(async () => {
+    try {
+      const rows = await fetchAdminDiscountCodes({ limit: 150 });
+      setDiscountCodes(Array.isArray(rows) ? rows : []);
+    } catch {
+      setDiscountCodes([]);
+    }
+  }, []);
+
+  const handleCreateDiscountCode = async (event) => {
+    event.preventDefault();
+    setDiscountCodeStatus("");
+    setIsSavingDiscountCode(true);
+
+    try {
+      const payload = {
+        name: String(discountCodeForm.name || "").trim(),
+        code: String(discountCodeForm.code || "").trim().toUpperCase(),
+        discount_percent: Number(discountCodeForm.discount_percent || 0),
+        limit_type: discountCodeForm.limit_type,
+        ...(discountCodeForm.limit_type === "uses"
+          ? { max_uses: Number(discountCodeForm.max_uses || 0) }
+          : { valid_days: Number(discountCodeForm.valid_days || 0) }),
+      };
+
+      const created = await createAdminDiscountCode(payload);
+      setDiscountCodeStatus(`Created discount code ${created?.code || payload.code}.`);
+      setDiscountCodeForm((prev) => ({ ...prev, code: "", name: "" }));
+      await loadDiscountCodes();
+    } catch (error) {
+      setDiscountCodeStatus(
+        error?.response?.data?.detail
+        || error?.response?.data?.error
+        || error?.message
+        || "Failed to create discount code.",
+      );
+    } finally {
+      setIsSavingDiscountCode(false);
+    }
+  };
+
+  useEffect(() => {
+    // Refresh once when admin dashboard mounts (sign-in or full page refresh).
+    loadCustomerInsight();
+    loadDiscountCodes();
+  }, [loadCustomerInsight, loadDiscountCodes]);
+
   useEffect(() => {
     if (activeTab === "customers") {
       fetchCustomers()
         .then((res) => setCustomers(res))
         .catch(() => setCustomers([]));
+      loadCustomerInsight();
+      loadDiscountCodes();
     }
-  }, [activeTab]);
+  }, [activeTab, loadCustomerInsight, loadDiscountCodes]);
 
   useEffect(() => {
     if (activeTab !== "reviews") return;
@@ -4066,6 +4161,151 @@ export default function AdminDashboard({
       </div>
       {activeTab === "customers" && (
         <div className="tab-panel">
+          <div className="panel-section customer-insight-section">
+            <div className="customer-insight-header-row">
+              <h3>Customer Insight</h3>
+              <span className="customer-insight-subtitle">Unique home-page visitors (by IP)</span>
+            </div>
+            {isLoadingCustomerInsight ? (
+              <p className="form-note">Loading visitor metrics...</p>
+            ) : (
+              <div className="customer-insight-grid">
+                <article className="customer-insight-card">
+                  <span className="customer-insight-label">Total Clicks</span>
+                  <strong className="customer-insight-value">{formatInsightCount(customerInsight?.total_clicks)}</strong>
+                  <span className="customer-insight-footnote">All-time unique visitors</span>
+                </article>
+                <article className="customer-insight-card">
+                  <span className="customer-insight-label">Clicks Today</span>
+                  <strong className="customer-insight-value">{formatInsightCount(customerInsight?.clicks_today)}</strong>
+                  <span className={`customer-insight-trend is-${customerInsight?.daily_trend || "flat"}`}>
+                    <span className="customer-insight-trend-arrow" aria-hidden="true">{trendDirectionSymbol(customerInsight?.daily_trend)}</span>
+                    <span>
+                      {formatInsightCount(Math.abs(Number(customerInsight?.daily_delta || 0)))} vs yesterday
+                    </span>
+                  </span>
+                </article>
+                <article className="customer-insight-card">
+                  <span className="customer-insight-label">Monthly Clicks</span>
+                  <strong className="customer-insight-value">{formatInsightCount(customerInsight?.monthly_clicks)}</strong>
+                  <span className={`customer-insight-trend is-${customerInsight?.monthly_trend || "flat"}`}>
+                    <span className="customer-insight-trend-arrow" aria-hidden="true">{trendDirectionSymbol(customerInsight?.monthly_trend)}</span>
+                    <span>
+                      {formatInsightCount(Math.abs(Number(customerInsight?.monthly_delta || 0)))} vs last month
+                    </span>
+                  </span>
+                </article>
+              </div>
+            )}
+          </div>
+
+          <div className="panel-section discount-code-section">
+            <h3>Discount Codes</h3>
+            <p className="form-note">Create campaign codes with percent-off and either a time limit or usage limit.</p>
+            <form className="discount-code-form" onSubmit={handleCreateDiscountCode}>
+              <label>
+                Code Name
+                <input
+                  type="text"
+                  value={discountCodeForm.name}
+                  onChange={(event) => setDiscountCodeForm((prev) => ({ ...prev, name: event.target.value }))}
+                  placeholder="Flash Sale 20%"
+                />
+              </label>
+              <label>
+                Code
+                <input
+                  type="text"
+                  value={discountCodeForm.code}
+                  onChange={(event) => setDiscountCodeForm((prev) => ({ ...prev, code: event.target.value.toUpperCase().replace(/\s+/g, "") }))}
+                  placeholder="FLASH20"
+                  required
+                />
+              </label>
+              <label>
+                Percent Off
+                <input
+                  type="number"
+                  min="1"
+                  max="95"
+                  step="1"
+                  value={discountCodeForm.discount_percent}
+                  onChange={(event) => setDiscountCodeForm((prev) => ({ ...prev, discount_percent: event.target.value }))}
+                  required
+                />
+              </label>
+              <label>
+                Limit By
+                <select
+                  value={discountCodeForm.limit_type}
+                  onChange={(event) => setDiscountCodeForm((prev) => ({ ...prev, limit_type: event.target.value }))}
+                >
+                  <option value="uses">Number of uses</option>
+                  <option value="time">Days active</option>
+                </select>
+              </label>
+              {discountCodeForm.limit_type === "uses" ? (
+                <label>
+                  Max Uses
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={discountCodeForm.max_uses}
+                    onChange={(event) => setDiscountCodeForm((prev) => ({ ...prev, max_uses: event.target.value }))}
+                    required
+                  />
+                </label>
+              ) : (
+                <label>
+                  Active Days
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={discountCodeForm.valid_days}
+                    onChange={(event) => setDiscountCodeForm((prev) => ({ ...prev, valid_days: event.target.value }))}
+                    required
+                  />
+                </label>
+              )}
+              <button type="submit" className="button primary" disabled={isSavingDiscountCode}>
+                {isSavingDiscountCode ? "Creating..." : "Create Discount Code"}
+              </button>
+            </form>
+
+            {discountCodeStatus ? <p className="form-note">{discountCodeStatus}</p> : null}
+
+            {discountCodes.length === 0 ? (
+              <p className="form-note">No discount codes created yet.</p>
+            ) : (
+              <div className="discount-code-list">
+                {discountCodes.map((code) => {
+                  const usedCount = Number(code?.used_count || 0);
+                  const maxUses = code?.max_uses;
+                  const limitLabel = String(code?.limit_type || "uses") === "time"
+                    ? `Expires: ${String(code?.expires_at || "-").slice(0, 10) || "-"}`
+                    : `Uses: ${usedCount}${maxUses ? ` / ${maxUses}` : ""}`;
+
+                  return (
+                    <article key={String(code?.id || code?.code)} className="discount-code-card">
+                      <div>
+                        <p className="discount-code-title">{code?.name || code?.code}</p>
+                        <p className="discount-code-meta">{code?.code} • {Number(code?.discount_percent || 0)}% off</p>
+                      </div>
+                      <div className="discount-code-card-right">
+                        <span className={`discount-code-status ${code?.is_active_now ? "is-active" : "is-inactive"}`}>
+                          {code?.is_active_now ? "Active" : "Inactive"}
+                        </span>
+                        <span className="discount-code-limit">{limitLabel}</span>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <div className="panel-section">
             <h3>Customers</h3>
             {customers.length === 0 ? (
@@ -4180,7 +4420,7 @@ export default function AdminDashboard({
                             <div className="digital-recovery-actions">
                               <button
                                 type="button"
-                                className="button primary"
+                                className="button primary digital-recovery-button digital-recovery-button-primary"
                                 disabled={!sessionId || rowBusy}
                                 onClick={() => handleRecoverCheckoutSession(sessionId)}
                               >
@@ -4188,7 +4428,7 @@ export default function AdminDashboard({
                               </button>
                               <button
                                 type="button"
-                                className="button"
+                                className="button digital-recovery-button digital-recovery-button-secondary"
                                 disabled={!sessionId || rowBusy}
                                 onClick={() => handleResendCheckoutDownloadEmail(sessionId)}
                               >
@@ -4196,11 +4436,23 @@ export default function AdminDashboard({
                               </button>
                               <button
                                 type="button"
-                                className="button danger"
+                                className="button danger digital-recovery-button digital-recovery-button-delete"
                                 disabled={!sessionId || rowBusy}
                                 onClick={() => handleDeleteCheckoutRecovery(entry)}
+                                aria-label={isDeletingRow ? "Deleting recovery row" : "Delete recovery row"}
+                                title="Delete recovery row"
                               >
-                                {isDeletingRow ? "Deleting..." : "Delete"}
+                                {isDeletingRow ? (
+                                  "..."
+                                ) : (
+                                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path d="M9 3h6" />
+                                    <path d="M4 6h16" />
+                                    <path d="M7 6l1 13h8l1-13" />
+                                    <path d="M10 10v6" />
+                                    <path d="M14 10v6" />
+                                  </svg>
+                                )}
                               </button>
                             </div>
                           </td>

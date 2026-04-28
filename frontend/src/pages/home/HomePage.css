@@ -1,3 +1,87 @@
+.new-customer-offer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: radial-gradient(circle at 10% 20%, rgba(255, 196, 0, 0.25), rgba(6, 21, 57, 0.72));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.new-customer-offer-card {
+  width: min(540px, 95vw);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: linear-gradient(160deg, #fffdf4 0%, #fff8db 38%, #f0f7ff 100%);
+  box-shadow: 0 24px 70px rgba(0, 16, 42, 0.36), inset 0 0 34px rgba(255, 255, 255, 0.6);
+  padding: 1.35rem 1.2rem 1.2rem;
+  text-align: center;
+  position: relative;
+  animation: newCustomerOfferPulse 2.1s ease-in-out infinite;
+}
+
+.new-customer-offer-pill {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.28rem 0.72rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #fff;
+  background: linear-gradient(90deg, #e11d48, #f97316);
+}
+
+.new-customer-offer-card h2 {
+  margin: 0.58rem 0 0.4rem;
+  color: #152e54;
+  font-size: clamp(1.45rem, 4.8vw, 2.1rem);
+  line-height: 1.06;
+}
+
+.new-customer-offer-card p {
+  margin: 0;
+  color: #304868;
+  font-size: 0.95rem;
+}
+
+.new-customer-offer-cta {
+  margin-top: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 220px;
+  border-radius: 999px;
+  padding: 0.62rem 1rem;
+  font-weight: 700;
+  text-decoration: none;
+  color: #fff;
+  background: linear-gradient(90deg, #0f766e, #2563eb);
+  box-shadow: 0 10px 24px rgba(29, 78, 216, 0.26);
+}
+
+.new-customer-offer-close {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 1.18rem;
+  color: #24405e;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+@keyframes newCustomerOfferPulse {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
 .home-review-stage {
   position: relative;
   min-height: 130px;

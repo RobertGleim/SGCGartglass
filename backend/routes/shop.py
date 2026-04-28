@@ -49,6 +49,14 @@ from ..db import (
     create_customer_password_reset,
     consume_customer_password_reset,
     revoke_customer_password_resets,
+    create_discount_code,
+    list_discount_codes,
+    get_discount_code_by_code,
+    discount_email_has_paid_order,
+    has_discount_redemption_for_email,
+    record_discount_redemption,
+    record_homepage_visit,
+    get_homepage_visit_insights,
     list_customer_addresses,
     create_customer_address,
     upsert_customer_primary_address,
@@ -359,6 +367,119 @@ def _calculate_checkout_totals(items):
         "total": total,
         "currency": "USD",
         "tax_source": "stripe_checkout",
+    }
+
+
+def _normalize_checkout_email(value):
+    return str(value or "").strip().lower()
+
+
+def _discount_code_is_active(record):
+    if not isinstance(record, dict):
+        return False
+    if int(record.get("is_active") or 0) != 1:
+        return False
+
+    limit_type = str(record.get("limit_type") or "uses").strip().lower()
+    now_iso = datetime.utcnow().isoformat()
+
+    if limit_type == "time":
+        expires_at = str(record.get("expires_at") or "").strip()
+        if not expires_at or expires_at <= now_iso:
+            return False
+    elif limit_type == "uses":
+        max_uses = int(record.get("max_uses") or 0)
+        used_count = int(record.get("used_count") or 0)
+        if max_uses <= 0 or used_count >= max_uses:
+            return False
+
+    return True
+
+
+def _resolve_checkout_discount(customer_email, discount_code_raw=None):
+    email = _normalize_checkout_email(customer_email)
+    requested_code = str(discount_code_raw or "").strip().upper()
+
+    auto_discount = None
+    auto_percent_raw = str(os.environ.get("NEW_CUSTOMER_DISCOUNT_PERCENT") or "10").strip()
+    try:
+        auto_percent = max(0.0, min(95.0, float(auto_percent_raw)))
+    except Exception:
+        auto_percent = 10.0
+
+    if email and auto_percent > 0:
+        has_paid_order = discount_email_has_paid_order(email)
+        already_claimed = has_discount_redemption_for_email(email, "new_customer_auto")
+        if not has_paid_order and not already_claimed:
+            auto_discount = {
+                "source": "new_customer_auto",
+                "code": None,
+                "code_id": None,
+                "name": "New Customer 10% Off",
+                "percent": auto_percent,
+            }
+
+    manual_discount = None
+    if requested_code:
+        row = get_discount_code_by_code(requested_code)
+        if not row:
+            return None, "Invalid discount code."
+        if not _discount_code_is_active(row):
+            return None, "Discount code is inactive or expired."
+
+        manual_discount = {
+            "source": "manual_code",
+            "code": str(row.get("code") or requested_code),
+            "code_id": row.get("id"),
+            "name": str(row.get("name") or requested_code),
+            "percent": max(0.0, min(95.0, float(row.get("discount_percent") or 0.0))),
+        }
+
+    chosen = None
+    if auto_discount and manual_discount:
+        chosen = manual_discount if float(manual_discount.get("percent") or 0.0) >= float(auto_discount.get("percent") or 0.0) else auto_discount
+    elif manual_discount:
+        chosen = manual_discount
+    elif auto_discount:
+        chosen = auto_discount
+
+    return chosen, None
+
+
+def _apply_discount_to_summary(summary, discount):
+    base_items = list(summary.get("items") or [])
+    if not discount or not base_items:
+        return summary
+
+    percent = max(0.0, min(95.0, float(discount.get("percent") or 0.0)))
+    if percent <= 0:
+        return summary
+
+    discounted_items = []
+    for item in base_items:
+        quantity = max(1, int(item.get("quantity") or 1))
+        unit_price = _as_money(item.get("price"))
+        discounted_unit = _as_money(max(0.5, unit_price * (1.0 - (percent / 100.0))))
+        discounted_items.append({
+            **item,
+            "price": discounted_unit,
+            "line_total": _as_money(discounted_unit * quantity),
+        })
+
+    discounted_totals = _calculate_checkout_totals(discounted_items)
+    base_subtotal = _as_money(sum(_as_money(entry.get("line_total")) for entry in base_items))
+    discount_amount = _as_money(max(0.0, base_subtotal - _as_money(discounted_totals.get("subtotal"))))
+    discounted_totals["pre_discount_subtotal"] = base_subtotal
+    discounted_totals["discount_amount"] = discount_amount
+    discounted_totals["discount_percent"] = percent
+
+    return {
+        "items": discounted_items,
+        "totals": discounted_totals,
+        "discount": {
+            **discount,
+            "amount": discount_amount,
+        },
     }
 
 
@@ -814,6 +935,41 @@ def _finalize_paid_checkout_session(session, expected_customer_id=None, send_dow
     }
 
     order_id = create_customer_order_with_items(customer_id, order_payload, items)
+
+    discount_source = str(metadata.get("discount_source") or "").strip().lower()
+    discount_percent_raw = str(metadata.get("discount_percent") or "").strip()
+    discount_code = str(metadata.get("discount_code") or "").strip().upper() or None
+    discount_code_id_raw = str(metadata.get("discount_code_id") or "").strip()
+    discount_code_id = int(discount_code_id_raw) if discount_code_id_raw.isdigit() else None
+
+    if discount_source and customer_email:
+        should_record = True
+        if discount_source == "new_customer_auto":
+            should_record = not has_discount_redemption_for_email(customer_email, "new_customer_auto")
+
+        if should_record:
+            try:
+                discount_percent = float(discount_percent_raw) if discount_percent_raw else None
+            except Exception:
+                discount_percent = None
+
+            pre_discount_subtotal = _as_money(totals.get("pre_discount_subtotal"))
+            subtotal = _as_money(totals.get("subtotal"))
+            discount_amount = _as_money(max(0.0, pre_discount_subtotal - subtotal))
+            if discount_amount <= 0 and discount_percent and discount_percent > 0:
+                discount_amount = _as_money((subtotal * discount_percent) / max(1.0, (100.0 - discount_percent)))
+
+            record_discount_redemption({
+                "discount_code_id": discount_code_id,
+                "discount_code": discount_code,
+                "discount_source": discount_source,
+                "customer_email": customer_email,
+                "session_id": session_id,
+                "order_id": order_id,
+                "discount_percent": discount_percent,
+                "discount_amount": discount_amount,
+            })
+
     downloads = _issue_pattern_downloads(customer_id, order_id, items, customer_email)
     created_downloads = [entry for entry in downloads if bool(entry.get("created"))]
     if session_id:
@@ -839,6 +995,20 @@ def _finalize_paid_checkout_session(session, expected_customer_id=None, send_dow
 
 def _is_admin_request():
     return g.auth_payload.get("role") != "customer"
+
+
+def _extract_request_ip():
+    return (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
+
+
+def _hash_visitor_ip(raw_ip):
+    normalized_ip = str(raw_ip or "").strip()
+    if not normalized_ip:
+        return ""
+
+    # Salt hashes so raw visitor IPs are never stored directly.
+    salt = str(os.environ.get("VISITOR_IP_HASH_SALT") or os.environ.get("JWT_SECRET") or "sgcg-homepage-visits").strip()
+    return hashlib.sha256(f"{salt}:{normalized_ip}".encode("utf-8")).hexdigest()
 
 
 def _resolve_frontend_public_url():
@@ -1998,6 +2168,7 @@ def customer_remove_cart_item(item_id):
 def customer_checkout_session():
     """Create a Stripe Checkout Session (hosted payment page) and return the redirect URL."""
     init_db()
+    payload = request.get_json(silent=True) or {}
     customer_id = g.auth_payload.get("customer_id")
     customer = fetch_customer_by_id(customer_id) or {}
     summary = _build_checkout_summary(customer_id)
@@ -2026,6 +2197,13 @@ def customer_checkout_session():
     success_url = f"{frontend_url}/#/checkout/success?session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{frontend_url}/#/checkout"
 
+    customer_email = _normalize_checkout_email(customer.get("email"))
+    requested_discount_code = str(payload.get("discount_code") or "").strip().upper()
+    resolved_discount, discount_error = _resolve_checkout_discount(customer_email, requested_discount_code)
+    if discount_error:
+        return jsonify({"error": "invalid_discount_code", "detail": discount_error}), 400
+    summary = _apply_discount_to_summary(summary, resolved_discount)
+
     line_items = []
     for item in summary["items"]:
         unit_amount = max(50, int(round(float(item.get("price") or 0) * 100)))
@@ -2053,6 +2231,18 @@ def customer_checkout_session():
             "quantity": max(1, int(item.get("quantity") or 1)),
         })
 
+    session_metadata = {
+        "customer_id": str(customer_id),
+        "customer_email": customer.get("email") or "",
+    }
+    payment_metadata = {"customer_id": str(customer_id)}
+    if resolved_discount:
+        session_metadata["discount_source"] = str(resolved_discount.get("source") or "")
+        session_metadata["discount_percent"] = str(resolved_discount.get("percent") or "")
+        session_metadata["discount_code"] = str(resolved_discount.get("code") or "")
+        session_metadata["discount_code_id"] = str(resolved_discount.get("code_id") or "")
+        payment_metadata.update(session_metadata)
+
     session_params = {
         "line_items": line_items,
         "mode": "payment",
@@ -2061,17 +2251,13 @@ def customer_checkout_session():
         "customer_creation": "always",
         "success_url": success_url,
         "cancel_url": cancel_url,
-        "metadata": {
-            "customer_id": str(customer_id),
-            "customer_email": customer.get("email") or "",
-        },
+        "metadata": session_metadata,
         "payment_intent_data": {
-            "metadata": {"customer_id": str(customer_id)},
+            "metadata": payment_metadata,
         },
     }
     if any(bool(item.get("requires_shipping", True)) for item in summary.get("items") or []):
         session_params["shipping_address_collection"] = {"allowed_countries": ["US", "CA"]}
-    customer_email = (customer.get("email") or "").strip()
     if customer_email:
         session_params["customer_email"] = customer_email
 
@@ -2093,6 +2279,7 @@ def customer_checkout_session():
         {
             "items": summary.get("items") or [],
             "totals": summary.get("totals") or {},
+            "discount": summary.get("discount") or {},
         },
         customer_email=customer_email or None,
         status="pending",
@@ -2101,6 +2288,7 @@ def customer_checkout_session():
     return jsonify({
         "session_id": session.get("id"),
         "url": session.get("url"),
+        "applied_discount": summary.get("discount") or None,
     })
 
 
@@ -2109,6 +2297,10 @@ def guest_checkout_session():
     """Create a Stripe Checkout session for guests (no sign-in required)."""
     init_db()
     payload = request.get_json(silent=True) or {}
+    customer_email = _normalize_checkout_email(payload.get("customer_email"))
+    if not customer_email or "@" not in customer_email or "." not in customer_email.split("@")[-1]:
+        return jsonify({"error": "missing_customer_email", "detail": "A valid email is required for checkout."}), 400
+
     items_payload = payload.get("items") if isinstance(payload.get("items"), list) else []
     summary = _build_checkout_summary_from_items(items_payload)
 
@@ -2134,6 +2326,12 @@ def guest_checkout_session():
 
     success_url = f"{frontend_url}/#/checkout/success?session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{frontend_url}/#/checkout"
+
+    requested_discount_code = str(payload.get("discount_code") or "").strip().upper()
+    resolved_discount, discount_error = _resolve_checkout_discount(customer_email, requested_discount_code)
+    if discount_error:
+        return jsonify({"error": "invalid_discount_code", "detail": discount_error}), 400
+    summary = _apply_discount_to_summary(summary, resolved_discount)
 
     line_items = []
     for item in summary["items"]:
@@ -2165,6 +2363,21 @@ def guest_checkout_session():
     has_shippable_items = any(bool(item.get("requires_shipping", True)) for item in summary.get("items") or [])
     has_digital_items = any(bool(item.get("is_digital")) for item in summary.get("items") or [])
 
+    session_metadata = {
+        "guest_checkout": "true",
+        "customer_email": customer_email,
+    }
+    payment_metadata = {
+        "guest_checkout": "true",
+        "customer_email": customer_email,
+    }
+    if resolved_discount:
+        session_metadata["discount_source"] = str(resolved_discount.get("source") or "")
+        session_metadata["discount_percent"] = str(resolved_discount.get("percent") or "")
+        session_metadata["discount_code"] = str(resolved_discount.get("code") or "")
+        session_metadata["discount_code_id"] = str(resolved_discount.get("code_id") or "")
+        payment_metadata.update(session_metadata)
+
     session_params = {
         "line_items": line_items,
         "mode": "payment",
@@ -2172,15 +2385,15 @@ def guest_checkout_session():
         "billing_address_collection": "required",
         "success_url": success_url,
         "cancel_url": cancel_url,
-        "metadata": {
-            "guest_checkout": "true",
-        },
+        "metadata": session_metadata,
         # For guest checkout, always let Stripe collect customer identity.
         "customer_creation": "always",
         "payment_intent_data": {
-            "metadata": {"guest_checkout": "true"},
+            "metadata": payment_metadata,
         },
     }
+
+    session_params["customer_email"] = customer_email
 
     # Physical products require shipping address collection in Stripe.
     if has_shippable_items:
@@ -2205,6 +2418,7 @@ def guest_checkout_session():
     return jsonify({
         "session_id": session.get("id"),
         "url": session.get("url"),
+        "applied_discount": summary.get("discount") or None,
     })
 
 
@@ -2402,6 +2616,126 @@ def admin_delete_digital_checkout_session(session_id):
         return jsonify({"error": "not_found"}), 404
 
     return jsonify({"success": True, "session_id": normalized_session_id}), 200
+
+
+@api.get("/admin/analytics/homepage-insights")
+@require_auth
+def admin_homepage_visit_insights():
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    insights = get_homepage_visit_insights()
+    return jsonify(insights), 200
+
+
+@api.get("/admin/discount-codes")
+@require_auth
+def admin_list_discount_codes():
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    limit = request.args.get("limit", 100)
+    now_iso = datetime.utcnow().isoformat()
+    rows = list_discount_codes(limit=limit)
+    payload = []
+    for row in rows:
+        limit_type = str(row.get("limit_type") or "uses").strip().lower()
+        expires_at = str(row.get("expires_at") or "").strip()
+        max_uses = int(row.get("max_uses") or 0) if row.get("max_uses") is not None else None
+        used_count = int(row.get("used_count") or 0)
+        is_active = int(row.get("is_active") or 0) == 1
+        if limit_type == "time":
+            still_valid = bool(expires_at) and expires_at > now_iso
+        elif limit_type == "uses":
+            still_valid = bool(max_uses and used_count < max_uses)
+        else:
+            still_valid = True
+
+        payload.append({
+            **row,
+            "is_active_now": bool(is_active and still_valid),
+        })
+
+    return jsonify(payload), 200
+
+
+@api.post("/admin/discount-codes")
+@require_auth
+def admin_create_discount_code():
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    name = str(payload.get("name") or "").strip()
+    code = str(payload.get("code") or "").strip().upper()
+    limit_type = str(payload.get("limit_type") or "uses").strip().lower()
+    discount_percent_raw = payload.get("discount_percent")
+
+    if not code:
+        return jsonify({"error": "missing_code"}), 400
+    if len(code) > 80:
+        return jsonify({"error": "code_too_long"}), 400
+
+    try:
+        discount_percent = float(discount_percent_raw)
+    except Exception:
+        return jsonify({"error": "invalid_discount_percent"}), 400
+    if discount_percent <= 0 or discount_percent > 95:
+        return jsonify({"error": "invalid_discount_percent"}), 400
+
+    if limit_type not in {"time", "uses"}:
+        return jsonify({"error": "invalid_limit_type"}), 400
+
+    max_uses = None
+    expires_at = None
+    if limit_type == "uses":
+        try:
+            max_uses = int(payload.get("max_uses") or 0)
+        except Exception:
+            max_uses = 0
+        if max_uses <= 0:
+            return jsonify({"error": "invalid_max_uses"}), 400
+    if limit_type == "time":
+        try:
+            valid_days = int(payload.get("valid_days") or 0)
+        except Exception:
+            valid_days = 0
+        if valid_days <= 0:
+            return jsonify({"error": "invalid_valid_days"}), 400
+        expires_at = (datetime.utcnow() + timedelta(days=valid_days)).isoformat()
+
+    if get_discount_code_by_code(code):
+        return jsonify({"error": "code_exists"}), 409
+
+    created = create_discount_code({
+        "code": code,
+        "name": name,
+        "discount_percent": discount_percent,
+        "limit_type": limit_type,
+        "max_uses": max_uses,
+        "expires_at": expires_at,
+        "created_by": str(g.auth_payload.get("sub") or g.auth_payload.get("email") or "admin"),
+    })
+
+    return jsonify(created or {}), 201
+
+
+@api.post("/analytics/home-visit")
+def track_homepage_visit():
+    """Record an anonymous homepage visit keyed by hashed visitor IP."""
+    init_db()
+
+    ip_hash = _hash_visitor_ip(_extract_request_ip())
+    if not ip_hash:
+        return jsonify({"success": False, "error": "missing_ip"}), 400
+
+    user_agent = (request.headers.get("User-Agent") or "").strip()[:255] or None
+    page_path = (request.get_json(silent=True) or {}).get("path") or "/"
+    record_homepage_visit(ip_hash, page_path=page_path, user_agent=user_agent)
+    return jsonify({"success": True}), 201
 
 
 @api.get("/customer/orders")

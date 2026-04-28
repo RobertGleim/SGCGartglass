@@ -30,6 +30,20 @@
   color: #666;
 }
 
+.checkout-offer-note {
+  margin: 0.55rem 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.86rem;
+  color: #166534;
+  background: #eaf8ef;
+  border: 1px solid #b8e6c4;
+  border-radius: 999px;
+  padding: 0.32rem 0.7rem;
+  font-weight: 600;
+}
+
 .checkout-layout {
   display: grid;
   grid-template-columns: 1fr 360px;
@@ -185,6 +199,36 @@
 /* ─── Stripe checkout button ────────────────────────────────────────────── */
 .checkout-form {
   margin: 0;
+}
+
+.checkout-input-group {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.7rem;
+}
+
+.checkout-input-group span {
+  font-size: 0.8rem;
+  color: #5b6470;
+}
+
+.checkout-input-group input {
+  border: 1px solid #d5dbe6;
+  border-radius: 8px;
+  padding: 0.56rem 0.62rem;
+  font-size: 0.92rem;
+}
+
+.checkout-input-group input:focus {
+  outline: none;
+  border-color: #635bff;
+  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.12);
+}
+
+.checkout-discount-note {
+  margin: 0 0 0.8rem;
+  font-size: 0.78rem;
+  color: #475569;
 }
 
 .checkout-stripe-btn {

@@ -12,7 +12,8 @@ import {
   updateManualProduct,
   deleteManualProduct,
   fetchItems,
-  fetchManualProducts
+  fetchManualProducts,
+  trackHomepageVisit,
 } from './services/api'
 
 const HomePage = lazy(() => import('./pages/home/HomePage'))
@@ -89,6 +90,18 @@ function App() {
     // eslint-disable-next-line no-unused-vars
     logout: customerLogout,
   } = useCustomerAuth()
+
+  useEffect(() => {
+    if (route.path !== '/') return
+
+    const visitKey = 'sgcg_home_visit_logged_v1'
+    if (window.sessionStorage.getItem(visitKey)) return
+
+    window.sessionStorage.setItem(visitKey, '1')
+    trackHomepageVisit({ path: '/' }).catch(() => {
+      // Non-blocking analytics capture; ignore network failures.
+    })
+  }, [route.path])
 
   useEffect(() => {
     const needsCatalog = ['/', '/product', '/admin', '/account'].includes(route.path)

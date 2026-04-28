@@ -393,6 +393,63 @@ def init_db(force=False):
         )
         """
     )
+    try:
+        cursor.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS homepage_visits (
+                id {id_column},
+                ip_hash VARCHAR(128) NOT NULL,
+                visited_on VARCHAR(10) NOT NULL,
+                visited_month VARCHAR(7) NOT NULL,
+                page_path VARCHAR(120) DEFAULT '/',
+                user_agent VARCHAR(255),
+                created_at VARCHAR(50) NOT NULL
+            )
+            """
+        )
+        cursor.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS discount_codes (
+                id {id_column},
+                code VARCHAR(80) NOT NULL UNIQUE,
+                name VARCHAR(120),
+                discount_percent REAL NOT NULL,
+                limit_type VARCHAR(20) DEFAULT 'uses',
+                max_uses INTEGER,
+                used_count INTEGER DEFAULT 0,
+                expires_at VARCHAR(50),
+                is_active INTEGER DEFAULT 1,
+                created_by VARCHAR(255),
+                created_at VARCHAR(50) NOT NULL,
+                updated_at VARCHAR(50) NOT NULL
+            )
+            """
+        )
+        cursor.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS discount_redemptions (
+                id {id_column},
+                discount_code_id INTEGER,
+                discount_code VARCHAR(80),
+                discount_source VARCHAR(40) NOT NULL,
+                customer_email VARCHAR(255),
+                session_id VARCHAR(255),
+                order_id INTEGER,
+                discount_percent REAL,
+                discount_amount REAL,
+                created_at VARCHAR(50) NOT NULL,
+                FOREIGN KEY (discount_code_id) REFERENCES discount_codes(id) ON DELETE SET NULL,
+                FOREIGN KEY (order_id) REFERENCES customer_orders(id) ON DELETE SET NULL
+            )
+            """
+        )
+    except Exception as exc:
+        # In rare concurrent init paths, Postgres can race while creating the
+        # identity sequence/type despite IF NOT EXISTS. If the table now exists,
+        # continue safely.
+        message = str(exc).lower()
+        if "homepage_visits" not in message:
+            raise
     cursor.execute(
         f"""
         CREATE TABLE IF NOT EXISTS customer_favorites (
@@ -415,6 +472,14 @@ def init_db(force=False):
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_customers_created_at ON customers(created_at DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_auth_login_failures_scope_identifier ON auth_login_failures(scope, identifier_type, identifier)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_auth_login_failures_lock_until ON auth_login_failures(lock_until)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_homepage_visits_day_hash ON homepage_visits(visited_on, ip_hash)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_homepage_visits_month_hash ON homepage_visits(visited_month, ip_hash)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_homepage_visits_created_at ON homepage_visits(created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_discount_codes_active_created ON discount_codes(is_active, created_at DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_discount_codes_code ON discount_codes(code)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_discount_redemptions_email_source ON discount_redemptions(customer_email, discount_source)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_discount_redemptions_code ON discount_redemptions(discount_code)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_discount_redemptions_order ON discount_redemptions(order_id)")
     cursor.execute(
         f"""
         CREATE TABLE IF NOT EXISTS customer_cart_items (
@@ -1749,6 +1814,276 @@ def clear_login_failures(scope, email=None, request_ip=None):
               AND identifier = {placeholder}
             """,
             (scope, identifier_type, identifier),
+        )
+
+    conn.commit()
+    conn.close()
+
+
+def record_homepage_visit(ip_hash, page_path="/", user_agent=None):
+    normalized_hash = str(ip_hash or "").strip()
+    if not normalized_hash:
+        return False
+
+    normalized_path = str(page_path or "/").strip() or "/"
+    now = datetime.utcnow()
+    now_iso = now.isoformat()
+    visited_on = now.strftime("%Y-%m-%d")
+    visited_month = now.strftime("%Y-%m")
+
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholder = _placeholder()
+    cursor.execute(
+        f"""
+        INSERT INTO homepage_visits (ip_hash, visited_on, visited_month, page_path, user_agent, created_at)
+        VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+        """,
+        (normalized_hash, visited_on, visited_month, normalized_path, user_agent, now_iso),
+    )
+    conn.commit()
+    conn.close()
+    return True
+
+
+def _count_unique_homepage_ips(cursor, where_sql="", params=()):
+    cursor.execute(
+        f"SELECT COUNT(DISTINCT ip_hash) AS cnt FROM homepage_visits {where_sql}",
+        params,
+    )
+    row = cursor.fetchone() or {}
+    return int(row.get("cnt") or 0)
+
+
+def _previous_month_label(current_month_label):
+    try:
+        dt = datetime.strptime(f"{current_month_label}-01", "%Y-%m-%d")
+    except Exception:
+        return ""
+    year = dt.year
+    month = dt.month - 1
+    if month < 1:
+        month = 12
+        year -= 1
+    return f"{year:04d}-{month:02d}"
+
+
+def get_homepage_visit_insights():
+    now = datetime.utcnow()
+    today = now.strftime("%Y-%m-%d")
+    yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+    month = now.strftime("%Y-%m")
+    previous_month = _previous_month_label(month)
+
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholder = _placeholder()
+
+    total_unique = _count_unique_homepage_ips(cursor)
+    today_unique = _count_unique_homepage_ips(
+        cursor,
+        f"WHERE visited_on = {placeholder}",
+        (today,),
+    )
+    yesterday_unique = _count_unique_homepage_ips(
+        cursor,
+        f"WHERE visited_on = {placeholder}",
+        (yesterday,),
+    )
+    month_unique = _count_unique_homepage_ips(
+        cursor,
+        f"WHERE visited_month = {placeholder}",
+        (month,),
+    )
+    previous_month_unique = _count_unique_homepage_ips(
+        cursor,
+        f"WHERE visited_month = {placeholder}",
+        (previous_month,),
+    ) if previous_month else 0
+
+    conn.close()
+
+    day_delta = today_unique - yesterday_unique
+    month_delta = month_unique - previous_month_unique
+
+    return {
+        "total_clicks": total_unique,
+        "clicks_today": today_unique,
+        "monthly_clicks": month_unique,
+        "previous_day_clicks": yesterday_unique,
+        "previous_month_clicks": previous_month_unique,
+        "daily_delta": day_delta,
+        "monthly_delta": month_delta,
+        "daily_trend": "up" if day_delta > 0 else "down" if day_delta < 0 else "flat",
+        "monthly_trend": "up" if month_delta > 0 else "down" if month_delta < 0 else "flat",
+        "today": today,
+        "month": month,
+        "previous_month": previous_month,
+    }
+
+
+def create_discount_code(payload):
+    conn = get_db()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
+    placeholder = _placeholder()
+
+    code = str(payload.get("code") or "").strip().upper()
+    name = str(payload.get("name") or "").strip() or None
+    discount_percent = float(payload.get("discount_percent") or 0)
+    limit_type = str(payload.get("limit_type") or "uses").strip().lower()
+    max_uses = payload.get("max_uses")
+    max_uses = int(max_uses) if max_uses not in (None, "") else None
+    expires_at = str(payload.get("expires_at") or "").strip() or None
+    created_by = str(payload.get("created_by") or "").strip() or None
+
+    cursor.execute(
+        f"""
+        INSERT INTO discount_codes (
+            code, name, discount_percent, limit_type, max_uses, used_count,
+            expires_at, is_active, created_by, created_at, updated_at
+        ) VALUES (
+            {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, 0,
+            {placeholder}, 1, {placeholder}, {placeholder}, {placeholder}
+        )
+        RETURNING *
+        """,
+        (code, name, discount_percent, limit_type, max_uses, expires_at, created_by, now, now),
+    )
+    row = cursor.fetchone()
+    conn.commit()
+    conn.close()
+    return dict(row) if row else None
+
+
+def list_discount_codes(limit=200):
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholder = _placeholder()
+    safe_limit = max(1, min(int(limit or 200), 500))
+    cursor.execute(
+        f"""
+        SELECT *
+        FROM discount_codes
+        ORDER BY created_at DESC
+        LIMIT {placeholder}
+        """,
+        (safe_limit,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_discount_code_by_code(code):
+    normalized_code = str(code or "").strip().upper()
+    if not normalized_code:
+        return None
+
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholder = _placeholder()
+    cursor.execute(
+        f"SELECT * FROM discount_codes WHERE code = {placeholder} LIMIT 1",
+        (normalized_code,),
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def discount_email_has_paid_order(customer_email):
+    normalized_email = str(customer_email or "").strip().lower()
+    if not normalized_email:
+        return False
+
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholder = _placeholder()
+    cursor.execute(
+        f"""
+        SELECT COUNT(*) AS cnt
+        FROM customer_orders
+        WHERE LOWER(COALESCE(customer_email, '')) = {placeholder}
+          AND LOWER(COALESCE(payment_status, '')) = 'paid'
+        """,
+        (normalized_email,),
+    )
+    row = cursor.fetchone() or {}
+    conn.close()
+    return int(row.get("cnt") or 0) > 0
+
+
+def has_discount_redemption_for_email(customer_email, discount_source):
+    normalized_email = str(customer_email or "").strip().lower()
+    normalized_source = str(discount_source or "").strip().lower()
+    if not normalized_email or not normalized_source:
+        return False
+
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholder = _placeholder()
+    cursor.execute(
+        f"""
+        SELECT COUNT(*) AS cnt
+        FROM discount_redemptions
+        WHERE LOWER(COALESCE(customer_email, '')) = {placeholder}
+          AND LOWER(COALESCE(discount_source, '')) = {placeholder}
+        """,
+        (normalized_email, normalized_source),
+    )
+    row = cursor.fetchone() or {}
+    conn.close()
+    return int(row.get("cnt") or 0) > 0
+
+
+def record_discount_redemption(payload):
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholder = _placeholder()
+    now = datetime.utcnow().isoformat()
+
+    discount_code_id = payload.get("discount_code_id")
+    discount_code = str(payload.get("discount_code") or "").strip().upper() or None
+    discount_source = str(payload.get("discount_source") or "").strip().lower()
+    customer_email = str(payload.get("customer_email") or "").strip().lower() or None
+    session_id = str(payload.get("session_id") or "").strip() or None
+    order_id = payload.get("order_id")
+    discount_percent = payload.get("discount_percent")
+    discount_amount = payload.get("discount_amount")
+
+    cursor.execute(
+        f"""
+        INSERT INTO discount_redemptions (
+            discount_code_id, discount_code, discount_source, customer_email,
+            session_id, order_id, discount_percent, discount_amount, created_at
+        ) VALUES (
+            {placeholder}, {placeholder}, {placeholder}, {placeholder},
+            {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}
+        )
+        """,
+        (
+            discount_code_id,
+            discount_code,
+            discount_source,
+            customer_email,
+            session_id,
+            order_id,
+            discount_percent,
+            discount_amount,
+            now,
+        ),
+    )
+
+    if discount_code_id:
+        cursor.execute(
+            f"""
+            UPDATE discount_codes
+            SET used_count = used_count + 1,
+                updated_at = {placeholder}
+            WHERE id = {placeholder}
+            """,
+            (now, discount_code_id),
         )
 
     conn.commit()

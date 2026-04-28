@@ -122,7 +122,7 @@ export const addCustomerCartItem = (payload) => api.post('/customer/cart/items',
 export const updateCustomerCartItem = (itemId, data) => api.put(`/customer/cart/items/${itemId}`, data);
 export const removeCustomerCartItem = (itemId) => api.delete(`/customer/cart/items/${itemId}`);
 export const fetchCustomerCartSummary = () => api.get('/customer/cart/summary');
-export const createCheckoutSession = () => api.post('/customer/checkout/session');
+export const createCheckoutSession = (payload = {}) => api.post('/customer/checkout/session', payload);
 export const createGuestCheckoutSession = (payload) => api.post('/checkout/session', payload);
 export const confirmCheckoutSession = (sessionId) => api.post('/customer/checkout/session/confirm', { session_id: sessionId });
 export const fetchCustomerOrders = () => api.get('/customer/orders');
@@ -161,6 +161,10 @@ export const deleteAdminReview = (reviewId) => api.delete(`/admin/reviews/${revi
 export const fetchAdminReviewInviteCodes = (params = {}) => api.get('/admin/review-invite-codes', { params });
 export const createAdminReviewInviteCode = (payload) => api.post('/admin/review-invite-codes', payload);
 export const deleteAdminReviewInviteCode = (inviteId) => api.delete(`/admin/review-invite-codes/${inviteId}`);
+export const fetchAdminHomepageInsights = () => api.get('/admin/analytics/homepage-insights');
+export const fetchAdminDiscountCodes = (params = {}) => api.get('/admin/discount-codes', { params });
+export const createAdminDiscountCode = (payload) => api.post('/admin/discount-codes', payload);
+export const trackHomepageVisit = (payload = {}) => api.post('/analytics/home-visit', payload);
 export const recoverAdminCheckoutSession = (sessionId) =>
   api.post('/admin/checkout/session/recover', { session_id: sessionId });
 export const fetchAdminDigitalCheckoutSessions = (params = {}) =>
