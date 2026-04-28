@@ -374,7 +374,7 @@ const STYLE_FILTER_OPTIONS = [
   "Geometric",
   "Animals / Landscape",
 ];
-const SHAPE_FILTER_OPTIONS = ["Rectangular", "Square", "Oval", "Circle"];
+const SHAPE_FILTER_OPTIONS = ["Rectangular", "Square", "Oval", "Circle", "Other"];
 const COLOR_FILTER_OPTIONS = ["Blue", "Green", "Red", "Amber", "Clear", "Multicolor"];
 
 const normalizeCategoryTagValue = (value) =>
@@ -3596,6 +3596,200 @@ export default function AdminDashboard({
     }
   };
 
+  const handlePrintListedProducts = () => {
+    if (filteredManualProducts.length === 0) {
+      setStatus("No listed products to print.");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank", "width=1024,height=768");
+    if (!printWindow) {
+      setStatus("Unable to open print view. Please allow pop-ups for this site.");
+      return;
+    }
+
+    try {
+      const escapeHtml = (value) =>
+        String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+
+      const listItemsMarkup = filteredManualProducts
+        .map((product, index) => {
+          const images = Array.isArray(product.images) ? product.images : [];
+          const firstImage = images.find((entry) => entry?.media_type !== "video") || images[0] || null;
+          const imageUrl = firstImage ? resolveImageObjectToUrl(firstImage) : "";
+          const priceLabel = formatListingPriceLabel(product);
+          const tagsLabel = toDisplayList(product.category) || "No tags";
+
+          return `
+            <li class="checklist-item">
+              <div class="check-cell">
+                <span class="print-check"></span>
+                <span class="item-number">${index + 1}.</span>
+              </div>
+              <div class="thumb-cell">
+                ${imageUrl
+                  ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name || "Product thumbnail")}" />`
+                  : `<div class="thumb-fallback">No image</div>`}
+              </div>
+              <div class="content-cell">
+                <div class="name">${escapeHtml(product.name || "Untitled product")}</div>
+                <div class="price">${escapeHtml(priceLabel)}</div>
+                <div class="tags">Tags: ${escapeHtml(tagsLabel)}</div>
+              </div>
+            </li>
+          `;
+        })
+        .join("");
+
+      const nowLabel = new Date().toLocaleString();
+
+      const printMarkup = `
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Manual Products Checklist</title>
+          <style>
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              padding: 20px;
+              font-family: Arial, sans-serif;
+              color: #111827;
+              background: #ffffff;
+            }
+            .header {
+              margin-bottom: 14px;
+              border-bottom: 1px solid #d1d5db;
+              padding-bottom: 10px;
+            }
+            .header h1 {
+              margin: 0;
+              font-size: 22px;
+            }
+            .header p {
+              margin: 4px 0 0;
+              color: #4b5563;
+              font-size: 13px;
+            }
+            .list {
+              list-style: none;
+              margin: 0;
+              padding: 0;
+              display: grid;
+              gap: 10px;
+            }
+            .checklist-item {
+              border: 1px solid #d1d5db;
+              border-radius: 8px;
+              padding: 10px;
+              display: grid;
+              grid-template-columns: 88px 84px 1fr;
+              gap: 10px;
+              align-items: start;
+              page-break-inside: avoid;
+            }
+            .check-cell {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              padding-top: 4px;
+            }
+            .print-check {
+              width: 18px;
+              height: 18px;
+              border: 1.5px solid #1f2937;
+              border-radius: 3px;
+              flex-shrink: 0;
+            }
+            .item-number {
+              font-size: 12px;
+              color: #374151;
+              min-width: 32px;
+            }
+            .thumb-cell img,
+            .thumb-fallback {
+              width: 74px;
+              height: 74px;
+              border-radius: 6px;
+              border: 1px solid #cbd5e1;
+            }
+            .thumb-cell img {
+              object-fit: cover;
+              display: block;
+            }
+            .thumb-fallback {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 11px;
+              color: #6b7280;
+              background: #f8fafc;
+            }
+            .content-cell {
+              min-width: 0;
+            }
+            .name {
+              font-size: 15px;
+              font-weight: 700;
+              margin-bottom: 4px;
+              line-height: 1.3;
+            }
+            .price {
+              font-size: 14px;
+              font-weight: 700;
+              color: #0f3fa6;
+              margin-bottom: 4px;
+            }
+            .tags {
+              font-size: 12px;
+              color: #374151;
+              line-height: 1.35;
+            }
+            @media print {
+              body { padding: 12px; }
+              .checklist-item { break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Manual Products Checklist</h1>
+            <p>${escapeHtml(`Listed products: ${filteredManualProducts.length} · Generated: ${nowLabel}`)}</p>
+          </div>
+          <ol class="list">${listItemsMarkup}</ol>
+        </body>
+      </html>
+      `;
+
+      printWindow.document.open();
+      printWindow.document.write(printMarkup);
+      printWindow.document.close();
+      printWindow.focus();
+
+      window.setTimeout(() => {
+        try {
+          printWindow.print();
+        } catch (error) {
+          console.error("Print dialog failed to open:", error);
+        }
+      }, 250);
+    } catch (error) {
+      console.error("Failed to build print view:", error);
+      printWindow.document.open();
+      printWindow.document.write(
+        "<html><body style='font-family: Arial, sans-serif; padding: 16px;'><h2>Unable to render print view</h2><p>Please try again.</p></body></html>",
+      );
+      printWindow.document.close();
+      setStatus("Unable to render print view. Please try again.");
+    }
+  };
+
   const toManualRelatedLinksPayload = (relatedLinks) => {
     const normalized = normalizeRelatedLinksState(relatedLinks);
     const payload = {
@@ -4591,14 +4785,24 @@ export default function AdminDashboard({
             <div className="panel-section">
               <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
                 <h3 style={{ margin: 0 }}>Manual Products ({filteredManualProducts.length})</h3>
-                <button
-                  type="button"
-                  className="button"
-                  onClick={handleRefreshCatalog}
-                  disabled={isRefreshingCatalog}
-                >
-                  {isRefreshingCatalog ? "Refreshing..." : "Refresh Catalog"}
-                </button>
+                <div style={{ display: "flex", gap: "0.55rem", alignItems: "center", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    className="button"
+                    onClick={handlePrintListedProducts}
+                    disabled={filteredManualProducts.length === 0}
+                  >
+                    Print Listed Products
+                  </button>
+                  <button
+                    type="button"
+                    className="button"
+                    onClick={handleRefreshCatalog}
+                    disabled={isRefreshingCatalog}
+                  >
+                    {isRefreshingCatalog ? "Refreshing..." : "Refresh Catalog"}
+                  </button>
+                </div>
               </div>
               <div
                 style={{

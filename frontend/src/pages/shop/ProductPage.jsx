@@ -36,7 +36,7 @@ const STYLE_FILTER_OPTIONS = [
   'Animals / Landscape',
 ]
 
-const SHAPE_FILTER_OPTIONS = ['Rectangular', 'Square', 'Oval', 'Circle']
+const SHAPE_FILTER_OPTIONS = ['Rectangular', 'Square', 'Oval', 'Circle', 'Other']
 
 const COLOR_FILTER_OPTIONS = ['Blue', 'Green', 'Red', 'Amber', 'Clear', 'Multicolor']
 
