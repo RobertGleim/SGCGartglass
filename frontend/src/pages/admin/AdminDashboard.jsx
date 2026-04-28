@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 // import AddEtsyListingForm from "../../components/forms/AddEtsyListingForm";
 import {
   createAdminTemplate,
+  deleteAdminDigitalCheckoutSession,
   deleteAdminReview,
   deleteCustomer,
   fetchAdminReviews,
@@ -793,6 +794,7 @@ export default function AdminDashboard({
   const [checkoutRecoveryStatus, setCheckoutRecoveryStatus] = useState("");
   const [activeRecoverySessionId, setActiveRecoverySessionId] = useState("");
   const [activeResendSessionId, setActiveResendSessionId] = useState("");
+  const [activeDeleteRecoverySessionId, setActiveDeleteRecoverySessionId] = useState("");
   const [isSavingReview, setIsSavingReview] = useState(false);
   const [isDeletingReview, setIsDeletingReview] = useState(false);
   const [isGeneratingReviewCode, setIsGeneratingReviewCode] = useState(false);
@@ -3816,6 +3818,34 @@ export default function AdminDashboard({
     }
   };
 
+  const handleDeleteCheckoutRecovery = async (entry) => {
+    const sessionId = String(entry?.session_id || "").trim();
+    if (!sessionId) return;
+
+    const customerEmail = String(entry?.customer_email || "").trim() || "this customer";
+    const confirmDelete = window.confirm(
+      `Delete the recovery row for ${customerEmail}?\n\nSession ID: ${sessionId}\n\nThis only removes the admin recovery entry from this list. It does not delete completed orders or download access.`,
+    );
+    if (!confirmDelete) return;
+
+    setActiveDeleteRecoverySessionId(sessionId);
+    setCheckoutRecoveryStatus("");
+    try {
+      await deleteAdminDigitalCheckoutSession(sessionId);
+      setCheckoutRecoveryStatus(`Deleted recovery row for ${customerEmail}.`);
+      await loadDigitalCheckoutSessions();
+    } catch (error) {
+      setCheckoutRecoveryStatus(
+        error?.response?.data?.detail
+        || error?.response?.data?.error
+        || error?.message
+        || "Failed to delete recovery row.",
+      );
+    } finally {
+      setActiveDeleteRecoverySessionId("");
+    }
+  };
+
   const adminActivityState = useMemo(() => {
     if (isOpeningProductEdit) {
       return {
@@ -4137,6 +4167,8 @@ export default function AdminDashboard({
                           : "is-other";
                       const isRecoveringRow = activeRecoverySessionId === sessionId;
                       const isResendingRow = activeResendSessionId === sessionId;
+                      const isDeletingRow = activeDeleteRecoverySessionId === sessionId;
+                      const rowBusy = isRecoveringRow || isResendingRow || isDeletingRow;
                       return (
                         <tr key={sessionId || `${entry?.customer_id}-${entry?.created_at}`}>
                           <td className="digital-recovery-cell-email">{entry?.customer_email || "-"}</td>
@@ -4149,7 +4181,7 @@ export default function AdminDashboard({
                               <button
                                 type="button"
                                 className="button primary"
-                                disabled={!sessionId || isRecoveringRow || isResendingRow}
+                                disabled={!sessionId || rowBusy}
                                 onClick={() => handleRecoverCheckoutSession(sessionId)}
                               >
                                 {isRecoveringRow ? "Recovering..." : "Recover Purchase"}
@@ -4157,10 +4189,18 @@ export default function AdminDashboard({
                               <button
                                 type="button"
                                 className="button"
-                                disabled={!sessionId || isRecoveringRow || isResendingRow}
+                                disabled={!sessionId || rowBusy}
                                 onClick={() => handleResendCheckoutDownloadEmail(sessionId)}
                               >
                                 {isResendingRow ? "Sending..." : "Send Email"}
+                              </button>
+                              <button
+                                type="button"
+                                className="button danger"
+                                disabled={!sessionId || rowBusy}
+                                onClick={() => handleDeleteCheckoutRecovery(entry)}
+                              >
+                                {isDeletingRow ? "Deleting..." : "Delete"}
                               </button>
                             </div>
                           </td>

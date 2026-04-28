@@ -2413,6 +2413,24 @@ def list_admin_digital_checkout_sessions(limit=200):
     return sessions
 
 
+def delete_admin_digital_checkout_session(session_id):
+    normalized_session_id = str(session_id or "").strip()
+    if not normalized_session_id:
+        return False
+
+    conn = get_db()
+    cursor = conn.cursor()
+    placeholder = _placeholder()
+    cursor.execute(
+        f"DELETE FROM customer_checkout_sessions WHERE session_id = {placeholder}",
+        (normalized_session_id,),
+    )
+    deleted = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted
+
+
 def mark_pattern_downloads_emailed(download_ids):
     ids = [int(entry) for entry in (download_ids or []) if str(entry).isdigit()]
     if not ids:

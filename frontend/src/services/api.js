@@ -165,6 +165,8 @@ export const recoverAdminCheckoutSession = (sessionId) =>
   api.post('/admin/checkout/session/recover', { session_id: sessionId });
 export const fetchAdminDigitalCheckoutSessions = (params = {}) =>
   api.get('/admin/checkout/digital-sessions', { params });
+export const deleteAdminDigitalCheckoutSession = (sessionId) =>
+  api.delete(`/admin/checkout/digital-sessions/${encodeURIComponent(sessionId)}`);
 export const resendAdminCheckoutDownloadEmail = (sessionId) =>
   api.post('/admin/checkout/session/resend-download-email', { session_id: sessionId });
 const extractAuthToken = (payload) => {

@@ -67,6 +67,7 @@ from ..db import (
     create_customer_checkout_session_snapshot,
     get_customer_checkout_session_snapshot,
     mark_customer_checkout_session_processed,
+    delete_admin_digital_checkout_session,
     list_admin_digital_checkout_sessions,
     list_admin_recent_orders,
     list_admin_shipping_orders,
@@ -2382,6 +2383,25 @@ def admin_resend_checkout_download_email():
         "downloads_email_target": email_target,
         "downloads_email_sent": email_sent,
     }), 200
+
+
+@api.delete("/admin/checkout/digital-sessions/<session_id>")
+@require_auth
+def admin_delete_digital_checkout_session(session_id):
+    """Delete a saved digital checkout recovery row without affecting orders/downloads."""
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    normalized_session_id = str(session_id or "").strip()
+    if not normalized_session_id:
+        return jsonify({"error": "missing_session_id"}), 400
+
+    deleted = delete_admin_digital_checkout_session(normalized_session_id)
+    if not deleted:
+        return jsonify({"error": "not_found"}), 404
+
+    return jsonify({"success": True, "session_id": normalized_session_id}), 200
 
 
 @api.get("/customer/orders")
