@@ -6,6 +6,7 @@ import styles from './TemplateManagement.module.css';
 
 const PAGE_SIZE = 10;
 const DIFFICULTY_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
+const COMMON_TAGS = ['Pattern', 'Custom', 'Geometric', 'Contemporary', 'Traditional', 'Abstract', 'Floral', 'Animal', 'Religious'];
 
 // Resolve relative URLs to backend origin
 const BACKEND_ORIGIN = import.meta.env.VITE_API_BASE_URL?.replace(/\/api\/?$/, '') || '';

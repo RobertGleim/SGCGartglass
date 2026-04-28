@@ -27,6 +27,19 @@ const PRODUCT_TABS = [
   { key: 'patterns', label: 'Patterns' },
 ]
 
+const STYLE_FILTER_OPTIONS = [
+  'Transom',
+  'Contemporary',
+  'Modern',
+  'Victorian',
+  'Geometric',
+  'Animals / Landscape',
+]
+
+const SHAPE_FILTER_OPTIONS = ['Rectangular', 'Square', 'Oval', 'Circle']
+
+const COLOR_FILTER_OPTIONS = ['Blue', 'Green', 'Red', 'Amber', 'Clear', 'Multicolor']
+
 const CATEGORY_TYPE_ALIASES = {
   stainedglasspanels: 'stained-glass-panels',
   stainedglass: 'stained-glass-panels',
@@ -114,6 +127,12 @@ const getProductSubcategories = (product) => {
   )
 }
 
+const productHasCategoryTag = (product, tag) => {
+  const target = normalizeCategoryValue(tag)
+  if (!target) return false
+  return toCategoryArray(product.category).some((entry) => normalizeCategoryValue(entry) === target)
+}
+
 const productHasSubcategory = (product, selectedCategory) => {
   const target = normalizeCategoryValue(selectedCategory)
   if (!target) return false
@@ -153,6 +172,9 @@ export default function ProductPage({ products }) {
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [priceFilter, setPriceFilter] = useState('any')
+  const [selectedStyleFilters, setSelectedStyleFilters] = useState([])
+  const [selectedShapeFilters, setSelectedShapeFilters] = useState([])
+  const [selectedColorFilters, setSelectedColorFilters] = useState([])
   const [activeTab, setActiveTab] = useState('stained-glass-panels')
   const [recentReviews, setRecentReviews] = useState([])
   const [favoritesTotal, setFavoritesTotal] = useState(0)
@@ -307,10 +329,30 @@ export default function ProductPage({ products }) {
     return counts
   }, [sectionProducts])
 
-  const categories = useMemo(() => {
-    const cats = ['All', 'On sale', ...Object.keys(categoryCounts).filter(c => c !== 'All' && c !== 'On sale')]
-    return cats.filter(c => categoryCounts[c] > 0)
-  }, [categoryCounts])
+  const categories = useMemo(() => ['All', 'On sale'], [])
+
+  const toggleFilterValue = (current, value) => {
+    const normalizedTarget = normalizeCategoryValue(value)
+    if (!normalizedTarget) return current
+    const hasValue = current.some((entry) => normalizeCategoryValue(entry) === normalizedTarget)
+    if (hasValue) {
+      return current.filter((entry) => normalizeCategoryValue(entry) !== normalizedTarget)
+    }
+    return [...current, value]
+  }
+
+  const filterOptionCounts = useMemo(() => {
+    const countMatches = (options) => options.reduce((acc, option) => {
+      acc[option] = sectionProducts.filter((product) => productHasCategoryTag(product, option)).length
+      return acc
+    }, {})
+
+    return {
+      style: countMatches(STYLE_FILTER_OPTIONS),
+      shape: countMatches(SHAPE_FILTER_OPTIONS),
+      color: countMatches(COLOR_FILTER_OPTIONS),
+    }
+  }, [sectionProducts])
 
   const filtered = useMemo(() => {
     const lowerSearch = search.toLowerCase()
@@ -323,10 +365,21 @@ export default function ProductPage({ products }) {
       } else {
         matchesCategory = productHasSubcategory(product, selectedCategory)
       }
+
+      const matchesStyle = selectedStyleFilters.length === 0
+        || selectedStyleFilters.some((entry) => productHasCategoryTag(product, entry))
+      const matchesShape = selectedShapeFilters.length === 0
+        || selectedShapeFilters.some((entry) => productHasCategoryTag(product, entry))
+      const matchesColor = selectedColorFilters.length === 0
+        || selectedColorFilters.some((entry) => productHasCategoryTag(product, entry))
       
+      const tagsText = toCategoryArray(product.category)
+        .join(' ')
+        .toLowerCase()
       const matchesSearch =
         product.title?.toLowerCase().includes(lowerSearch) ||
-        product.description?.toLowerCase().includes(lowerSearch)
+        product.description?.toLowerCase().includes(lowerSearch) ||
+        tagsText.includes(lowerSearch)
 
       // Price filter
       let matchesPrice = true
@@ -336,15 +389,32 @@ export default function ProductPage({ products }) {
       else if (priceFilter === '250to500') matchesPrice = price >= 250 && price <= 500
       else if (priceFilter === 'over500') matchesPrice = price > 500
       
-      return matchesCategory && matchesSearch && matchesPrice
+      return matchesCategory && matchesStyle && matchesShape && matchesColor && matchesSearch && matchesPrice
     })
 
     return [...result].sort((a, b) => {
+      if (priceFilter === 'lowtohigh' || priceFilter === 'hightolow') {
+        const leftPrice = Number(a?.price_amount || 0)
+        const rightPrice = Number(b?.price_amount || 0)
+        if (leftPrice !== rightPrice) {
+          return priceFilter === 'lowtohigh' ? leftPrice - rightPrice : rightPrice - leftPrice
+        }
+      }
+
       const left = String(a?.title || '').trim()
       const right = String(b?.title || '').trim()
       return titleCollator.compare(left, right)
     })
-  }, [sectionProducts, search, selectedCategory, priceFilter, titleCollator])
+  }, [
+    sectionProducts,
+    search,
+    selectedCategory,
+    selectedStyleFilters,
+    selectedShapeFilters,
+    selectedColorFilters,
+    priceFilter,
+    titleCollator,
+  ])
 
   const isSectionComingSoon = sectionProducts.length === 0
 
@@ -357,7 +427,15 @@ export default function ProductPage({ products }) {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, selectedCategory, priceFilter, activeTab])
+  }, [
+    search,
+    selectedCategory,
+    selectedStyleFilters,
+    selectedShapeFilters,
+    selectedColorFilters,
+    priceFilter,
+    activeTab,
+  ])
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -367,6 +445,9 @@ export default function ProductPage({ products }) {
 
   useEffect(() => {
     setSelectedCategory('All')
+    setSelectedStyleFilters([])
+    setSelectedShapeFilters([])
+    setSelectedColorFilters([])
   }, [activeTab])
 
   const activeReview = recentReviews[activeReviewIndex] || null
@@ -510,6 +591,18 @@ export default function ProductPage({ products }) {
           categoryCounts={categoryCounts}
           selectedCategory={selectedCategory}
           setSelectedCategory={setSelectedCategory}
+          styleOptions={STYLE_FILTER_OPTIONS}
+          shapeOptions={SHAPE_FILTER_OPTIONS}
+          colorOptions={COLOR_FILTER_OPTIONS}
+          selectedStyleFilters={selectedStyleFilters}
+          selectedShapeFilters={selectedShapeFilters}
+          selectedColorFilters={selectedColorFilters}
+          styleCounts={filterOptionCounts.style}
+          shapeCounts={filterOptionCounts.shape}
+          colorCounts={filterOptionCounts.color}
+          onToggleStyle={(value) => setSelectedStyleFilters((prev) => toggleFilterValue(prev, value))}
+          onToggleShape={(value) => setSelectedShapeFilters((prev) => toggleFilterValue(prev, value))}
+          onToggleColor={(value) => setSelectedColorFilters((prev) => toggleFilterValue(prev, value))}
           totalProducts={products.length}
           panelLikesCount={panelLikesCount}
           averageStarReview={averageStarReview}
@@ -532,6 +625,8 @@ export default function ProductPage({ products }) {
                 <option value="100to250">$100 to $250</option>
                 <option value="250to500">$250 to $500</option>
                 <option value="over500">Over $500</option>
+                <option value="lowtohigh">Price: Low to High</option>
+                <option value="hightolow">Price: High to Low</option>
               </select>
             </div>
           </div>

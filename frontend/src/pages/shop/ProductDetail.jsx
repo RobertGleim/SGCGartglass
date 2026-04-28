@@ -644,15 +644,22 @@ export default function ProductDetail({ product, products = [] }) {
             <p>{product.description || 'No description available'}</p>
           </div>
 
+          {/* Product Tags */}
+          {toCategoryArray(product.category).length > 0 && (
+            <div className="tags-section">
+              <h3>Tags</h3>
+              <div className="tags-list">
+                {toCategoryArray(product.category).map((tag) => (
+                  <span key={tag} className="tag-badge">{tag}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Product Details */}
           <div className="details-section">
             <h3>Details</h3>
             <ul>
-              {product.category && (
-                <li>
-                  <strong>Category:</strong> {product.category}
-                </li>
-              )}
               {product.created_at && (
                 <li>
                   <strong>Listed:</strong> {new Date(product.created_at).toLocaleDateString()}

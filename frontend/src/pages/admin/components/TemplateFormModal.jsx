@@ -440,7 +440,7 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) { setError('Name is required'); return; }
-    if (!form.category.trim()) { setError('Category is required'); return; }
+    if (!form.category.trim()) { setError('Tags are required'); return; }
     if (!form.dimensions.trim()) { setError('Dimensions is required'); return; }
     if (form.is_digital_download && (!String(form.price_amount).trim() || Number(form.price_amount) < 0.5)) {
       setError('Digital download templates require a price of at least $0.50');
@@ -515,10 +515,11 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
             />
           </label>
           <label className={styles.field}>
-            <span className={styles.labelText}>Category *</span>
+            <span className={styles.labelText}>Tags (comma-separated) *</span>
             <input
               className={styles.textInput}
               type="text"
+              placeholder="e.g., Geometric, Contemporary, Blue"
               value={form.category}
               onChange={e => handleChange('category', e.target.value)}
               required

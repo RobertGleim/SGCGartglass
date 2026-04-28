@@ -224,6 +224,40 @@
   margin: 0;
 }
 
+/* Tags Section */
+.tags-section {
+  padding: 1rem 0;
+}
+
+.tags-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: #1a1a1a;
+}
+
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tag-badge {
+  display: inline-block;
+  background: #f0f0f0;
+  color: #2c3e50;
+  padding: 0.4rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid #ddd;
+}
+
+.tag-badge:hover {
+  background: #e0e0e0;
+  cursor: pointer;
+}
+
 /* Details Section */
 .details-section {
   padding: 1rem 0;

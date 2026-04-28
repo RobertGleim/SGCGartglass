@@ -212,6 +212,23 @@
   min-width: 0;
 }
 
+.admin-triple-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.admin-category-stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+}
+
+.admin-category-stack .checkbox-label {
+  width: 100%;
+}
+
 .ap-section-1 {
   background: #eef6ff;
   border-color: #1e88e5;
@@ -1265,6 +1282,10 @@
   }
 
   .admin-half-row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-triple-row {
     grid-template-columns: 1fr;
   }
 

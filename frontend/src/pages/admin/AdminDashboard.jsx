@@ -366,6 +366,28 @@ const PRODUCT_TYPE_CONFIG = [
   { key: "laserAndSandblasting", label: "Laser and Sandblasting", theme: "stainedGlass" },
   { key: "woodArt", label: "Wood Art", theme: "woodwork" },
 ];
+const STYLE_FILTER_OPTIONS = [
+  "Transom",
+  "Contemporary",
+  "Modern",
+  "Victorian",
+  "Geometric",
+  "Animals / Landscape",
+];
+const SHAPE_FILTER_OPTIONS = ["Rectangular", "Square", "Oval", "Circle"];
+const COLOR_FILTER_OPTIONS = ["Blue", "Green", "Red", "Amber", "Clear", "Multicolor"];
+
+const normalizeCategoryTagValue = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+const categoryTagExists = (categories = [], target) => {
+  const normalizedTarget = normalizeCategoryTagValue(target);
+  if (!normalizedTarget) return false;
+  return categories.some((entry) => normalizeCategoryTagValue(entry) === normalizedTarget);
+};
+
 const PRODUCT_TYPE_LABEL_BY_KEY = PRODUCT_TYPE_CONFIG.reduce(
   (acc, entry) => ({ ...acc, [entry.key]: entry.label }),
   {},
@@ -1665,6 +1687,30 @@ export default function AdminDashboard({
   const removeTypeCategories = (categories = []) => {
     return categories.filter((entry) => !normalizeTypeFromCategory(entry));
   };
+
+  const toggleManualProductCategoryOption = (value, isSelected) => {
+    setManualProduct((prev) => {
+      if (isSelected) {
+        if (categoryTagExists(prev.category, value)) {
+          return prev;
+        }
+        return {
+          ...prev,
+          category: [...prev.category, value],
+        };
+      }
+
+      return {
+        ...prev,
+        category: prev.category.filter(
+          (entry) => normalizeCategoryTagValue(entry) !== normalizeCategoryTagValue(value),
+        ),
+      };
+    });
+  };
+
+  const isManualProductCategoryOptionSelected = (value) =>
+    categoryTagExists(manualProduct.category, value);
 
   const setPrimaryTypeCategory = (type) => {
     const label = PRODUCT_TYPE_LABEL_BY_KEY[type] || PRODUCT_TYPE_LABEL_BY_KEY.stainedGlassPanels;
@@ -5350,9 +5396,77 @@ export default function AdminDashboard({
                   </div>
                 </label>
 
+                <div className="admin-triple-row">
+                  <label className="admin-half-field">
+                    Style
+                    <div className="multi-select-wrapper">
+                      <div className="multi-select-inner">
+                        <div className="multi-select-row admin-category-stack">
+                          {STYLE_FILTER_OPTIONS.map((option) => (
+                            <label key={option} className="checkbox-label" style={{ marginBottom: 0 }}>
+                              <input
+                                type="checkbox"
+                                checked={isManualProductCategoryOptionSelected(option)}
+                                onChange={(event) =>
+                                  toggleManualProductCategoryOption(option, event.target.checked)
+                                }
+                              />
+                              <span>{option}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </label>
+
+                  <label className="admin-half-field">
+                    Shape
+                    <div className="multi-select-wrapper">
+                      <div className="multi-select-inner">
+                        <div className="multi-select-row admin-category-stack">
+                          {SHAPE_FILTER_OPTIONS.map((option) => (
+                            <label key={option} className="checkbox-label" style={{ marginBottom: 0 }}>
+                              <input
+                                type="checkbox"
+                                checked={isManualProductCategoryOptionSelected(option)}
+                                onChange={(event) =>
+                                  toggleManualProductCategoryOption(option, event.target.checked)
+                                }
+                              />
+                              <span>{option}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </label>
+
+                  <label className="admin-half-field">
+                    Color
+                    <div className="multi-select-wrapper">
+                      <div className="multi-select-inner">
+                        <div className="multi-select-row admin-category-stack">
+                          {COLOR_FILTER_OPTIONS.map((option) => (
+                            <label key={option} className="checkbox-label" style={{ marginBottom: 0 }}>
+                              <input
+                                type="checkbox"
+                                checked={isManualProductCategoryOptionSelected(option)}
+                                onChange={(event) =>
+                                  toggleManualProductCategoryOption(option, event.target.checked)
+                                }
+                              />
+                              <span>{option}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+
                 <div className="admin-half-row">
                   <label className="admin-half-field">
-                    Categories
+                    Tags
                     <div className="multi-select-wrapper">
                       <div className="multi-select-inner">
                         <div className="multi-select-row">
@@ -5368,7 +5482,7 @@ export default function AdminDashboard({
                                 setShowCategoryDropdown((prev) => !prev);
                               }}
                             >
-                              Select a favorite category...
+                              Select a favorite tag...
                               <span className="dropdown-arrow">▼</span>
                             </button>
                             {showCategoryDropdown &&

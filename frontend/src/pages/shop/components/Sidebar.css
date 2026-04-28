@@ -95,6 +95,63 @@
   margin-left: 0.5rem;
 }
 
+.sidebar-filter-groups {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.sidebar-filter-section {
+  border: 1px solid #e1e5ee;
+  border-radius: 8px;
+  background: #fcfdff;
+  padding: 0.55rem 0.6rem;
+}
+
+.sidebar-filter-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #2c3e5c;
+}
+
+.sidebar-filter-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.sidebar-filter-option {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  align-items: center;
+  gap: 0.42rem;
+  width: 100%;
+  font-size: 0.8rem;
+  color: #334055;
+  cursor: pointer;
+}
+
+.sidebar-filter-option input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  accent-color: #1f4ea1;
+}
+
+.sidebar-filter-label {
+  min-width: 0;
+}
+
+.sidebar-filter-count {
+  font-size: 0.75rem;
+  color: #68758b;
+}
+
 .sidebar-actions {
   display: flex;
   flex-direction: column;

@@ -5,6 +5,18 @@ export default function Sidebar({
   categoryCounts,
   selectedCategory,
   setSelectedCategory,
+  styleOptions = [],
+  shapeOptions = [],
+  colorOptions = [],
+  selectedStyleFilters = [],
+  selectedShapeFilters = [],
+  selectedColorFilters = [],
+  styleCounts = {},
+  shapeCounts = {},
+  colorCounts = {},
+  onToggleStyle,
+  onToggleShape,
+  onToggleColor,
   panelLikesCount = 0,
   averageStarReview = null,
   onOpenCustomOrder,
@@ -17,10 +29,64 @@ export default function Sidebar({
     ? `${normalizedAverage.toFixed(1)} avg star review`
     : 'No star reviews yet'
 
+  const topCategories = Array.from(
+    new Set(
+      (Array.isArray(categories) ? categories : [])
+        .filter((entry) => {
+          const normalized = String(entry || '').trim().toLowerCase()
+          return normalized === 'all' || normalized === 'on sale'
+        })
+    )
+  )
+
+  if (!topCategories.some((entry) => String(entry || '').trim().toLowerCase() === 'all')) {
+    topCategories.unshift('All')
+  }
+
+  if (!topCategories.some((entry) => String(entry || '').trim().toLowerCase() === 'on sale')) {
+    topCategories.push('On sale')
+  }
+
+  const isSelectedFilter = (selectedValues, value) => {
+    const target = String(value || '').trim().toLowerCase()
+    if (!target) return false
+    return selectedValues.some((entry) => String(entry || '').trim().toLowerCase() === target)
+  }
+
+  const renderFilterSection = (title, options, selectedValues, counts, onToggle) => {
+    if (!Array.isArray(options) || options.length === 0 || typeof onToggle !== 'function') {
+      return null
+    }
+
+    return (
+      <div className="sidebar-filter-section" aria-label={`${title} filters`}>
+        <p className="sidebar-filter-title">{title}</p>
+        <ul className="sidebar-filter-list">
+          {options.map((option) => {
+            const checked = isSelectedFilter(selectedValues, option)
+            return (
+              <li key={option}>
+                <label className="sidebar-filter-option">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => onToggle(option)}
+                  />
+                  <span className="sidebar-filter-label">{option}</span>
+                  <span className="sidebar-filter-count">{counts?.[option] || 0}</span>
+                </label>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+    )
+  }
+
   return (
     <aside className="sidebar">
       <ul>
-        {categories.map((category) => (
+        {topCategories.map((category) => (
           <li key={category}>
             <button
               type="button"
@@ -33,6 +99,11 @@ export default function Sidebar({
           </li>
         ))}
       </ul>
+      <div className="sidebar-filter-groups">
+        {renderFilterSection('Style', styleOptions, selectedStyleFilters, styleCounts, onToggleStyle)}
+        {renderFilterSection('Shape', shapeOptions, selectedShapeFilters, shapeCounts, onToggleShape)}
+        {renderFilterSection('Color', colorOptions, selectedColorFilters, colorCounts, onToggleColor)}
+      </div>
       <div className="sidebar-actions">
         <button className="sidebar-action-btn primary" type="button" onClick={onOpenCustomOrder}>
           Request Custom Order
