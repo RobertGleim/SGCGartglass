@@ -303,6 +303,12 @@
   font-weight: 600;
 }
 
+.quantity-note {
+  color: #a54205;
+  font-size: 0.7rem;
+  margin-top: 0.35rem;
+}
+
 /* Tags Section */
 .tags-section {
   padding: 1rem 0;

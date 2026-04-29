@@ -885,6 +885,9 @@ export default function ProductDetail({ product, products = [] }) {
               ) : (
                 <p>{Math.max(0, Math.trunc(availableQuantity))}</p>
               )}
+              <p className="quantity-note">
+                All panels are made to order; quantity in stock reflects how many panels can be made with the materials on hand.
+              </p>
             </div>
           )}
 
