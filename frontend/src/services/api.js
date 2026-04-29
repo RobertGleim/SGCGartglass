@@ -38,6 +38,25 @@ const stableSerialize = (value) => {
 
 const buildPublicCacheKey = (path, params) => `${PUBLIC_CACHE_PREFIX}:${path}:${stableSerialize(params || {})}`;
 
+const clearPublicCacheByPathPrefix = (pathPrefix) => {
+  const normalized = String(pathPrefix || '').trim();
+  if (!normalized) return;
+
+  const keyPrefix = `${PUBLIC_CACHE_PREFIX}:${normalized}:`;
+  try {
+    const keysToRemove = [];
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (key && key.startsWith(keyPrefix)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => window.localStorage.removeItem(key));
+  } catch {
+    // Ignore storage access issues.
+  }
+};
+
 const readPublicCache = (key) => {
   try {
     const raw = window.localStorage.getItem(key);
@@ -96,7 +115,23 @@ export const updateCustomer = (id, payload) => api.put(`/customers/${id}`, paylo
 export const deleteCustomer = (id) => api.delete(`/customers/${id}`);
 export const getCustomerDetails = (id) => api.get(`/customers/${id}/details`);
 export const updateManualProduct = (id, product) => api.put(`/manual-products/${id}`, product);
-export const fetchManualProducts = async (params = {}) => toArrayResponse(await api.get('/manual-products', { params }));
+export const fetchManualProducts = async (params = {}, options = {}) => {
+  const summaryMode = String(params?.summary || '').trim().toLowerCase()
+  const useSummaryCache = ['1', 'true', 'yes'].includes(summaryMode)
+
+  if (useSummaryCache) {
+    const cached = await fetchWithPublicCache({
+      path: '/manual-products',
+      params,
+      ttlMs: options.ttlMs || 5 * 60 * 1000,
+      forceFresh: Boolean(options.forceFresh),
+      fetcher: () => api.get('/manual-products', { params }),
+    })
+    return toArrayResponse(cached)
+  }
+
+  return toArrayResponse(await api.get('/manual-products', { params }))
+};
 export const fetchManualProduct = (id) => api.get(`/manual-products/${id}`);
 export const fetchItems = async () => toArrayResponse(await api.get('/items'));
 export const deleteManualProduct = (id) => api.delete(`/manual-products/${id}`);
@@ -151,6 +186,9 @@ export const fetchRecentReviewsCached = (params = {}, options = {}) =>
     preferNetworkWhenEmpty: true,
     fetcher: () => api.get('/reviews/recent', { params }),
   });
+export const clearManualProductsSummaryCache = () => {
+  clearPublicCacheByPathPrefix('/manual-products');
+};
 export const validateReviewInviteCode = (code) => api.post('/reviews/invite-codes/validate', { code });
 export const submitReviewWithCode = (formData) => api.post('/reviews/submit-with-code', formData, {
   headers: { 'Content-Type': 'multipart/form-data' },

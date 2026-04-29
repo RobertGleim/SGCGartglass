@@ -6,12 +6,63 @@
   min-height: calc(100vh - 200px);
 }
 
-.product-detail-container {
+.product-detail-content {
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.product-detail-container {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1.5rem;
+  gap: 1.25rem;
+}
+
+.product-detail-back-row {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  margin: 0 0 0.75rem;
+}
+
+.product-detail-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid #d6dde6;
+  background: linear-gradient(180deg, #ffffff 0%, #f5f8fb 100%);
+  color: #18324a;
+  border-radius: 999px;
+  padding: 0.48rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(24, 50, 74, 0.08);
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
+}
+
+.product-detail-back-button:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #edf4fa 100%);
+  border-color: #b6c5d6;
+  box-shadow: 0 12px 26px rgba(24, 50, 74, 0.12);
+}
+
+.product-detail-back-button:active {
+  transform: translateY(1px);
+}
+
+.product-detail-back-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 999px;
+  background: rgba(24, 50, 74, 0.08);
+  color: #18324a;
+  font-size: 0.78rem;
+  flex-shrink: 0;
 }
 
 /* Images Section */
@@ -157,6 +208,12 @@
   color: #ccc;
 }
 
+@media (max-width: 640px) {
+  .product-detail {
+    padding: 0.85rem;
+  }
+}
+
 .product-title {
   font-size: 1.25rem;
   font-weight: 600;
@@ -222,6 +279,28 @@
   color: #555;
   line-height: 1.6;
   margin: 0;
+}
+
+.quantity-section {
+  padding: 1rem 0;
+}
+
+.quantity-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: #1a1a1a;
+}
+
+.quantity-section p {
+  color: #555;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.out-of-stock-contact {
+  color: #8a1f11;
+  font-weight: 600;
 }
 
 /* Tags Section */

@@ -5,6 +5,7 @@ Initializes Flask, CORS, Flask-SQLAlchemy, and registers blueprints.
 import os
 import ipaddress
 import socket
+import mimetypes
 from urllib import request as urllib_request
 from urllib.error import URLError, HTTPError
 from urllib.parse import urlparse
@@ -270,23 +271,32 @@ def create_app(config_name=None):
         import io
         from backend.db import get_db, _use_mysql
         
-        # Try to find image_data in database by filename
+        # Try to find image_data in database by filename/URL variants first.
         try:
             conn = get_db()
             cursor = conn.cursor()
             is_mysql = _use_mysql()
             placeholder = "%s" if is_mysql else "?"
-            
+
+            url_variants = [
+                f"/uploads/products/{filename}",
+                f"uploads/products/{filename}",
+                filename,
+            ]
+
             cursor.execute(
-                f"SELECT image_data, media_type FROM product_images WHERE image_url = {placeholder} OR image_url = {placeholder} LIMIT 1",
-                (f"/uploads/products/{filename}", filename)
+                f"SELECT image_data, media_type FROM product_images WHERE image_url = {placeholder} OR image_url = {placeholder} OR image_url = {placeholder} LIMIT 1",
+                tuple(url_variants),
             )
             row = cursor.fetchone()
             conn.close()
             if row:
                 row_dict = dict(row)
                 image_data = row_dict.get("image_data")
-                media_type = row_dict.get("media_type") or "image/jpeg"
+                media_type = str(row_dict.get("media_type") or "").strip().lower()
+                if media_type in {"image", "video", ""}:
+                    inferred_mime, _ = mimetypes.guess_type(filename)
+                    media_type = inferred_mime or "image/jpeg"
                 if image_data:
                     return send_file(
                         io.BytesIO(image_data),
@@ -298,9 +308,22 @@ def create_app(config_name=None):
             # Log and continue to filesystem fallback
             app.logger.debug(f"Error fetching product image from DB: {e}")
         
-        # Fallback to filesystem
-        products_dir = Path(app.root_path) / "uploads" / "products"
-        return send_from_directory(str(products_dir), filename)
+        # Fallback to filesystem (configured uploads root first, then legacy backend/uploads).
+        configured_upload_root = app.config.get("UPLOAD_FOLDER") or str(Path(app.root_path) / "uploads")
+        candidate_dirs = [
+            Path(str(configured_upload_root)) / "products",
+            Path(app.root_path) / "uploads" / "products",
+        ]
+        seen_dirs = set()
+        for products_dir in candidate_dirs:
+            normalized_dir = str(products_dir.resolve())
+            if normalized_dir in seen_dirs:
+                continue
+            seen_dirs.add(normalized_dir)
+            if (products_dir / filename).is_file():
+                return send_from_directory(str(products_dir), filename)
+
+        return jsonify({'error': 'Image not found'}), 404
 
     # Serve uploaded review images at /uploads/reviews/<filename>
     # Supports both configured upload roots and legacy backend/uploads path.

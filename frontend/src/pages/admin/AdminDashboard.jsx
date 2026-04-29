@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { jsPDF } from "jspdf";
 // import AddEtsyListingForm from "../../components/forms/AddEtsyListingForm";
 import {
   createAdminTemplate,
@@ -249,11 +250,83 @@ const mimeTypeFromExtension = (extension, fallbackMediaType = "") => {
 const hexStringToBytes = (value) => {
   const hexStr = String(value || "").trim();
   if (!hexStr) return null;
+  if (hexStr.length % 2 !== 0) return null;
   const bytes = new Uint8Array(hexStr.length / 2);
   for (let i = 0; i < hexStr.length; i += 2) {
     bytes[i / 2] = parseInt(hexStr.substr(i, 2), 16);
   }
   return bytes;
+};
+
+const normalizeBase64String = (value) => {
+  const cleaned = String(value || "")
+    .trim()
+    .replace(/\s+/g, "")
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  if (!cleaned || /[^A-Za-z0-9+/=]/.test(cleaned)) return "";
+
+  const paddedLength = Math.ceil(cleaned.length / 4) * 4;
+  return cleaned.padEnd(paddedLength, "=");
+};
+
+const imageDataToBytes = (value) => {
+  const rawValue = String(value || "").trim();
+  if (!rawValue) return null;
+
+  if (/^[0-9a-f]+$/i.test(rawValue) && rawValue.length % 2 === 0) {
+    return hexStringToBytes(rawValue);
+  }
+
+  const base64 = normalizeBase64String(rawValue);
+  if (!base64) return null;
+
+  try {
+    const binary = window.atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+  } catch {
+    return null;
+  }
+};
+
+const bytesToBase64 = (bytes) => {
+  if (!bytes || bytes.length === 0) return "";
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.subarray(index, index + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return window.btoa(binary);
+};
+
+const imageDataToDataUrl = (imageObj) => {
+  if (!imageObj?.image_data || typeof imageObj.image_data !== "string") {
+    return "";
+  }
+
+  if (imageObj.image_data.startsWith("data:")) {
+    return imageObj.image_data.replace(/\s+/g, "");
+  }
+
+  try {
+    const bytes = imageDataToBytes(imageObj.image_data);
+    if (!bytes || bytes.length === 0) return "";
+    const mediaType = mimeTypeFromExtension(
+      extensionFromUrl(imageObj.image_url || ""),
+      imageObj.media_type,
+    );
+    const base64 = bytesToBase64(bytes);
+    return base64 ? `data:${mediaType};base64,${base64}` : "";
+  } catch (error) {
+    console.warn("Failed to convert image_data into data URL:", error);
+    return "";
+  }
 };
 
 const createGalleryUploadFileFromImage = async (imageObj, fallbackBaseName = "gallery-image") => {
@@ -266,7 +339,7 @@ const createGalleryUploadFileFromImage = async (imageObj, fallbackBaseName = "ga
 
   if (imageObj.image_data && typeof imageObj.image_data === "string") {
     try {
-      const bytes = hexStringToBytes(imageObj.image_data);
+      const bytes = imageDataToBytes(imageObj.image_data);
       if (bytes && bytes.length > 0) {
         return new File([bytes], `${safeBaseName}${extension}`, { type: mimeType });
       }
@@ -301,26 +374,57 @@ const resolveImageObjectToUrl = (imageObj) => {
     return resolveMediaUrl(String(imageObj || ""));
   }
 
-  // If image_data is available (hex string), convert to blob URL
-  if (imageObj.image_data && typeof imageObj.image_data === "string") {
-    try {
-      const bytes = hexStringToBytes(imageObj.image_data);
-      if (bytes && bytes.length > 0) {
-        const mediaType = mimeTypeFromExtension(
-          extensionFromUrl(imageObj.image_url || ""),
-          imageObj.media_type,
-        );
-        const blob = new Blob([bytes], { type: mediaType });
-        return URL.createObjectURL(blob);
-      }
-    } catch (err) {
-      // Log but continue to image_url fallback
-      console.warn("Failed to convert image_data hex to blob:", err);
-    }
-  }
+  const dataUrl = imageDataToDataUrl(imageObj);
+  if (dataUrl) return dataUrl;
 
   // Fallback to image_url
   return resolveMediaUrl(imageObj.image_url || "");
+};
+
+const getProductThumbnailCandidates = (images) => {
+  const seen = new Set();
+  return ensureArray(images)
+    .filter((entry) => entry?.media_type !== "video")
+    .map((entry) => resolveImageObjectToUrl(entry))
+    .filter((entry) => {
+      const value = String(entry || "").trim();
+      if (!value || seen.has(value)) return false;
+      seen.add(value);
+      return true;
+    });
+};
+
+const isPatternProductRecord = (product) =>
+  ensureArray(product?.category)
+    .map((entry) => String(entry || "").toLowerCase().replace(/[^a-z0-9]/g, ""))
+    .some((entry) => entry === "pattern" || entry === "patterns");
+
+const imageNeedsLinkedTemplateFallback = (imageObj) => {
+  if (!imageObj || typeof imageObj !== "object") return true;
+  if (imageObj.image_data) return false;
+  const imageUrl = String(imageObj.image_url || "").trim();
+  if (!imageUrl) return true;
+  return imageUrl.startsWith("/uploads/templates/") || imageUrl.startsWith("uploads/templates/");
+};
+
+const getProductDisplayThumbnailCandidates = (product, linkedTemplatePreviewUrl = "") => {
+  const baseCandidates = getProductThumbnailCandidates(product?.images);
+  if (!linkedTemplatePreviewUrl || !isPatternProductRecord(product)) {
+    return baseCandidates;
+  }
+
+  const firstImage = ensureArray(product?.images)[0] || null;
+  if (firstImage && !imageNeedsLinkedTemplateFallback(firstImage)) {
+    return baseCandidates;
+  }
+
+  const seen = new Set();
+  return [linkedTemplatePreviewUrl, ...baseCandidates].filter((entry) => {
+    const value = String(entry || "").trim();
+    if (!value || seen.has(value)) return false;
+    seen.add(value);
+    return true;
+  });
 };
 
 const normalizeStoredProductImage = (entry) => {
@@ -1187,6 +1291,7 @@ export default function AdminDashboard({
   };
   const [status, setStatus] = useState("");
   const [isRefreshingCatalog, setIsRefreshingCatalog] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [manualProductSearch, setManualProductSearch] = useState("");
   const [deactivatedProductSearch, setDeactivatedProductSearch] = useState("");
   const [manualProductTypeFilter, setManualProductTypeFilter] = useState("all");
@@ -1195,6 +1300,8 @@ export default function AdminDashboard({
   const [patternToTemplateStatus, setPatternToTemplateStatus] = useState("");
   const [manualProductsPage, setManualProductsPage] = useState(1);
   const [deactivatedProductsPage, setDeactivatedProductsPage] = useState(1);
+  const [linkedTemplatePreviewUrls, setLinkedTemplatePreviewUrls] = useState({});
+  const pdfThumbnailCacheRef = useRef(new Map());
   const [customersPage, setCustomersPage] = useState(1);
   const [reviewCodesPage, setReviewCodesPage] = useState(1);
   const [reviewsPage, setReviewsPage] = useState(1);
@@ -1554,6 +1661,52 @@ export default function AdminDashboard({
     const startIndex = (currentDeactivatedProductsPage - 1) * MANUAL_PRODUCTS_PER_PAGE;
     return filteredDeactivatedProducts.slice(startIndex, startIndex + MANUAL_PRODUCTS_PER_PAGE);
   }, [filteredDeactivatedProducts, currentDeactivatedProductsPage]);
+
+  useEffect(() => {
+    let isActive = true;
+    const visibleProducts = [...pagedManualProducts, ...pagedDeactivatedProducts];
+    const missingTemplateIds = Array.from(
+      new Set(
+        visibleProducts
+          .filter((product) => isPatternProductRecord(product))
+          .map((product) => String(product?.related_links?.template_id || "").trim())
+          .filter((templateId) => templateId && !linkedTemplatePreviewUrls[templateId]),
+      ),
+    );
+
+    if (missingTemplateIds.length === 0) {
+      return () => {
+        isActive = false;
+      };
+    }
+
+    Promise.all(
+      missingTemplateIds.map(async (templateId) => {
+        try {
+          const payload = await getTemplate(templateId);
+          const resolvedUrl = resolveMediaUrl(payload?.thumbnail_url || payload?.image_url || "");
+          return [templateId, resolvedUrl || ""];
+        } catch {
+          return [templateId, ""];
+        }
+      }),
+    ).then((entries) => {
+      if (!isActive) return;
+      setLinkedTemplatePreviewUrls((prev) => {
+        const next = { ...prev };
+        entries.forEach(([templateId, resolvedUrl]) => {
+          if (!(templateId in next) || (!next[templateId] && resolvedUrl)) {
+            next[templateId] = resolvedUrl;
+          }
+        });
+        return next;
+      });
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [pagedManualProducts, pagedDeactivatedProducts, linkedTemplatePreviewUrls]);
 
   const pagedCustomers = useMemo(() => {
     const startIndex = (customersPage - 1) * SECTION_PAGE_SIZE;
@@ -2172,53 +2325,54 @@ export default function AdminDashboard({
 
       if (shouldSaveProduct) {
       // Upload new File objects to the server; re-upload legacy data: URLs to get server paths.
-        processedImages = [];
-
-        for (const img of manualProduct.images || []) {
-          if (img instanceof File) {
-            const formData = new FormData();
-            formData.append("file", img);
-            const uploadResult = await uploadProductImage(formData);
-            const uploadedUrl = String(uploadResult?.image_url || "").trim();
-            if (uploadedUrl) {
-              processedImages.push({
+        // All uploads run in parallel so multiple images don't block each other.
+        processedImages = (await Promise.all(
+          (manualProduct.images || []).map(async (img) => {
+            if (img instanceof File) {
+              const formData = new FormData();
+              formData.append("file", img);
+              const uploadResult = await uploadProductImage(formData);
+              const uploadedUrl = String(uploadResult?.image_url || "").trim();
+              if (!uploadedUrl) return null;
+              return {
                 image_url: uploadedUrl,
                 media_type: isVideoFile(img) ? "video" : "image",
                 ...(uploadResult?.image_data ? { image_data: uploadResult.image_data } : {}),
-              });
+              };
             }
-          } else if (img.image_url) {
-            const existingUrl = String(img.image_url || "").trim();
-            // Legacy records may store full data: URLs; re-upload to get a server path.
-            if (existingUrl.startsWith("data:") && existingUrl.includes(",")) {
-              try {
-                const resp = await fetch(existingUrl);
-                const blob = await resp.blob();
-                const ext = blob.type === "image/png" ? ".png" : blob.type === "image/webp" ? ".webp" : ".jpg";
-                const file = new File([blob], `migrated${ext}`, { type: blob.type });
-                const formData = new FormData();
-                formData.append("file", file);
-                const uploadResult = await uploadProductImage(formData);
-                const uploadedUrl = String(uploadResult?.image_url || "").trim();
-                if (uploadedUrl) {
-                  processedImages.push({
-                    image_url: uploadedUrl,
-                    media_type: img.media_type || "image",
-                    ...(uploadResult?.image_data ? { image_data: uploadResult.image_data } : {}),
-                  });
-                  continue;
+            if (img.image_url) {
+              const existingUrl = String(img.image_url || "").trim();
+              // Legacy records may store full data: URLs; re-upload to get a server path.
+              if (existingUrl.startsWith("data:") && existingUrl.includes(",")) {
+                try {
+                  const resp = await fetch(existingUrl);
+                  const blob = await resp.blob();
+                  const ext = blob.type === "image/png" ? ".png" : blob.type === "image/webp" ? ".webp" : ".jpg";
+                  const file = new File([blob], `migrated${ext}`, { type: blob.type });
+                  const formData = new FormData();
+                  formData.append("file", file);
+                  const uploadResult = await uploadProductImage(formData);
+                  const uploadedUrl = String(uploadResult?.image_url || "").trim();
+                  if (uploadedUrl) {
+                    return {
+                      image_url: uploadedUrl,
+                      media_type: img.media_type || "image",
+                      ...(uploadResult?.image_data ? { image_data: uploadResult.image_data } : {}),
+                    };
+                  }
+                } catch {
+                  // Fall through to keep the original data: URL as a last resort
                 }
-              } catch {
-                // Fall through to keep the original data: URL as a last resort
               }
+              return {
+                image_url: existingUrl,
+                media_type: img.media_type || "image",
+                ...(img.image_data ? { image_data: img.image_data } : {}),
+              };
             }
-            processedImages.push({
-              image_url: existingUrl,
-              media_type: img.media_type || "image",
-              ...(img.image_data ? { image_data: img.image_data } : {}),
-            });
-          }
-        }
+            return null;
+          }),
+        )).filter(Boolean);
 
         const linkedTemplateSourceFile = relatedTemplateUpload.file || unifiedTemplate.upload_file;
 
@@ -2344,32 +2498,25 @@ export default function AdminDashboard({
         );
         let productImagesForSave = processedImages;
         if (shouldManagePatternReferencePhotos) {
-          const referenceImages = [];
-          for (const entry of templateRefPhotos) {
-            const file = entry?.file;
-            if (file instanceof File) {
-              if (!String(file.type || "").startsWith("image/")) {
-                continue;
+          const referenceImages = (await Promise.all(
+            templateRefPhotos.map(async (entry) => {
+              const file = entry?.file;
+              if (file instanceof File) {
+                if (!String(file.type || "").startsWith("image/")) return null;
+                const formData = new FormData();
+                formData.append("file", file);
+                const uploadResult = await uploadProductImage(formData);
+                const uploadedUrl = String(uploadResult?.image_url || "").trim();
+                if (!uploadedUrl) return null;
+                return { image_url: uploadedUrl, media_type: "image" };
               }
-              const formData = new FormData();
-              formData.append("file", file);
-              const uploadResult = await uploadProductImage(formData);
-              const uploadedUrl = String(uploadResult?.image_url || "").trim();
-              if (uploadedUrl) {
-                referenceImages.push({ image_url: uploadedUrl, media_type: "image" });
-              }
-              continue;
-            }
-
-            const existingReference = normalizeStoredProductImage({
-              image_url: entry?.image_url || entry?.src,
-              media_type: "image",
-              image_data: entry?.image_data,
-            });
-            if (existingReference) {
-              referenceImages.push(existingReference);
-            }
-          }
+              return normalizeStoredProductImage({
+                image_url: entry?.image_url || entry?.src,
+                media_type: "image",
+                image_data: entry?.image_data,
+              }) || null;
+            }),
+          )).filter(Boolean);
 
           const imageEntries = productImagesForSave.filter(
             (entry) => String(entry?.media_type || entry?.type || "image").toLowerCase() !== "video",
@@ -2506,35 +2653,25 @@ export default function AdminDashboard({
             ? null
             : existingPatternIdRaw;
 
-        const referenceImages = [];
-        for (const entry of templateRefPhotos) {
-          const file = entry?.file;
-          if (file instanceof File) {
-            if (!String(file.type || "").startsWith("image/")) {
-              continue;
+        const referenceImages = (await Promise.all(
+          templateRefPhotos.map(async (entry) => {
+            const file = entry?.file;
+            if (file instanceof File) {
+              if (!String(file.type || "").startsWith("image/")) return null;
+              const formData = new FormData();
+              formData.append("file", file);
+              const uploadResult = await uploadProductImage(formData);
+              const uploadedUrl = String(uploadResult?.image_url || "").trim();
+              if (!uploadedUrl) return null;
+              return { image_url: uploadedUrl, media_type: "image" };
             }
-            const formData = new FormData();
-            formData.append("file", file);
-            const uploadResult = await uploadProductImage(formData);
-            const uploadedUrl = String(uploadResult?.image_url || "").trim();
-            if (uploadedUrl) {
-              referenceImages.push({
-                image_url: uploadedUrl,
-                media_type: "image",
-              });
-            }
-            continue;
-          }
-
-          const existingReference = normalizeStoredProductImage({
-            image_url: entry?.image_url || entry?.src,
-            media_type: "image",
-            image_data: entry?.image_data,
-          });
-          if (existingReference) {
-            referenceImages.push(existingReference);
-          }
-        }
+            return normalizeStoredProductImage({
+              image_url: entry?.image_url || entry?.src,
+              media_type: "image",
+              image_data: entry?.image_data,
+            }) || null;
+          }),
+        )).filter(Boolean);
 
         if (!patternPreferredImageUrl && relatedLinks.template_id) {
           const selectedTemplate = productTemplateOptions.find(
@@ -3596,197 +3733,282 @@ export default function AdminDashboard({
     }
   };
 
-  const handlePrintListedProducts = () => {
+  const handlePrintListedProducts = async () => {
     if (filteredManualProducts.length === 0) {
-      setStatus("No listed products to print.");
+      setStatus("No listed products to export.");
       return;
     }
 
-    const printWindow = window.open("", "_blank", "width=1024,height=768");
-    if (!printWindow) {
-      setStatus("Unable to open print view. Please allow pop-ups for this site.");
-      return;
-    }
-
+    setIsGeneratingPdf(true);
     try {
-      const escapeHtml = (value) =>
-        String(value || "")
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/\"/g, "&quot;")
-          .replace(/'/g, "&#39;");
+      setStatus("Preparing checklist PDF...");
 
-      const listItemsMarkup = filteredManualProducts
-        .map((product, index) => {
-          const images = Array.isArray(product.images) ? product.images : [];
-          const firstImage = images.find((entry) => entry?.media_type !== "video") || images[0] || null;
-          const imageUrl = firstImage ? resolveImageObjectToUrl(firstImage) : "";
-          const priceLabel = formatListingPriceLabel(product);
-          const tagsLabel = toDisplayList(product.category) || "No tags";
+      const imageToJpegDataUrl = async (url) => {
+        const normalized = (() => {
+          const raw = String(url || "").trim();
+          if (!raw) return "";
+          if (raw.startsWith("http://") || raw.startsWith("https://")) {
+            try {
+              const parsed = new URL(raw);
+              if (parsed.pathname.startsWith("/uploads/") && parsed.origin !== window.location.origin) {
+                return `${window.location.origin}${parsed.pathname}`;
+              }
+            } catch {
+              return raw;
+            }
+          }
+          return raw;
+        })();
+        if (!normalized) return "";
 
-          return `
-            <li class="checklist-item">
-              <div class="check-cell">
-                <span class="print-check"></span>
-                <span class="item-number">${index + 1}.</span>
-              </div>
-              <div class="thumb-cell">
-                ${imageUrl
-                  ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name || "Product thumbnail")}" />`
-                  : `<div class="thumb-fallback">No image</div>`}
-              </div>
-              <div class="content-cell">
-                <div class="name">${escapeHtml(product.name || "Untitled product")}</div>
-                <div class="price">${escapeHtml(priceLabel)}</div>
-                <div class="tags">Tags: ${escapeHtml(tagsLabel)}</div>
-              </div>
-            </li>
-          `;
-        })
-        .join("");
-
-      const nowLabel = new Date().toLocaleString();
-
-      const printMarkup = `
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Manual Products Checklist</title>
-          <style>
-            * { box-sizing: border-box; }
-            body {
-              margin: 0;
-              padding: 20px;
-              font-family: Arial, sans-serif;
-              color: #111827;
-              background: #ffffff;
-            }
-            .header {
-              margin-bottom: 14px;
-              border-bottom: 1px solid #d1d5db;
-              padding-bottom: 10px;
-            }
-            .header h1 {
-              margin: 0;
-              font-size: 22px;
-            }
-            .header p {
-              margin: 4px 0 0;
-              color: #4b5563;
-              font-size: 13px;
-            }
-            .list {
-              list-style: none;
-              margin: 0;
-              padding: 0;
-              display: grid;
-              gap: 10px;
-            }
-            .checklist-item {
-              border: 1px solid #d1d5db;
-              border-radius: 8px;
-              padding: 10px;
-              display: grid;
-              grid-template-columns: 88px 84px 1fr;
-              gap: 10px;
-              align-items: start;
-              page-break-inside: avoid;
-            }
-            .check-cell {
-              display: flex;
-              align-items: center;
-              gap: 8px;
-              padding-top: 4px;
-            }
-            .print-check {
-              width: 18px;
-              height: 18px;
-              border: 1.5px solid #1f2937;
-              border-radius: 3px;
-              flex-shrink: 0;
-            }
-            .item-number {
-              font-size: 12px;
-              color: #374151;
-              min-width: 32px;
-            }
-            .thumb-cell img,
-            .thumb-fallback {
-              width: 74px;
-              height: 74px;
-              border-radius: 6px;
-              border: 1px solid #cbd5e1;
-            }
-            .thumb-cell img {
-              object-fit: cover;
-              display: block;
-            }
-            .thumb-fallback {
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 11px;
-              color: #6b7280;
-              background: #f8fafc;
-            }
-            .content-cell {
-              min-width: 0;
-            }
-            .name {
-              font-size: 15px;
-              font-weight: 700;
-              margin-bottom: 4px;
-              line-height: 1.3;
-            }
-            .price {
-              font-size: 14px;
-              font-weight: 700;
-              color: #0f3fa6;
-              margin-bottom: 4px;
-            }
-            .tags {
-              font-size: 12px;
-              color: #374151;
-              line-height: 1.35;
-            }
-            @media print {
-              body { padding: 12px; }
-              .checklist-item { break-inside: avoid; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Manual Products Checklist</h1>
-            <p>${escapeHtml(`Listed products: ${filteredManualProducts.length} · Generated: ${nowLabel}`)}</p>
-          </div>
-          <ol class="list">${listItemsMarkup}</ol>
-        </body>
-      </html>
-      `;
-
-      printWindow.document.open();
-      printWindow.document.write(printMarkup);
-      printWindow.document.close();
-      printWindow.focus();
-
-      window.setTimeout(() => {
-        try {
-          printWindow.print();
-        } catch (error) {
-          console.error("Print dialog failed to open:", error);
+        const cache = pdfThumbnailCacheRef.current;
+        if (cache.has(normalized)) {
+          return String(cache.get(normalized) || "");
         }
-      }, 250);
-    } catch (error) {
-      console.error("Failed to build print view:", error);
-      printWindow.document.open();
-      printWindow.document.write(
-        "<html><body style='font-family: Arial, sans-serif; padding: 16px;'><h2>Unable to render print view</h2><p>Please try again.</p></body></html>",
+
+        const jpegDataUrl = await Promise.race([
+          new Promise((resolve) => {
+            const image = new Image();
+            image.crossOrigin = "anonymous";
+
+            image.onload = () => {
+              try {
+                const sourceWidth = Math.max(1, Number(image.naturalWidth || image.width || 1));
+                const sourceHeight = Math.max(1, Number(image.naturalHeight || image.height || 1));
+                const maxEdge = 360;
+                const scale = Math.min(1, maxEdge / Math.max(sourceWidth, sourceHeight));
+                const canvas = document.createElement("canvas");
+                canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+                canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+                const ctx = canvas.getContext("2d");
+                if (!ctx) {
+                  resolve("");
+                  return;
+                }
+                ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL("image/jpeg", 0.86));
+              } catch {
+                resolve("");
+              }
+            };
+
+            image.onerror = () => resolve("");
+            image.src = normalized;
+          }),
+          // Give up after 8 s so a 404 / slow server doesn't stall the whole PDF.
+          new Promise((resolve) => setTimeout(() => resolve(""), 8000)),
+        ]);
+
+        cache.set(normalized, jpegDataUrl);
+        return jpegDataUrl;
+      };
+
+      const alphabetizedProducts = [...filteredManualProducts].sort((left, right) =>
+        String(left?.name || "").localeCompare(String(right?.name || ""), undefined, {
+          sensitivity: "base",
+          numeric: true,
+        }),
       );
-      printWindow.document.close();
-      setStatus("Unable to render print view. Please try again.");
+
+      // Batch-prefetch all template previews in parallel so the per-product
+      // loop below never stalls waiting for sequential network requests.
+      const missingTemplateIds = Array.from(
+        new Set(
+          alphabetizedProducts
+            .filter((p) => isPatternProductRecord(p))
+            .map((p) => String(p?.related_links?.template_id || "").trim())
+            .filter((tid) => tid && !linkedTemplatePreviewUrls[tid]),
+        ),
+      );
+      const prefetchedTemplateUrls = { ...linkedTemplatePreviewUrls };
+      if (missingTemplateIds.length > 0) {
+        setStatus(`Preparing checklist PDF… (loading ${missingTemplateIds.length} template preview${missingTemplateIds.length === 1 ? "" : "s"})`);
+        await Promise.all(
+          missingTemplateIds.map(async (tid) => {
+            try {
+              const payload = await getTemplate(tid);
+              prefetchedTemplateUrls[tid] = resolveMediaUrl(payload?.thumbnail_url || payload?.image_url || "") || "";
+            } catch {
+              prefetchedTemplateUrls[tid] = "";
+            }
+          }),
+        );
+        setStatus("Preparing checklist PDF… (building pages)");
+      }
+
+      const resolveWithConcurrency = async (items, limit, mapper) => {
+        const results = new Array(items.length);
+        let nextIndex = 0;
+        const workerCount = Math.min(limit, items.length || 0);
+
+        const workers = Array.from({ length: workerCount }, async () => {
+          while (nextIndex < items.length) {
+            const index = nextIndex;
+            nextIndex += 1;
+            results[index] = await mapper(items[index], index);
+          }
+        });
+
+        await Promise.all(workers);
+        return results;
+      };
+
+      // Pre-resolve all image URLs with limited concurrency to avoid browser request throttling.
+      const resolvedImageUrls = await resolveWithConcurrency(
+        alphabetizedProducts,
+        6,
+        async (product) => {
+          const templateId = String(product?.related_links?.template_id || "").trim();
+          const linkedUrl = prefetchedTemplateUrls[templateId] || "";
+          let candidates = getProductDisplayThumbnailCandidates(product, linkedUrl);
+
+          // Some list payloads do not include complete image metadata.
+          // Fall back to the full product payload for PDF image resolution.
+          if (candidates.length === 0) {
+            const productId = String(product?.id || "").trim();
+            if (productId) {
+              try {
+                const fullProduct = await fetchManualProduct(productId);
+                candidates = getProductDisplayThumbnailCandidates(fullProduct, linkedUrl);
+              } catch {
+                // Keep candidates empty and render the "No image" placeholder.
+              }
+            }
+          }
+
+          const url = candidates[0] || "";
+          return imageToJpegDataUrl(url);
+        },
+      );
+
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginX = 10;
+      const topHeaderY = 12;
+      const contentTopY = 28;
+      const bottomMargin = 10;
+
+      const rowGap = 2;
+      const rowStartX = marginX;
+      const rowWidth = pageWidth - marginX * 2;
+      const checkBoxXOffset = 2;
+      const checkBoxYOffset = 6;
+      const thumbXOffset = 24;
+      const thumbYOffset = 4;
+      const thumbSize = 16;
+      const textXOffset = 44;
+      const lineHeight = 3.9;
+
+      const drawHeader = () => {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text("Manual Products Checklist", marginX, topHeaderY);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9.5);
+        doc.setTextColor(75, 85, 99);
+        doc.text(`Listed products: ${alphabetizedProducts.length} · Generated: ${new Date().toLocaleString()}`, marginX, topHeaderY + 5);
+        doc.setDrawColor(209, 213, 219);
+        doc.line(marginX, topHeaderY + 8, pageWidth - marginX, topHeaderY + 8);
+        doc.setTextColor(17, 24, 39);
+      };
+
+      drawHeader();
+
+      let y = contentTopY;
+
+      for (let index = 0; index < alphabetizedProducts.length; index += 1) {
+        const product = alphabetizedProducts[index];
+        const priceLabel = formatListingPriceLabel(product);
+        const tagsLabel = `Tags: ${toDisplayList(product.category) || "No tags"}`;
+        const dimensionParts = [
+          product?.width ? `W: ${product.width}` : "",
+          product?.height ? `H: ${product.height}` : "",
+          product?.depth ? `D: ${product.depth}` : "",
+        ].filter(Boolean);
+        const dimensionsLabel = `Size: ${dimensionParts.length > 0 ? dimensionParts.join(" · ") : "No size listed"}`;
+
+        const contentWidth = rowWidth - textXOffset - 2;
+        const nameLines = doc.splitTextToSize(String(product?.name || "Untitled product"), contentWidth);
+        const tagsLines = doc.splitTextToSize(tagsLabel, contentWidth);
+
+        const textLineCount = Math.max(4, nameLines.length + 1 + 1 + tagsLines.length);
+        const rowHeight = Math.max(24, 6 + (textLineCount * lineHeight));
+
+        if (y + rowHeight > pageHeight - bottomMargin) {
+          doc.addPage();
+          drawHeader();
+          y = contentTopY;
+        }
+
+        doc.setDrawColor(209, 213, 219);
+        doc.roundedRect(rowStartX, y, rowWidth, rowHeight, 2.2, 2.2, "S");
+
+        doc.rect(rowStartX + checkBoxXOffset, y + checkBoxYOffset, 4, 4);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9.5);
+        doc.setTextColor(55, 65, 81);
+        doc.text(`${index + 1}.`, rowStartX + checkBoxXOffset + 6.5, y + checkBoxYOffset + 3.3);
+
+        const imageDataUrl = resolvedImageUrls[index] || "";
+        if (imageDataUrl) {
+          try {
+            doc.addImage(imageDataUrl, "JPEG", rowStartX + thumbXOffset, y + thumbYOffset, thumbSize, thumbSize);
+            doc.setDrawColor(203, 213, 225);
+            doc.rect(rowStartX + thumbXOffset, y + thumbYOffset, thumbSize, thumbSize);
+          } catch {
+            doc.setDrawColor(203, 213, 225);
+            doc.rect(rowStartX + thumbXOffset, y + thumbYOffset, thumbSize, thumbSize);
+            doc.setFontSize(8);
+            doc.setTextColor(107, 114, 128);
+            doc.text("No image", rowStartX + thumbXOffset + 2.7, y + thumbYOffset + 8.8);
+          }
+        } else {
+          doc.setDrawColor(203, 213, 225);
+          doc.rect(rowStartX + thumbXOffset, y + thumbYOffset, thumbSize, thumbSize);
+          doc.setFontSize(8);
+          doc.setTextColor(107, 114, 128);
+          doc.text("No image", rowStartX + thumbXOffset + 2.7, y + thumbYOffset + 8.8);
+        }
+
+        let textY = y + 5.5;
+        doc.setTextColor(17, 24, 39);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10.5);
+        nameLines.forEach((line) => {
+          doc.text(String(line), rowStartX + textXOffset, textY);
+          textY += lineHeight;
+        });
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(15, 63, 166);
+        doc.text(priceLabel, rowStartX + textXOffset, textY);
+        textY += lineHeight;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.8);
+        doc.setTextColor(31, 41, 55);
+        doc.text(dimensionsLabel, rowStartX + textXOffset, textY);
+        textY += lineHeight;
+
+        doc.setTextColor(55, 65, 81);
+        tagsLines.forEach((line) => {
+          doc.text(String(line), rowStartX + textXOffset, textY);
+          textY += lineHeight;
+        });
+
+        y += rowHeight + rowGap;
+      }
+
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      doc.save(`manual-products-checklist-${stamp}.pdf`);
+      setStatus("PDF downloaded — open it from your Downloads folder to print.");
+    } catch (error) {
+      console.error("Failed to export checklist PDF:", error);
+      setStatus("Unable to export checklist PDF. Please try again.");
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
@@ -4224,6 +4446,12 @@ export default function AdminDashboard({
         detail: "Refreshing products and templates from the latest data.",
       };
     }
+    if (isGeneratingPdf) {
+      return {
+        title: "Generating PDF...",
+        detail: "Building the product checklist for download.",
+      };
+    }
     if (isLoadingDigitalSessions || activeRecoverySessionId || activeResendSessionId) {
       return {
         title: "Loading checkout sessions...",
@@ -4281,6 +4509,7 @@ export default function AdminDashboard({
     isSavingCustomer,
     isDeletingCustomer,
     isRefreshingCatalog,
+    isGeneratingPdf,
     isLoadingDigitalSessions,
     activeRecoverySessionId,
     activeResendSessionId,
@@ -4792,7 +5021,7 @@ export default function AdminDashboard({
                     onClick={handlePrintListedProducts}
                     disabled={filteredManualProducts.length === 0}
                   >
-                    Print Listed Products
+                    Print Product Listing
                   </button>
                   <button
                     type="button"
@@ -4903,14 +5132,41 @@ export default function AdminDashboard({
                                 className="thumb-placeholder"
                               />
                             ) : (
-                              <img
-                                src={resolveImageObjectToUrl(product.images[0])}
-                                alt={product.name}
-                              />
+                              (() => {
+                                const thumbnailCandidates = getProductDisplayThumbnailCandidates(
+                                  product,
+                                  linkedTemplatePreviewUrls[String(product?.related_links?.template_id || "").trim()] || "",
+                                );
+                                return thumbnailCandidates.length > 0 ? (
+                                  <img
+                                    src={thumbnailCandidates[0]}
+                                    alt={product.name}
+                                    onLoad={(event) => {
+                                      event.currentTarget.style.display = "block";
+                                      const sibling = event.currentTarget.nextElementSibling;
+                                      if (sibling) sibling.style.display = "none";
+                                    }}
+                                    onError={(event) => {
+                                      const fallbackIndex = Number(event.currentTarget.dataset.fallbackIndex || "0") + 1;
+                                      if (fallbackIndex < thumbnailCandidates.length) {
+                                        event.currentTarget.dataset.fallbackIndex = String(fallbackIndex);
+                                        event.currentTarget.src = thumbnailCandidates[fallbackIndex];
+                                        return;
+                                      }
+                                      event.currentTarget.style.display = "none";
+                                      const sibling = event.currentTarget.nextElementSibling;
+                                      if (sibling) sibling.style.display = "flex";
+                                    }}
+                                  />
+                                ) : null;
+                              })()
                             )
                           ) : (
                             <div className="thumb-placeholder">No image</div>
                           )}
+                          {product.images && product.images.length > 0 && product.images[0].media_type !== "video" ? (
+                            <div className="thumb-placeholder" style={{ display: "none" }}>No image</div>
+                          ) : null}
                         </div>
                         <div className="product-details">
                           <h4>
@@ -5090,14 +5346,41 @@ export default function AdminDashboard({
                                 className="thumb-placeholder"
                               />
                             ) : (
-                              <img
-                                src={resolveImageObjectToUrl(product.images[0])}
-                                alt={product.name}
-                              />
+                              (() => {
+                                const thumbnailCandidates = getProductDisplayThumbnailCandidates(
+                                  product,
+                                  linkedTemplatePreviewUrls[String(product?.related_links?.template_id || "").trim()] || "",
+                                );
+                                return thumbnailCandidates.length > 0 ? (
+                                  <img
+                                    src={thumbnailCandidates[0]}
+                                    alt={product.name}
+                                    onLoad={(event) => {
+                                      event.currentTarget.style.display = "block";
+                                      const sibling = event.currentTarget.nextElementSibling;
+                                      if (sibling) sibling.style.display = "none";
+                                    }}
+                                    onError={(event) => {
+                                      const fallbackIndex = Number(event.currentTarget.dataset.fallbackIndex || "0") + 1;
+                                      if (fallbackIndex < thumbnailCandidates.length) {
+                                        event.currentTarget.dataset.fallbackIndex = String(fallbackIndex);
+                                        event.currentTarget.src = thumbnailCandidates[fallbackIndex];
+                                        return;
+                                      }
+                                      event.currentTarget.style.display = "none";
+                                      const sibling = event.currentTarget.nextElementSibling;
+                                      if (sibling) sibling.style.display = "flex";
+                                    }}
+                                  />
+                                ) : null;
+                              })()
                             )
                           ) : (
                             <div className="thumb-placeholder">No image</div>
                           )}
+                          {product.images && product.images.length > 0 && product.images[0].media_type !== "video" ? (
+                            <div className="thumb-placeholder" style={{ display: "none" }}>No image</div>
+                          ) : null}
                         </div>
                         <div className="product-details">
                           <h4>

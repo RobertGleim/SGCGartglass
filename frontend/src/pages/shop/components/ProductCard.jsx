@@ -2,6 +2,38 @@ import { useEffect, useMemo, useState } from 'react'
 import './ProductCard.css'
 
 const templateImageCache = new Map()
+const manualCardImageCache = new Map()
+const MANUAL_CARD_IMAGE_CACHE_KEY_PREFIX = 'sgcg_manual_card_image_v1:'
+
+const readManualCardImageCache = (productId) => {
+  const key = String(productId || '').trim()
+  if (!key) return ''
+  if (manualCardImageCache.has(key)) {
+    return manualCardImageCache.get(key) || ''
+  }
+
+  try {
+    const stored = window.localStorage.getItem(`${MANUAL_CARD_IMAGE_CACHE_KEY_PREFIX}${key}`)
+    if (!stored) return ''
+    manualCardImageCache.set(key, stored)
+    return stored
+  } catch {
+    return ''
+  }
+}
+
+const writeManualCardImageCache = (productId, imageUrl) => {
+  const key = String(productId || '').trim()
+  const value = String(imageUrl || '').trim()
+  if (!key || !value) return
+
+  manualCardImageCache.set(key, value)
+  try {
+    window.localStorage.setItem(`${MANUAL_CARD_IMAGE_CACHE_KEY_PREFIX}${key}`, value)
+  } catch {
+    // Ignore storage quota/private mode issues.
+  }
+}
 
 const getApiOrigin = () => {
   const configuredBase = String(import.meta.env.VITE_API_BASE_URL || '/api').trim()
@@ -81,6 +113,87 @@ const normalizeResolvedUrl = (value) => {
   return `/${url.replace(/^\.?\//, '')}`
 }
 
+const hexStringToBytes = (value) => {
+  const hex = String(value || '').trim()
+  if (!hex || hex.length % 2 !== 0) return null
+  const bytes = new Uint8Array(hex.length / 2)
+  for (let index = 0; index < hex.length; index += 2) {
+    bytes[index / 2] = parseInt(hex.slice(index, index + 2), 16)
+  }
+  return bytes
+}
+
+const normalizeBase64String = (value) => {
+  const cleaned = String(value || '')
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+
+  if (!cleaned || /[^A-Za-z0-9+/=]/.test(cleaned)) return ''
+
+  const paddedLength = Math.ceil(cleaned.length / 4) * 4
+  return cleaned.padEnd(paddedLength, '=')
+}
+
+const bytesToBase64 = (bytes) => {
+  if (!bytes || bytes.length === 0) return ''
+  let binary = ''
+  const chunkSize = 0x8000
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.subarray(index, index + chunkSize)
+    binary += String.fromCharCode(...chunk)
+  }
+  return window.btoa(binary)
+}
+
+const mediaTypeFromEntry = (entry) => {
+  const mediaType = String(entry?.media_type || '').toLowerCase()
+  const imageUrl = String(entry?.image_url || '')
+  if (mediaType.startsWith('image/')) return mediaType
+  if (/\.png($|\?)/i.test(imageUrl)) return 'image/png'
+  if (/\.webp($|\?)/i.test(imageUrl)) return 'image/webp'
+  if (/\.gif($|\?)/i.test(imageUrl)) return 'image/gif'
+  if (/\.svg($|\?)/i.test(imageUrl)) return 'image/svg+xml'
+  return 'image/jpeg'
+}
+
+const imageDataToDataUrl = (entry) => {
+  const rawImageData = String(entry?.image_data || '').trim()
+  if (!rawImageData) return ''
+  if (rawImageData.startsWith('data:')) return rawImageData.replace(/\s+/g, '')
+
+  const mimeType = mediaTypeFromEntry(entry)
+  const hexBytes = /^[0-9a-f]+$/i.test(rawImageData) && rawImageData.length % 2 === 0
+    ? hexStringToBytes(rawImageData)
+    : null
+
+  if (hexBytes && hexBytes.length > 0) {
+    const base64 = bytesToBase64(hexBytes)
+    return base64 ? `data:${mimeType};base64,${base64}` : ''
+  }
+
+  const base64 = normalizeBase64String(rawImageData)
+  return base64 ? `data:${mimeType};base64,${base64}` : ''
+}
+
+const resolveImageEntryUrl = (entry) => {
+  if (!entry || typeof entry !== 'object') return normalizeResolvedUrl(entry)
+
+  if (entry.image_data && typeof entry.image_data === 'string') {
+    try {
+      const dataUrl = imageDataToDataUrl(entry)
+      if (dataUrl) return dataUrl
+    } catch {
+      // Fall back to URL fields below.
+    }
+  }
+
+  return normalizeResolvedUrl(
+    entry.image_url || entry.url || entry.src || entry.full_url || entry.large_url || entry.preview_url || entry.thumbnail_url,
+  )
+}
+
 const toTemplatePathFallbacks = (url) => {
   if (!url || url.startsWith('data:') || url.startsWith('blob:')) return []
   if (!url.startsWith('/uploads/templates/')) return []
@@ -107,6 +220,17 @@ const dedupeUrls = (urls) => {
 }
 
 const resolveCardImageCandidates = (product) => {
+  const imageObjectCandidates = Array.isArray(product?.images) && product.images.length > 0
+    ? product.images
+    : Array.isArray(product?.originalData?.images)
+      ? product.originalData.images
+      : []
+
+  const resolvedObjectCandidates = imageObjectCandidates
+    .filter((entry) => String(entry?.media_type || '').toLowerCase() !== 'video')
+    .map((entry) => resolveImageEntryUrl(entry))
+    .filter(Boolean)
+
   const rawCandidates = [
     product?.image_url,
     product?.thumbnail_url,
@@ -118,7 +242,7 @@ const resolveCardImageCandidates = (product) => {
     .map((entry) => normalizeResolvedUrl(entry))
     .filter(Boolean)
 
-  const extended = normalized.flatMap((entry) => [entry, ...toTemplatePathFallbacks(entry)])
+  const extended = [...resolvedObjectCandidates, ...normalized].flatMap((entry) => [entry, ...toTemplatePathFallbacks(entry)])
   return dedupeUrls(extended)
 }
 
@@ -142,6 +266,39 @@ const fetchTemplateFallbackImageUrl = async (templateId) => {
     return resolved || ''
   } catch {
     templateImageCache.set(key, '')
+    return ''
+  }
+}
+
+const fetchManualProductFallbackImageUrl = async (manualProductId) => {
+  const key = String(manualProductId || '').trim()
+  if (!key) return ''
+
+  const cached = readManualCardImageCache(key)
+  if (cached) return cached
+
+  try {
+    const response = await fetch(`${getApiOrigin()}/api/manual-products/${encodeURIComponent(key)}`)
+    if (!response.ok) {
+      manualCardImageCache.set(key, '')
+      return ''
+    }
+
+    const payload = await response.json()
+    const imageEntries = Array.isArray(payload?.images) ? payload.images : []
+    const resolved = imageEntries
+      .map((entry) => resolveImageEntryUrl(entry))
+      .find(Boolean) || ''
+
+    if (resolved) {
+      writeManualCardImageCache(key, resolved)
+    } else {
+      manualCardImageCache.set(key, '')
+    }
+
+    return resolved
+  } catch {
+    manualCardImageCache.set(key, '')
     return ''
   }
 }
@@ -170,19 +327,37 @@ export default function ProductCard({ product }) {
   const imageCandidates = useMemo(() => resolveCardImageCandidates(product), [product])
   const [candidateIndex, setCandidateIndex] = useState(0)
   const [templateFallbackUrl, setTemplateFallbackUrl] = useState('')
+  const [detailFallbackUrl, setDetailFallbackUrl] = useState('')
   const [hasRequestedTemplateFallback, setHasRequestedTemplateFallback] = useState(false)
+  const [hasRequestedDetailFallback, setHasRequestedDetailFallback] = useState(false)
   const [imageExhausted, setImageExhausted] = useState(false)
 
   useEffect(() => {
     setCandidateIndex(0)
     setTemplateFallbackUrl('')
+    setDetailFallbackUrl('')
     setHasRequestedTemplateFallback(false)
+    setHasRequestedDetailFallback(false)
     setImageExhausted(false)
   }, [product?.id, imageCandidates])
 
+  useEffect(() => {
+    if (detailFallbackUrl || hasRequestedDetailFallback || imageCandidates.length > 0 || !manualProductId) {
+      return
+    }
+
+    setHasRequestedDetailFallback(true)
+    fetchManualProductFallbackImageUrl(manualProductId).then((resolvedUrl) => {
+      if (resolvedUrl) {
+        setDetailFallbackUrl(resolvedUrl)
+        setImageExhausted(false)
+      }
+    })
+  }, [detailFallbackUrl, hasRequestedDetailFallback, imageCandidates.length, manualProductId])
+
   const activeImageUrl = imageExhausted
     ? ''
-    : (templateFallbackUrl || imageCandidates[candidateIndex] || '')
+    : (templateFallbackUrl || detailFallbackUrl || imageCandidates[candidateIndex] || '')
 
   const handleCardImageError = () => {
     if (templateFallbackUrl) {
@@ -203,6 +378,19 @@ export default function ProductCard({ product }) {
             setTemplateFallbackUrl(normalizedFallback)
             return
           }
+        }
+        setImageExhausted(true)
+      })
+      return
+    }
+
+    if (!hasRequestedDetailFallback && manualProductId) {
+      setHasRequestedDetailFallback(true)
+      fetchManualProductFallbackImageUrl(manualProductId).then((fallbackUrl) => {
+        if (fallbackUrl) {
+          setDetailFallbackUrl(fallbackUrl)
+          setImageExhausted(false)
+          return
         }
         setImageExhausted(true)
       })

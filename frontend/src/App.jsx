@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import './styles/App.css'
 import Footer from './components/layout/footer/Footer'
 import Header from './components/layout/header/Header'
@@ -13,6 +13,7 @@ import {
   deleteManualProduct,
   fetchItems,
   fetchManualProducts,
+  clearManualProductsSummaryCache,
   trackHomepageVisit,
 } from './services/api'
 
@@ -41,11 +42,14 @@ const FaqPage = lazy(() => import('./pages/legal/FaqPage'))
 
 const BRAND_NAME = 'SGCG Art'
 const CATALOG_CACHE_KEY = 'sgcg_catalog_cache_v2'
+const PRODUCT_VIEW_CACHE_KEY = 'sgcg_product_view_cache_v1'
 const CATALOG_CACHE_TTL_MS = 5 * 60 * 1000
+const PREVIOUS_ROUTE_KEY = 'sgcg_previous_hash_route'
+const CURRENT_ROUTE_KEY = 'sgcg_current_hash_route'
 
 const readCatalogCache = () => {
   try {
-    const raw = window.localStorage.getItem(CATALOG_CACHE_KEY)
+    const raw = window.sessionStorage.getItem(CATALOG_CACHE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw)
     if (!parsed || typeof parsed !== 'object') return null
@@ -62,7 +66,7 @@ const readCatalogCache = () => {
 
 const writeCatalogCache = (items, manualProducts) => {
   try {
-    window.localStorage.setItem(
+    window.sessionStorage.setItem(
       CATALOG_CACHE_KEY,
       JSON.stringify({
         ts: Date.now(),
@@ -77,6 +81,7 @@ const writeCatalogCache = (items, manualProducts) => {
 
 function App() {
   const route = useHashRoute()
+  const previousRouteRef = useRef(route.path)
   const [items, setItems] = useState([])
   const [itemsLoading, setItemsLoading] = useState(false)
   const [manualProducts, setManualProducts] = useState([])
@@ -174,9 +179,35 @@ function App() {
   }, [route.path, catalogLoaded, catalogRetryTick])
 
   useEffect(() => {
+    const previousRoute = previousRouteRef.current
+    const leavingShop = previousRoute === '/product' && route.path !== '/product'
+
+    if (leavingShop) {
+      window.sessionStorage.removeItem(CATALOG_CACHE_KEY)
+      window.sessionStorage.removeItem(PRODUCT_VIEW_CACHE_KEY)
+      clearManualProductsSummaryCache()
+      window.dispatchEvent(new Event('sgcg-clear-product-view-cache'))
+      setCatalogLoaded(false)
+    }
+
+    previousRouteRef.current = route.path
+  }, [route.path])
+
+  useEffect(() => {
     if (!catalogLoaded) return
     writeCatalogCache(items, manualProducts)
   }, [items, manualProducts, catalogLoaded])
+
+  useEffect(() => {
+    const currentHash = window.location.hash || '#/'
+    const previousHash = window.sessionStorage.getItem(CURRENT_ROUTE_KEY)
+
+    if (previousHash && previousHash !== currentHash) {
+      window.sessionStorage.setItem(PREVIOUS_ROUTE_KEY, previousHash)
+    }
+
+    window.sessionStorage.setItem(CURRENT_ROUTE_KEY, currentHash)
+  }, [route.path, route.params?.id])
 
   // Scroll to top whenever route changes
   useEffect(() => {
@@ -195,6 +226,7 @@ function App() {
       discount_percent: p.discount_percent,
       price_currency: 'USD',
       image_url: p.images?.[0]?.image_url,
+      images: Array.isArray(p.images) ? p.images : [],
       category: p.category,
       quantity: p.quantity,
       is_digital_download: p.is_digital_download === 1 || p.is_digital_download === true,

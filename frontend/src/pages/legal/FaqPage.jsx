@@ -40,22 +40,20 @@ export default function FaqPage() {
             </p>
           </li>
           <li>
-            <h2>What sizes are available?</h2>
-            <p>Popular sizes include:</p>
+            <h2>Max size I can get?</h2>
+            
             <ul>
-              <li>Small Panels: Around 16x12 inches</li>
-              <li>Medium Panels: Around 20x20 inches</li>
-              <li>Large Panels: Up to 35x32 inches</li>
+              <li>Square panels: up to 34" x 34"</li>
+              <li>Rectangular panels: up to 48" x 24"</li>
+              <li>Transom: 60" x 12"</li>
+              <p> These sizes represent the maximum dimensions for each panel type. Please contact SGCG Art if you have any questions about a certain size.</p>
             </ul>
             <p>Custom sizes may also be available upon request.</p>
           </li>
           <li>
             <h2>How much do your stained glass pieces cost?</h2>
-            <p>Prices vary depending on size and complexity:</p>
-            <ul>
-              <li>Smaller pieces start at $4.99</li>
-              <li>Larger beveled panels can range up to $1,500 or more</li>
-            </ul>
+            <p>Prices vary depending on size, complexity, and materials used.</p>
+            
           </li>
           <li>
             <h2>What materials are used in SGCG Art pieces?</h2>

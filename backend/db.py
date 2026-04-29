@@ -182,6 +182,101 @@ def _coerce_bool(value):
     return bool(value)
 
 
+def _manual_product_image_needs_template_fallback(image_entry):
+    if not isinstance(image_entry, dict):
+        return True
+    if image_entry.get("image_data"):
+        return False
+    image_url = str(image_entry.get("image_url") or "").strip()
+    if not image_url:
+        return True
+    return False
+
+
+def _sanitize_catalog_image_url(value):
+    image_url = str(value or "").strip()
+    if not image_url:
+        return ""
+    lowered = image_url.lower()
+    if lowered.startswith("javascript:"):
+        return ""
+    # Avoid returning huge inline payloads in list/summary responses.
+    if lowered.startswith("data:"):
+        return ""
+    return image_url
+
+
+def _fetch_linked_template_preview(cursor, related_links, preview_cache=None):
+    if not isinstance(related_links, dict):
+        return None
+
+    template_id = related_links.get("template_id")
+    if template_id in (None, ""):
+        return None
+
+    try:
+        normalized_template_id = int(template_id)
+    except (TypeError, ValueError):
+        normalized_template_id = template_id
+
+    cache_key = str(normalized_template_id)
+    if isinstance(preview_cache, dict) and cache_key in preview_cache:
+        return preview_cache[cache_key]
+
+    try:
+        cursor.execute(
+            f"SELECT thumbnail_url, image_url FROM templates WHERE id = {_placeholder()} LIMIT 1",
+            (normalized_template_id,),
+        )
+        row = cursor.fetchone()
+    except Exception:
+        if isinstance(preview_cache, dict):
+            preview_cache[cache_key] = None
+        return None
+
+    if not row:
+        if isinstance(preview_cache, dict):
+            preview_cache[cache_key] = None
+        return None
+
+    payload = dict(row)
+    preview_url = _sanitize_catalog_image_url(payload.get("thumbnail_url") or payload.get("image_url"))
+    if not preview_url:
+        if isinstance(preview_cache, dict):
+            preview_cache[cache_key] = None
+        return None
+
+    preview_payload = {
+        "image_url": preview_url,
+        "media_type": "image",
+    }
+    if isinstance(preview_cache, dict):
+        preview_cache[cache_key] = preview_payload
+    return preview_payload
+
+
+def _apply_linked_template_preview(product, cursor, preview_cache=None):
+    if not isinstance(product, dict) or not _manual_product_is_pattern(product):
+        return product
+
+    related_links = _deserialize_related_links(product.get("related_links"))
+    if related_links:
+        product["related_links"] = related_links
+
+    images = product.get("images") if isinstance(product.get("images"), list) else []
+    needs_fallback = not images or _manual_product_image_needs_template_fallback(images[0])
+    if not needs_fallback:
+        return product
+
+    template_preview = _fetch_linked_template_preview(cursor, related_links, preview_cache=preview_cache)
+    if not template_preview:
+        return product
+
+    remaining_images = images[1:] if images else []
+    product["images"] = [template_preview, *remaining_images]
+    return product
+
+
 def list_all_customers():
     conn = get_db()
     cursor = conn.cursor()
@@ -1047,6 +1142,7 @@ def fetch_manual_products():
 def fetch_manual_products_catalog():
     conn = get_db()
     cursor = conn.cursor()
+    template_preview_cache = {}
 
     # Try with image_data subquery, fall back without if column doesn't exist
     try:
@@ -1155,7 +1251,7 @@ def fetch_manual_products_catalog():
             except (json.JSONDecodeError, TypeError):
                 pass
 
-        preview_image_url = product.pop("preview_image_url", None)
+        preview_image_url = _sanitize_catalog_image_url(product.pop("preview_image_url", None))
         # Never expose raw preview binary data in JSON responses.
         product.pop("preview_image_data", None)
         preview_media_type = product.pop("preview_media_type", None)
@@ -1171,6 +1267,7 @@ def fetch_manual_products_catalog():
         product["is_active"] = _coerce_bool(product.get("is_active", 1))
         product["is_digital_download"] = _coerce_bool(product.get("is_digital_download"))
         product["related_links"] = _deserialize_related_links(product.get("related_links"))
+        product = _apply_linked_template_preview(product, cursor, preview_cache=template_preview_cache)
         products.append(product)
 
     conn.close()
@@ -1207,7 +1304,8 @@ def fetch_manual_product(product_id):
         except (json.JSONDecodeError, TypeError):
             pass  # Keep as string if not valid JSON
     
-    # Fetch images for this product - try with image_data, fall back to just URLs
+    # Fetch images — include image_data only for rows where image_url is empty (legacy binary-only records).
+    # This keeps responses small for the common case while preserving backward compatibility.
     try:
         cursor.execute(
             f"SELECT image_url, image_data, media_type FROM product_images WHERE product_id = {placeholder} ORDER BY display_order",
@@ -1217,32 +1315,37 @@ def fetch_manual_product(product_id):
         product["images"] = []
         for img in images:
             img_dict = dict(img)
-            # Convert binary image_data to hex string for JSON serialization
-            if img_dict.get("image_data"):
+            image_url = str(img_dict.get("image_url") or "").strip()
+            image_data_raw = img_dict.get("image_data")
+            # Only include image_data when image_url is missing — avoids sending large blobs unnecessarily.
+            if image_url:
+                img_dict.pop("image_data", None)
+            elif image_data_raw:
                 try:
-                    if isinstance(img_dict["image_data"], bytes):
-                        img_dict["image_data"] = img_dict["image_data"].hex()
-                    elif isinstance(img_dict["image_data"], str):
-                        # Already hex string, keep as is
-                        pass
-                    else:
-                        # Remove incompatible data types
+                    if isinstance(image_data_raw, bytes):
+                        img_dict["image_data"] = image_data_raw.hex()
+                    elif not isinstance(image_data_raw, str):
                         img_dict.pop("image_data", None)
-                except (AttributeError, ValueError, TypeError) as e:
-                    # If conversion fails, remove the field to avoid serialization errors
+                except (AttributeError, ValueError, TypeError):
                     img_dict.pop("image_data", None)
+            else:
+                img_dict.pop("image_data", None)
             product["images"].append(img_dict)
     except Exception:
-        # image_data column doesn't exist; query without it
-        cursor.execute(
-            f"SELECT image_url, media_type FROM product_images WHERE product_id = {placeholder} ORDER BY display_order",
-            (product_id,)
-        )
-        images = cursor.fetchall()
-        product["images"] = [dict(img) for img in images]
+        # image_data column may not exist in all environments; fall back to URL-only
+        try:
+            cursor.execute(
+                f"SELECT image_url, media_type FROM product_images WHERE product_id = {placeholder} ORDER BY display_order",
+                (product_id,)
+            )
+            images = cursor.fetchall()
+            product["images"] = [dict(img) for img in images]
+        except Exception:
+            product["images"] = []
     product["is_active"] = _coerce_bool(product.get("is_active", 1))
     product["is_digital_download"] = _coerce_bool(product.get("is_digital_download"))
     product["related_links"] = _deserialize_related_links(product.get("related_links"))
+    product = _apply_linked_template_preview(product, cursor)
     
     conn.close()
     return product
@@ -1296,16 +1399,28 @@ def update_manual_product(product_id, payload):
     
     # Update images if provided
     if "images" in payload:
+        existing_rows_by_url = {}
+        cursor.execute(
+            f"SELECT image_url, image_data FROM product_images WHERE product_id = {placeholder} ORDER BY display_order",
+            (product_id,),
+        )
+        for row in cursor.fetchall() or []:
+            row_payload = dict(row)
+            existing_url = str(row_payload.get("image_url") or "").strip()
+            if not existing_url:
+                continue
+            existing_rows_by_url.setdefault(existing_url, []).append(row_payload.get("image_data"))
+
         # Delete old images
         cursor.execute(f"DELETE FROM product_images WHERE product_id = {placeholder}", (product_id,))
         # Insert new images
         now = datetime.utcnow().isoformat() if hasattr(datetime, 'utcnow') else None
         for idx, image in enumerate(payload["images"]):
             # Handle both new uploads (with "url" and "type") and existing images (with "image_url" and "media_type")
-            image_url = image.get("url") or image.get("image_url")
+            image_url = str(image.get("url") or image.get("image_url") or "").strip()
             media_type = image.get("type") or image.get("media_type", "image")
             image_data_hex = image.get("image_data")
-            
+
             if image_url:  # Only insert if we have a valid image URL
                 # Convert hex string back to binary if present
                 image_data_binary = None
@@ -1314,7 +1429,13 @@ def update_manual_product(product_id, payload):
                         image_data_binary = bytes.fromhex(image_data_hex) if isinstance(image_data_hex, str) else image_data_hex
                     except (ValueError, TypeError):
                         pass  # If hex conversion fails, just use None
-                
+
+                # Preserve existing blob data when the client sends an unchanged URL without image_data.
+                if image_data_binary is None:
+                    existing_blobs = existing_rows_by_url.get(image_url) or []
+                    if existing_blobs:
+                        image_data_binary = existing_blobs.pop(0)
+
                 cursor.execute(
                     f"""
                     INSERT INTO product_images (product_id, image_url, image_data, media_type, display_order, created_at)

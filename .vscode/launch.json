@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend: Flask (debug)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "backend.app",
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "env": {
+        "APP_ENV": "development",
+        "FLASK_DEBUG": "true"
+      },
+      "jinja": true,
+      "justMyCode": true
+    },
+    {
+      "name": "Frontend: Chrome (via Vite)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/frontend/src",
+      "sourceMapPathOverrides": {
+        "webpack:///./src/*": "${webRoot}/*"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Fullstack: debug",
+      "configurations": ["Backend: Flask (debug)", "Frontend: Chrome (via Vite)"],
+      "stopAll": true
+    }
+  ]
+}

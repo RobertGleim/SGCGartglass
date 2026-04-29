@@ -18,7 +18,7 @@
   padding: 1.35rem 1.2rem 1.2rem;
   text-align: center;
   position: relative;
-  animation: newCustomerOfferPulse 2.1s ease-in-out infinite;
+  animation: newCustomerOfferPulse 2.6s ease-in-out infinite;
 }
 
 .new-customer-offer-pill {
@@ -106,6 +106,7 @@
 
 .home-review-card-animated {
   animation: homeReviewCardFloat 5.2s linear both infinite;
+  will-change: transform, opacity;
 }
 
 .home-review-image-shell {
@@ -204,5 +205,12 @@
 
   .home-review-image-shell {
     width: 76px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .new-customer-offer-card,
+  .home-review-card-animated {
+    animation: none;
   }
 }

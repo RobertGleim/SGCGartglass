@@ -8,10 +8,56 @@ import {
   fetchCustomerFavorites,
   fetchManualProduct,
   fetchProductReviews,
+  getTemplate,
   removeCustomerFavorite,
 } from '../../services/api'
 import { addGuestCartItem } from '../../utils/guestCart'
 import { findWishlistEntry, resolveWishlistTarget } from '../../utils/wishlist'
+
+const PREVIOUS_ROUTE_KEY = 'sgcg_previous_hash_route'
+const PRODUCT_VIEW_CACHE_KEY = 'sgcg_product_view_cache_v1'
+
+const readProductViewCache = () => {
+  try {
+    const raw = window.sessionStorage.getItem(PRODUCT_VIEW_CACHE_KEY)
+    if (!raw) return { manualProducts: {}, templatePreviews: {}, reviews: {} }
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return { manualProducts: {}, templatePreviews: {}, reviews: {} }
+    return {
+      manualProducts: parsed.manualProducts && typeof parsed.manualProducts === 'object' ? parsed.manualProducts : {},
+      templatePreviews: parsed.templatePreviews && typeof parsed.templatePreviews === 'object' ? parsed.templatePreviews : {},
+      reviews: parsed.reviews && typeof parsed.reviews === 'object' ? parsed.reviews : {},
+    }
+  } catch {
+    return { manualProducts: {}, templatePreviews: {}, reviews: {} }
+  }
+}
+
+const writeProductViewCache = (nextCache) => {
+  try {
+    window.sessionStorage.setItem(PRODUCT_VIEW_CACHE_KEY, JSON.stringify(nextCache))
+  } catch {
+    // Ignore storage write failures.
+  }
+}
+
+const readProductViewCacheEntry = (bucket, key) => {
+  const normalizedKey = String(key || '').trim()
+  if (!normalizedKey) return null
+  const cache = readProductViewCache()
+  const source = cache[bucket] && typeof cache[bucket] === 'object' ? cache[bucket] : {}
+  return source[normalizedKey] ?? null
+}
+
+const writeProductViewCacheEntry = (bucket, key, value) => {
+  const normalizedKey = String(key || '').trim()
+  if (!normalizedKey) return
+  const cache = readProductViewCache()
+  const source = cache[bucket] && typeof cache[bucket] === 'object' ? cache[bucket] : {}
+  source[normalizedKey] = value
+  cache[bucket] = source
+  writeProductViewCache(cache)
+}
 
 const formatReviewDate = (value) => {
   if (!value) return ''
@@ -34,47 +80,105 @@ const toCleanUrl = (value) => {
   const url = String(value || '').trim()
   if (!url) return ''
   if (/^javascript:/i.test(url)) return ''
+  if (url.startsWith('data:') || url.startsWith('blob:')) return url
   if (url.startsWith('/uploads/')) return `${getApiOrigin()}${url}`
   if (url.startsWith('uploads/')) return `${getApiOrigin()}/${url}`
   return url
+}
+
+const hexStringToBytes = (value) => {
+  const hex = String(value || '').trim()
+  if (!hex || hex.length % 2 !== 0) return null
+  const bytes = new Uint8Array(hex.length / 2)
+  for (let index = 0; index < hex.length; index += 2) {
+    bytes[index / 2] = parseInt(hex.slice(index, index + 2), 16)
+  }
+  return bytes
+}
+
+const normalizeBase64String = (value) => {
+  const cleaned = String(value || '')
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+
+  if (!cleaned || /[^A-Za-z0-9+/=]/.test(cleaned)) return ''
+
+  const paddedLength = Math.ceil(cleaned.length / 4) * 4
+  return cleaned.padEnd(paddedLength, '=')
+}
+
+const bytesToBase64 = (bytes) => {
+  if (!bytes || bytes.length === 0) return ''
+  let binary = ''
+  const chunkSize = 0x8000
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.subarray(index, index + chunkSize)
+    binary += String.fromCharCode(...chunk)
+  }
+  return window.btoa(binary)
+}
+
+const mimeTypeFromEntry = (entry) => {
+  const mediaType = String(entry?.media_type || '').toLowerCase()
+  const imageUrl = String(entry?.image_url || '')
+  if (mediaType.startsWith('image/')) return mediaType
+  if (mediaType === 'video') return 'video/mp4'
+  if (/\.png($|\?)/i.test(imageUrl)) return 'image/png'
+  if (/\.webp($|\?)/i.test(imageUrl)) return 'image/webp'
+  if (/\.gif($|\?)/i.test(imageUrl)) return 'image/gif'
+  if (/\.svg($|\?)/i.test(imageUrl)) return 'image/svg+xml'
+  return 'image/jpeg'
+}
+
+const imageDataToDataUrl = (entry) => {
+  const rawImageData = String(entry?.image_data || '').trim()
+  if (!rawImageData) return ''
+  if (rawImageData.startsWith('data:')) return rawImageData.replace(/\s+/g, '')
+
+  const mimeType = mimeTypeFromEntry(entry)
+  const hexBytes = /^[0-9a-f]+$/i.test(rawImageData) && rawImageData.length % 2 === 0
+    ? hexStringToBytes(rawImageData)
+    : null
+
+  if (hexBytes && hexBytes.length > 0) {
+    const base64 = bytesToBase64(hexBytes)
+    return base64 ? `data:${mimeType};base64,${base64}` : ''
+  }
+
+  const base64 = normalizeBase64String(rawImageData)
+  return base64 ? `data:${mimeType};base64,${base64}` : ''
 }
 
 const resolveImageUrl = (entry) => {
   if (!entry) return ''
   if (typeof entry === 'string') return toCleanUrl(entry)
 
+  if (entry.image_data && typeof entry.image_data === 'string') {
+    try {
+      const dataUrl = imageDataToDataUrl(entry)
+      if (dataUrl) return dataUrl
+    } catch {
+    }
+  }
+
   const candidates = [
     entry.image_url,
     entry.url,
     entry.src,
-    entry.full_url,
-    entry.large_url,
     entry.preview_url,
-    entry.thumbnail_url,
-    entry.url_fullxfull,
-    entry.url_570xN,
-    entry.url_170x135,
   ]
 
   for (const candidate of candidates) {
-    const resolved = toCleanUrl(candidate)
-    if (resolved) return resolved
+    const normalized = toCleanUrl(candidate)
+    if (normalized) return normalized
   }
 
   return ''
 }
 
-const resolveVideoUrl = (entry) => {
-  if (!entry || typeof entry === 'string') return ''
-  const candidates = [entry.video_url, entry.url, entry.src]
-  for (const candidate of candidates) {
-    const resolved = toCleanUrl(candidate)
-    if (resolved) return resolved
-  }
-  return ''
-}
-
-const normalizeCategoryValue = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+const normalizeCategoryValue = (category) => String(category || '').trim().toLowerCase()
 
 const toCategoryArray = (category) => {
   if (Array.isArray(category)) {
@@ -83,15 +187,13 @@ const toCategoryArray = (category) => {
 
   if (typeof category === 'string') {
     const trimmed = category.trim()
+    if (!trimmed) return []
 
     if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
       try {
         const parsed = JSON.parse(trimmed)
-        if (Array.isArray(parsed)) {
-          return parsed.filter(Boolean)
-        }
+        if (Array.isArray(parsed)) return parsed.filter(Boolean)
       } catch {
-        // ignore malformed serialized categories
       }
     }
 
@@ -101,6 +203,8 @@ const toCategoryArray = (category) => {
         .map((entry) => entry.trim())
         .filter(Boolean)
     }
+
+    return [trimmed]
   }
 
   return category ? [category] : []
@@ -114,15 +218,52 @@ const isPatternCategory = (category) => {
 const isPatternProductEntry = (entry) =>
   toCategoryArray(entry?.category).some((category) => isPatternCategory(category))
 
+const imageEntryNeedsLinkedTemplateFallback = (entry) => {
+  if (!entry || typeof entry !== 'object') return true
+  if (entry.image_data) return false
+  const imageUrl = String(entry.image_url || '').trim()
+  if (!imageUrl) return true
+  return imageUrl.startsWith('/uploads/templates/') || imageUrl.startsWith('uploads/templates/')
+}
+
 export default function ProductDetail({ product, products = [] }) {
   const [selectedImage, setSelectedImage] = useState(0)
   const [showZoom, setShowZoom] = useState(false)
   const [cartStatus, setCartStatus] = useState('')
   const [wishlistStatus, setWishlistStatus] = useState('')
   const [manualProductDetails, setManualProductDetails] = useState(null)
+  const [linkedTemplatePreviewUrl, setLinkedTemplatePreviewUrl] = useState('')
   const [favorites, setFavorites] = useState([])
   const [productReviews, setProductReviews] = useState([])
   const { customerToken } = useCustomerAuth()
+
+  useEffect(() => {
+    const handleClearCache = () => {
+      window.sessionStorage.removeItem(PRODUCT_VIEW_CACHE_KEY)
+    }
+
+    window.addEventListener('sgcg-clear-product-view-cache', handleClearCache)
+    return () => {
+      window.removeEventListener('sgcg-clear-product-view-cache', handleClearCache)
+    }
+  }, [])
+
+  const handleBackNavigation = () => {
+    const previousHash = String(window.sessionStorage.getItem(PREVIOUS_ROUTE_KEY) || '').trim()
+    const currentHash = window.location.hash || ''
+
+    if (previousHash && previousHash !== currentHash && !previousHash.startsWith('#/product/')) {
+      window.location.hash = previousHash
+      return
+    }
+
+    if (window.history.length > 1 && document.referrer.startsWith(window.location.origin)) {
+      window.history.back()
+      return
+    }
+
+    window.location.hash = '#/product'
+  }
 
   const wishlistTarget = useMemo(() => resolveWishlistTarget(product), [product])
   const favoriteEntry = useMemo(
@@ -133,7 +274,7 @@ export default function ProductDetail({ product, products = [] }) {
 
   useEffect(() => {
     let isActive = true
-    setManualProductDetails(null)
+    setLinkedTemplatePreviewUrl('')
 
     if (!product?.isManual) {
       return () => {
@@ -148,10 +289,23 @@ export default function ProductDetail({ product, products = [] }) {
       }
     }
 
+    const cachedManual = readProductViewCacheEntry('manualProducts', manualId)
+    if (cachedManual && typeof cachedManual === 'object') {
+      setManualProductDetails(cachedManual)
+      return () => {
+        isActive = false
+      }
+    }
+
+    setManualProductDetails(null)
+
     fetchManualProduct(manualId)
       .then((payload) => {
         if (isActive) {
           setManualProductDetails(payload || null)
+          if (payload && typeof payload === 'object') {
+            writeProductViewCacheEntry('manualProducts', manualId, payload)
+          }
         }
       })
       .catch(() => {
@@ -164,6 +318,47 @@ export default function ProductDetail({ product, products = [] }) {
       isActive = false
     }
   }, [product])
+
+  const linkedTemplateId = useMemo(() => {
+    const relatedLinks = manualProductDetails?.related_links || product?.originalData?.related_links || product?.related_links
+    return String(relatedLinks?.template_id || '').trim()
+  }, [manualProductDetails, product])
+
+  useEffect(() => {
+    let isActive = true
+    setLinkedTemplatePreviewUrl('')
+
+    if (!product?.isManual || !linkedTemplateId) {
+      return () => {
+        isActive = false
+      }
+    }
+
+    const cachedTemplatePreview = readProductViewCacheEntry('templatePreviews', linkedTemplateId)
+    if (cachedTemplatePreview) {
+      setLinkedTemplatePreviewUrl(String(cachedTemplatePreview))
+      return () => {
+        isActive = false
+      }
+    }
+
+    getTemplate(linkedTemplateId)
+      .then((payload) => {
+        if (!isActive) return
+        const resolved = resolveImageUrl(payload?.thumbnail_url || payload?.image_url || '')
+        setLinkedTemplatePreviewUrl(resolved || '')
+        if (resolved) {
+          writeProductViewCacheEntry('templatePreviews', linkedTemplateId, resolved)
+        }
+      })
+      .catch(() => {
+        if (isActive) setLinkedTemplatePreviewUrl('')
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [linkedTemplateId, product?.isManual])
 
   useEffect(() => {
     if (!customerToken) {
@@ -194,6 +389,15 @@ export default function ProductDetail({ product, products = [] }) {
       : String(product?.id || '').trim()
 
     let isActive = true
+    const reviewsCacheKey = `${resolvedProductType}:${resolvedProductId}`
+    const cachedReviews = readProductViewCacheEntry('reviews', reviewsCacheKey)
+    if (Array.isArray(cachedReviews)) {
+      setProductReviews(cachedReviews)
+      return () => {
+        isActive = false
+      }
+    }
+
     if (!resolvedProductId) {
       setProductReviews([])
       return () => {
@@ -204,7 +408,9 @@ export default function ProductDetail({ product, products = [] }) {
     fetchProductReviews({ product_type: resolvedProductType, product_id: resolvedProductId })
       .then((response) => {
         if (!isActive) return
-        setProductReviews(Array.isArray(response) ? response : [])
+        const nextReviews = Array.isArray(response) ? response : []
+        setProductReviews(nextReviews)
+        writeProductViewCacheEntry('reviews', reviewsCacheKey, nextReviews)
       })
       .catch(() => {
         if (!isActive) return
@@ -283,12 +489,29 @@ export default function ProductDetail({ product, products = [] }) {
           ? product.images
           : []
 
-    const normalized = sourceImages
+    const shouldPreferLinkedTemplatePreview = Boolean(linkedTemplatePreviewUrl)
+      && isPatternProductEntry(manualProductDetails || product?.originalData || product)
+      && (sourceImages.length === 0 || imageEntryNeedsLinkedTemplateFallback(sourceImages[0]))
+
+    const candidateImages = shouldPreferLinkedTemplatePreview
+      ? [{
+          ...(typeof sourceImages[0] === 'object' && sourceImages[0] ? sourceImages[0] : {}),
+          image_url: linkedTemplatePreviewUrl,
+          media_type: 'image',
+        }, ...sourceImages.slice(1)]
+      : sourceImages
+
+    const seen = new Set()
+    const normalized = candidateImages
       .map((entry) => {
         const mediaType = String(entry?.media_type || '').toLowerCase()
         const isVideo = mediaType === 'video'
         const mediaUrl = isVideo ? (resolveVideoUrl(entry) || resolveImageUrl(entry)) : resolveImageUrl(entry)
         if (!mediaUrl) return null
+
+        const key = `${isVideo ? 'video' : 'image'}:${mediaUrl}`
+        if (seen.has(key)) return null
+        seen.add(key)
 
         return {
           ...(typeof entry === 'object' && entry ? entry : {}),
@@ -302,9 +525,9 @@ export default function ProductDetail({ product, products = [] }) {
       return normalized
     }
 
-    const fallback = resolveImageUrl(product.image_url)
+    const fallback = linkedTemplatePreviewUrl || resolveImageUrl(product.image_url)
     return fallback ? [{ image_url: fallback, media_type: 'image' }] : []
-  }, [product, manualProductDetails])
+  }, [product, manualProductDetails, linkedTemplatePreviewUrl])
 
   const mainImage = images.length > 0 ? images[selectedImage]?.image_url || null : null
   const showThumbnails = images.length > 1
@@ -463,6 +686,7 @@ export default function ProductDetail({ product, products = [] }) {
   const isDigitalPatternListing = isDigitalDownload && isPatternProductEntry(manualProductDetails || product?.originalData || product)
   const primaryPriceLabel = isDigitalDownload ? 'Digital Price' : 'Price'
   const availableQuantity = Number(manualProductDetails?.quantity ?? product.originalData?.quantity)
+  const hasManualQuantity = Boolean(product.isManual) && Number.isFinite(availableQuantity)
   const isSoldOut = Boolean(product.isManual) && !isDigitalDownload && Number.isFinite(availableQuantity) && availableQuantity <= 0
 
   const handleAddToWishlist = async () => {
@@ -560,7 +784,16 @@ export default function ProductDetail({ product, products = [] }) {
 
   return (
     <div className="product-detail">
-      <div className="product-detail-container">
+      <div className="product-detail-content">
+        <div className="product-detail-back-row">
+          <button type="button" className="product-detail-back-button" onClick={handleBackNavigation}>
+            <span className="product-detail-back-icon" aria-hidden="true">←</span>
+            <span>Back</span>
+          </button>
+        </div>
+
+        <div className="product-detail-container">
+
         {/* Product Images Section */}
         <div className="product-images-section">
           {/* Image thumbnails on the left (if multiple images exist) */}
@@ -643,6 +876,17 @@ export default function ProductDetail({ product, products = [] }) {
             <h3>Description</h3>
             <p>{product.description || 'No description available'}</p>
           </div>
+
+          {hasManualQuantity && (
+            <div className="quantity-section">
+              <h3>Quantity in stock</h3>
+              {isSoldOut ? (
+                <p className="out-of-stock-contact">Product out of stock please contact SGCG Art if you like to order this product</p>
+              ) : (
+                <p>{Math.max(0, Math.trunc(availableQuantity))}</p>
+              )}
+            </div>
+          )}
 
           {/* Product Tags */}
           {toCategoryArray(product.category).length > 0 && (
@@ -767,6 +1011,7 @@ export default function ProductDetail({ product, products = [] }) {
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Related Products Section */}

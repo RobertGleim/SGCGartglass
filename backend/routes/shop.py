@@ -118,7 +118,7 @@ from ..utils.email import send_email, digital_download_email
 
 api = Blueprint("api", __name__)
 
-_CATALOG_CACHE_TTL_SECONDS = 60
+_CATALOG_CACHE_TTL_SECONDS = 300
 _catalog_cache = {
     "items": {"value": None, "expires_at": 0},
     "manual_products": {"value": None, "expires_at": 0},

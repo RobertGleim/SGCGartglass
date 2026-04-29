@@ -152,6 +152,8 @@ export default function HomePage({ featuredItems, itemsLoading }) {
                       src={activeReviewImageUrl}
                       alt={activeReview.product_title || activeReview.title || 'Reviewed product'}
                       className="home-review-image"
+                      loading="lazy"
+                      decoding="async"
                       onError={(event) => {
                         const fallback = toCleanImageUrl(activeReview?.fallback_product_image_url)
                         const current = String(event.currentTarget.src || '').trim()
