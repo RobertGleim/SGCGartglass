@@ -20,7 +20,7 @@ export default function CustomOrderTermsPage() {
         </p>
 
         <h2>Production Time</h2>
-        <p>Custom orders typically require 4-5 weeks, depending on complexity.</p>
+        <p>Custom orders typically require <strong>4-5 weeks</strong>, depending on complexity.</p>
 
         <h2>Payments</h2>
         <p>Full payment is required before production begins unless otherwise agreed.</p>
