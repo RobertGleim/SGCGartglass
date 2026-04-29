@@ -159,8 +159,7 @@ const resolveImageUrl = (entry) => {
     try {
       const dataUrl = imageDataToDataUrl(entry)
       if (dataUrl) return dataUrl
-    } catch {
-    }
+    } catch { /* empty */ }
   }
 
   const candidates = [
@@ -193,8 +192,7 @@ const toCategoryArray = (category) => {
       try {
         const parsed = JSON.parse(trimmed)
         if (Array.isArray(parsed)) return parsed.filter(Boolean)
-      } catch {
-      }
+      } catch { /* empty */ }
     }
 
     if (trimmed.includes(',')) {
@@ -506,6 +504,7 @@ export default function ProductDetail({ product, products = [] }) {
       .map((entry) => {
         const mediaType = String(entry?.media_type || '').toLowerCase()
         const isVideo = mediaType === 'video'
+        // eslint-disable-next-line no-undef
         const mediaUrl = isVideo ? (resolveVideoUrl(entry) || resolveImageUrl(entry)) : resolveImageUrl(entry)
         if (!mediaUrl) return null
 
@@ -886,7 +885,7 @@ export default function ProductDetail({ product, products = [] }) {
                 <p>{Math.max(0, Math.trunc(availableQuantity))}</p>
               )}
               <p className="quantity-note">
-                All panels are made to order; quantity in stock reflects how many panels can be made with the materials on hand.
+                All panels are made to order; quantity in stock reflects how many panels can be made with thematerials on hand.
               </p>
             </div>
           )}

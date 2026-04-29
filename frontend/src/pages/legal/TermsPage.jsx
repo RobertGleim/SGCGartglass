@@ -36,7 +36,7 @@ export default function TermsPage() {
 
         <h2>4. Processing Time</h2>
         <p>
-          Orders are typically processed within <strong>2-4 weeks</strong>, depending on the
+          Orders are typically processed within <strong>4-5 weeks</strong>, depending on the
           complexity of the design and level of customization.
         </p>
 
