@@ -15,11 +15,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Run gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ARGS: >-
+            ${{ github.event_name == 'push'
+              && format('--log-opts=--no-merges --first-parent {0}..{1}', github.event.before, github.sha)
+              || '' }}
 
   npm-audit-frontend:
     name: Frontend npm audit
