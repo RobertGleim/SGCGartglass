@@ -718,6 +718,7 @@ def init_db(force=False):
             title VARCHAR(200),
             body TEXT,
             review_image_url VARCHAR(512),
+            admin_comment TEXT,
             verified_purchase INTEGER DEFAULT 0,
             status VARCHAR(20) DEFAULT 'pending',
             created_at VARCHAR(50),
@@ -777,6 +778,7 @@ def init_db(force=False):
             """
         )
         cursor.execute("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS review_image_url VARCHAR(512)")
+        cursor.execute("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS admin_comment TEXT")
         cursor.execute("ALTER TABLE review_invite_codes ADD COLUMN IF NOT EXISTS product_name VARCHAR(255)")
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS subtotal_amount REAL")
         cursor.execute("ALTER TABLE customer_orders ADD COLUMN IF NOT EXISTS shipping_amount REAL")
@@ -4069,6 +4071,9 @@ def update_admin_review(review_id, payload):
     if "body" in payload:
         updates.append(f"body = {placeholder}")
         values.append(payload.get("body"))
+    if "admin_comment" in payload:
+        updates.append(f"admin_comment = {placeholder}")
+        values.append(payload.get("admin_comment"))
     if "status" in payload:
         updates.append(f"status = {placeholder}")
         values.append(str(payload.get("status") or "").strip().lower())
@@ -4125,6 +4130,7 @@ def create_customer_review(customer_id, payload, verified_purchase):
         payload.get("title"),
         payload.get("body"),
         payload.get("review_image_url"),
+        payload.get("admin_comment"),
         1 if verified_purchase else 0,
         "approved" if verified_purchase else "pending",
         now,
@@ -4135,9 +4141,9 @@ def create_customer_review(customer_id, payload, verified_purchase):
             f"""
             INSERT INTO customer_reviews (
                 customer_id, product_type, product_id, rating, title, body,
-                review_image_url, verified_purchase, status, created_at, updated_at
+                review_image_url, admin_comment, verified_purchase, status, created_at, updated_at
             ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder},
-                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             RETURNING id
             """,
             values,
@@ -4148,9 +4154,9 @@ def create_customer_review(customer_id, payload, verified_purchase):
             f"""
             INSERT INTO customer_reviews (
                 customer_id, product_type, product_id, rating, title, body,
-                review_image_url, verified_purchase, status, created_at, updated_at
+                review_image_url, admin_comment, verified_purchase, status, created_at, updated_at
             ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder},
-                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             """,
             values,
         )

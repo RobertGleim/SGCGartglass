@@ -1098,6 +1098,7 @@ export default function AdminDashboard({
         rating: Number(review.rating),
         title: review.title || "",
         body: review.body || "",
+        admin_comment: review.admin_comment || "",
         status: review.status || "pending",
       });
       setAdminReviewStatus("Review updated.");
@@ -5663,6 +5664,16 @@ export default function AdminDashboard({
                             value={review.body || ""}
                             onChange={(event) => handleAdminReviewFieldChange(review.id, "body", event.target.value)}
                             rows={2}
+                          />
+                        </label>
+
+                        <label className="review-field review-field-admin-comment">
+                          <span>Admin Comment</span>
+                          <textarea
+                            value={review.admin_comment || ""}
+                            onChange={(event) => handleAdminReviewFieldChange(review.id, "admin_comment", event.target.value)}
+                            rows={3}
+                            placeholder="Add a reply to the customer"
                           />
                         </label>
                       </div>

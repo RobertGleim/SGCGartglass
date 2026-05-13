@@ -298,6 +298,12 @@ export default function ReviewsPage() {
                     <div>
                       <h2>{review.title || 'Customer review'}</h2>
                       <p className="reviews-page-body">{review.body || ''}</p>
+                      {review.admin_comment ? (
+                        <div className="reviews-admin-comment">
+                          <strong>Admin reply</strong>
+                          <p>{review.admin_comment}</p>
+                        </div>
+                      ) : null}
                     </div>
                     {review.product_image_url ? (
                       <img
