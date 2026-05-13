@@ -182,14 +182,22 @@
 }
 
 .free-shipping {
-  background: #d5efd5;
-  color: #218a4a;
+  background: #e6f0ff;
+  color: #1f4ea1;
+  border: 1px solid #c7dafc;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  display: inline-block;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
   width: fit-content;
+}
+
+.free-shipping-icon {
+  line-height: 1;
+  font-size: 0.78rem;
 }
 
 .instant-download-badge,

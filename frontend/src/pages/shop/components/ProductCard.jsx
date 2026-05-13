@@ -433,7 +433,10 @@ export default function ProductCard({ product }) {
               )}
             </div>
             {product.free_shipping && (
-              <span className="free-shipping">FREE shipping</span>
+              <span className="free-shipping" aria-label="Free shipping">
+                <span className="free-shipping-icon" aria-hidden="true">🚚</span>
+                FREE shipping
+              </span>
             )}
             {shouldShowInstantDownload && (
               <span className="instant-download-badge">Instant download</span>
