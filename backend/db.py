@@ -4115,13 +4115,14 @@ def delete_admin_review(review_id):
     return deleted
 
 
-def create_customer_review(customer_id, payload, verified_purchase):
+def create_customer_review(customer_id, payload, verified_purchase, status=None):
     conn = get_db()
     cursor = conn.cursor()
     now = datetime.utcnow().isoformat()
     is_postgres = _is_postgres_backend()
     is_mysql = _use_mysql()
     placeholder = "%s" if is_mysql else "?"
+    resolved_status = str(status or ("approved" if verified_purchase else "pending")).strip().lower()
     values = (
         customer_id,
         payload["product_type"],
@@ -4132,7 +4133,7 @@ def create_customer_review(customer_id, payload, verified_purchase):
         payload.get("review_image_url"),
         payload.get("admin_comment"),
         1 if verified_purchase else 0,
-        "approved" if verified_purchase else "pending",
+        resolved_status,
         now,
         now,
     )

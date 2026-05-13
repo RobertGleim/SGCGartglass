@@ -8,6 +8,7 @@ import {
   deleteCustomer,
   fetchAdminReviews,
   fetchAdminReviewInviteCodes,
+  createAdminReview,
   getAdminGalleryPhotos,
   getTemplate,
   fetchCustomers,
@@ -969,6 +970,19 @@ export default function AdminDashboard({
     customer_email: "",
     note: "",
   });
+  const [adminReviewCreateStatus, setAdminReviewCreateStatus] = useState("");
+  const [isCreatingAdminReview, setIsCreatingAdminReview] = useState(false);
+  const [adminReviewCreateForm, setAdminReviewCreateForm] = useState({
+    name: "",
+    rating: 5,
+    title: "",
+    body: "",
+    purchased_at: "",
+    purchase_source: "etsy",
+    purchase_source_other: "",
+    status: "approved",
+    photo: null,
+  });
 
   const loadCustomerInsight = useCallback(async () => {
     setIsLoadingCustomerInsight(true);
@@ -1041,16 +1055,23 @@ export default function AdminDashboard({
     }
   }, [activeTab, loadCustomerInsight, loadDiscountCodes]);
 
+  const loadAdminReviews = useCallback(async () => {
+    try {
+      const res = await fetchAdminReviews({
+        limit: 300,
+        ...(adminReviewStatusFilter !== "all" ? { status: adminReviewStatusFilter } : {}),
+      });
+      setAdminReviews(Array.isArray(res) ? res : []);
+    } catch {
+      setAdminReviews([]);
+    }
+  }, [adminReviewStatusFilter]);
+
   useEffect(() => {
     if (activeTab !== "reviews") return;
 
-    fetchAdminReviews({
-      limit: 300,
-      ...(adminReviewStatusFilter !== "all" ? { status: adminReviewStatusFilter } : {}),
-    })
-      .then((res) => setAdminReviews(Array.isArray(res) ? res : []))
-      .catch(() => setAdminReviews([]));
-  }, [activeTab, adminReviewStatusFilter]);
+    loadAdminReviews();
+  }, [activeTab, loadAdminReviews]);
 
   useEffect(() => {
     if (activeTab !== "reviews") return;
@@ -1106,6 +1127,62 @@ export default function AdminDashboard({
       setAdminReviewStatus(error?.response?.data?.error || error?.message || "Failed to update review.");
     } finally {
       setIsSavingReview(false);
+    }
+  };
+
+  const handleCreateAdminReview = async (event) => {
+    event.preventDefault();
+    setAdminReviewCreateStatus("");
+
+    const reviewerName = String(adminReviewCreateForm.name || "").trim();
+    const body = String(adminReviewCreateForm.body || "").trim();
+    const purchasedAt = String(adminReviewCreateForm.purchased_at || "").trim();
+    const purchaseSource = String(adminReviewCreateForm.purchase_source || "").trim().toLowerCase();
+    const purchaseSourceOther = String(adminReviewCreateForm.purchase_source_other || "").trim();
+    const status = String(adminReviewCreateForm.status || "approved").trim().toLowerCase();
+
+    if (!reviewerName || !body || !purchasedAt || !purchaseSource) {
+      setAdminReviewCreateStatus("Name, Purchased At, Purchase Source, and comment are required.");
+      return;
+    }
+    if (purchaseSource === "other" && !purchaseSourceOther) {
+      setAdminReviewCreateStatus("Please enter where the review came from.");
+      return;
+    }
+
+    const payload = new FormData();
+    payload.append("name", reviewerName);
+    payload.append("rating", String(Number(adminReviewCreateForm.rating) || 5));
+    payload.append("title", String(adminReviewCreateForm.title || "").trim());
+    payload.append("body", body);
+    payload.append("purchased_at", purchasedAt);
+    payload.append("purchase_source", purchaseSource);
+    payload.append("purchase_source_other", purchaseSourceOther);
+    payload.append("status", status);
+    if (adminReviewCreateForm.photo) {
+      payload.append("photo", adminReviewCreateForm.photo);
+    }
+
+    setIsCreatingAdminReview(true);
+    try {
+      await createAdminReview(payload);
+      setAdminReviewCreateStatus("Review added.");
+      setAdminReviewCreateForm({
+        name: "",
+        rating: 5,
+        title: "",
+        body: "",
+        purchased_at: "",
+        purchase_source: "etsy",
+        purchase_source_other: "",
+        status: "approved",
+        photo: null,
+      });
+      await loadAdminReviews();
+    } catch (error) {
+      setAdminReviewCreateStatus(error?.response?.data?.error || error?.message || "Failed to add review.");
+    } finally {
+      setIsCreatingAdminReview(false);
     }
   };
 
@@ -5516,6 +5593,120 @@ export default function AdminDashboard({
                 <button type="submit" className="button">Generate Code</button>
               </form>
 
+              <form className="review-invite-form" onSubmit={handleCreateAdminReview} style={{ marginTop: "1rem" }}>
+                <h4>Add Etsy Review / Testimonial</h4>
+                <p className="form-note" style={{ marginTop: 0 }}>
+                  Create a review manually using the same fields as the customer review flow.
+                </p>
+                <div className="review-invite-grid">
+                  <label>
+                    <span>Reviewer Name</span>
+                    <input
+                      type="text"
+                      value={adminReviewCreateForm.name}
+                      onChange={(event) => setAdminReviewCreateForm((prev) => ({ ...prev, name: event.target.value }))}
+                      placeholder="Customer name"
+                      required
+                    />
+                  </label>
+                  <label>
+                    <span>Rating</span>
+                    <select
+                      value={adminReviewCreateForm.rating}
+                      onChange={(event) => setAdminReviewCreateForm((prev) => ({ ...prev, rating: Number(event.target.value) }))}
+                    >
+                      <option value={5}>5 - Excellent</option>
+                      <option value={4}>4 - Good</option>
+                      <option value={3}>3 - Average</option>
+                      <option value={2}>2 - Fair</option>
+                      <option value={1}>1 - Poor</option>
+                    </select>
+                  </label>
+                </div>
+                <label className="review-invite-note">
+                  <span>Title</span>
+                  <input
+                    type="text"
+                    value={adminReviewCreateForm.title}
+                    onChange={(event) => setAdminReviewCreateForm((prev) => ({ ...prev, title: event.target.value }))}
+                    placeholder="Optional review title"
+                  />
+                </label>
+                <label className="review-invite-note">
+                  <span>Review Body</span>
+                  <textarea
+                    value={adminReviewCreateForm.body}
+                    onChange={(event) => setAdminReviewCreateForm((prev) => ({ ...prev, body: event.target.value }))}
+                    placeholder="Paste the review text here"
+                    rows={4}
+                    required
+                  />
+                </label>
+                <div className="review-invite-grid">
+                  <label>
+                    <span>Purchased At</span>
+                    <input
+                      type="date"
+                      value={adminReviewCreateForm.purchased_at}
+                      onChange={(event) => setAdminReviewCreateForm((prev) => ({ ...prev, purchased_at: event.target.value }))}
+                      required
+                    />
+                  </label>
+                  <label>
+                    <span>Purchase Source</span>
+                    <select
+                      value={adminReviewCreateForm.purchase_source}
+                      onChange={(event) => setAdminReviewCreateForm((prev) => ({ ...prev, purchase_source: event.target.value }))}
+                    >
+                      <option value="etsy">Etsy</option>
+                      <option value="ebay">eBay</option>
+                      <option value="facebook">Facebook</option>
+                      <option value="amazon">Amazon</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </label>
+                </div>
+                {adminReviewCreateForm.purchase_source === "other" ? (
+                  <label className="review-invite-note">
+                    <span>Where did it come from?</span>
+                    <input
+                      type="text"
+                      value={adminReviewCreateForm.purchase_source_other}
+                      onChange={(event) => setAdminReviewCreateForm((prev) => ({ ...prev, purchase_source_other: event.target.value }))}
+                      placeholder="Enter source"
+                      required
+                    />
+                  </label>
+                ) : null}
+                <div className="review-invite-grid">
+                  <label>
+                    <span>Visibility</span>
+                    <select
+                      value={adminReviewCreateForm.status}
+                      onChange={(event) => setAdminReviewCreateForm((prev) => ({ ...prev, status: event.target.value }))}
+                    >
+                      <option value="approved">Show on review page</option>
+                      <option value="pending">Pending</option>
+                      <option value="hidden">Hidden</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Photo (optional)</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => setAdminReviewCreateForm((prev) => ({ ...prev, photo: event.target.files?.[0] || null }))}
+                    />
+                  </label>
+                </div>
+                <button type="submit" className="button" disabled={isCreatingAdminReview}>
+                  {isCreatingAdminReview ? "Adding Review..." : "Add Review"}
+                </button>
+              </form>
+
+              {adminReviewCreateStatus ? <p className="form-note">{adminReviewCreateStatus}</p> : null}
+
               {reviewInviteStatus ? <p className="form-note">{reviewInviteStatus}</p> : null}
 
               {lastGeneratedReviewCode ? (
@@ -5598,7 +5789,7 @@ export default function AdminDashboard({
                     <article key={review.id} className="review-row">
                       <div className="review-row-header">
                         <h4 className="review-row-title">
-                          {(review.first_name || "").trim()} {(review.last_name || "").trim()} · {review.product_type === 'invite' ? `Linked to ${String(review.product_id || '').toUpperCase()}` : `${review.product_type} #${review.product_id}`}
+                          {(review.first_name || "").trim()} {(review.last_name || "").trim()} · {review.product_type === 'invite' ? `Linked to ${String(review.product_id || '').toUpperCase()}` : review.product_type === 'testimonial' ? 'Etsy testimonial' : `${review.product_type} #${review.product_id}`}
                         </h4>
                         <div className="review-row-actions">
                           <button type="button" className="button" onClick={() => handleSaveAdminReview(review)}>

@@ -199,6 +199,9 @@ export const submitPublicReview = (formData) => api.post('/reviews/submit-public
 export const submitShopCustomOrderRequest = (payload) => api.post('/shop/custom-order-request', payload);
 export const submitShopContactRequest = (payload) => api.post('/shop/contact-request', payload);
 export const fetchAdminReviews = (params = {}) => api.get('/admin/reviews', { params });
+export const createAdminReview = (formData) => api.post('/admin/reviews', formData, {
+  headers: { 'Content-Type': 'multipart/form-data' },
+});
 export const updateAdminReview = (reviewId, payload) => api.put(`/admin/reviews/${reviewId}`, payload);
 export const deleteAdminReview = (reviewId) => api.delete(`/admin/reviews/${reviewId}`);
 export const fetchAdminReviewInviteCodes = (params = {}) => api.get('/admin/review-invite-codes', { params });

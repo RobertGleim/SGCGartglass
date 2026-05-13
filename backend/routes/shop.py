@@ -3413,6 +3413,99 @@ def customer_create_review():
     return jsonify({"id": review_id}), 201
 
 
+@api.post("/admin/reviews")
+@require_auth
+def admin_create_review():
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    reviewer_name = str(request.form.get("name") or "").strip()
+    review_title = str(request.form.get("title") or "").strip()
+    review_body = str(request.form.get("body") or "").strip()
+    purchased_at = str(request.form.get("purchased_at") or "").strip()
+    purchase_source = str(request.form.get("purchase_source") or "").strip().lower()
+    purchase_source_other = str(request.form.get("purchase_source_other") or "").strip()
+    rating_raw = request.form.get("rating")
+    status = str(request.form.get("status") or "approved").strip().lower()
+
+    if not reviewer_name or not review_body or not rating_raw or not purchased_at or not purchase_source:
+        return jsonify({"error": "missing_fields"}), 400
+
+    allowed_sources = {"etsy", "ebay", "facebook", "amazon", "other"}
+    allowed_statuses = {"approved", "pending", "hidden", "rejected"}
+    if purchase_source not in allowed_sources:
+        return jsonify({"error": "invalid_purchase_source"}), 400
+    if purchase_source == "other" and not purchase_source_other:
+        return jsonify({"error": "missing_purchase_source_other"}), 400
+    if status not in allowed_statuses:
+        return jsonify({"error": "invalid_status"}), 400
+
+    try:
+        rating = int(rating_raw)
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid_rating"}), 400
+    if rating < 1 or rating > 5:
+        return jsonify({"error": "invalid_rating"}), 400
+
+    review_image_url = None
+    image_file = request.files.get("photo")
+    if image_file and image_file.filename:
+        filename = secure_filename(image_file.filename or "review-photo")
+        ext = os.path.splitext(filename)[1].lower()
+        mime_type = str(image_file.content_type or "").lower()
+        if ext not in ALLOWED_REVIEW_IMAGE_EXTENSIONS or (mime_type and mime_type not in ALLOWED_REVIEW_IMAGE_MIME):
+            return jsonify({"error": "invalid_image_type"}), 400
+
+        image_bytes = image_file.read()
+        if len(image_bytes) > MAX_REVIEW_IMAGE_BYTES:
+            return jsonify({"error": "image_too_large"}), 400
+
+        configured_upload_root = current_app.config.get("UPLOAD_FOLDER")
+        if configured_upload_root:
+            uploads_dir = os.path.join(str(configured_upload_root), "reviews")
+        else:
+            uploads_dir = os.path.join(os.path.dirname(__file__), "..", "uploads", "reviews")
+        uploads_dir = os.path.abspath(uploads_dir)
+        os.makedirs(uploads_dir, exist_ok=True)
+
+        unique_name = f"{uuid.uuid4().hex}{ext}"
+        output_path = os.path.join(uploads_dir, unique_name)
+        with open(output_path, "wb") as output:
+            output.write(image_bytes)
+        review_image_url = f"/uploads/reviews/{unique_name}"
+
+    first_name, last_name = _split_name(reviewer_name)
+    guest_email = f"admin-testimonial-{secrets.token_hex(8)}@sgcg.local"
+    guest_customer_id = create_customer({
+        "email": guest_email,
+        "password_hash": generate_password_hash(secrets.token_urlsafe(18)),
+        "first_name": first_name,
+        "last_name": last_name,
+        "phone": None,
+    })
+
+    source_text = purchase_source_other if purchase_source == "other" else purchase_source
+    enriched_body = (
+        f"{review_body}\n\nPurchased At: {purchased_at}\nPurchased Via: {source_text}"
+    )
+
+    review_id = create_customer_review(
+        guest_customer_id,
+        {
+            "product_type": "testimonial",
+            "product_id": purchase_source,
+            "rating": rating,
+            "title": review_title,
+            "body": enriched_body,
+            "review_image_url": review_image_url,
+        },
+        False,
+        status,
+    )
+    return jsonify({"id": review_id, "status": status}), 201
+
+
 @api.put("/customer/reviews/<int:review_id>")
 @require_customer
 def customer_update_review(review_id):
