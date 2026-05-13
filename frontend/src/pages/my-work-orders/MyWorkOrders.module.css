@@ -220,8 +220,9 @@
   border-radius: 16px;
   box-shadow: 0 4px 32px rgba(0,0,0,0.18);
   padding: 2rem 2.5rem;
-  min-width: 380px;
-  max-width: 90vw;
+  min-width: 0;
+  width: min(760px, 90vw);
+  max-width: 100%;
   max-height: 85vh;
   overflow-y: auto;
   position: relative;
@@ -265,4 +266,20 @@
   margin-top: 1.25rem;
   padding-top: 1rem;
   border-top: 1px solid #eee;
+}
+
+@media (max-width: 640px) {
+  .detailModal {
+    padding: 0.75rem;
+  }
+
+  .detailBox {
+    width: 100%;
+    max-height: calc(100vh - 1.5rem);
+    padding: 1.1rem 1rem;
+  }
+
+  .detailActions {
+    flex-wrap: wrap;
+  }
 }

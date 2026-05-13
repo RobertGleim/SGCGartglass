@@ -12,6 +12,8 @@
 
 html {
   scroll-behavior: smooth;
+  width: 100%;
+  max-width: 100%;
 }
 
 body {
@@ -20,6 +22,22 @@ body {
   font-family: 'Inter', Arial, sans-serif;
   background: var(--background);
   color: var(--primary);
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+img,
+video,
+iframe,
+svg {
+  max-width: 100%;
 }
 
 button,

@@ -487,8 +487,8 @@
 
 /* Side panel */
 .sidePanel {
-  width: 560px;
-  min-width: 460px;
+  width: min(46vw, 560px);
+  min-width: 320px;
   background: #fffaf5;
   border-left: 1.5px solid #e0d5c5;
   overflow-y: auto;
@@ -1221,8 +1221,8 @@
 
 @media (max-width: 1200px) {
   .sidePanel {
-    width: 480px;
-    min-width: 360px;
+    width: min(44vw, 480px);
+    min-width: 300px;
   }
   .toolsRow {
     flex-direction: column;

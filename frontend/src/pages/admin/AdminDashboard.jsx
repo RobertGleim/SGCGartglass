@@ -4932,44 +4932,46 @@ export default function AdminDashboard({
             {customers.length === 0 ? (
               <p className="form-note">No customers found.</p>
             ) : (
-              <table className="admin-table customer-admin-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagedCustomers.map((c) => (
-                    <tr key={c.id}>
-                      <td className="customer-actions-cell">
-                        {c.first_name} {c.last_name}
-                      </td>
-                      <td>{c.email}</td>
-                      <td>{c.phone || "-"}</td>
-                      <td style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <button
-                          type="button"
-                          className="button"
-                          onClick={() => openCustomerEditModal(c)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="button"
-                          title={`Email ${c.email}`}
-                          onClick={() => window.open(`https://mail.hostinger.com/v2/compose?to=${encodeURIComponent(c.email || '')}`, '_blank', 'noopener,noreferrer')}
-                        >
-                          Email
-                        </button>
-                      </td>
+              <div className="admin-table-wrap">
+                <table className="admin-table customer-admin-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Phone</th>
+                      <th>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {pagedCustomers.map((c) => (
+                      <tr key={c.id}>
+                        <td className="customer-actions-cell">
+                          {c.first_name} {c.last_name}
+                        </td>
+                        <td>{c.email}</td>
+                        <td>{c.phone || "-"}</td>
+                        <td style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            className="button"
+                            onClick={() => openCustomerEditModal(c)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="button"
+                            title={`Email ${c.email}`}
+                            onClick={() => window.open(`https://mail.hostinger.com/v2/compose?to=${encodeURIComponent(c.email || '')}`, '_blank', 'noopener,noreferrer')}
+                          >
+                            Email
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
             {renderSectionPagination(customersPage, totalCustomersPages, setCustomersPage)}
           </div>

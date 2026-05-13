@@ -1185,6 +1185,11 @@
   border-collapse: collapse;
 }
 
+.admin-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
 .admin-table th,
 .admin-table td {
   text-align: left;
@@ -1612,6 +1617,27 @@
 
   .inline-form input {
     min-width: 0;
+  }
+
+  .customer-admin-table td:nth-child(1),
+  .customer-admin-table td:nth-child(2),
+  .customer-admin-table td:nth-child(3) {
+    min-width: 0;
+  }
+
+  .customer-admin-table td:nth-child(4) {
+    min-width: 220px;
+  }
+
+  .digital-recovery-search-row {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .digital-recovery-search {
+    flex: 1 1 100%;
+    min-width: 0;
+    width: 100%;
   }
 }
 

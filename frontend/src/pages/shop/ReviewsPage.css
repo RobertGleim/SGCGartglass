@@ -392,6 +392,34 @@
   color: #666;
 }
 
+@media (max-width: 768px) {
+  .reviews-heading-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+  }
+
+  .reviews-heading-row h1 {
+    text-align: left;
+  }
+
+  .reviews-code-entry {
+    min-width: 0;
+    width: 100%;
+    text-align: left;
+  }
+
+  .reviews-code-entry-row {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .reviews-code-entry-row input {
+    min-width: 0;
+    flex: 1 1 180px;
+  }
+}
+
 @media (min-width: 768px) {
   .reviews-page {
     padding: 1.4rem 4vw 2rem;
