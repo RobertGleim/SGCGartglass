@@ -193,6 +193,9 @@ export const validateReviewInviteCode = (code) => api.post('/reviews/invite-code
 export const submitReviewWithCode = (formData) => api.post('/reviews/submit-with-code', formData, {
   headers: { 'Content-Type': 'multipart/form-data' },
 });
+export const submitPublicReview = (formData) => api.post('/reviews/submit-public', formData, {
+  headers: { 'Content-Type': 'multipart/form-data' },
+});
 export const submitShopCustomOrderRequest = (payload) => api.post('/shop/custom-order-request', payload);
 export const submitShopContactRequest = (payload) => api.post('/shop/contact-request', payload);
 export const fetchAdminReviews = (params = {}) => api.get('/admin/reviews', { params });

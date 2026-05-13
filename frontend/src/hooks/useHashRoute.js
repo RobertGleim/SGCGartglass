@@ -41,6 +41,9 @@ const getRoute = () => {
   if (parts[0] === 'reviews') {
     return { path: '/reviews', params: {} }
   }
+  if (parts[0] === 'public-review') {
+    return { path: '/public-review', params: {} }
+  }
   if (parts[0] === 'diagnostics') {
     return { path: '/diagnostics', params: {} }
   }

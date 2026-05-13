@@ -22,6 +22,7 @@ const HomePage = lazy(() => import('./pages/home/HomePage'))
 const ProductPage = lazy(() => import('./pages/shop/ProductPage'))
 const ProductDetail = lazy(() => import('./pages/shop/ProductDetail'))
 const ReviewsPage = lazy(() => import('./pages/shop/ReviewsPage'))
+const PublicReviewPage = lazy(() => import('./pages/shop/PublicReviewPage'))
 const CheckoutPage = lazy(() => import('./pages/shop/CheckoutPage'))
 const CheckoutSuccessPage = lazy(() => import('./pages/shop/CheckoutSuccessPage'))
 const UnifiedLogin = lazy(() => import('./pages/auth/UnifiedLogin'))
@@ -330,6 +331,10 @@ function App() {
 
         {route.path === '/reviews' && (
           <ReviewsPage />
+        )}
+
+        {route.path === '/public-review' && (
+          <PublicReviewPage />
         )}
 
         {route.path === '/product' && route.params?.id && (
