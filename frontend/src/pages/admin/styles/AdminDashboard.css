@@ -568,7 +568,7 @@
 
 .review-invite-list {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.25rem;
   margin-bottom: 0.8rem;
 }
 
@@ -580,19 +580,49 @@
   border: 1px dashed #c7d7ef;
   border-radius: 8px;
   background: #f3f8ff;
-  padding: 0.55rem 0.7rem;
+  padding: 0.22rem 0.4rem;
   margin-bottom: 0.6rem;
+  min-height: 2rem;
 }
 
 .review-invite-item {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  padding: 0.55rem 0.7rem;
+  padding: 0.22rem 0.4rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.6rem;
   background: #fff;
+  min-height: 2rem;
+}
+
+.review-invite-item > div:first-child,
+.review-invite-latest > div:first-child {
+  min-width: 0;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.review-invite-item strong,
+.review-invite-latest strong {
+  white-space: nowrap;
+  font-size: 0.82rem;
+  line-height: 1.1;
+}
+
+.review-invite-item .form-note,
+.review-invite-latest .form-note {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .review-invite-actions {
@@ -601,6 +631,13 @@
   gap: 0.45rem;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.review-invite-actions .button {
+  min-height: 1.8rem;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.76rem;
+  line-height: 1.05;
 }
 
 /* Image Gallery Base Styles */

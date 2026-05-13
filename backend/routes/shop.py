@@ -130,6 +130,35 @@ ALLOWED_REVIEW_IMAGE_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif
 MAX_REVIEW_IMAGE_BYTES = 20 * 1024 * 1024
 
 
+def _save_review_image_file(image_file):
+    if not image_file or not image_file.filename:
+        return None
+
+    filename = secure_filename(image_file.filename or "review-photo")
+    ext = os.path.splitext(filename)[1].lower()
+    mime_type = str(image_file.content_type or "").lower()
+    if ext not in ALLOWED_REVIEW_IMAGE_EXTENSIONS or (mime_type and mime_type not in ALLOWED_REVIEW_IMAGE_MIME):
+        raise ValueError("invalid_image_type")
+
+    image_bytes = image_file.read()
+    if len(image_bytes) > MAX_REVIEW_IMAGE_BYTES:
+        raise ValueError("image_too_large")
+
+    configured_upload_root = current_app.config.get("UPLOAD_FOLDER")
+    if configured_upload_root:
+        uploads_dir = os.path.join(str(configured_upload_root), "reviews")
+    else:
+        uploads_dir = os.path.join(os.path.dirname(__file__), "..", "uploads", "reviews")
+    uploads_dir = os.path.abspath(uploads_dir)
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    unique_name = f"{uuid.uuid4().hex}{ext}"
+    output_path = os.path.join(uploads_dir, unique_name)
+    with open(output_path, "wb") as output:
+        output.write(image_bytes)
+    return f"/uploads/reviews/{unique_name}"
+
+
 def _login_policy():
     def _int_env(name, default):
         raw = str(os.environ.get(name) or "").strip()
@@ -3236,29 +3265,10 @@ def submit_review_with_invite_code():
     review_image_url = None
     image_file = request.files.get("photo")
     if image_file and image_file.filename:
-        filename = secure_filename(image_file.filename or "review-photo")
-        ext = os.path.splitext(filename)[1].lower()
-        mime_type = str(image_file.content_type or "").lower()
-        if ext not in ALLOWED_REVIEW_IMAGE_EXTENSIONS or (mime_type and mime_type not in ALLOWED_REVIEW_IMAGE_MIME):
-            return jsonify({"error": "invalid_image_type"}), 400
-
-        image_bytes = image_file.read()
-        if len(image_bytes) > MAX_REVIEW_IMAGE_BYTES:
-            return jsonify({"error": "image_too_large"}), 400
-
-        configured_upload_root = current_app.config.get("UPLOAD_FOLDER")
-        if configured_upload_root:
-            uploads_dir = os.path.join(str(configured_upload_root), "reviews")
-        else:
-            uploads_dir = os.path.join(os.path.dirname(__file__), "..", "uploads", "reviews")
-        uploads_dir = os.path.abspath(uploads_dir)
-        os.makedirs(uploads_dir, exist_ok=True)
-
-        unique_name = f"{uuid.uuid4().hex}{ext}"
-        output_path = os.path.join(uploads_dir, unique_name)
-        with open(output_path, "wb") as output:
-            output.write(image_bytes)
-        review_image_url = f"/uploads/reviews/{unique_name}"
+        try:
+            review_image_url = _save_review_image_file(image_file)
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
 
     if not consume_review_invite_code(invite.get("id")):
         return jsonify({"error": "invalid_code"}), 400
@@ -3679,7 +3689,26 @@ def admin_update_review(review_id):
     if not _is_admin_request():
         return jsonify({"error": "forbidden"}), 403
 
-    payload = request.get_json(silent=True) or {}
+    content_type = str(request.content_type or "").lower()
+    is_multipart = "multipart/form-data" in content_type
+
+    if is_multipart:
+        payload = {}
+        for field in ("title", "body", "admin_comment", "status"):
+            if field in request.form:
+                payload[field] = request.form.get(field)
+        if "rating" in request.form:
+            payload["rating"] = request.form.get("rating")
+
+        image_file = request.files.get("photo")
+        if image_file and image_file.filename:
+            try:
+                payload["review_image_url"] = _save_review_image_file(image_file)
+            except ValueError as error:
+                return jsonify({"error": str(error)}), 400
+    else:
+        payload = request.get_json(silent=True) or {}
+
     allowed_statuses = {"approved", "pending", "hidden", "rejected"}
     if "status" in payload and str(payload.get("status") or "").strip().lower() not in allowed_statuses:
         return jsonify({"error": "invalid_status"}), 400

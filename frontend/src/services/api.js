@@ -202,7 +202,14 @@ export const fetchAdminReviews = (params = {}) => api.get('/admin/reviews', { pa
 export const createAdminReview = (formData) => api.post('/admin/reviews', formData, {
   headers: { 'Content-Type': 'multipart/form-data' },
 });
-export const updateAdminReview = (reviewId, payload) => api.put(`/admin/reviews/${reviewId}`, payload);
+export const updateAdminReview = (reviewId, payload) => {
+  if (payload instanceof FormData) {
+    return api.put(`/admin/reviews/${reviewId}`, payload, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
+  return api.put(`/admin/reviews/${reviewId}`, payload);
+};
 export const deleteAdminReview = (reviewId) => api.delete(`/admin/reviews/${reviewId}`);
 export const fetchAdminReviewInviteCodes = (params = {}) => api.get('/admin/review-invite-codes', { params });
 export const createAdminReviewInviteCode = (payload) => api.post('/admin/review-invite-codes', payload);

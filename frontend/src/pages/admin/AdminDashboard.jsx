@@ -186,9 +186,14 @@ const downloadBlobFile = (blob, fileName) => {
 };
 
 const sanitizeDownloadBaseName = (value, fallback = "download") => {
-  const normalized = String(value || "")
-    .trim()
-    .replace(/[<>:"/\\|?*\x00-\x1F]+/g, "-")
+  const blocked = new Set(["<", ">", ":", '"', "/", "\\", "|", "?", "*"]);
+  const normalized = Array.from(String(value || "").trim())
+    .map((char) => {
+      const code = char.charCodeAt(0);
+      if (blocked.has(char) || code <= 31) return "-";
+      return char;
+    })
+    .join("")
     .replace(/\s+/g, " ");
   return normalized || fallback;
 };
@@ -973,6 +978,8 @@ export default function AdminDashboard({
   const [productGalleryOptions, setProductGalleryOptions] = useState([]);
   const [adminReviews, setAdminReviews] = useState([]);
   const [adminReviewSnapshots, setAdminReviewSnapshots] = useState({});
+  const [adminReviewPhotoFiles, setAdminReviewPhotoFiles] = useState({});
+  const [adminReviewPhotoDeletes, setAdminReviewPhotoDeletes] = useState({});
   const [expandedAdminReviewId, setExpandedAdminReviewId] = useState(null);
   const [adminReviewStatusFilter, setAdminReviewStatusFilter] = useState("all");
   const [adminReviewStatus, setAdminReviewStatus] = useState("");
@@ -1117,6 +1124,8 @@ export default function AdminDashboard({
       });
       const rows = Array.isArray(res) ? res : [];
       setAdminReviews(rows);
+      setAdminReviewPhotoFiles({});
+      setAdminReviewPhotoDeletes({});
       setAdminReviewSnapshots(
         rows.reduce((acc, entry) => {
           const key = String(entry?.id || "");
@@ -1127,6 +1136,8 @@ export default function AdminDashboard({
       );
     } catch {
       setAdminReviews([]);
+      setAdminReviewPhotoFiles({});
+      setAdminReviewPhotoDeletes({});
       setAdminReviewSnapshots({});
     }
   }, [adminReviewStatusFilter]);
@@ -1175,21 +1186,81 @@ export default function AdminDashboard({
     )));
   };
 
+  const handleAdminReviewPhotoChange = (reviewId, file) => {
+    setAdminReviewPhotoFiles((prev) => {
+      const next = { ...prev };
+      if (file) {
+        next[String(reviewId)] = file;
+      } else {
+        delete next[String(reviewId)];
+      }
+      return next;
+    });
+    setAdminReviewPhotoDeletes((prev) => {
+      const next = { ...prev };
+      delete next[String(reviewId)];
+      return next;
+    });
+  };
+
+  const handleAdminReviewPhotoDelete = (reviewId) => {
+    const reviewKey = String(reviewId);
+    setAdminReviewPhotoFiles((prev) => {
+      const next = { ...prev };
+      delete next[reviewKey];
+      return next;
+    });
+    setAdminReviewPhotoDeletes((prev) => ({
+      ...prev,
+      [reviewKey]: true,
+    }));
+  };
+
+  const handleAdminReviewPhotoRestore = (reviewId) => {
+    setAdminReviewPhotoDeletes((prev) => {
+      const next = { ...prev };
+      delete next[String(reviewId)];
+      return next;
+    });
+  };
+
   const handleSaveAdminReview = async (review) => {
     setAdminReviewStatus("");
     setIsSavingReview(true);
     try {
-      await updateAdminReview(review.id, {
-        rating: Number(review.rating),
-        title: review.title || "",
-        body: review.body || "",
-        admin_comment: review.admin_comment || "",
-        status: review.status || "pending",
+      const reviewKey = String(review.id);
+      const pendingPhoto = adminReviewPhotoFiles[reviewKey] || null;
+      const pendingPhotoDelete = Boolean(adminReviewPhotoDeletes[reviewKey]);
+      if (pendingPhoto) {
+        const formData = new FormData();
+        formData.append("rating", String(Number(review.rating) || 0));
+        formData.append("title", review.title || "");
+        formData.append("body", review.body || "");
+        formData.append("admin_comment", review.admin_comment || "");
+        formData.append("status", review.status || "pending");
+        formData.append("photo", pendingPhoto);
+        await updateAdminReview(review.id, formData);
+      } else {
+        await updateAdminReview(review.id, {
+          rating: Number(review.rating),
+          title: review.title || "",
+          body: review.body || "",
+          admin_comment: review.admin_comment || "",
+          status: review.status || "pending",
+          ...(pendingPhotoDelete ? { review_image_url: null } : {}),
+        });
+      }
+      setAdminReviewPhotoFiles((prev) => {
+        const next = { ...prev };
+        delete next[reviewKey];
+        return next;
       });
-      setAdminReviewSnapshots((prev) => ({
-        ...prev,
-        [String(review.id)]: buildReviewSnapshot(review),
-      }));
+      setAdminReviewPhotoDeletes((prev) => {
+        const next = { ...prev };
+        delete next[reviewKey];
+        return next;
+      });
+      await loadAdminReviews();
       setAdminReviewStatus("Review updated.");
     } catch (error) {
       setAdminReviewStatus(error?.response?.data?.error || error?.message || "Failed to update review.");
@@ -1260,6 +1331,16 @@ export default function AdminDashboard({
     try {
       await deleteAdminReview(reviewId);
       setAdminReviews((prev) => prev.filter((entry) => entry.id !== reviewId));
+      setAdminReviewPhotoFiles((prev) => {
+        const next = { ...prev };
+        delete next[String(reviewId)];
+        return next;
+      });
+      setAdminReviewPhotoDeletes((prev) => {
+        const next = { ...prev };
+        delete next[String(reviewId)];
+        return next;
+      });
       setAdminReviewSnapshots((prev) => {
         const next = { ...prev };
         delete next[String(reviewId)];
@@ -1718,7 +1799,7 @@ export default function AdminDashboard({
       .filter((entry) => {
         if (!entry?.id) return false;
         if (editingProduct && String(entry.id) === String(editingProduct.id)) return false;
-        if (Boolean(entry.is_digital_download)) return false;
+        if (entry.is_digital_download) return false;
         if (inferManualProductTab(entry) === "patterns") return false;
         return true;
       })
@@ -2784,7 +2865,7 @@ export default function AdminDashboard({
             const entryId = Number(entry?.id);
             if (!Number.isFinite(entryId)) return false;
             if (editingProduct && entryId === Number(editingProduct.id)) return false;
-            if (!Boolean(entry?.is_digital_download)) return false;
+            if (!entry?.is_digital_download) return false;
 
             const entryLinks = entry?.related_links && typeof entry.related_links === "object"
               ? entry.related_links
@@ -5895,6 +5976,9 @@ export default function AdminDashboard({
                     const isPending = String(review.status || "pending").toLowerCase() === "pending";
                     const needsAction = isPending || isDirty;
                     const isExpanded = String(expandedAdminReviewId || "") === reviewId;
+                    const pendingPhoto = adminReviewPhotoFiles[reviewId] || null;
+                    const pendingPhotoDelete = Boolean(adminReviewPhotoDeletes[reviewId]);
+                    const resolvedReviewImage = resolveMediaUrl(review.review_image_url);
 
                     return (
                       <article key={review.id} className={`review-row${needsAction ? " review-row-needs-action" : ""}${isExpanded ? " review-row-open" : ""}`}>
@@ -5982,6 +6066,73 @@ export default function AdminDashboard({
                                   placeholder="Add a reply to the customer"
                                 />
                               </label>
+
+                              <div className="review-field review-field-photo">
+                                <span>Review Photo</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(event) => handleAdminReviewPhotoChange(review.id, event.target.files?.[0] || null)}
+                                />
+                                <input
+                                  type="text"
+                                  className="review-photo-paste-target"
+                                  readOnly
+                                  value="Click here, then press Ctrl+V to paste an image"
+                                  aria-label="Paste review photo from clipboard"
+                                  onPaste={(event) => {
+                                    const items = event.clipboardData?.items;
+                                    if (!items) return;
+                                    for (let index = 0; index < items.length; index += 1) {
+                                      const item = items[index];
+                                      if (item.kind === "file" && item.type.startsWith("image/")) {
+                                        const file = item.getAsFile();
+                                        if (file) {
+                                          event.preventDefault();
+                                          handleAdminReviewPhotoChange(review.id, file);
+                                        }
+                                        break;
+                                      }
+                                    }
+                                  }}
+                                />
+                                {pendingPhoto ? (
+                                  <span className="form-note">Pending upload: {pendingPhoto.name || "clipboard-image"}</span>
+                                ) : null}
+                                {pendingPhotoDelete ? (
+                                  <span className="form-note">Photo will be removed when you save.</span>
+                                ) : null}
+                                <div className="review-photo-actions">
+                                  {resolvedReviewImage && !pendingPhotoDelete ? (
+                                    <button
+                                      type="button"
+                                      className="button button-secondary"
+                                      onClick={() => handleAdminReviewPhotoDelete(review.id)}
+                                    >
+                                      Remove Current Photo
+                                    </button>
+                                  ) : null}
+                                  {pendingPhotoDelete ? (
+                                    <button
+                                      type="button"
+                                      className="button button-secondary"
+                                      onClick={() => handleAdminReviewPhotoRestore(review.id)}
+                                    >
+                                      Keep Current Photo
+                                    </button>
+                                  ) : null}
+                                </div>
+                                {!pendingPhoto && !pendingPhotoDelete && resolvedReviewImage ? (
+                                  <img
+                                    src={resolvedReviewImage}
+                                    alt="Current review"
+                                    className="review-edit-photo-preview"
+                                    onError={(event) => {
+                                      event.currentTarget.style.display = "none";
+                                    }}
+                                  />
+                                ) : null}
+                              </div>
                             </div>
 
                             <div className="review-row-actions">

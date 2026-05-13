@@ -4074,6 +4074,9 @@ def update_admin_review(review_id, payload):
     if "admin_comment" in payload:
         updates.append(f"admin_comment = {placeholder}")
         values.append(payload.get("admin_comment"))
+    if "review_image_url" in payload:
+        updates.append(f"review_image_url = {placeholder}")
+        values.append(payload.get("review_image_url"))
     if "status" in payload:
         updates.append(f"status = {placeholder}")
         values.append(str(payload.get("status") or "").strip().lower())
