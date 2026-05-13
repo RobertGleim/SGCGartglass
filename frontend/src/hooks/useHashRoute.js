@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react'
 
-const getRoute = () => {
-  const raw = window.location.hash.replace('#', '') || '/'
-  // Strip query string before parsing route path
-  const hash = raw.split('?')[0]
-  const parts = hash.split('/').filter(Boolean)
+const parseParts = (parts) => {
   if (parts[0] === 'product') {
     return { path: '/product', params: { id: parts[1] } }
   }
@@ -62,6 +58,25 @@ const getRoute = () => {
   if (parts[0] === 'faq') {
     return { path: '/faq', params: {} }
   }
+
+  return null
+}
+
+const getRoute = () => {
+  const rawHash = window.location.hash.replace('#', '') || ''
+  const hashParts = rawHash.split('?')[0].split('/').filter(Boolean)
+  const hashRoute = parseParts(hashParts)
+  if (hashRoute) {
+    return hashRoute
+  }
+
+  const pathname = window.location.pathname || '/'
+  const pathParts = pathname.split('/').filter(Boolean)
+  const pathRoute = parseParts(pathParts)
+  if (pathRoute) {
+    return pathRoute
+  }
+
   return { path: '/', params: {} }
 }
 
