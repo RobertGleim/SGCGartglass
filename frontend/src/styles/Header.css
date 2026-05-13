@@ -16,6 +16,14 @@
   display: flex;
   align-items: center;
   gap: 0.95rem;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: opacity 0.2s ease;
+}
+
+.logo-block:hover {
+  opacity: 0.8;
 }
 
 .logo-block img {

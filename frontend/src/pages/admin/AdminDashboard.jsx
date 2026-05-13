@@ -129,6 +129,51 @@ const resolveMediaUrl = (value) => {
   return `${getApiOrigin()}/${raw.replace(/^\.?\//, "")}`;
 };
 
+const parseDateInput = (dateString) => {
+  if (!dateString || typeof dateString !== "string") return "";
+  
+  const trimmed = dateString.trim();
+  if (!trimmed) return "";
+  
+  // Already in ISO format (YYYY-MM-DD)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  
+  // MM/DD/YYYY or M/D/YYYY
+  const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    const month = String(slashMatch[1]).padStart(2, "0");
+    const day = String(slashMatch[2]).padStart(2, "0");
+    const year = slashMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+  
+  // DD-MM-YYYY or D-M-YYYY
+  const dashMatch = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (dashMatch) {
+    const day = String(dashMatch[1]).padStart(2, "0");
+    const month = String(dashMatch[2]).padStart(2, "0");
+    const year = dashMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Try to parse as natural date
+  try {
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) {
+      const year = parsed.getFullYear();
+      const month = String(parsed.getMonth() + 1).padStart(2, "0");
+      const day = String(parsed.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+  } catch {
+    // If parsing fails, return empty string
+  }
+  
+  return "";
+};
+
 const downloadBlobFile = (blob, fileName) => {
   const objectUrl = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -5646,9 +5691,16 @@ export default function AdminDashboard({
                   <label>
                     <span>Purchased At</span>
                     <input
-                      type="date"
+                      type="text"
                       value={adminReviewCreateForm.purchased_at}
                       onChange={(event) => setAdminReviewCreateForm((prev) => ({ ...prev, purchased_at: event.target.value }))}
+                      onBlur={(event) => {
+                        const parsed = parseDateInput(event.target.value);
+                        if (parsed) {
+                          setAdminReviewCreateForm((prev) => ({ ...prev, purchased_at: parsed }));
+                        }
+                      }}
+                      placeholder="MM/DD/YYYY or YYYY-MM-DD"
                       required
                     />
                   </label>
@@ -5697,6 +5749,19 @@ export default function AdminDashboard({
                       type="file"
                       accept="image/*"
                       onChange={(event) => setAdminReviewCreateForm((prev) => ({ ...prev, photo: event.target.files?.[0] || null }))}
+                      onPaste={(event) => {
+                        const items = event.clipboardData?.items;
+                        if (items) {
+                          for (let i = 0; i < items.length; i++) {
+                            if (items[i].kind === "file" && items[i].type.startsWith("image/")) {
+                              event.preventDefault();
+                              const file = items[i].getAsFile();
+                              setAdminReviewCreateForm((prev) => ({ ...prev, photo: file }));
+                              break;
+                            }
+                          }
+                        }
+                      }}
                     />
                   </label>
                 </div>

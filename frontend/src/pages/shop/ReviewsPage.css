@@ -356,9 +356,21 @@
   border-radius: 0 10px 10px 0;
 }
 
-.reviews-admin-comment strong {
-  display: block;
+.reviews-admin-comment-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin-bottom: 0.35rem;
+}
+
+.reviews-admin-comment-logo {
+  width: 24px;
+  height: auto;
+  max-height: 24px;
+  object-fit: contain;
+}
+
+.reviews-admin-comment strong {
   color: #1f4ea1;
   font-size: 0.88rem;
 }

@@ -300,7 +300,10 @@ export default function ReviewsPage() {
                       <p className="reviews-page-body">{review.body || ''}</p>
                       {review.admin_comment ? (
                         <div className="reviews-admin-comment">
-                          <strong>Admin reply</strong>
+                          <div className="reviews-admin-comment-header">
+                            <img src="/logo.png" alt="SgCg Art Glass" className="reviews-admin-comment-logo" />
+                            <strong>SgCg Art Glass Replied</strong>
+                          </div>
                           <p>{review.admin_comment}</p>
                         </div>
                       ) : null}
