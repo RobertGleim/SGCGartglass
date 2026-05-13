@@ -77,7 +77,10 @@ export default function Header({ brandName, authToken, customerToken }) {
           <span className="header-origin-flag" aria-hidden="true">
             <span className="header-origin-flag-canton" />
           </span>
-          <span className="header-origin-text">HandCrafted in the USA</span>
+          <span className="header-origin-text">
+            <span className="header-origin-line-primary">HandCrafted</span>
+            <span className="header-origin-line-secondary">in the USA</span>
+          </span>
         </div>
       </a>
       <button className="nav-toggle" onClick={() => setMenuOpen(v => !v)} aria-label="Toggle menu">

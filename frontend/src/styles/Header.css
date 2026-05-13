@@ -16,6 +16,7 @@
   display: flex;
   align-items: center;
   gap: 0.95rem;
+  min-width: 0;
   cursor: pointer;
   text-decoration: none;
   color: inherit;
@@ -42,11 +43,20 @@
 }
 
 .header-origin-text {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
   font-size: 0.8rem;
   font-weight: 700;
   line-height: 1.2;
   color: #163058;
   letter-spacing: 0.03em;
+  white-space: normal;
+}
+
+.header-origin-line-primary,
+.header-origin-line-secondary {
+  display: inline;
   white-space: nowrap;
 }
 
@@ -267,11 +277,14 @@
   .header-origin-text {
     font-size: 0.92rem;
   }
-  
+}
+
+/* Desktop (1024px+) */
+@media (min-width: 1024px) {
   .nav-toggle {
     display: none;
   }
-  
+
   .nav-links {
     position: static;
     display: flex;
@@ -283,7 +296,7 @@
     padding: 0;
     min-width: auto;
   }
-  
+
   .nav-links a {
     padding: 0;
     display: inline-flex;
@@ -298,10 +311,7 @@
     height: 2rem;
     font-size: 1.02rem;
   }
-}
 
-/* Desktop (1024px+) */
-@media (min-width: 1024px) {
   .nav-links {
     gap: 2rem;
   }
@@ -311,12 +321,28 @@
   }
 }
 
-@media (max-width: 639px) {
+@media (max-width: 1240px) {
+  .header-origin-text {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    line-height: 1.05;
+  }
+}
+
+@media (max-width: 767px) {
   .header-origin-text {
     display: none;
   }
 
   .header-origin-badge {
     padding-left: 0;
+    gap: 0.35rem;
+  }
+
+  .header-origin-flag {
+    width: 36px;
+    min-width: 36px;
+    height: 24px;
   }
 }
