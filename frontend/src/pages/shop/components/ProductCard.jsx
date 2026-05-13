@@ -56,6 +56,16 @@ const toCategoryList = (category) => {
 
 const normalizeCategory = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '')
 
+const parseBooleanLike = (value) => {
+  if (value === true || value === false) return value
+  if (value === 1 || value === 0) return Boolean(value)
+  const normalized = String(value || '').trim().toLowerCase()
+  if (!normalized) return null
+  if (['true', '1', 'yes', 'y', 'on'].includes(normalized)) return true
+  if (['false', '0', 'no', 'n', 'off'].includes(normalized)) return false
+  return null
+}
+
 const toCleanUrl = (value) => {
   const raw = String(value || '').trim()
   if (!raw) return ''
@@ -316,6 +326,15 @@ export default function ProductCard({ product }) {
   const quantity = Number(product?.quantity ?? product?.originalData?.quantity)
   const hasInventoryCount = Number.isFinite(quantity)
   const isSoldOut = !isDigitalDownload && hasInventoryCount && quantity <= 0
+  const explicitFreeShipping = [
+    product?.free_shipping,
+    product?.freeShipping,
+    product?.originalData?.free_shipping,
+    product?.originalData?.freeShipping,
+  ]
+    .map((entry) => parseBooleanLike(entry))
+    .find((entry) => entry !== null)
+  const shouldShowFreeShipping = !isDigitalDownload && (explicitFreeShipping ?? true)
   const manualProductId = String(product?.originalData?.id || '').trim()
   const linkedPatternId = String(product?.originalData?.related_links?.pattern_product_id || '').trim()
   const hasLinkedPattern = !isDigitalDownload
@@ -432,7 +451,7 @@ export default function ProductCard({ product }) {
                 </>
               )}
             </div>
-            {product.free_shipping && (
+            {shouldShowFreeShipping && (
               <span className="free-shipping" aria-label="Free shipping">
                 <span className="free-shipping-icon" aria-hidden="true">🚚</span>
                 FREE shipping

@@ -499,6 +499,13 @@ const mergeUniqueProductImages = (entries) => {
 
 const FACEBOOK_POSTED_STORAGE_KEY = "adminFbPostedManualProducts";
 const STAR_SCALE = [1, 2, 3, 4, 5];
+const buildReviewSnapshot = (review) => ({
+  rating: Number(review?.rating || 0),
+  title: String(review?.title || ""),
+  body: String(review?.body || ""),
+  admin_comment: String(review?.admin_comment || ""),
+  status: String(review?.status || "pending"),
+});
 const MAX_MANUAL_UPLOAD_PHOTOS = 10;
 const MAX_MANUAL_UPLOAD_VIDEOS = 1;
 const MAX_MANUAL_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -965,6 +972,8 @@ export default function AdminDashboard({
   const [productTemplateOptions, setProductTemplateOptions] = useState([]);
   const [productGalleryOptions, setProductGalleryOptions] = useState([]);
   const [adminReviews, setAdminReviews] = useState([]);
+  const [adminReviewSnapshots, setAdminReviewSnapshots] = useState({});
+  const [expandedAdminReviewId, setExpandedAdminReviewId] = useState(null);
   const [adminReviewStatusFilter, setAdminReviewStatusFilter] = useState("all");
   const [adminReviewStatus, setAdminReviewStatus] = useState("");
   const [reviewInviteCodes, setReviewInviteCodes] = useState([]);
@@ -1106,9 +1115,19 @@ export default function AdminDashboard({
         limit: 300,
         ...(adminReviewStatusFilter !== "all" ? { status: adminReviewStatusFilter } : {}),
       });
-      setAdminReviews(Array.isArray(res) ? res : []);
+      const rows = Array.isArray(res) ? res : [];
+      setAdminReviews(rows);
+      setAdminReviewSnapshots(
+        rows.reduce((acc, entry) => {
+          const key = String(entry?.id || "");
+          if (!key) return acc;
+          acc[key] = buildReviewSnapshot(entry);
+          return acc;
+        }, {}),
+      );
     } catch {
       setAdminReviews([]);
+      setAdminReviewSnapshots({});
     }
   }, [adminReviewStatusFilter]);
 
@@ -1167,6 +1186,10 @@ export default function AdminDashboard({
         admin_comment: review.admin_comment || "",
         status: review.status || "pending",
       });
+      setAdminReviewSnapshots((prev) => ({
+        ...prev,
+        [String(review.id)]: buildReviewSnapshot(review),
+      }));
       setAdminReviewStatus("Review updated.");
     } catch (error) {
       setAdminReviewStatus(error?.response?.data?.error || error?.message || "Failed to update review.");
@@ -1237,6 +1260,12 @@ export default function AdminDashboard({
     try {
       await deleteAdminReview(reviewId);
       setAdminReviews((prev) => prev.filter((entry) => entry.id !== reviewId));
+      setAdminReviewSnapshots((prev) => {
+        const next = { ...prev };
+        delete next[String(reviewId)];
+        return next;
+      });
+      setExpandedAdminReviewId((prev) => (String(prev) === String(reviewId) ? null : prev));
       setAdminReviewStatus("Review deleted.");
     } catch (error) {
       setAdminReviewStatus(error?.response?.data?.error || error?.message || "Failed to delete review.");
@@ -5850,92 +5879,126 @@ export default function AdminDashboard({
                 <p className="form-note">No reviews found.</p>
               ) : (
                 <div className="review-management-list">
-                  {pagedAdminReviews.map((review) => (
-                    <article key={review.id} className="review-row">
-                      <div className="review-row-header">
-                        <h4 className="review-row-title">
-                          {(review.first_name || "").trim()} {(review.last_name || "").trim()} · {review.product_type === 'invite' ? `Linked to ${String(review.product_id || '').toUpperCase()}` : review.product_type === 'testimonial' ? 'Etsy testimonial' : `${review.product_type} #${review.product_id}`}
-                        </h4>
-                        <div className="review-row-actions">
-                          <button type="button" className="button" onClick={() => handleSaveAdminReview(review)}>
-                            Save
-                          </button>
+                  {pagedAdminReviews.map((review) => {
+                    const reviewId = String(review.id || "");
+                    const reviewName = `${(review.first_name || "").trim()} ${(review.last_name || "").trim()}`.trim() || "Unknown reviewer";
+                    const reviewSourceLabel = review.product_type === "invite"
+                      ? `Linked to ${String(review.product_id || "").toUpperCase()}`
+                      : review.product_type === "testimonial"
+                        ? "Etsy testimonial"
+                        : `${review.product_type} #${review.product_id}`;
+                    const currentSnapshot = buildReviewSnapshot(review);
+                    const savedSnapshot = adminReviewSnapshots[reviewId];
+                    const isDirty = Boolean(savedSnapshot) && JSON.stringify(savedSnapshot) !== JSON.stringify(currentSnapshot);
+                    const isPending = String(review.status || "pending").toLowerCase() === "pending";
+                    const needsAction = isPending || isDirty;
+                    const isExpanded = String(expandedAdminReviewId || "") === reviewId;
+
+                    return (
+                      <article key={review.id} className={`review-row${needsAction ? " review-row-needs-action" : ""}${isExpanded ? " review-row-open" : ""}`}>
+                        <div className="review-row-summary">
                           <button
                             type="button"
-                            className="button"
-                            onClick={() => handleDeleteAdminReview(review.id)}
+                            className="review-row-toggle"
+                            onClick={() => setExpandedAdminReviewId((prev) => (String(prev || "") === reviewId ? null : review.id))}
+                            aria-expanded={isExpanded}
                           >
-                            Delete
+                            <span className="review-row-caret" aria-hidden="true">{isExpanded ? "▾" : "▸"}</span>
+                            <span className="review-row-title">{reviewName} · {reviewSourceLabel}</span>
                           </button>
-                        </div>
-                      </div>
-
-                      <div className="review-row-fields">
-                        <label className="review-field review-field-rating">
-                          <span>Rating</span>
-                          <div className="admin-star-rating" role="radiogroup" aria-label="Select rating">
-                            {STAR_SCALE.map((value) => {
-                              const isActive = Number(review.rating || 0) >= value;
-                              return (
-                                <button
-                                  key={`${review.id}-star-${value}`}
-                                  type="button"
-                                  role="radio"
-                                  aria-checked={isActive}
-                                  className={`admin-star-button ${isActive ? "active" : ""}`}
-                                  onClick={() => handleAdminReviewFieldChange(review.id, "rating", value)}
-                                >
-                                  ★
-                                </button>
-                              );
-                            })}
+                          <div className="review-row-summary-right">
+                            <span className="review-row-rating">{Number(review.rating || 0)}/5</span>
+                            <span className={`review-row-status review-row-status-${String(review.status || "pending").toLowerCase()}`}>
+                              {String(review.status || "pending").toLowerCase()}
+                            </span>
+                            {isPending ? <span className="review-row-flag">Needs approval</span> : null}
+                            {isDirty ? <span className="review-row-flag review-row-flag-dirty">Unsaved changes</span> : null}
                           </div>
-                        </label>
+                        </div>
 
-                        <label className="review-field review-field-title">
-                          <span>Title</span>
-                          <input
-                            type="text"
-                            value={review.title || ""}
-                            onChange={(event) => handleAdminReviewFieldChange(review.id, "title", event.target.value)}
-                          />
-                        </label>
+                        {isExpanded ? (
+                          <>
+                            <div className="review-row-fields">
+                              <label className="review-field review-field-rating">
+                                <span>Rating</span>
+                                <div className="admin-star-rating" role="radiogroup" aria-label="Select rating">
+                                  {STAR_SCALE.map((value) => {
+                                    const isActive = Number(review.rating || 0) >= value;
+                                    return (
+                                      <button
+                                        key={`${review.id}-star-${value}`}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={isActive}
+                                        className={`admin-star-button ${isActive ? "active" : ""}`}
+                                        onClick={() => handleAdminReviewFieldChange(review.id, "rating", value)}
+                                      >
+                                        ★
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </label>
 
-                        <label className="review-field review-field-visibility">
-                          <span>Visibility</span>
-                          <select
-                            value={review.status || "pending"}
-                            onChange={(event) => handleAdminReviewFieldChange(review.id, "status", event.target.value)}
-                          >
-                            <option value="approved">Show on review page</option>
-                            <option value="hidden">Hidden</option>
-                            <option value="pending">Pending</option>
-                            <option value="rejected">Rejected</option>
-                          </select>
-                        </label>
+                              <label className="review-field review-field-title">
+                                <span>Title</span>
+                                <input
+                                  type="text"
+                                  value={review.title || ""}
+                                  onChange={(event) => handleAdminReviewFieldChange(review.id, "title", event.target.value)}
+                                />
+                              </label>
 
-                        <label className="review-field review-field-body">
-                          <span>Body</span>
-                          <textarea
-                            value={review.body || ""}
-                            onChange={(event) => handleAdminReviewFieldChange(review.id, "body", event.target.value)}
-                            rows={2}
-                          />
-                        </label>
+                              <label className="review-field review-field-visibility">
+                                <span>Visibility</span>
+                                <select
+                                  value={review.status || "pending"}
+                                  onChange={(event) => handleAdminReviewFieldChange(review.id, "status", event.target.value)}
+                                >
+                                  <option value="approved">Show on review page</option>
+                                  <option value="hidden">Hidden</option>
+                                  <option value="pending">Pending</option>
+                                  <option value="rejected">Rejected</option>
+                                </select>
+                              </label>
 
-                        <label className="review-field review-field-admin-comment">
-                          <span>Admin Comment</span>
-                          <textarea
-                            value={review.admin_comment || ""}
-                            onChange={(event) => handleAdminReviewFieldChange(review.id, "admin_comment", event.target.value)}
-                            rows={3}
-                            placeholder="Add a reply to the customer"
-                          />
-                        </label>
-                      </div>
+                              <label className="review-field review-field-body">
+                                <span>Body</span>
+                                <textarea
+                                  value={review.body || ""}
+                                  onChange={(event) => handleAdminReviewFieldChange(review.id, "body", event.target.value)}
+                                  rows={2}
+                                />
+                              </label>
 
-                    </article>
-                  ))}
+                              <label className="review-field review-field-admin-comment">
+                                <span>Admin Comment</span>
+                                <textarea
+                                  value={review.admin_comment || ""}
+                                  onChange={(event) => handleAdminReviewFieldChange(review.id, "admin_comment", event.target.value)}
+                                  rows={3}
+                                  placeholder="Add a reply to the customer"
+                                />
+                              </label>
+                            </div>
+
+                            <div className="review-row-actions">
+                              <button type="button" className="button" onClick={() => handleSaveAdminReview(review)}>
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                className="button"
+                                onClick={() => handleDeleteAdminReview(review.id)}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </>
+                        ) : null}
+                      </article>
+                    );
+                  })}
                 </div>
               )}
               {renderSectionPagination(reviewsPage, totalReviewsPages, setReviewsPage)}
