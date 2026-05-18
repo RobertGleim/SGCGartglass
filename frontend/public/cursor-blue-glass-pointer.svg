@@ -1,0 +1,45 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="29" height="29" viewBox="0 0 60 78" overflow="hidden">
+  <defs>
+    <linearGradient id="bG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a8e6ff"/>
+      <stop offset="35%" style="stop-color:#29abff"/>
+      <stop offset="70%" style="stop-color:#0072e5"/>
+      <stop offset="100%" style="stop-color:#003fa3"/>
+    </linearGradient>
+    <linearGradient id="brG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#70d4ff"/>
+      <stop offset="100%" style="stop-color:#002299"/>
+    </linearGradient>
+    <linearGradient id="hG" x1="0%" y1="0%" x2="40%" y2="80%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.5"/>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0"/>
+    </linearGradient>
+    <filter id="sf" x="-30%" y="-30%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2"/>
+    </filter>
+    <clipPath id="hC">
+      <path d="M 14,4 A 5,4 0 0 1 24,4 L 24,22 C 24,28 25,28 25,22 A 5,4 0 0 1 35,22 L 35,26 C 35,32 36,32 36,26 A 5,4 0 0 1 46,26 L 46,30 C 46,36 47,36 47,30 A 3.5,4 0 0 1 54,30 L 54,48 C 54,62 50,72 36,74 C 26,76 14,76 8,72 C 3,68 2,60 2,54 C 2,46 0,42 0,36 C 0,28 8,26 12,32 C 14,38 14,46 14,46 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- Blurred shadow underneath -->
+  <path d="M 14,4 A 5,4 0 0 1 24,4 L 24,22 C 24,28 25,28 25,22 A 5,4 0 0 1 35,22 L 35,26 C 35,32 36,32 36,26 A 5,4 0 0 1 46,26 L 46,30 C 46,36 47,36 47,30 A 3.5,4 0 0 1 54,30 L 54,48 C 54,62 50,72 36,74 C 26,76 14,76 8,72 C 3,68 2,60 2,54 C 2,46 0,42 0,36 C 0,28 8,26 12,32 C 14,38 14,46 14,46 Z"
+        fill="#001155" opacity="0.4" transform="translate(2,2.5)" filter="url(#sf)"/>
+
+  <g clip-path="url(#hC)">
+    <!-- Border fill -->
+    <path d="M 14,4 A 5,4 0 0 1 24,4 L 24,22 C 24,28 25,28 25,22 A 5,4 0 0 1 35,22 L 35,26 C 35,32 36,32 36,26 A 5,4 0 0 1 46,26 L 46,30 C 46,36 47,36 47,30 A 3.5,4 0 0 1 54,30 L 54,48 C 54,62 50,72 36,74 C 26,76 14,76 8,72 C 3,68 2,60 2,54 C 2,46 0,42 0,36 C 0,28 8,26 12,32 C 14,38 14,46 14,46 Z"
+          fill="url(#brG)"/>
+    <!-- Inner body -->
+    <path d="M 16,4 A 3,3.5 0 0 1 22,4 L 22,22 C 22,27 23,27 23,22 A 3,3.5 0 0 1 33,22 L 33,26 C 33,31 34,31 34,26 A 3,3.5 0 0 1 44,26 L 44,30 C 44,35 45,35 45,30 A 2.5,3.5 0 0 1 52,30 L 52,48 C 52,60 49,68 36,70 C 27,72 16,72 10,69 C 6,66 5,59 5,54 C 5,47 3,43 3,37 C 3,31 9,29 12,34 C 13,39 15,45 16,46 Z"
+          fill="url(#bG)"/>
+    <!-- Glass highlight on left face of index finger -->
+    <path d="M 16,4 A 3,3.5 0 0 1 19,0.5 L 19,22 C 18,27 17,25 16,22 Z" fill="url(#hG)"/>
+    <!-- Glass highlight upper-left palm -->
+    <path d="M 5,54 C 5,49 6,46 9,46 C 13,47 14,50 12,54 C 9,56 6,57 5,54 Z" fill="url(#hG)" opacity="0.5"/>
+    <!-- White edge left of index finger -->
+    <line x1="16" y1="4" x2="16" y2="46" stroke="white" stroke-width="0.9" stroke-opacity="0.55"/>
+    <!-- Shine dot at fingertip -->
+    <circle cx="17.5" cy="5" r="1.5" fill="white" opacity="0.8"/>
+  </g>
+</svg>

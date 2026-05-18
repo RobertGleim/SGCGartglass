@@ -163,9 +163,44 @@ const resolveMediaUrl = (value) => {
   const url = String(value || '').trim();
   if (!url) return '';
   if (/^javascript:/i.test(url)) return '';
+  if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+
+  if (
+    (url.startsWith('[') && url.endsWith(']'))
+    || (url.startsWith('{') && url.endsWith('}'))
+  ) {
+    try {
+      const parsed = JSON.parse(url);
+      if (Array.isArray(parsed)) {
+        return resolveMediaUrl(parsed[0]?.image_url || parsed[0]?.url || parsed[0]?.src || parsed[0]);
+      }
+      if (parsed && typeof parsed === 'object') {
+        return resolveMediaUrl(parsed.image_url || parsed.url || parsed.src);
+      }
+    } catch {
+      // Use the raw URL below.
+    }
+  }
+
   if (url.startsWith('/uploads/')) return `${getApiOrigin()}${url}`;
   if (url.startsWith('uploads/')) return `${getApiOrigin()}/${url}`;
-  return url;
+  if (url.startsWith('/')) return `${getApiOrigin()}${url}`;
+  return `${getApiOrigin()}/${url}`;
+};
+
+const getWorkOrderThumbnailCandidates = (order) => {
+  const candidates = [
+    order?.designData?.preview_url,
+    order?.designData?.dataUrl,
+    order?.templateThumbnail,
+    order?.templateData?.thumbnail_url,
+    order?.templateData?.image_url,
+  ]
+    .map((entry) => resolveMediaUrl(entry))
+    .filter(Boolean);
+
+  return [...new Set(candidates)];
 };
 
 const sanitizePreviewFileBase = (order) => {
@@ -1280,13 +1315,34 @@ export default function WorkOrderDashboard() {
               <tr key={o.id} style={getStatusStyle(o.status_key)}>
                 <td>
                   <div className={styles.thumbCell} onClick={(e) => openPreview(o, e)} title="Click to view full design">
-                    {(o.designData?.preview_url || o.designData?.dataUrl) ? (
-                      <img src={o.designData.preview_url || o.designData.dataUrl} alt="Design" className={styles.thumbImg} />
-                    ) : o.templateThumbnail ? (
-                      <img src={o.templateThumbnail} alt="Template" className={styles.thumbImg} />
-                    ) : (
-                      <div className={styles.thumbPlaceholder}>No Image</div>
-                    )}
+                    {(() => {
+                      const thumbnailCandidates = getWorkOrderThumbnailCandidates(o);
+                      if (thumbnailCandidates.length === 0) {
+                        return <div className={styles.thumbPlaceholder}>No Image</div>;
+                      }
+
+                      return (
+                        <img
+                          src={thumbnailCandidates[0]}
+                          alt="Design"
+                          className={styles.thumbImg}
+                          loading="lazy"
+                          decoding="async"
+                          fetchPriority="low"
+                          onError={(event) => {
+                            const fallbackIndex = Number(event.currentTarget.dataset.fallbackIndex || '0') + 1;
+                            if (fallbackIndex < thumbnailCandidates.length) {
+                              event.currentTarget.dataset.fallbackIndex = String(fallbackIndex);
+                              event.currentTarget.src = thumbnailCandidates[fallbackIndex];
+                              return;
+                            }
+                            event.currentTarget.style.display = 'none';
+                            const sibling = event.currentTarget.nextElementSibling;
+                            if (sibling) sibling.style.display = 'flex';
+                          }}
+                        />
+                      );
+                    })()}
                   </div>
                 </td>
                 <td>{o.work_order_number || o.id}</td>
@@ -1422,6 +1478,8 @@ export default function WorkOrderDashboard() {
                                 alt={getOrderItemName(item)}
                                 className={styles.shippingThumbImage}
                                 loading="lazy"
+                                decoding="async"
+                                fetchPriority="low"
                               />
                               <figcaption>{getOrderItemName(item)}</figcaption>
                               <button

@@ -233,6 +233,7 @@ function App() {
       is_digital_download: p.is_digital_download === 1 || p.is_digital_download === true,
       isManual: true,
       is_featured: p.is_featured === 1 || p.is_featured === true,
+      is_home_featured: p.is_home_featured === 1 || p.is_home_featured === true,
       originalData: p
     }))
     return [...manualItems, ...items]
@@ -254,9 +255,9 @@ function App() {
     }
     const isPhysical = (p) => !isDigital(p) && !categoryIndicatesDigital(p) && !originalTypeIndicates(p)
 
-    const featured = allProducts.filter(p => p.is_featured && isPhysical(p))
-    const nonFeatured = allProducts.filter(p => !p.is_featured && isPhysical(p))
-    return [...featured, ...nonFeatured].slice(0, 8)
+    return allProducts
+      .filter((p) => p.is_home_featured && isPhysical(p))
+      .slice(0, 20)
   }, [allProducts])
 
   const handleLogin = async (email, password) => {

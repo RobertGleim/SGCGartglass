@@ -38,6 +38,7 @@ from ..db import (
     fetch_manual_products_catalog,
     fetch_manual_product,
     update_manual_product,
+    count_home_featured_manual_products,
     delete_manual_product,
     fetch_customer_by_email,
     fetch_customer_by_id,
@@ -128,6 +129,7 @@ _catalog_cache = {
 ALLOWED_REVIEW_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 ALLOWED_REVIEW_IMAGE_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_REVIEW_IMAGE_BYTES = 20 * 1024 * 1024
+MAX_HOME_FEATURED_PRODUCTS = 20
 
 
 def _save_review_image_file(image_file):
@@ -3982,6 +3984,7 @@ def upload_product_image():
 def create_manual_product_endpoint():
     init_db()
     payload = request.get_json(silent=True) or {}
+    payload["is_home_featured"] = _coerce_bool_value(payload.get("is_home_featured", False))
     payload["is_active"] = _coerce_bool_value(payload.get("is_active", True))
     payload["quantity"] = _resolve_manual_product_quantity(
         payload.get("quantity"),
@@ -3999,6 +4002,13 @@ def create_manual_product_endpoint():
         return jsonify({"error": "missing_price", "detail": "Product price is required"}), 400
     if payload.get("quantity") is None or payload.get("quantity") == "":
         return jsonify({"error": "missing_quantity", "detail": "Product quantity is required"}), 400
+    if payload.get("is_home_featured"):
+        current_home_featured_count = count_home_featured_manual_products()
+        if current_home_featured_count >= MAX_HOME_FEATURED_PRODUCTS:
+            return jsonify({
+                "error": "home_featured_limit_reached",
+                "detail": "Home page carousel limit met (20). Remove a home page feature before adding more.",
+            }), 400
     try:
         product_id = create_manual_product(payload)
         product = fetch_manual_product(product_id)
@@ -4029,6 +4039,7 @@ def update_manual_product_endpoint(product_id):
         "discount_percent": product.get("discount_percent"),
         "quantity": product.get("quantity"),
         "is_featured": product.get("is_featured"),
+        "is_home_featured": product.get("is_home_featured"),
         "is_active": product.get("is_active", True),
         "is_digital_download": product.get("is_digital_download"),
         "related_links": product.get("related_links"),
@@ -4054,6 +4065,15 @@ def update_manual_product_endpoint(product_id):
         return jsonify({"error": "missing_price"}), 400
     if merged_payload.get("quantity") is None:
         return jsonify({"error": "missing_quantity"}), 400
+    next_home_featured = _coerce_bool_value(merged_payload.get("is_home_featured", False))
+    previous_home_featured = _coerce_bool_value(product.get("is_home_featured", False))
+    if next_home_featured and not previous_home_featured:
+        current_home_featured_count = count_home_featured_manual_products(exclude_product_id=product_id)
+        if current_home_featured_count >= MAX_HOME_FEATURED_PRODUCTS:
+            return jsonify({
+                "error": "home_featured_limit_reached",
+                "detail": "Home page carousel limit met (20). Remove a home page feature before adding more.",
+            }), 400
     try:
         update_manual_product(product_id, merged_payload)
         updated_product = fetch_manual_product(product_id)

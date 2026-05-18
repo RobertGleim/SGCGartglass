@@ -34,7 +34,7 @@ export default function Sidebar({
       (Array.isArray(categories) ? categories : [])
         .filter((entry) => {
           const normalized = String(entry || '').trim().toLowerCase()
-          return normalized === 'all' || normalized === 'on sale'
+          return normalized === 'all' || normalized === 'on sale' || normalized === 'featured'
         })
     )
   )
@@ -45,6 +45,10 @@ export default function Sidebar({
 
   if (!topCategories.some((entry) => String(entry || '').trim().toLowerCase() === 'on sale')) {
     topCategories.push('On sale')
+  }
+
+  if (!topCategories.some((entry) => String(entry || '').trim().toLowerCase() === 'featured')) {
+    topCategories.push('Featured')
   }
 
   const isSelectedFilter = (selectedValues, value) => {

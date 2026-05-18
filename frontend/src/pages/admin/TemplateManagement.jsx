@@ -11,9 +11,33 @@ const COMMON_TAGS = ['Pattern', 'Custom', 'Geometric', 'Contemporary', 'Traditio
 // Resolve relative URLs to backend origin
 const BACKEND_ORIGIN = import.meta.env.VITE_API_BASE_URL?.replace(/\/api\/?$/, '') || '';
 const resolveImageUrl = (url) => {
-  if (!url) return null;
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
-  return BACKEND_ORIGIN + url;
+  const raw = String(url || '').trim();
+  if (!raw) return null;
+  if (/^javascript:/i.test(raw)) return null;
+  if (raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+
+  if (
+    (raw.startsWith('[') && raw.endsWith(']'))
+    || (raw.startsWith('{') && raw.endsWith('}'))
+  ) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return resolveImageUrl(parsed[0]?.image_url || parsed[0]?.url || parsed[0]?.src || parsed[0]);
+      }
+      if (parsed && typeof parsed === 'object') {
+        return resolveImageUrl(parsed.image_url || parsed.url || parsed.src);
+      }
+    } catch {
+      // Use the raw value below if parsing fails.
+    }
+  }
+
+  if (raw.startsWith('/uploads/')) return `${BACKEND_ORIGIN}${raw}`;
+  if (raw.startsWith('uploads/')) return `${BACKEND_ORIGIN}/${raw}`;
+  if (raw.startsWith('/')) return `${BACKEND_ORIGIN}${raw}`;
+  return `${BACKEND_ORIGIN}/${raw}`;
 };
 
 const toArray = (value) => {
@@ -519,9 +543,9 @@ export default function TemplateManagement() {
                 <td><input className={styles.checkbox} type="checkbox" checked={selected.includes(t.id)} onChange={e => setSelected(e.target.checked ? [...selected, t.id] : selected.filter(id => id !== t.id))} /></td>
                 <td>
                   {(t.thumbnail_url || t.image_url) ? (
-                    <img src={resolveImageUrl(t.thumbnail_url || t.image_url)} alt={t.name} className={styles.thumb} />
+                    <img src={resolveImageUrl(t.thumbnail_url || t.image_url)} alt={t.name} className={styles.thumb} loading="lazy" decoding="async" fetchPriority="low" />
                   ) : t.svg_content ? (
-                    <img src={`data:image/svg+xml;base64,${btoa(t.svg_content)}`} alt={t.name} className={styles.thumb} />
+                    <img src={`data:image/svg+xml;base64,${btoa(t.svg_content)}`} alt={t.name} className={styles.thumb} loading="lazy" decoding="async" fetchPriority="low" />
                   ) : (
                     <div className={styles.thumbPlaceholder}>✦</div>
                   )}

@@ -335,6 +335,7 @@ export default function ProductCard({ product }) {
     .map((entry) => parseBooleanLike(entry))
     .find((entry) => entry !== null)
   const shouldShowFreeShipping = !isDigitalDownload && (explicitFreeShipping ?? true)
+  const isFeatured = product?.is_featured === 1 || product?.is_featured === true
   const manualProductId = String(product?.originalData?.id || '').trim()
   const linkedPatternId = String(product?.originalData?.related_links?.pattern_product_id || '').trim()
   const hasLinkedPattern = !isDigitalDownload
@@ -425,8 +426,16 @@ export default function ProductCard({ product }) {
         <div className="card-image">
           {hasDiscount && <span className="sale-badge">On Sale</span>}
           {isSoldOut && <span className="sold-out-badge">Sold out</span>}
+          {hasLinkedPattern && <span className="pattern-corner-badge">Pattern available</span>}
           {activeImageUrl ? (
-            <img src={activeImageUrl} alt={product.title || 'Glass art'} onError={handleCardImageError} />
+            <img
+              src={activeImageUrl}
+              alt={product.title || 'Glass art'}
+              loading="lazy"
+              decoding="async"
+              fetchPriority="low"
+              onError={handleCardImageError}
+            />
           ) : (
             <div className="image-placeholder">No image</div>
           )}
@@ -451,17 +460,24 @@ export default function ProductCard({ product }) {
                 </>
               )}
             </div>
-            {shouldShowFreeShipping && (
-              <span className="free-shipping" aria-label="Free shipping">
-                <span className="free-shipping-icon" aria-hidden="true">🚚</span>
-                FREE shipping
-              </span>
-            )}
-            {shouldShowInstantDownload && (
-              <span className="instant-download-badge">Instant download</span>
-            )}
-            {hasLinkedPattern && (
-              <span className="pattern-available-badge">Pattern available</span>
+            {(isFeatured || shouldShowFreeShipping || shouldShowInstantDownload || hasLinkedPattern) && (
+              <div className="card-badge-row">
+                {isFeatured && (
+                  <span className="card-featured-badge" aria-label="Featured product">
+                    <span className="card-featured-star" aria-hidden="true">★</span>
+                    Featured
+                  </span>
+                )}
+                {shouldShowFreeShipping && (
+                  <span className="free-shipping" aria-label="Free shipping">
+                    <span className="free-shipping-icon" aria-hidden="true">🚚</span>
+                    FREE shipping
+                  </span>
+                )}
+                {shouldShowInstantDownload && (
+                  <span className="instant-download-badge">Instant download</span>
+                )}
+              </div>
             )}
           </div>
         </div>

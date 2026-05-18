@@ -398,6 +398,7 @@ def init_db(force=False):
             discount_percent REAL,
             quantity INTEGER NOT NULL,
             is_featured INTEGER DEFAULT 0,
+            is_home_featured INTEGER DEFAULT 0,
             is_active INTEGER DEFAULT 1,
             is_digital_download INTEGER DEFAULT 0,
             related_links TEXT,
@@ -406,6 +407,7 @@ def init_db(force=False):
         )
         """
     )
+    _add_column_if_missing(cursor, is_postgres, is_mysql, "manual_products", "is_home_featured", "INTEGER DEFAULT 0")
     blob_type = "BYTEA" if is_postgres else "LONGBLOB" if is_mysql else "BLOB"
     cursor.execute(
         f"""
@@ -755,6 +757,7 @@ def init_db(force=False):
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS discount_percent REAL")
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1")
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS is_digital_download INTEGER DEFAULT 0")
+        cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS is_home_featured INTEGER DEFAULT 0")
         cursor.execute(
             """
             UPDATE manual_products
@@ -977,6 +980,7 @@ def create_manual_product(payload):
         payload.get("discount_percent"),
         payload["quantity"],
         1 if payload.get("is_featured") else 0,
+        1 if payload.get("is_home_featured") else 0,
         1 if payload.get("is_active", True) else 0,
         1 if _coerce_manual_product_digital_download(payload) else 0,
         _serialize_related_links(payload.get("related_links")),
@@ -989,13 +993,14 @@ def create_manual_product(payload):
             INSERT INTO manual_products (
                 name, description, category, materials,
                 width, height, depth, price, old_price, discount_percent, quantity, is_featured,
+                is_home_featured,
                 is_active,
                 is_digital_download,
                 related_links,
                 created_at, updated_at
             ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder},
                       {placeholder}, {placeholder}, {placeholder}, {placeholder},
-                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             RETURNING id
             """,
             insert_values,
@@ -1007,13 +1012,14 @@ def create_manual_product(payload):
             INSERT INTO manual_products (
                 name, description, category, materials,
                 width, height, depth, price, old_price, discount_percent, quantity, is_featured,
+                is_home_featured,
                 is_active,
                 is_digital_download,
                 related_links,
                 created_at, updated_at
             ) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder},
                       {placeholder}, {placeholder}, {placeholder}, {placeholder},
-                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                      {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             """,
             insert_values,
         )
@@ -1092,6 +1098,7 @@ def fetch_manual_products():
 
             product["images"] = []
             product["is_active"] = _coerce_bool(product.get("is_active", 1))
+            product["is_home_featured"] = _coerce_bool(product.get("is_home_featured", 0))
             product["is_digital_download"] = _coerce_bool(product.get("is_digital_download"))
             product["related_links"] = _deserialize_related_links(product.get("related_links"))
             by_id[product_id] = product
@@ -1164,6 +1171,7 @@ def fetch_manual_products_catalog():
             p.discount_percent,
             p.quantity,
             p.is_featured,
+            p.is_home_featured,
             p.is_active,
             p.is_digital_download,
             p.related_links,
@@ -1212,6 +1220,7 @@ def fetch_manual_products_catalog():
                 p.discount_percent,
                 p.quantity,
                 p.is_featured,
+                p.is_home_featured,
                 p.is_active,
                 p.is_digital_download,
                 p.related_links,
@@ -1267,6 +1276,7 @@ def fetch_manual_products_catalog():
             product["images"] = []
             
         product["is_active"] = _coerce_bool(product.get("is_active", 1))
+        product["is_home_featured"] = _coerce_bool(product.get("is_home_featured", 0))
         product["is_digital_download"] = _coerce_bool(product.get("is_digital_download"))
         product["related_links"] = _deserialize_related_links(product.get("related_links"))
         product = _apply_linked_template_preview(product, cursor, preview_cache=template_preview_cache)
@@ -1345,6 +1355,7 @@ def fetch_manual_product(product_id):
         except Exception:
             product["images"] = []
     product["is_active"] = _coerce_bool(product.get("is_active", 1))
+    product["is_home_featured"] = _coerce_bool(product.get("is_home_featured", 0))
     product["is_digital_download"] = _coerce_bool(product.get("is_digital_download"))
     product["related_links"] = _deserialize_related_links(product.get("related_links"))
     product = _apply_linked_template_preview(product, cursor)
@@ -1375,7 +1386,7 @@ def update_manual_product(product_id, payload):
         SET name = {placeholder}, description = {placeholder}, category = {placeholder}, materials = {placeholder},
             width = {placeholder}, height = {placeholder}, depth = {placeholder}, price = {placeholder},
             old_price = {placeholder}, discount_percent = {placeholder}, quantity = {placeholder},
-            is_featured = {placeholder}, is_active = {placeholder}, is_digital_download = {placeholder}, related_links = {placeholder}, updated_at = {placeholder}
+            is_featured = {placeholder}, is_home_featured = {placeholder}, is_active = {placeholder}, is_digital_download = {placeholder}, related_links = {placeholder}, updated_at = {placeholder}
         WHERE id = {placeholder}
         """,
         (
@@ -1391,6 +1402,7 @@ def update_manual_product(product_id, payload):
             payload.get("discount_percent"),
             payload["quantity"],
             1 if payload.get("is_featured") else 0,
+            1 if payload.get("is_home_featured") else 0,
             1 if payload.get("is_active", True) else 0,
             1 if _coerce_manual_product_digital_download(payload) else 0,
             _serialize_related_links(payload.get("related_links")),
@@ -1449,6 +1461,28 @@ def update_manual_product(product_id, payload):
     conn.commit()
     conn.close()
     return True
+
+
+def count_home_featured_manual_products(exclude_product_id=None):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+
+    if exclude_product_id is None:
+        cursor.execute("SELECT COUNT(*) AS total FROM manual_products WHERE is_home_featured = 1")
+    else:
+        cursor.execute(
+            f"SELECT COUNT(*) AS total FROM manual_products WHERE is_home_featured = 1 AND id != {placeholder}",
+            (exclude_product_id,),
+        )
+
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return 0
+    row_payload = dict(row)
+    return int(row_payload.get("total") or 0)
 
 
 def delete_manual_product(product_id):

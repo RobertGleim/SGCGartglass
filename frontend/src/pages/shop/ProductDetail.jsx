@@ -63,7 +63,16 @@ const formatReviewDate = (value) => {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+}
+
+const extractReviewPurchasedAt = (body) => {
+  const lines = String(body || '').split(/\r?\n/)
+  for (const line of lines) {
+    const match = line.match(/^Purchased At:\s*(.+)$/i)
+    if (match) return match[1].trim()
+  }
+  return ''
 }
 
 const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Number(rating) || 0)))
@@ -805,9 +814,9 @@ export default function ProductDetail({ product, products = [] }) {
                   onClick={() => setSelectedImage(idx)}
                 >
                   {img.media_type === 'video' ? (
-                    <video src={img.image_url} muted playsInline className="thumbnail-video" />
+                    <video src={img.image_url} muted playsInline className="thumbnail-video" preload="metadata" />
                   ) : (
-                    <img src={img.image_url} alt={`${product.title} ${idx + 1}`} />
+                    <img src={img.image_url} alt={`${product.title} ${idx + 1}`} loading="lazy" decoding="async" fetchPriority="low" />
                   )}
                 </button>
               ))}
@@ -823,9 +832,9 @@ export default function ProductDetail({ product, products = [] }) {
             >
               {mainImage ? (
                 images[selectedImage]?.media_type === 'video' ? (
-                  <video src={mainImage} controls className="main-image" />
+                  <video src={mainImage} controls className="main-image" preload="metadata" />
                 ) : (
-                  <img src={mainImage} alt={product.title} className="main-image" />
+                  <img src={mainImage} alt={product.title} className="main-image" loading="eager" decoding="async" fetchPriority="high" />
                 )
               ) : (
                 <div className="image-placeholder">No image available</div>
@@ -1056,7 +1065,7 @@ export default function ProductDetail({ product, products = [] }) {
                   </div>
                   <div className="detail-review-list-meta">
                     <strong>{(latestProductReview.first_name || '').trim()} {(latestProductReview.last_name || '').trim()}</strong>
-                    {latestProductReview.created_at ? <span>{formatReviewDate(latestProductReview.created_at)}</span> : null}
+                    {extractReviewPurchasedAt(latestProductReview.body) ? <span>{formatReviewDate(extractReviewPurchasedAt(latestProductReview.body))}</span> : null}
                   </div>
                   <div className="detail-review-list-body-row">
                     <div>

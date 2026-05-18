@@ -135,6 +135,24 @@ const parseDateInput = (dateString) => {
   const trimmed = dateString.trim();
   if (!trimmed) return "";
   
+  // Just a year: YYYY
+  if (/^\d{4}$/.test(trimmed)) {
+    return `${trimmed}-01-01`;
+  }
+
+  // MM/YYYY or M/YYYY
+  const monthYearSlash = trimmed.match(/^(\d{1,2})\/(\d{4})$/);
+  if (monthYearSlash) {
+    const month = String(monthYearSlash[1]).padStart(2, "0");
+    const year = monthYearSlash[2];
+    return `${year}-${month}-01`;
+  }
+
+  // YYYY-MM (no day)
+  if (/^\d{4}-\d{2}$/.test(trimmed)) {
+    return `${trimmed}-01`;
+  }
+
   // Already in ISO format (YYYY-MM-DD)
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
     return trimmed;
@@ -172,6 +190,19 @@ const parseDateInput = (dateString) => {
   }
   
   return "";
+};
+
+const getClipboardImageFile = (event) => {
+  const items = event?.clipboardData?.items;
+  if (!items) return null;
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+    if (item.kind === "file" && item.type.startsWith("image/")) {
+      const file = item.getAsFile();
+      if (file) return file;
+    }
+  }
+  return null;
 };
 
 const downloadBlobFile = (blob, fileName) => {
@@ -521,6 +552,7 @@ const MAX_GALLERY_UPLOAD_BYTES = 20 * 1024 * 1024;
 const TEMPLATE_DIFFICULTY_OPTIONS = ["Beginner", "Intermediate", "Advanced"];
 const MANUAL_PRODUCTS_PER_PAGE = 10;
 const SECTION_PAGE_SIZE = 10;
+const MAX_HOME_FEATURED_PRODUCTS = 20;
 const ADMIN_ACTIVITY_POPUP_DELAY_MS = 450;
 const PRODUCT_TYPE_CONFIG = [
   { key: "stainedGlassPanels", label: "Stained Glass Panels", theme: "stainedGlass" },
@@ -811,6 +843,7 @@ const createEmptyManualProduct = () => ({
   discount_percent: "",
   quantity: PHYSICAL_DEFAULT_QUANTITY,
   is_featured: false,
+  is_home_featured: false,
   is_digital_download: false,
   related_links: createDefaultRelatedLinks(),
 });
@@ -875,7 +908,31 @@ const normalizeManualProductRecord = (value) => {
         : [],
     related_links: normalizeRelatedLinksState(value.related_links),
     is_active: value.is_active !== 0 && value.is_active !== false,
+    is_home_featured: value.is_home_featured === 1 || value.is_home_featured === true,
   };
+};
+
+const sortManualProductsFeaturedFirst = (products) => {
+  const asFeaturedFlag = (product) =>
+    product?.is_featured === 1 || product?.is_featured === true;
+
+  return [...products].sort((left, right) => {
+    const leftFeatured = asFeaturedFlag(left);
+    const rightFeatured = asFeaturedFlag(right);
+    if (leftFeatured !== rightFeatured) {
+      return leftFeatured ? -1 : 1;
+    }
+
+    const byName = String(left?.name || "").localeCompare(String(right?.name || ""), undefined, {
+      sensitivity: "base",
+      numeric: true,
+    });
+    if (byName !== 0) {
+      return byName;
+    }
+
+    return Number(left?.id || 0) - Number(right?.id || 0);
+  });
 };
 
 let pdfjsLibLoader;
@@ -1003,6 +1060,8 @@ export default function AdminDashboard({
   const [isOpeningProductEdit, setIsOpeningProductEdit] = useState(false);
   const [activeProductDeleteId, setActiveProductDeleteId] = useState("");
   const [activeProductToggleId, setActiveProductToggleId] = useState("");
+  const [activeProductFeaturedId, setActiveProductFeaturedId] = useState("");
+  const [activeProductHomeFeaturedId, setActiveProductHomeFeaturedId] = useState("");
   const [activeFacebookShareId, setActiveFacebookShareId] = useState("");
   const [customerInsight, setCustomerInsight] = useState({
     total_clicks: 0,
@@ -1325,6 +1384,13 @@ export default function AdminDashboard({
     }
   };
 
+  const handleCreateAdminReviewPhotoPaste = (event) => {
+    const pastedImage = getClipboardImageFile(event);
+    if (!pastedImage) return;
+    event.preventDefault();
+    setAdminReviewCreateForm((prev) => ({ ...prev, photo: pastedImage }));
+  };
+
   const handleDeleteAdminReview = async (reviewId) => {
     setAdminReviewStatus("");
     setIsDeletingReview(true);
@@ -1528,6 +1594,7 @@ export default function AdminDashboard({
   const [manualProductSearch, setManualProductSearch] = useState("");
   const [deactivatedProductSearch, setDeactivatedProductSearch] = useState("");
   const [manualProductTypeFilter, setManualProductTypeFilter] = useState("all");
+  const [openProductActionMenuId, setOpenProductActionMenuId] = useState("");
   const [patternToTemplateSelection, setPatternToTemplateSelection] = useState("");
   const [isConvertingPatternToTemplate, setIsConvertingPatternToTemplate] = useState(false);
   const [patternToTemplateStatus, setPatternToTemplateStatus] = useState("");
@@ -1535,6 +1602,7 @@ export default function AdminDashboard({
   const [deactivatedProductsPage, setDeactivatedProductsPage] = useState(1);
   const [linkedTemplatePreviewUrls, setLinkedTemplatePreviewUrls] = useState({});
   const pdfThumbnailCacheRef = useRef(new Map());
+  const productActionMenuRef = useRef(null);
   const [customersPage, setCustomersPage] = useState(1);
   const [reviewCodesPage, setReviewCodesPage] = useState(1);
   const [reviewsPage, setReviewsPage] = useState(1);
@@ -1647,6 +1715,8 @@ export default function AdminDashboard({
   const [productModePattern, setProductModePattern] = useState(false);
   const [productModeTemplate, setProductModeTemplate] = useState(false);
   const [quantityManuallyEdited, setQuantityManuallyEdited] = useState(false);
+  const [manualProductSaveQueue, setManualProductSaveQueue] = useState([]);
+  const [activeManualProductSaveJobId, setActiveManualProductSaveJobId] = useState("");
   const [isSavingManualProduct, setIsSavingManualProduct] = useState(false);
 
   const activeFavoriteCategories = favoriteCategoriesByType[productType] || [];
@@ -1819,7 +1889,7 @@ export default function AdminDashboard({
   const filteredManualProducts = useMemo(() => {
     const activeManualProducts = normalizedManualProducts.filter((product) => product.is_active);
     const searchLower = manualProductSearch.toLowerCase();
-    return activeManualProducts.filter((product) => {
+    const matchedProducts = activeManualProducts.filter((product) => {
       const name = toSearchableText(product.name);
       const description = toSearchableText(product.description);
       const category = toSearchableText(product.category);
@@ -1839,12 +1909,13 @@ export default function AdminDashboard({
         )
       );
     });
+    return sortManualProductsFeaturedFirst(matchedProducts);
   }, [normalizedManualProducts, manualProductSearch, manualProductTypeFilter, inferManualProductTab]);
 
   const filteredDeactivatedProducts = useMemo(() => {
     const deactivatedManualProducts = normalizedManualProducts.filter((product) => !product.is_active);
     const searchLower = deactivatedProductSearch.toLowerCase();
-    return deactivatedManualProducts.filter((product) => {
+    const matchedProducts = deactivatedManualProducts.filter((product) => {
       const name = toSearchableText(product.name);
       const description = toSearchableText(product.description);
       const category = toSearchableText(product.category);
@@ -1864,11 +1935,17 @@ export default function AdminDashboard({
         )
       );
     });
+    return sortManualProductsFeaturedFirst(matchedProducts);
   }, [normalizedManualProducts, deactivatedProductSearch, manualProductTypeFilter, inferManualProductTab]);
 
   const filteredPatternProducts = useMemo(
     () => filteredManualProducts.filter((product) => inferManualProductTab(product) === "patterns"),
     [filteredManualProducts, inferManualProductTab],
+  );
+
+  const homeFeaturedProductsCount = useMemo(
+    () => normalizedManualProducts.filter((product) => product.is_home_featured).length,
+    [normalizedManualProducts],
   );
 
   const totalManualProductPages = Math.max(
@@ -2163,6 +2240,39 @@ export default function AdminDashboard({
     setShowMaterialDropdown(false);
   };
 
+  const closeProductActionMenu = () => {
+    setOpenProductActionMenuId("");
+  };
+
+  useEffect(() => {
+    if (activeManualProductSaveJobId || manualProductSaveQueue.length === 0) {
+      return;
+    }
+
+    const nextJob = manualProductSaveQueue[0];
+    if (!nextJob || typeof nextJob.run !== "function") {
+      setManualProductSaveQueue((prev) => prev.slice(1));
+      return;
+    }
+
+    let cancelled = false;
+    setActiveManualProductSaveJobId(nextJob.id);
+    Promise.resolve()
+      .then(() => nextJob.run())
+      .catch((error) => {
+        console.error("[AdminDashboard] Background manual-product save failed:", error);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setManualProductSaveQueue((prev) => prev.filter((job) => job.id !== nextJob.id));
+        setActiveManualProductSaveJobId("");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeManualProductSaveJobId, manualProductSaveQueue]);
+
   // Close dropdowns when interacting outside
   useEffect(() => {
     const handlePointerDownOutside = (event) => {
@@ -2178,11 +2288,19 @@ export default function AdminDashboard({
       ) {
         setShowMaterialDropdown(false);
       }
+
+      if (
+        productActionMenuRef.current &&
+        !productActionMenuRef.current.contains(event.target)
+      ) {
+        closeProductActionMenu();
+      }
     };
 
     const handleEscape = (event) => {
       if (event.key === "Escape") {
         closeFavoriteDropdowns();
+        closeProductActionMenu();
       }
     };
 
@@ -2404,9 +2522,6 @@ export default function AdminDashboard({
 
   const handleManualProductSubmit = async (event) => {
     event.preventDefault();
-    if (isSavingManualProduct) {
-      return;
-    }
 
     const manualProductSnapshot = manualProduct;
     const selectedTypeCategorySnapshot = selectedTypeCategory;
@@ -2482,10 +2597,11 @@ export default function AdminDashboard({
       }
     }
 
-    setIsSavingManualProduct(true);
-    setManualProductInfoStatus(editingProduct ? "Updating product..." : "Saving listing...");
+    const saveJob = async () => {
+      setIsSavingManualProduct(true);
+      setManualProductInfoStatus(editingProduct ? "Updating product..." : "Saving listing...");
 
-    try {
+      try {
       let createdTemplate = null;
       let templateCreatePayload = null;
       let savedProduct = null;
@@ -2721,7 +2837,7 @@ export default function AdminDashboard({
 
         if (createdTemplate?.id) {
           relatedLinks.template_id = String(createdTemplate.id);
-          relatedLinks.template_name = String(createdTemplate.name || unifiedTemplate.name || "").trim();
+          relatedLinks.template_name = String(createdTemplate.name || unifiedTemplateName || "").trim();
         }
 
         const resolvedIsDigitalProduct = !productModePhysical && (productModePattern || productModeTemplate);
@@ -2809,6 +2925,7 @@ export default function AdminDashboard({
             ? parseInt(DIGITAL_DEFAULT_QUANTITY, 10)
             : normalizeQuantityInput(manualProduct.quantity, false),
           is_featured: manualProduct.is_featured,
+          is_home_featured: manualProduct.is_home_featured,
           is_digital_download: resolvedIsDigitalProduct,
           related_links: toManualRelatedLinksPayload(relatedLinks),
           images: productImagesForSave,
@@ -2980,6 +3097,7 @@ export default function AdminDashboard({
           discount_percent: null,
           quantity: parseInt(DIGITAL_DEFAULT_QUANTITY, 10),
           is_featured: false,
+          is_home_featured: false,
           is_digital_download: true,
           related_links: {
             template_id: relatedLinks.template_id ? Number(relatedLinks.template_id) : (createdTemplate?.id || null),
@@ -3211,25 +3329,44 @@ export default function AdminDashboard({
       setProductModePattern(false);
       setProductModeTemplate(false);
       await loadManualProductLinkOptions();
-    } catch (error) {
-      // Check if it's an authentication error
-      if (
-        error.message.includes("Unauthorized") ||
-        error.message.includes("401")
-      ) {
-        setManualProductErrorStatus("Session expired. Please log out and log back in.");
-      } else {
-        setManualProductErrorStatus(
-          `Error: ${
-            error?.response?.data?.detail
-            || error?.response?.data?.error
-            || error.message
-          }`,
-        );
+      } catch (error) {
+        // Check if it's an authentication error
+        if (
+          error.message.includes("Unauthorized") ||
+          error.message.includes("401")
+        ) {
+          setManualProductErrorStatus("Session expired. Please log out and log back in.");
+        } else {
+          setManualProductErrorStatus(
+            `Error: ${
+              error?.response?.data?.detail
+              || error?.response?.data?.error
+              || error.message
+            }`,
+          );
+        }
+      } finally {
+        setIsSavingManualProduct(false);
       }
-    } finally {
-      setIsSavingManualProduct(false);
-    }
+    };
+
+    const saveJobId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `manual-product-save-${Date.now()}`;
+    const queuedProductName = String(manualProductSnapshot.name || manualProduct.name || "product").trim() || "product";
+    const queuedJobLabel = editingProduct
+      ? `Update ${queuedProductName}`
+      : `Add ${queuedProductName}`;
+
+    setManualProductSaveQueue((prev) => [...prev, {
+      id: saveJobId,
+      label: queuedJobLabel,
+      run: saveJob,
+    }]);
+    setManualProductInfoStatus(`${queuedJobLabel} queued in the background.`);
+    setManualProductStatusTone("neutral");
+    setShowManualProductModal(false);
+    return;
   };
 
   const handleEditProduct = async (product) => {
@@ -3347,6 +3484,7 @@ export default function AdminDashboard({
         Boolean(productRecord.is_digital_download),
       ),
       is_featured: productRecord.is_featured === 1 || productRecord.is_featured === true,
+      is_home_featured: productRecord.is_home_featured === 1 || productRecord.is_home_featured === true,
       is_digital_download: Boolean(productRecord.is_digital_download),
       related_links: normalizeRelatedLinksState({
         ...existingRelatedLinks,
@@ -3459,6 +3597,73 @@ export default function AdminDashboard({
       }
     } finally {
       setActiveProductToggleId("");
+    }
+  };
+
+  const handleToggleProductFeatured = async (product) => {
+    const productId = String(product?.id || "");
+    if (!productId) return;
+
+    const isCurrentlyFeatured = product?.is_featured === 1 || product?.is_featured === true;
+    const nextFeatured = !isCurrentlyFeatured;
+
+    setActiveProductFeaturedId(productId);
+    try {
+      setStatus(nextFeatured ? "Marking product as featured..." : "Removing featured status...");
+      await onUpdateManualProduct(product.id, {
+        ...product,
+        is_featured: nextFeatured,
+      });
+      setStatus(nextFeatured ? "Product marked as featured." : "Featured status removed.");
+    } catch (error) {
+      if (
+        error.message.includes("Unauthorized") ||
+        error.message.includes("401")
+      ) {
+        setStatus("Session expired. Please log out and log back in.");
+      } else {
+        setStatus(`Error updating featured status: ${error.message}`);
+      }
+    } finally {
+      setActiveProductFeaturedId("");
+    }
+  };
+
+  const handleToggleProductHomeFeatured = async (product) => {
+    const productId = String(product?.id || "");
+    if (!productId) return;
+
+    const isCurrentlyHomeFeatured = product?.is_home_featured === 1 || product?.is_home_featured === true;
+    const nextHomeFeatured = !isCurrentlyHomeFeatured;
+
+    if (nextHomeFeatured && homeFeaturedProductsCount >= MAX_HOME_FEATURED_PRODUCTS) {
+      setManualProductErrorStatus("Home page carousel limit met (20). Remove a home page feature before adding more.");
+      return;
+    }
+
+    setActiveProductHomeFeaturedId(productId);
+    try {
+      setStatus(nextHomeFeatured ? "Adding product to home carousel..." : "Removing product from home carousel...");
+      await onUpdateManualProduct(product.id, {
+        ...product,
+        is_home_featured: nextHomeFeatured,
+      });
+      setStatus(nextHomeFeatured ? "Product added to home carousel." : "Product removed from home carousel.");
+    } catch (error) {
+      const detail = error?.response?.data?.detail || "";
+      const code = error?.response?.data?.error || "";
+      if (code === "home_featured_limit_reached") {
+        setManualProductErrorStatus(detail || "Home page carousel limit met (20). Remove a home page feature before adding more.");
+      } else if (
+        error.message.includes("Unauthorized") ||
+        error.message.includes("401")
+      ) {
+        setManualProductErrorStatus("Session expired. Please log out and log back in.");
+      } else {
+        setManualProductErrorStatus(`Error updating home carousel status: ${detail || error.message}`);
+      }
+    } finally {
+      setActiveProductHomeFeaturedId("");
     }
   };
 
@@ -5248,7 +5453,12 @@ export default function AdminDashboard({
 
             <div className="panel-section">
               <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
-                <h3 style={{ margin: 0 }}>Manual Products ({filteredManualProducts.length})</h3>
+                <h3 style={{ margin: 0 }}>
+                  Manual Products ({filteredManualProducts.length})
+                  <span className="form-note" style={{ marginLeft: "0.6rem" }}>
+                    Home Carousel: {homeFeaturedProductsCount}/{MAX_HOME_FEATURED_PRODUCTS}
+                  </span>
+                </h3>
                 <div style={{ display: "flex", gap: "0.55rem", alignItems: "center", flexWrap: "wrap" }}>
                   <button
                     type="button"
@@ -5310,6 +5520,15 @@ export default function AdminDashboard({
                   className="search-input"
                 />
               </div>
+              {status ? (
+                <p
+                  className={`form-note manual-product-status${manualProductStatusTone === "error" ? " is-error" : ""}`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  {status}
+                </p>
+              ) : null}
               {manualProductTypeFilter === "patterns" && (
                 <div className="pattern-template-convert-section">
                   <h4>Convert Pattern to Template</h4>
@@ -5360,22 +5579,22 @@ export default function AdminDashboard({
                     {pagedManualProducts.map((product) => (
                       <div key={product.id} className="product-row">
                         <div className="product-thumb">
-                          {product.images && product.images.length > 0 ? (
-                            product.images[0].media_type === "video" ? (
-                              <video
-                                src={resolveMediaUrl(product.images[0].image_url)}
-                                className="thumb-placeholder"
-                              />
-                            ) : (
-                              (() => {
-                                const thumbnailCandidates = getProductDisplayThumbnailCandidates(
-                                  product,
-                                  linkedTemplatePreviewUrls[String(product?.related_links?.template_id || "").trim()] || "",
-                                );
-                                return thumbnailCandidates.length > 0 ? (
+                          {(() => {
+                            const thumbnailCandidates = getProductDisplayThumbnailCandidates(
+                              product,
+                              linkedTemplatePreviewUrls[String(product?.related_links?.template_id || "").trim()] || "",
+                            );
+                            const firstVideo = ensureArray(product.images).find((entry) => String(entry?.media_type || "").toLowerCase() === "video") || null;
+
+                            if (thumbnailCandidates.length > 0) {
+                              return (
+                                <>
                                   <img
                                     src={thumbnailCandidates[0]}
                                     alt={product.name}
+                                    loading="lazy"
+                                    decoding="async"
+                                    fetchPriority="low"
                                     onLoad={(event) => {
                                       event.currentTarget.style.display = "block";
                                       const sibling = event.currentTarget.nextElementSibling;
@@ -5393,15 +5612,24 @@ export default function AdminDashboard({
                                       if (sibling) sibling.style.display = "flex";
                                     }}
                                   />
-                                ) : null;
-                              })()
-                            )
-                          ) : (
-                            <div className="thumb-placeholder">No image</div>
-                          )}
-                          {product.images && product.images.length > 0 && product.images[0].media_type !== "video" ? (
-                            <div className="thumb-placeholder" style={{ display: "none" }}>No image</div>
-                          ) : null}
+                                  <div className="thumb-placeholder" style={{ display: "none" }}>No image</div>
+                                </>
+                              );
+                            }
+
+                            if (firstVideo) {
+                              return (
+                                <video
+                                  src={resolveMediaUrl(firstVideo.image_url)}
+                                  className="thumb-placeholder"
+                                  muted
+                                  playsInline
+                                />
+                              );
+                            }
+
+                            return <div className="thumb-placeholder">No image</div>;
+                          })()}
                         </div>
                         <div className="product-details">
                           <h4>
@@ -5409,6 +5637,10 @@ export default function AdminDashboard({
                             {(product.is_featured === 1 ||
                               product.is_featured === true) && (
                               <span className="featured-badge">★ Featured</span>
+                            )}
+                            {(product.is_home_featured === 1 ||
+                              product.is_home_featured === true) && (
+                              <span className="featured-badge">🏠 Home Carousel</span>
                             )}
                             {!product.is_digital_download && Number(product.quantity || 0) <= 0 && (
                               <span className="inactive-badge">Sold out</span>
@@ -5426,38 +5658,89 @@ export default function AdminDashboard({
                         <div className="product-actions">
                           <button
                             className="button-icon edit"
-                            onClick={() => handleEditProduct(product)}
+                            onClick={() => {
+                              closeProductActionMenu();
+                              handleEditProduct(product);
+                            }}
                             title="Edit product"
                           >
                             ✎
                           </button>
                           <button
-                            className={`button-icon visibility ${product.is_active ? "" : "inactive"}`}
-                            onClick={() => handleToggleProductActive(product)}
-                            title={product.is_active ? "Deactivate product" : "Activate product"}
-                            disabled={activeProductToggleId === String(product.id)}
+                            className={`button-icon featured-toggle ${(product.is_featured === 1 || product.is_featured === true) ? "active" : ""}`}
+                            onClick={() => {
+                              closeProductActionMenu();
+                              handleToggleProductFeatured(product);
+                            }}
+                            title={(product.is_featured === 1 || product.is_featured === true) ? "Remove featured" : "Mark as featured"}
+                            disabled={activeProductFeaturedId === String(product.id)}
                           >
-                            {activeProductToggleId === String(product.id)
+                            {activeProductFeaturedId === String(product.id)
                               ? "..."
-                              : product.is_active
-                                ? "Hide"
-                                : "Show"}
+                              : (product.is_featured === 1 || product.is_featured === true)
+                                ? "★"
+                                : "☆"}
                           </button>
                           <button
-                            className={`button-icon facebook ${facebookPostedProductIds[String(product.id)] ? "posted" : ""}`}
-                            onClick={() => handleShareProductToFacebook(product)}
-                            title={facebookPostedProductIds[String(product.id)] ? "Posted to Facebook" : "Post to Facebook"}
-                            aria-label={facebookPostedProductIds[String(product.id)] ? "Posted to Facebook" : "Post to Facebook"}
+                            className={`button-icon home-carousel-toggle ${(product.is_home_featured === 1 || product.is_home_featured === true) ? "active" : ""}`}
+                            onClick={() => {
+                              closeProductActionMenu();
+                              handleToggleProductHomeFeatured(product);
+                            }}
+                            title={(product.is_home_featured === 1 || product.is_home_featured === true) ? "Remove from home carousel" : "Add to home carousel"}
+                            disabled={activeProductHomeFeaturedId === String(product.id)}
                           >
-                            {facebookPostedProductIds[String(product.id)] ? "✓" : "f"}
+                            {activeProductHomeFeaturedId === String(product.id)
+                              ? "..."
+                              : (product.is_home_featured === 1 || product.is_home_featured === true)
+                                ? "🏠"
+                                : "⌂"}
                           </button>
-                          <button
-                            className="button-icon delete"
-                            onClick={() => handleDeleteProduct(product)}
-                            title="Delete product"
-                          >
-                            🗑
-                          </button>
+                          <div className="product-actions-menu-wrap" ref={openProductActionMenuId === String(product.id) ? productActionMenuRef : null}>
+                            <button
+                              type="button"
+                              className="button-icon actions-menu-toggle"
+                              onClick={() => setOpenProductActionMenuId((prev) => (prev === String(product.id) ? "" : String(product.id)))}
+                              title="More actions"
+                              aria-label="More actions"
+                            >
+                              ☰
+                            </button>
+                            {openProductActionMenuId === String(product.id) && (
+                              <div className="product-actions-menu" role="menu" aria-label="More product actions">
+                                <button
+                                  type="button"
+                                  className={`product-actions-menu-item ${product.is_active ? "" : "inactive"}`}
+                                  onClick={() => {
+                                    setOpenProductActionMenuId("");
+                                    handleToggleProductActive(product);
+                                  }}
+                                >
+                                  {product.is_active ? "Hide" : "Show"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`product-actions-menu-item ${facebookPostedProductIds[String(product.id)] ? "posted" : ""}`}
+                                  onClick={() => {
+                                    setOpenProductActionMenuId("");
+                                    handleShareProductToFacebook(product);
+                                  }}
+                                >
+                                  {facebookPostedProductIds[String(product.id)] ? "Posted to Facebook" : "Post to Facebook"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="product-actions-menu-item danger"
+                                  onClick={() => {
+                                    setOpenProductActionMenuId("");
+                                    handleDeleteProduct(product);
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -5574,22 +5857,22 @@ export default function AdminDashboard({
                     {pagedDeactivatedProducts.map((product) => (
                       <div key={`deactivated-${product.id}`} className="product-row product-row-inactive">
                         <div className="product-thumb">
-                          {product.images && product.images.length > 0 ? (
-                            product.images[0].media_type === "video" ? (
-                              <video
-                                src={resolveMediaUrl(product.images[0].image_url)}
-                                className="thumb-placeholder"
-                              />
-                            ) : (
-                              (() => {
-                                const thumbnailCandidates = getProductDisplayThumbnailCandidates(
-                                  product,
-                                  linkedTemplatePreviewUrls[String(product?.related_links?.template_id || "").trim()] || "",
-                                );
-                                return thumbnailCandidates.length > 0 ? (
+                          {(() => {
+                            const thumbnailCandidates = getProductDisplayThumbnailCandidates(
+                              product,
+                              linkedTemplatePreviewUrls[String(product?.related_links?.template_id || "").trim()] || "",
+                            );
+                            const firstVideo = ensureArray(product.images).find((entry) => String(entry?.media_type || "").toLowerCase() === "video") || null;
+
+                            if (thumbnailCandidates.length > 0) {
+                              return (
+                                <>
                                   <img
                                     src={thumbnailCandidates[0]}
                                     alt={product.name}
+                                    loading="lazy"
+                                    decoding="async"
+                                    fetchPriority="low"
                                     onLoad={(event) => {
                                       event.currentTarget.style.display = "block";
                                       const sibling = event.currentTarget.nextElementSibling;
@@ -5607,15 +5890,24 @@ export default function AdminDashboard({
                                       if (sibling) sibling.style.display = "flex";
                                     }}
                                   />
-                                ) : null;
-                              })()
-                            )
-                          ) : (
-                            <div className="thumb-placeholder">No image</div>
-                          )}
-                          {product.images && product.images.length > 0 && product.images[0].media_type !== "video" ? (
-                            <div className="thumb-placeholder" style={{ display: "none" }}>No image</div>
-                          ) : null}
+                                  <div className="thumb-placeholder" style={{ display: "none" }}>No image</div>
+                                </>
+                              );
+                            }
+
+                            if (firstVideo) {
+                              return (
+                                <video
+                                  src={resolveMediaUrl(firstVideo.image_url)}
+                                  className="thumb-placeholder"
+                                  muted
+                                  playsInline
+                                />
+                              );
+                            }
+
+                            return <div className="thumb-placeholder">No image</div>;
+                          })()}
                         </div>
                         <div className="product-details">
                           <h4>
@@ -5637,26 +5929,89 @@ export default function AdminDashboard({
                         <div className="product-actions">
                           <button
                             className="button-icon edit"
-                            onClick={() => handleEditProduct(product)}
+                            onClick={() => {
+                              closeProductActionMenu();
+                              handleEditProduct(product);
+                            }}
                             title="Edit product"
                           >
                             ✎
                           </button>
                           <button
-                            className="button-icon visibility inactive"
-                            onClick={() => handleToggleProductActive(product)}
-                            title="Activate product"
-                            disabled={activeProductToggleId === String(product.id)}
+                            className={`button-icon featured-toggle ${(product.is_featured === 1 || product.is_featured === true) ? "active" : ""}`}
+                            onClick={() => {
+                              closeProductActionMenu();
+                              handleToggleProductFeatured(product);
+                            }}
+                            title={(product.is_featured === 1 || product.is_featured === true) ? "Remove featured" : "Mark as featured"}
+                            disabled={activeProductFeaturedId === String(product.id)}
                           >
-                            {activeProductToggleId === String(product.id) ? "..." : "Show"}
+                            {activeProductFeaturedId === String(product.id)
+                              ? "..."
+                              : (product.is_featured === 1 || product.is_featured === true)
+                                ? "★"
+                                : "☆"}
                           </button>
                           <button
-                            className="button-icon delete"
-                            onClick={() => handleDeleteProduct(product)}
-                            title="Delete product"
+                            className={`button-icon home-carousel-toggle ${(product.is_home_featured === 1 || product.is_home_featured === true) ? "active" : ""}`}
+                            onClick={() => {
+                              closeProductActionMenu();
+                              handleToggleProductHomeFeatured(product);
+                            }}
+                            title={(product.is_home_featured === 1 || product.is_home_featured === true) ? "Remove from home carousel" : "Add to home carousel"}
+                            disabled={activeProductHomeFeaturedId === String(product.id)}
                           >
-                            🗑
+                            {activeProductHomeFeaturedId === String(product.id)
+                              ? "..."
+                              : (product.is_home_featured === 1 || product.is_home_featured === true)
+                                ? "🏠"
+                                : "⌂"}
                           </button>
+                          <div className="product-actions-menu-wrap" ref={openProductActionMenuId === String(product.id) ? productActionMenuRef : null}>
+                            <button
+                              type="button"
+                              className="button-icon actions-menu-toggle"
+                              onClick={() => setOpenProductActionMenuId((prev) => (prev === String(product.id) ? "" : String(product.id)))}
+                              title="More actions"
+                              aria-label="More actions"
+                            >
+                              ☰
+                            </button>
+                            {openProductActionMenuId === String(product.id) && (
+                              <div className="product-actions-menu" role="menu" aria-label="More product actions">
+                                <button
+                                  type="button"
+                                  className="product-actions-menu-item inactive"
+                                  onClick={() => {
+                                    setOpenProductActionMenuId("");
+                                    handleToggleProductActive(product);
+                                  }}
+                                >
+                                  Show
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`product-actions-menu-item ${facebookPostedProductIds[String(product.id)] ? "posted" : ""}`}
+                                  onClick={() => {
+                                    setOpenProductActionMenuId("");
+                                    handleShareProductToFacebook(product);
+                                  }}
+                                >
+                                  {facebookPostedProductIds[String(product.id)] ? "Posted to Facebook" : "Post to Facebook"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="product-actions-menu-item danger"
+                                  onClick={() => {
+                                    setOpenProductActionMenuId("");
+                                    handleDeleteProduct(product);
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -5750,7 +6105,12 @@ export default function AdminDashboard({
                 <button type="submit" className="button">Generate Code</button>
               </form>
 
-              <form className="review-invite-form" onSubmit={handleCreateAdminReview} style={{ marginTop: "1rem" }}>
+              <form
+                className="review-invite-form"
+                onSubmit={handleCreateAdminReview}
+                onPaste={handleCreateAdminReviewPhotoPaste}
+                style={{ marginTop: "1rem" }}
+              >
                 <h4>Add Etsy Review / Testimonial</h4>
                 <p className="form-note" style={{ marginTop: 0 }}>
                   Create a review manually using the same fields as the customer review flow.
@@ -5812,7 +6172,7 @@ export default function AdminDashboard({
                           setAdminReviewCreateForm((prev) => ({ ...prev, purchased_at: parsed }));
                         }
                       }}
-                      placeholder="MM/DD/YYYY or YYYY-MM-DD"
+                      placeholder="MM/YYYY or just YYYY"
                       required
                     />
                   </label>
@@ -5823,6 +6183,7 @@ export default function AdminDashboard({
                       onChange={(event) => setAdminReviewCreateForm((prev) => ({ ...prev, purchase_source: event.target.value }))}
                     >
                       <option value="etsy">Etsy</option>
+                      <option value="sgcg">SGCG ART</option>
                       <option value="ebay">eBay</option>
                       <option value="facebook">Facebook</option>
                       <option value="amazon">Amazon</option>
@@ -5861,20 +6222,28 @@ export default function AdminDashboard({
                       type="file"
                       accept="image/*"
                       onChange={(event) => setAdminReviewCreateForm((prev) => ({ ...prev, photo: event.target.files?.[0] || null }))}
-                      onPaste={(event) => {
-                        const items = event.clipboardData?.items;
-                        if (items) {
-                          for (let i = 0; i < items.length; i++) {
-                            if (items[i].kind === "file" && items[i].type.startsWith("image/")) {
-                              event.preventDefault();
-                              const file = items[i].getAsFile();
-                              setAdminReviewCreateForm((prev) => ({ ...prev, photo: file }));
-                              break;
-                            }
-                          }
-                        }
-                      }}
                     />
+                    <input
+                      type="text"
+                      className="review-photo-paste-target"
+                      value="Click here, then right-click → Paste or press Ctrl+V to paste an image"
+                      aria-label="Paste review photo from clipboard"
+                      onChange={() => {}}
+                      onKeyDown={(e) => { if (!((e.ctrlKey || e.metaKey) && e.key === 'v')) e.preventDefault(); }}
+                      onPaste={handleCreateAdminReviewPhotoPaste}
+                    />
+                    {adminReviewCreateForm.photo ? (
+                      <>
+                        <span className="form-note">Attached photo: {adminReviewCreateForm.photo.name || "clipboard-image"}</span>
+                        <button
+                          type="button"
+                          className="button button-secondary"
+                          onClick={() => setAdminReviewCreateForm((prev) => ({ ...prev, photo: null }))}
+                        >
+                          Remove Photo
+                        </button>
+                      </>
+                    ) : null}
                   </label>
                 </div>
                 <button type="submit" className="button" disabled={isCreatingAdminReview}>
@@ -6077,9 +6446,10 @@ export default function AdminDashboard({
                                 <input
                                   type="text"
                                   className="review-photo-paste-target"
-                                  readOnly
-                                  value="Click here, then press Ctrl+V to paste an image"
+                                  value="Click here, then right-click → Paste or press Ctrl+V to paste an image"
                                   aria-label="Paste review photo from clipboard"
+                                  onChange={() => {}}
+                                  onKeyDown={(e) => { if (!((e.ctrlKey || e.metaKey) && e.key === 'v')) e.preventDefault(); }}
                                   onPaste={(event) => {
                                     const items = event.clipboardData?.items;
                                     if (!items) return;
@@ -6908,7 +7278,25 @@ export default function AdminDashboard({
                       })
                     }
                   />
-                  <span>Feature this product on the home page</span>
+                  <span>Regular featured product</span>
+                </label>
+
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={manualProduct.is_home_featured}
+                    onChange={(e) => {
+                      if (e.target.checked && !manualProduct.is_home_featured && homeFeaturedProductsCount >= MAX_HOME_FEATURED_PRODUCTS) {
+                        setStatus("Home page carousel limit met (20). Remove a home page feature before adding more.");
+                        return;
+                      }
+                      setManualProduct({
+                        ...manualProduct,
+                        is_home_featured: e.target.checked,
+                      });
+                    }}
+                  />
+                  <span>Show in home page carousel (max 20)</span>
                 </label>
 
                 {/* ── Conditional: Difficulty + Digital Price (pattern only) ── */}

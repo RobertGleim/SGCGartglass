@@ -7,7 +7,7 @@ const formatReviewDate = (value) => {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
 }
 
 const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Number(rating) || 0)))
@@ -291,7 +291,7 @@ export default function ReviewsPage() {
                   </div>
                   <div className="reviews-feed-meta">
                     <strong>{(review.first_name || '').trim()} {(review.last_name || '').trim()}</strong>
-                    {review.created_at ? <span>{formatReviewDate(review.created_at)}</span> : null}
+                    {review.purchasedAt ? <span>{formatReviewDate(review.purchasedAt)}</span> : null}
                     {review.purchasedVia ? <span>Purchased at {formatPurchaseSource(review.purchasedVia)}</span> : null}
                   </div>
                   <div className="reviews-feed-body-row">

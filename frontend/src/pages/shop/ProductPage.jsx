@@ -70,6 +70,7 @@ const CONTACT_REASONS = [
 const normalizeTypeKeyFromCategory = (value) => CATEGORY_TYPE_ALIASES[normalizeCategoryValue(value)] || null
 const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Math.round(Number(rating) || 0))))
 const isOnSale = (product) => Number(product?.old_price || 0) > Number(product?.price_amount || 0)
+const isFeaturedProduct = (product) => product?.is_featured === 1 || product?.is_featured === true
 
 const isTypeCategory = (value) => Boolean(normalizeTypeKeyFromCategory(value))
 
@@ -319,7 +320,8 @@ export default function ProductPage({ products }) {
   const categoryCounts = useMemo(() => {
     const counts = { 
       All: sectionProducts.length,
-      'On sale': sectionProducts.filter((p) => isOnSale(p)).length
+      'On sale': sectionProducts.filter((p) => isOnSale(p)).length,
+      Featured: sectionProducts.filter((p) => isFeaturedProduct(p)).length,
     }
     sectionProducts.forEach((product) => {
       getProductSubcategories(product).forEach((category) => {
@@ -329,7 +331,7 @@ export default function ProductPage({ products }) {
     return counts
   }, [sectionProducts])
 
-  const categories = useMemo(() => ['All', 'On sale'], [])
+  const categories = useMemo(() => ['All', 'On sale', 'Featured'], [])
 
   const toggleFilterValue = (current, value) => {
     const normalizedTarget = normalizeCategoryValue(value)
@@ -362,6 +364,8 @@ export default function ProductPage({ products }) {
         matchesCategory = true
       } else if (selectedCategory === 'On sale') {
         matchesCategory = isOnSale(product)
+      } else if (selectedCategory === 'Featured') {
+        matchesCategory = isFeaturedProduct(product)
       } else {
         matchesCategory = productHasSubcategory(product, selectedCategory)
       }

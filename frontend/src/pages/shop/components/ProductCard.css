@@ -78,6 +78,22 @@
   box-shadow: 0 3px 10px rgba(127, 29, 29, 0.35);
 }
 
+.pattern-corner-badge {
+  position: absolute;
+  right: 0.55rem;
+  bottom: 0.55rem;
+  z-index: 2;
+  background: #1f4ea1;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.28rem 0.52rem;
+  border-radius: 999px;
+  box-shadow: 0 3px 10px rgba(31, 78, 161, 0.35);
+}
+
 /* Small phones (375px+) */
 @media (min-width: 375px) {
   .card-image {
@@ -140,10 +156,37 @@
   -webkit-box-orient: vertical;
 }
 
+.card-featured-star {
+  color: inherit;
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.card-featured-badge {
+  background: #e6f0ff;
+  color: #1f4ea1;
+  border: 1px solid #c7dafc;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
 .card-pricing {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+}
+
+.card-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
 }
 
 .price-row {
@@ -182,9 +225,9 @@
 }
 
 .free-shipping {
-  background: #e6f0ff;
-  color: #1f4ea1;
-  border: 1px solid #c7dafc;
+  background: linear-gradient(90deg, #004b87 0%, #005ea6 100%);
+  color: #ffffff;
+  border: 1px solid #003b6f;
   font-size: 0.75rem;
   font-weight: 700;
   padding: 0.25rem 0.5rem;
@@ -193,11 +236,13 @@
   align-items: center;
   gap: 0.32rem;
   width: fit-content;
+  box-shadow: 0 2px 8px rgba(0, 75, 135, 0.28);
 }
 
 .free-shipping-icon {
   line-height: 1;
   font-size: 0.78rem;
+  color: #ff3b30;
 }
 
 .instant-download-badge,

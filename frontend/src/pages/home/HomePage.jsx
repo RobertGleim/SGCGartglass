@@ -74,18 +74,31 @@ export default function HomePage({ featuredItems, itemsLoading }) {
 
   useEffect(() => {
     let isActive = true
-    fetchRecentReviewsCached({ limit: 3 })
-      .then((response) => {
-        if (!isActive) return
-        setRecentReviews(Array.isArray(response) ? response : [])
-      })
-      .catch(() => {
-        if (!isActive) return
-        setRecentReviews([])
-      })
+    const loadRecentReviews = () => {
+      fetchRecentReviewsCached({ limit: 3 })
+        .then((response) => {
+          if (!isActive) return
+          setRecentReviews(Array.isArray(response) ? response : [])
+        })
+        .catch(() => {
+          if (!isActive) return
+          setRecentReviews([])
+        })
+    }
+
+    // Let first paint complete before loading non-critical home reviews.
+    const scheduleIdleLoad =
+      typeof window.requestIdleCallback === 'function'
+        ? window.requestIdleCallback(loadRecentReviews, { timeout: 1200 })
+        : window.setTimeout(loadRecentReviews, 120)
 
     return () => {
       isActive = false
+      if (typeof window.cancelIdleCallback === 'function' && typeof scheduleIdleLoad === 'number') {
+        window.cancelIdleCallback(scheduleIdleLoad)
+      } else {
+        window.clearTimeout(scheduleIdleLoad)
+      }
     }
   }, [])
 

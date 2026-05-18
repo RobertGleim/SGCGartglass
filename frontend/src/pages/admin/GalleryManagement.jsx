@@ -24,10 +24,33 @@ const getApiOrigin = () => {
 };
 
 const resolveGalleryImageUrl = (value) => {
-  if (!value) return '';
-  if (value.startsWith('http://') || value.startsWith('https://')) return value;
-  if (value.startsWith('/')) return `${getApiOrigin()}${value}`;
-  return `${getApiOrigin()}/${value}`;
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/^javascript:/i.test(raw)) return '';
+  if (raw.startsWith('data:') || raw.startsWith('blob:')) return raw;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+
+  if (
+    (raw.startsWith('[') && raw.endsWith(']'))
+    || (raw.startsWith('{') && raw.endsWith('}'))
+  ) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return resolveGalleryImageUrl(parsed[0]?.image_url || parsed[0]?.url || parsed[0]?.src || parsed[0]);
+      }
+      if (parsed && typeof parsed === 'object') {
+        return resolveGalleryImageUrl(parsed.image_url || parsed.url || parsed.src);
+      }
+    } catch {
+      // Fall through to the raw value below.
+    }
+  }
+
+  if (raw.startsWith('/uploads/')) return `${getApiOrigin()}${raw}`;
+  if (raw.startsWith('uploads/')) return `${getApiOrigin()}/${raw}`;
+  if (raw.startsWith('/')) return `${getApiOrigin()}${raw}`;
+  return `${getApiOrigin()}/${raw}`;
 };
 
 const normalizeCategory = (value) => String(value || '').trim().toLowerCase();
@@ -704,6 +727,9 @@ export default function GalleryManagement() {
                   src={resolveGalleryImageUrl((group.photos.find((photo) => photo.is_cover) || group.photos[0])?.image_url)}
                   alt={group.panel_name}
                   className={styles.listThumb}
+                  loading="lazy"
+                  decoding="async"
+                  fetchPriority="low"
                 />
                 <span className={styles.listPanelName}>{group.panel_name || 'Untitled'}</span>
                 <span className={`${styles.statusBadge} ${styles[group.groupStatus]}`}>
@@ -822,7 +848,7 @@ export default function GalleryManagement() {
                   <div className={styles.previewGrid}>
                     {uploadPreviewUrls.map((previewUrl, index) => (
                       <div key={`${previewUrl}-${index}`} className={styles.previewItem}>
-                        <img src={previewUrl} alt={`Selected ${index + 1}`} className={styles.previewImage} />
+                        <img src={previewUrl} alt={`Selected ${index + 1}`} className={styles.previewImage} loading="lazy" decoding="async" fetchPriority="low" />
                         <button
                           type="button"
                           className={styles.button}
@@ -914,7 +940,7 @@ export default function GalleryManagement() {
             <div className={styles.modalStackList}>
               {modalPhotos.map((photo) => (
                 <div key={photo.id} className={styles.modalPhotoRow}>
-                  <img src={resolveGalleryImageUrl(photo.image_url)} alt="Submission" className={styles.modalPhotoThumb} />
+                  <img src={resolveGalleryImageUrl(photo.image_url)} alt="Submission" className={styles.modalPhotoThumb} loading="lazy" decoding="async" fetchPriority="low" />
                   <div className={styles.modalPhotoMeta}>
                     <span className={styles.listTime}>Added: {formatTimestamp(photo.created_at)}</span>
                     <label>

@@ -8,6 +8,14 @@
 
 * {
   box-sizing: border-box;
+  cursor: url('/cursor-blue-glass.svg') 3 3, auto;
+}
+
+a, button, [role="button"], select, label[for],
+input[type="submit"], input[type="button"], input[type="reset"],
+input[type="checkbox"], input[type="radio"], input[type="range"],
+[onClick], [tabindex]:not([tabindex="-1"]) {
+  cursor: url('/cursor-blue-glass-pointer.svg') 10 1, pointer !important;
 }
 
 html {
