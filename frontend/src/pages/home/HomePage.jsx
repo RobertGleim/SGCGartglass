@@ -6,6 +6,14 @@ import './HomePage.css'
 
 const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Math.round(Number(rating) || 0))))
 
+const getApiOrigin = () => {
+  const configuredBase = String(import.meta.env.VITE_API_BASE_URL || '/api').trim()
+  if (/^https?:\/\//i.test(configuredBase)) {
+    return configuredBase.replace(/\/api\/?$/, '')
+  }
+  return window.location.origin
+}
+
 const toCleanImageUrl = (value) => {
   const raw = String(value || '').trim()
   if (!raw) return ''
@@ -38,13 +46,18 @@ const toCleanImageUrl = (value) => {
 }
 
 const resolveReviewImageUrl = (review) => {
-  const candidates = [review?.product_image_url, review?.fallback_product_image_url]
+  const candidates = [
+    review?.review_image_url,
+    review?.product_image_url,
+    review?.fallback_product_image_url,
+  ]
 
   for (const candidate of candidates) {
     const url = toCleanImageUrl(candidate)
     if (!url) continue
     if (url.startsWith('data:') || url.startsWith('blob:')) return url
     if (url.startsWith('http://') || url.startsWith('https://')) return url
+    if (url.startsWith('/uploads/')) return `${getApiOrigin()}${url}`
     if (url.startsWith('/')) return url
     return `/${url.replace(/^\.?\//, '')}`
   }
@@ -168,7 +181,9 @@ export default function HomePage({ featuredItems, itemsLoading }) {
                       loading="lazy"
                       decoding="async"
                       onError={(event) => {
-                        const fallback = toCleanImageUrl(activeReview?.fallback_product_image_url)
+                        const fallback = resolveReviewImageUrl({
+                          product_image_url: activeReview?.fallback_product_image_url,
+                        })
                         const current = String(event.currentTarget.src || '').trim()
                         if (fallback && current !== fallback) {
                           event.currentTarget.src = fallback

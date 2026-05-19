@@ -12,6 +12,44 @@ const formatReviewDate = (value) => {
 
 const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Number(rating) || 0)))
 
+const getApiOrigin = () => {
+  const configuredBase = String(import.meta.env.VITE_API_BASE_URL || '/api').trim()
+  if (/^https?:\/\//i.test(configuredBase)) {
+    return configuredBase.replace(/\/api\/?$/, '')
+  }
+  return window.location.origin
+}
+
+const toCleanImageUrl = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (/^javascript:/i.test(raw)) return ''
+
+  const unquoted = raw.replace(/^['"]|['"]$/g, '')
+  if (unquoted.startsWith('data:')) return unquoted.replace(/\s+/g, '')
+  return unquoted
+}
+
+const resolveReviewPhotoUrl = (review) => {
+  const candidates = [
+    review?.review_image_url,
+    review?.product_image_url,
+    review?.fallback_product_image_url,
+  ]
+
+  for (const candidate of candidates) {
+    const url = toCleanImageUrl(candidate)
+    if (!url) continue
+    if (url.startsWith('data:') || url.startsWith('blob:')) return url
+    if (url.startsWith('http://') || url.startsWith('https://')) return url
+    if (url.startsWith('/uploads/')) return `${getApiOrigin()}${url}`
+    if (url.startsWith('/')) return url
+    return `/${url.replace(/^\.?\//, '')}`
+  }
+
+  return ''
+}
+
 const formatPurchaseSource = (value) => {
   const normalized = String(value || '').trim()
   if (!normalized) return ''
@@ -284,6 +322,12 @@ export default function ReviewsPage() {
 
             <div className="reviews-feed">
               {filteredReviews.map((review) => (
+                (() => {
+                  const reviewPhotoUrl = resolveReviewPhotoUrl(review)
+                  const reviewPhotoFallback = resolveReviewPhotoUrl({
+                    product_image_url: review?.fallback_product_image_url,
+                  })
+                  return (
                 <article key={review.id} className="reviews-feed-card">
                   <div className="reviews-feed-header">
                     <p className="reviews-feed-stars">{renderStars(review.numericRating)} <span>{review.numericRating}/5</span></p>
@@ -308,13 +352,13 @@ export default function ReviewsPage() {
                         </div>
                       ) : null}
                     </div>
-                    {review.product_image_url ? (
+                    {reviewPhotoUrl ? (
                       <img
-                        src={review.product_image_url}
+                        src={reviewPhotoUrl}
                         alt={review.product_title || review.title || 'Reviewed product'}
                         className="reviews-feed-thumb"
                         onError={(event) => {
-                          const fallback = String(review.fallback_product_image_url || '').trim()
+                          const fallback = reviewPhotoFallback
                           const current = String(event.currentTarget.src || '').trim()
                           if (fallback && current !== fallback) {
                             event.currentTarget.src = fallback
@@ -326,6 +370,8 @@ export default function ReviewsPage() {
                     ) : null}
                   </div>
                 </article>
+                  )
+                })()
               ))}
             </div>
           </>

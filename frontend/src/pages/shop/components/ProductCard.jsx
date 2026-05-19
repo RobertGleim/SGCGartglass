@@ -290,7 +290,6 @@ const fetchManualProductFallbackImageUrl = async (manualProductId) => {
   try {
     const response = await fetch(`${getApiOrigin()}/api/manual-products/${encodeURIComponent(key)}`)
     if (!response.ok) {
-      manualCardImageCache.set(key, '')
       return ''
     }
 
@@ -302,13 +301,10 @@ const fetchManualProductFallbackImageUrl = async (manualProductId) => {
 
     if (resolved) {
       writeManualCardImageCache(key, resolved)
-    } else {
-      manualCardImageCache.set(key, '')
     }
 
     return resolved
   } catch {
-    manualCardImageCache.set(key, '')
     return ''
   }
 }
@@ -360,6 +356,25 @@ export default function ProductCard({ product }) {
     setHasRequestedDetailFallback(false)
     setImageExhausted(false)
   }, [product?.id, imageCandidates])
+
+  useEffect(() => {
+    if (templateFallbackUrl || hasRequestedTemplateFallback || imageCandidates.length > 0 || !linkedTemplateId) {
+      return
+    }
+
+    setHasRequestedTemplateFallback(true)
+    fetchTemplateFallbackImageUrl(linkedTemplateId).then((fallbackUrl) => {
+      if (fallbackUrl) {
+        const normalizedFallback = normalizeResolvedUrl(fallbackUrl)
+        if (normalizedFallback && !imageCandidates.includes(normalizedFallback)) {
+          setTemplateFallbackUrl(normalizedFallback)
+          setImageExhausted(false)
+          return
+        }
+      }
+      setImageExhausted(false)
+    })
+  }, [templateFallbackUrl, hasRequestedTemplateFallback, imageCandidates, linkedTemplateId])
 
   useEffect(() => {
     if (detailFallbackUrl || hasRequestedDetailFallback || imageCandidates.length > 0 || !manualProductId) {
