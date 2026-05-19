@@ -6271,11 +6271,17 @@ export default function AdminDashboard({
                 </select>
               </div>
               {adminReviewStatus ? <p className="form-note">{adminReviewStatus}</p> : null}
-              {adminReviews.length === 0 ? (
-                <p className="form-note">No reviews found.</p>
-              ) : (
-                <div className="review-management-list">
-                  {pagedAdminReviews.map((review) => {
+              <div className="review-list-container">
+                <div className="review-list-header">
+                  <h4>Review List</h4>
+                  <span className="form-note">{adminReviews.length} total • 10 per page</span>
+                </div>
+                {adminReviews.length === 0 ? (
+                  <p className="form-note">No reviews found.</p>
+                ) : (
+                  <>
+                    <div className="review-management-list">
+                      {pagedAdminReviews.map((review) => {
                     const reviewId = String(review.id || "");
                     const reviewName = `${(review.first_name || "").trim()} ${(review.last_name || "").trim()}`.trim() || "Unknown reviewer";
                     const reviewSourceLabel = review.product_type === "invite"
@@ -6293,8 +6299,8 @@ export default function AdminDashboard({
                     const pendingPhotoDelete = Boolean(adminReviewPhotoDeletes[reviewId]);
                     const resolvedReviewImage = resolveMediaUrl(review.review_image_url);
 
-                    return (
-                      <article key={review.id} className={`review-row${needsAction ? " review-row-needs-action" : ""}${isExpanded ? " review-row-open" : ""}`}>
+                        return (
+                          <article key={review.id} className={`review-row${needsAction ? " review-row-needs-action" : ""}${isExpanded ? " review-row-open" : ""}`}>
                         <div className="review-row-summary">
                           <button
                             type="button"
@@ -6463,12 +6469,14 @@ export default function AdminDashboard({
                             </div>
                           </>
                         ) : null}
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-              {renderSectionPagination(reviewsPage, totalReviewsPages, setReviewsPage)}
+                          </article>
+                        );
+                      })}
+                    </div>
+                    {renderSectionPagination(reviewsPage, totalReviewsPages, setReviewsPage)}
+                  </>
+                )}
+              </div>
 
               <form className="review-invite-form" onSubmit={handleGenerateUnlimitedReviewCode} style={{ marginTop: "1.25rem" }}>
                 <h4>Create Unlimited Code</h4>
@@ -6549,54 +6557,64 @@ export default function AdminDashboard({
                 </div>
               ) : null}
 
-              {reviewInviteCodes.length > 0 ? (
-                <div className="review-invite-list">
-                  {pagedReviewInviteCodes.map((invite) => (
-                    <div key={invite.id} className="review-invite-item">
-                      <div>
-                        <strong>
-                          ({invite.platform || invite.product_type || 'unknown'})
-                          {invite.product_name ? ` ${invite.product_name}` : ''}
-                        </strong>
-                        <p className="form-note" style={{ margin: 0 }}>
-                          Uses: {invite.used_count}{invite.max_uses == null ? " (unlimited)" : `/${invite.max_uses}`}
-                          {invite.max_uses == null ? "" : ` · Remaining: ${invite.remaining_uses}`}
-                          {invite.note ? ` · Internal Note: ${invite.note}` : ""}
-                          {invite.expires_at ? ` · Expires: ${new Date(invite.expires_at).toLocaleDateString()}` : ""}
-                        </p>
-                      </div>
-                      <div className="review-invite-actions">
-                        {invite.max_uses == null ? null : (
-                          <button
-                            type="button"
-                            className="button"
-                            onClick={() => handleRecopyReviewCode(invite)}
-                          >
-                            Re-copy Code
-                          </button>
-                        )}
-                        {invite.max_uses == null ? null : (
-                          <button
-                            type="button"
-                            className="button"
-                            onClick={() => handleResendReviewCode(invite)}
-                          >
-                            Resend Code
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="button"
-                          onClick={() => handleDeleteReviewCode(invite.id)}
-                        >
-                          Delete Code
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+              <div className="code-list-container">
+                <div className="code-list-header">
+                  <h4>Code List</h4>
+                  <span className="form-note">{reviewInviteCodes.length} total</span>
                 </div>
-              ) : null}
-              {renderSectionPagination(reviewCodesPage, totalReviewCodesPages, setReviewCodesPage)}
+                {reviewInviteCodes.length > 0 ? (
+                  <>
+                    <div className="review-invite-list">
+                      {pagedReviewInviteCodes.map((invite) => (
+                        <div key={invite.id} className="review-invite-item">
+                          <div>
+                            <strong>
+                              ({invite.platform || invite.product_type || 'unknown'})
+                              {invite.product_name ? ` ${invite.product_name}` : ''}
+                            </strong>
+                            <p className="form-note" style={{ margin: 0 }}>
+                              Uses: {invite.used_count}{invite.max_uses == null ? " (unlimited)" : `/${invite.max_uses}`}
+                              {invite.max_uses == null ? "" : ` · Remaining: ${invite.remaining_uses}`}
+                              {invite.note ? ` · Internal Note: ${invite.note}` : ""}
+                              {invite.expires_at ? ` · Expires: ${new Date(invite.expires_at).toLocaleDateString()}` : ""}
+                            </p>
+                          </div>
+                          <div className="review-invite-actions">
+                            {invite.max_uses == null ? null : (
+                              <button
+                                type="button"
+                                className="button"
+                                onClick={() => handleRecopyReviewCode(invite)}
+                              >
+                                Re-copy Code
+                              </button>
+                            )}
+                            {invite.max_uses == null ? null : (
+                              <button
+                                type="button"
+                                className="button"
+                                onClick={() => handleResendReviewCode(invite)}
+                              >
+                                Resend Code
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="button"
+                              onClick={() => handleDeleteReviewCode(invite.id)}
+                            >
+                              Delete Code
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {renderSectionPagination(reviewCodesPage, totalReviewCodesPages, setReviewCodesPage)}
+                  </>
+                ) : (
+                  <p className="form-note">No review codes found.</p>
+                )}
+              </div>
             </div>
           </div>
         )}

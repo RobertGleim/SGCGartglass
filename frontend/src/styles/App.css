@@ -902,6 +902,46 @@
   margin-bottom: 0.75rem;
 }
 
+.review-list-container {
+  border: 1px solid #dfe6f3;
+  border-radius: 12px;
+  background: #f7f9fd;
+  padding: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.review-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.review-list-header h4 {
+  margin: 0;
+}
+
+.code-list-container {
+  border: 1px solid #dfe6f3;
+  border-radius: 12px;
+  background: #f7f9fd;
+  padding: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.code-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.code-list-header h4 {
+  margin: 0;
+}
+
 .review-management-list {
   display: flex;
   flex-direction: column;
