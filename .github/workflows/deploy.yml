@@ -76,19 +76,20 @@ jobs:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           test -n "$HOSTINGER_REMOTE_PATH" || (echo "Missing secret: HOSTINGER_REMOTE_PATH" && exit 1)
-          HOST="${HOSTINGER_SSH_HOST:-$FTP_HOST}"
-          USERNAME="${HOSTINGER_SSH_USER:-$FTP_USERNAME}"
-          PORT="$(echo "${HOSTINGER_SSH_PORT:-65002}" | tr -d '[:space:]')"
-          PASSWORD="${HOSTINGER_SSH_PASSWORD:-$FTP_PASSWORD}"
-
-          test -n "$HOST" || (echo "Missing host secret: HOSTINGER_SSH_HOST or FTP_HOST" && exit 1)
-          test -n "$USERNAME" || (echo "Missing username secret: HOSTINGER_SSH_USER or FTP_USERNAME" && exit 1)
-          if [ -z "$HOSTINGER_SSH_PRIVATE_KEY" ] && [ -z "$PASSWORD" ]; then
+          test -n "$HOSTINGER_SSH_HOST" || (echo "Missing secret: HOSTINGER_SSH_HOST" && exit 1)
+          test -n "$HOSTINGER_SSH_USER" || (echo "Missing secret: HOSTINGER_SSH_USER" && exit 1)
+          test -n "$(echo "${HOSTINGER_SSH_PORT:-65002}" | tr -d '[:space:]')" || (echo "Missing/invalid HOSTINGER_SSH_PORT" && exit 1)
+          if [ -z "$HOSTINGER_SSH_PRIVATE_KEY" ] && [ -z "$HOSTINGER_SSH_PASSWORD" ]; then
             echo "Provide either HOSTINGER_SSH_PRIVATE_KEY or HOSTINGER_SSH_PASSWORD/FTP_PASSWORD"
             exit 1
           fi
 
-      - name: Deploy to Hostinger via SSH (rsync)
+          # Ensure FTP fallback remains usable.
+          test -n "$FTP_HOST" || (echo "Missing secret: FTP_HOST" && exit 1)
+          test -n "$FTP_USERNAME" || (echo "Missing secret: FTP_USERNAME" && exit 1)
+          test -n "$FTP_PASSWORD" || (echo "Missing secret: FTP_PASSWORD" && exit 1)
+
+      - name: Deploy to Hostinger via SSH (SFTP)
         id: ssh_deploy
         continue-on-error: true
         env:
@@ -98,28 +99,43 @@ jobs:
           HOSTINGER_SSH_PORT: ${{ secrets.HOSTINGER_SSH_PORT }}
           HOSTINGER_SSH_PRIVATE_KEY: ${{ secrets.HOSTINGER_SSH_PRIVATE_KEY }}
           HOSTINGER_SSH_PASSWORD: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
-          FTP_HOST: ${{ secrets.FTP_HOST }}
-          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y rsync sshpass
+          sudo apt-get install -y lftp openssh-client sshpass
 
-          HOST="${HOSTINGER_SSH_HOST:-$FTP_HOST}"
+          HOST="$HOSTINGER_SSH_HOST"
+          HOST="${HOST#ssh://}"
+          HOST="${HOST#sftp://}"
           HOST="${HOST#ftp://}"
           HOST="${HOST#ftps://}"
-          USERNAME="${HOSTINGER_SSH_USER:-$FTP_USERNAME}"
+          USERNAME="$HOSTINGER_SSH_USER"
           PORT="$(echo "${HOSTINGER_SSH_PORT:-65002}" | tr -d '[:space:]')"
-          PASSWORD="${HOSTINGER_SSH_PASSWORD:-$FTP_PASSWORD}"
+          PASSWORD="$HOSTINGER_SSH_PASSWORD"
 
           if [ -n "$HOSTINGER_SSH_PRIVATE_KEY" ]; then
             umask 077
             printf '%s\n' "$HOSTINGER_SSH_PRIVATE_KEY" > .hostinger_key
-            RSYNC_RSH="ssh -i .hostinger_key -p $PORT -o StrictHostKeyChecking=no -o ConnectTimeout=15"
-            rsync -avzr --delete --omit-dir-times --no-perms --no-owner --no-group -e "$RSYNC_RSH" dist/ "$USERNAME@$HOST:$HOSTINGER_REMOTE_PATH"
+            lftp -e "
+              set net:timeout 30;
+              set net:max-retries 3;
+              set cmd:fail-exit yes;
+              set sftp:auto-confirm yes;
+              set sftp:connect-program \"ssh -a -x -i .hostinger_key -p $PORT -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15\";
+              open -u $USERNAME sftp://$HOST;
+              mirror --reverse --delete --verbose --parallel=4 dist/ $HOSTINGER_REMOTE_PATH;
+              bye
+            "
           else
-            RSYNC_RSH="ssh -p $PORT -o StrictHostKeyChecking=no -o ConnectTimeout=15"
-            sshpass -p "$PASSWORD" rsync -avzr --delete --omit-dir-times --no-perms --no-owner --no-group -e "$RSYNC_RSH" dist/ "$USERNAME@$HOST:$HOSTINGER_REMOTE_PATH"
+            lftp -e "
+              set net:timeout 30;
+              set net:max-retries 3;
+              set cmd:fail-exit yes;
+              set sftp:auto-confirm yes;
+              set sftp:connect-program \"sshpass -p '$PASSWORD' ssh -a -x -p $PORT -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15\";
+              open -u $USERNAME sftp://$HOST;
+              mirror --reverse --delete --verbose --parallel=4 dist/ $HOSTINGER_REMOTE_PATH;
+              bye
+            "
           fi
 
       - name: Fallback - Deploy via FTP (lftp)
