@@ -112,12 +112,7 @@ jobs:
           PORT="$(echo "${HOSTINGER_SSH_PORT:-65002}" | tr -d '[:space:]')"
           PASSWORD="$HOSTINGER_SSH_PASSWORD"
 
-          if [ -n "$HOSTINGER_SSH_PRIVATE_KEY" ]; then
-            umask 077
-            mkdir -p ~/.ssh
-            chmod 700 ~/.ssh
-            printf '%s\n' "$HOSTINGER_SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-            chmod 600 ~/.ssh/id_rsa
+          run_lftp_key_auth() {
             lftp -e "
               set net:timeout 30;
               set net:max-retries 3;
@@ -127,7 +122,9 @@ jobs:
               mirror --reverse --delete --verbose --parallel=4 dist/ $HOSTINGER_REMOTE_PATH;
               bye
             "
-          else
+          }
+
+          run_lftp_password_auth() {
             lftp -e "
               set net:timeout 30;
               set net:max-retries 3;
@@ -137,6 +134,26 @@ jobs:
               mirror --reverse --delete --verbose --parallel=4 dist/ $HOSTINGER_REMOTE_PATH;
               bye
             "
+          }
+
+          if [ -n "$HOSTINGER_SSH_PRIVATE_KEY" ]; then
+            umask 077
+            mkdir -p ~/.ssh
+            chmod 700 ~/.ssh
+            printf '%s\n' "$HOSTINGER_SSH_PRIVATE_KEY" | sed 's/\r$//' > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+
+            if run_lftp_key_auth; then
+              echo "SFTP deploy succeeded with private key."
+            elif [ -n "$PASSWORD" ]; then
+              echo "Key auth failed; retrying SFTP deploy with password..."
+              run_lftp_password_auth
+            else
+              echo "Key auth failed and HOSTINGER_SSH_PASSWORD is not set."
+              exit 1
+            fi
+          else
+            run_lftp_password_auth
           fi
 
       - name: Fallback - Deploy via FTP (lftp)
