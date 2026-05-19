@@ -17,6 +17,12 @@ const getApiOrigin = () => {
   if (/^https?:\/\//i.test(configuredBase)) {
     return configuredBase.replace(/\/api\/?$/, '')
   }
+
+  const hostname = String(window.location?.hostname || '').toLowerCase()
+  if (hostname === 'sgcgart.com' || hostname === 'www.sgcgart.com') {
+    return 'https://sgcgartglass.onrender.com'
+  }
+
   return window.location.origin
 }
 
@@ -26,6 +32,24 @@ const toCleanImageUrl = (value) => {
   if (/^javascript:/i.test(raw)) return ''
 
   const unquoted = raw.replace(/^['"]|['"]$/g, '')
+
+  if (
+    (unquoted.startsWith('[') && unquoted.endsWith(']'))
+    || (unquoted.startsWith('{') && unquoted.endsWith('}'))
+  ) {
+    try {
+      const parsed = JSON.parse(unquoted)
+      if (Array.isArray(parsed)) {
+        return toCleanImageUrl(parsed[0]?.image_url || parsed[0]?.url || parsed[0]?.src || parsed[0])
+      }
+      if (parsed && typeof parsed === 'object') {
+        return toCleanImageUrl(parsed.image_url || parsed.url || parsed.src)
+      }
+    } catch {
+      // Keep original value when this isn't valid JSON.
+    }
+  }
+
   if (unquoted.startsWith('data:')) return unquoted.replace(/\s+/g, '')
   return unquoted
 }
@@ -43,6 +67,7 @@ const resolveReviewPhotoUrl = (review) => {
     if (url.startsWith('data:') || url.startsWith('blob:')) return url
     if (url.startsWith('http://') || url.startsWith('https://')) return url
     if (url.startsWith('/uploads/')) return `${getApiOrigin()}${url}`
+    if (url.startsWith('uploads/')) return `${getApiOrigin()}/${url}`
     if (url.startsWith('/')) return url
     return `/${url.replace(/^\.?\//, '')}`
   }
@@ -127,7 +152,7 @@ export default function ReviewsPage() {
   }
 
   useEffect(() => {
-    return loadRecentReviews()
+    return loadRecentReviews({ forceFresh: true })
   }, [])
 
   const handleValidateInviteCode = async (event) => {

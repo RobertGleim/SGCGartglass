@@ -93,10 +93,16 @@ const trendDirectionSymbol = (direction) => {
 };
 
 const getApiOrigin = () => {
-  const configuredBase = import.meta.env.VITE_API_BASE_URL || "/api";
+  const configuredBase = String(import.meta.env.VITE_API_BASE_URL || "/api").trim();
   if (/^https?:\/\//i.test(configuredBase)) {
     return configuredBase.replace(/\/api\/?$/, "");
   }
+
+  const hostname = String(window.location?.hostname || "").toLowerCase();
+  if (hostname === "sgcgart.com" || hostname === "www.sgcgart.com") {
+    return "https://sgcgartglass.onrender.com";
+  }
+
   return window.location.origin;
 };
 
@@ -1090,6 +1096,7 @@ export default function AdminDashboard({
     customer_email: "",
     note: "",
   });
+  const [unlimitedReviewCodeName, setUnlimitedReviewCodeName] = useState("");
   const [adminReviewCreateStatus, setAdminReviewCreateStatus] = useState("");
   const [isCreatingAdminReview, setIsCreatingAdminReview] = useState(false);
   const [adminReviewCreateForm, setAdminReviewCreateForm] = useState({
@@ -1478,6 +1485,48 @@ export default function AdminDashboard({
       }
     } catch (error) {
       setReviewInviteStatus(error?.response?.data?.error || error?.message || "Failed to generate review code.");
+    } finally {
+      setIsGeneratingReviewCode(false);
+    }
+  };
+
+  const handleGenerateUnlimitedReviewCode = async (event) => {
+    event.preventDefault();
+    setReviewInviteStatus("");
+    setIsGeneratingReviewCode(true);
+
+    const codeName = String(unlimitedReviewCodeName || "").trim().toUpperCase();
+    if (!codeName) {
+      setReviewInviteStatus("Please enter a code name.");
+      setIsGeneratingReviewCode(false);
+      return;
+    }
+
+    try {
+      const response = await createAdminReviewInviteCode({
+        platform: "other",
+        product_name: codeName,
+        code: codeName,
+        unlimited: true,
+        note: "Unlimited use code",
+      });
+
+      const createdCode = String(response?.code || codeName);
+      const createdInvite = response?.invite;
+      if (createdInvite) {
+        setReviewInviteCodes((prev) => [createdInvite, ...prev].slice(0, 100));
+      }
+      setLastGeneratedReviewCode(createdCode);
+      setUnlimitedReviewCodeName("");
+
+      try {
+        await navigator.clipboard.writeText(createdCode);
+        setReviewInviteStatus(`Unlimited review code ${createdCode} created and copied.`);
+      } catch {
+        setReviewInviteStatus(`Unlimited review code ${createdCode} created.`);
+      }
+    } catch (error) {
+      setReviewInviteStatus(error?.response?.data?.error || error?.message || "Failed to create unlimited review code.");
     } finally {
       setIsGeneratingReviewCode(false);
     }
@@ -2837,7 +2886,7 @@ export default function AdminDashboard({
 
         if (createdTemplate?.id) {
           relatedLinks.template_id = String(createdTemplate.id);
-          relatedLinks.template_name = String(createdTemplate.name || unifiedTemplateName || "").trim();
+          relatedLinks.template_name = String(createdTemplate.name || unifiedTemplate.name || "").trim();
         }
 
         const resolvedIsDigitalProduct = !productModePhysical && (productModePattern || productModeTemplate);
@@ -6059,52 +6108,6 @@ export default function AdminDashboard({
           <div className="tab-panel">
             <div className="panel-section">
               <h3>Review Management</h3>
-              <form className="review-invite-form" onSubmit={handleGenerateReviewCode}>
-                <h4>Create Customer Review Code</h4>
-                <div className="review-invite-grid">
-                  <label>
-                    <span>Platform</span>
-                    <select
-                      value={reviewInviteForm.platform}
-                      onChange={(event) => setReviewInviteForm((prev) => ({ ...prev, platform: event.target.value }))}
-                    >
-                      <option value="etsy">Etsy</option>
-                      <option value="facebook">Facebook</option>
-                      <option value="ebay">eBay</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </label>
-                  <label>
-                    <span>Product Name</span>
-                    <input
-                      type="text"
-                      value={reviewInviteForm.product_name}
-                      onChange={(event) => setReviewInviteForm((prev) => ({ ...prev, product_name: event.target.value }))}
-                      placeholder="Optional product name"
-                    />
-                  </label>
-                </div>
-                <label className="review-invite-note">
-                  <span>Customer Email</span>
-                  <input
-                    type="email"
-                    value={reviewInviteForm.customer_email}
-                    onChange={(event) => setReviewInviteForm((prev) => ({ ...prev, customer_email: event.target.value }))}
-                    placeholder="customer@email.com"
-                  />
-                </label>
-                <label className="review-invite-note">
-                  <span>Internal Note</span>
-                  <input
-                    type="text"
-                    value={reviewInviteForm.note}
-                    onChange={(event) => setReviewInviteForm((prev) => ({ ...prev, note: event.target.value }))}
-                    placeholder="Optional customer/order note"
-                  />
-                </label>
-                <button type="submit" className="button">Generate Code</button>
-              </form>
-
               <form
                 className="review-invite-form"
                 onSubmit={handleCreateAdminReview}
@@ -6252,65 +6255,6 @@ export default function AdminDashboard({
               </form>
 
               {adminReviewCreateStatus ? <p className="form-note">{adminReviewCreateStatus}</p> : null}
-
-              {reviewInviteStatus ? <p className="form-note">{reviewInviteStatus}</p> : null}
-
-              {lastGeneratedReviewCode ? (
-                <div className="review-invite-latest">
-                  <strong>Latest Code: {lastGeneratedReviewCode}</strong>
-                  <button
-                    type="button"
-                    className="button"
-                    onClick={() => handleCopyReviewCode(lastGeneratedReviewCode)}
-                  >
-                    Copy Latest
-                  </button>
-                </div>
-              ) : null}
-
-              {reviewInviteCodes.length > 0 ? (
-                <div className="review-invite-list">
-                  {pagedReviewInviteCodes.map((invite) => (
-                    <div key={invite.id} className="review-invite-item">
-                      <div>
-                        <strong>
-                          ({invite.platform || invite.product_type || 'unknown'})
-                          {invite.product_name ? ` ${invite.product_name}` : ''}
-                        </strong>
-                        <p className="form-note" style={{ margin: 0 }}>
-                          Uses: {invite.used_count}/{invite.max_uses} · Remaining: {invite.remaining_uses}
-                          {invite.note ? ` · Internal Note: ${invite.note}` : ""}
-                          {invite.expires_at ? ` · Expires: ${new Date(invite.expires_at).toLocaleDateString()}` : ""}
-                        </p>
-                      </div>
-                      <div className="review-invite-actions">
-                        <button
-                          type="button"
-                          className="button"
-                          onClick={() => handleRecopyReviewCode(invite)}
-                        >
-                          Re-copy Code
-                        </button>
-                        <button
-                          type="button"
-                          className="button"
-                          onClick={() => handleResendReviewCode(invite)}
-                        >
-                          Resend Code
-                        </button>
-                        <button
-                          type="button"
-                          className="button"
-                          onClick={() => handleDeleteReviewCode(invite.id)}
-                        >
-                          Delete Code
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-              {renderSectionPagination(reviewCodesPage, totalReviewCodesPages, setReviewCodesPage)}
 
               <div className="review-management-toolbar">
                 <label htmlFor="review-status-filter">Status</label>
@@ -6525,6 +6469,134 @@ export default function AdminDashboard({
                 </div>
               )}
               {renderSectionPagination(reviewsPage, totalReviewsPages, setReviewsPage)}
+
+              <form className="review-invite-form" onSubmit={handleGenerateUnlimitedReviewCode} style={{ marginTop: "1.25rem" }}>
+                <h4>Create Unlimited Code</h4>
+                <div className="review-invite-grid" style={{ gridTemplateColumns: "1fr auto" }}>
+                  <label style={{ marginBottom: 0 }}>
+                    <span>Code Name</span>
+                    <input
+                      type="text"
+                      value={unlimitedReviewCodeName}
+                      onChange={(event) => setUnlimitedReviewCodeName(event.target.value.toUpperCase())}
+                      placeholder="Enter code name"
+                    />
+                  </label>
+                  <button type="submit" className="button" style={{ alignSelf: "end" }}>
+                    Create Unlimited Code
+                  </button>
+                </div>
+              </form>
+
+              <form className="review-invite-form" onSubmit={handleGenerateReviewCode} style={{ marginTop: "1.25rem" }}>
+                <h4>Create Customer Review Code</h4>
+                <div className="review-invite-grid">
+                  <label>
+                    <span>Platform</span>
+                    <select
+                      value={reviewInviteForm.platform}
+                      onChange={(event) => setReviewInviteForm((prev) => ({ ...prev, platform: event.target.value }))}
+                    >
+                      <option value="etsy">Etsy</option>
+                      <option value="facebook">Facebook</option>
+                      <option value="ebay">eBay</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Product Name</span>
+                    <input
+                      type="text"
+                      value={reviewInviteForm.product_name}
+                      onChange={(event) => setReviewInviteForm((prev) => ({ ...prev, product_name: event.target.value }))}
+                      placeholder="Optional product name"
+                    />
+                  </label>
+                </div>
+                <label className="review-invite-note">
+                  <span>Customer Email</span>
+                  <input
+                    type="email"
+                    value={reviewInviteForm.customer_email}
+                    onChange={(event) => setReviewInviteForm((prev) => ({ ...prev, customer_email: event.target.value }))}
+                    placeholder="customer@email.com"
+                  />
+                </label>
+                <label className="review-invite-note">
+                  <span>Internal Note</span>
+                  <input
+                    type="text"
+                    value={reviewInviteForm.note}
+                    onChange={(event) => setReviewInviteForm((prev) => ({ ...prev, note: event.target.value }))}
+                    placeholder="Optional customer/order note"
+                  />
+                </label>
+                <button type="submit" className="button">Generate Code</button>
+              </form>
+
+              {reviewInviteStatus ? <p className="form-note">{reviewInviteStatus}</p> : null}
+
+              {lastGeneratedReviewCode ? (
+                <div className="review-invite-latest">
+                  <strong>Latest Code: {lastGeneratedReviewCode}</strong>
+                  <button
+                    type="button"
+                    className="button"
+                    onClick={() => handleCopyReviewCode(lastGeneratedReviewCode)}
+                  >
+                    Copy Latest
+                  </button>
+                </div>
+              ) : null}
+
+              {reviewInviteCodes.length > 0 ? (
+                <div className="review-invite-list">
+                  {pagedReviewInviteCodes.map((invite) => (
+                    <div key={invite.id} className="review-invite-item">
+                      <div>
+                        <strong>
+                          ({invite.platform || invite.product_type || 'unknown'})
+                          {invite.product_name ? ` ${invite.product_name}` : ''}
+                        </strong>
+                        <p className="form-note" style={{ margin: 0 }}>
+                          Uses: {invite.used_count}{invite.max_uses == null ? " (unlimited)" : `/${invite.max_uses}`}
+                          {invite.max_uses == null ? "" : ` · Remaining: ${invite.remaining_uses}`}
+                          {invite.note ? ` · Internal Note: ${invite.note}` : ""}
+                          {invite.expires_at ? ` · Expires: ${new Date(invite.expires_at).toLocaleDateString()}` : ""}
+                        </p>
+                      </div>
+                      <div className="review-invite-actions">
+                        {invite.max_uses == null ? null : (
+                          <button
+                            type="button"
+                            className="button"
+                            onClick={() => handleRecopyReviewCode(invite)}
+                          >
+                            Re-copy Code
+                          </button>
+                        )}
+                        {invite.max_uses == null ? null : (
+                          <button
+                            type="button"
+                            className="button"
+                            onClick={() => handleResendReviewCode(invite)}
+                          >
+                            Resend Code
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="button"
+                          onClick={() => handleDeleteReviewCode(invite.id)}
+                        >
+                          Delete Code
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {renderSectionPagination(reviewCodesPage, totalReviewCodesPages, setReviewCodesPage)}
             </div>
           </div>
         )}

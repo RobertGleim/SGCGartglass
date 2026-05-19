@@ -11,6 +11,12 @@ const getApiOrigin = () => {
   if (/^https?:\/\//i.test(configuredBase)) {
     return configuredBase.replace(/\/api\/?$/, '')
   }
+
+  const hostname = String(window.location?.hostname || '').toLowerCase()
+  if (hostname === 'sgcgart.com' || hostname === 'www.sgcgart.com') {
+    return 'https://sgcgartglass.onrender.com'
+  }
+
   return window.location.origin
 }
 
@@ -67,6 +73,7 @@ const resolveReviewImageUrl = (review) => {
 
 export default function HomePage({ featuredItems, itemsLoading }) {
   const [recentReviews, setRecentReviews] = useState([])
+  const [reviewsLoading, setReviewsLoading] = useState(true)
   const [activeReviewIndex, setActiveReviewIndex] = useState(0)
   const [reviewAnimationKey, setReviewAnimationKey] = useState(0)
   const [showNewCustomerOffer, setShowNewCustomerOffer] = useState(false)
@@ -88,6 +95,7 @@ export default function HomePage({ featuredItems, itemsLoading }) {
   useEffect(() => {
     let isActive = true
     const loadRecentReviews = () => {
+      setReviewsLoading(true)
       fetchRecentReviewsCached({ limit: 3 })
         .then((response) => {
           if (!isActive) return
@@ -96,6 +104,10 @@ export default function HomePage({ featuredItems, itemsLoading }) {
         .catch(() => {
           if (!isActive) return
           setRecentReviews([])
+        })
+        .finally(() => {
+          if (!isActive) return
+          setReviewsLoading(false)
         })
     }
 
@@ -161,7 +173,14 @@ export default function HomePage({ featuredItems, itemsLoading }) {
         <div className="section-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '64px' }}>
           <h2 style={{ margin: 0, textAlign: 'center' }}>Recent reviews</h2>
         </div>
-        {recentReviews.length === 0 ? (
+        {reviewsLoading ? (
+          <div className="empty-state" style={{ minHeight: '96px' }}>
+            <p className="home-reviews-loading" aria-live="polite">
+              Reviews loading
+              <span className="home-reviews-loading-dots" aria-hidden="true">...</span>
+            </p>
+          </div>
+        ) : recentReviews.length === 0 ? (
           <div className="empty-state" style={{ minHeight: '96px' }}>
             <p style={{ margin: 0 }}>No reviews posted yet.</p>
           </div>

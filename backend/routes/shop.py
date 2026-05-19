@@ -1542,7 +1542,8 @@ def _normalize_invite_for_public(invite):
     now = datetime.utcnow().isoformat()
     expires_at = invite.get("expires_at")
     is_expired = bool(expires_at and str(expires_at) <= now)
-    max_uses = int(invite.get("max_uses") or 1)
+    max_uses = invite.get("max_uses")
+    max_uses = int(max_uses) if max_uses not in (None, "") else None
     used_count = int(invite.get("used_count") or 0)
     platform = ""
     if str(invite.get("product_type") or "").strip().lower() == "invite":
@@ -1559,7 +1560,7 @@ def _normalize_invite_for_public(invite):
         "note": invite.get("note") or "",
         "max_uses": max_uses,
         "used_count": used_count,
-        "remaining_uses": max(max_uses - used_count, 0),
+        "remaining_uses": None if max_uses is None else max(max_uses - used_count, 0),
         "is_active": bool(invite.get("is_active")),
         "is_expired": is_expired,
         "expires_at": expires_at,
@@ -3221,7 +3222,9 @@ def validate_review_invite_code():
         return jsonify({"error": "invalid_code"}), 404
 
     normalized = _normalize_invite_for_public(invite)
-    if (not normalized["is_active"]) or normalized["is_expired"] or normalized["remaining_uses"] <= 0:
+    if (not normalized["is_active"]) or normalized["is_expired"] or (
+        normalized["remaining_uses"] is not None and normalized["remaining_uses"] <= 0
+    ):
         return jsonify({"error": "invalid_code"}), 400
 
     return jsonify({"invite": normalized}), 200
@@ -3261,7 +3264,9 @@ def submit_review_with_invite_code():
         return jsonify({"error": "invalid_code"}), 404
 
     normalized_invite = _normalize_invite_for_public(invite)
-    if (not normalized_invite["is_active"]) or normalized_invite["is_expired"] or normalized_invite["remaining_uses"] <= 0:
+    if (not normalized_invite["is_active"]) or normalized_invite["is_expired"] or (
+        normalized_invite["remaining_uses"] is not None and normalized_invite["remaining_uses"] <= 0
+    ):
         return jsonify({"error": "invalid_code"}), 400
 
     review_image_url = None
@@ -3584,8 +3589,10 @@ def admin_create_review_invite_code():
     payload = request.get_json(silent=True) or {}
     platform = str(payload.get("platform") or "").strip().lower()
     product_name = str(payload.get("product_name") or "").strip()
+    custom_code = str(payload.get("code") or "").strip().upper()
     customer_email = str(payload.get("customer_email") or "").strip().lower()
     note = str(payload.get("note") or "").strip()
+    unlimited = bool(payload.get("unlimited"))
     if not platform:
         return jsonify({"error": "missing_platform"}), 400
     allowed_platforms = {"etsy", "facebook", "ebay", "other"}
@@ -3597,11 +3604,20 @@ def admin_create_review_invite_code():
     product_type = "invite"
     product_id = platform
 
-    max_uses = 1
+    max_uses = None if unlimited else 1
     expires_at = None
 
-    raw_code = secrets.token_hex(4).upper()
+    raw_code = custom_code or secrets.token_hex(4).upper()
+    if len(raw_code) < 3 or len(raw_code) > 64:
+        return jsonify({"error": "invalid_code_format"}), 400
+
+    allowed_chars = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
+    if any(char not in allowed_chars for char in raw_code):
+        return jsonify({"error": "invalid_code_format"}), 400
+
     code_hash = _hash_review_invite_code(raw_code)
+    if get_review_invite_code_by_hash(code_hash):
+        return jsonify({"error": "code_exists"}), 409
 
     created_by = str(g.auth_payload.get("sub") or g.auth_payload.get("email") or "admin")
     invite_id = create_review_invite_code(
@@ -3627,7 +3643,7 @@ def admin_create_review_invite_code():
         "note": note,
         "max_uses": max_uses,
         "used_count": 0,
-        "remaining_uses": max_uses,
+        "remaining_uses": None if max_uses is None else max_uses,
         "is_active": True,
         "is_expired": False,
         "expires_at": expires_at,

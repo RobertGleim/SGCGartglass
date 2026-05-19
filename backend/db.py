@@ -4255,13 +4255,16 @@ def create_review_invite_code(code_hash, payload):
     is_postgres = _is_postgres_backend()
     is_mysql = _use_mysql()
     placeholder = "%s" if is_mysql else "?"
+    raw_max_uses = payload.get("max_uses")
+    max_uses = None if raw_max_uses in (None, "") else int(raw_max_uses)
+
     values = (
         code_hash,
         payload.get("product_type"),
         payload.get("product_id"),
         payload.get("product_name"),
         payload.get("note"),
-        int(payload.get("max_uses") or 1),
+        max_uses,
         payload.get("expires_at"),
         payload.get("created_by"),
         now,
@@ -4310,7 +4313,7 @@ def list_review_invite_codes(limit=200, active_only=False):
     params = [safe_limit]
     if active_only:
         now = datetime.utcnow().isoformat()
-        where_sql = f"WHERE is_active = 1 AND (expires_at IS NULL OR expires_at > {placeholder}) AND used_count < max_uses"
+        where_sql = f"WHERE is_active = 1 AND (expires_at IS NULL OR expires_at > {placeholder}) AND (max_uses IS NULL OR used_count < max_uses)"
         params = [now, safe_limit]
 
     cursor.execute(
@@ -4357,7 +4360,7 @@ def consume_review_invite_code(invite_id):
         WHERE id = {placeholder}
           AND is_active = 1
           AND (expires_at IS NULL OR expires_at > {placeholder})
-          AND used_count < max_uses
+                    AND (max_uses IS NULL OR used_count < max_uses)
         """,
         (now, invite_id, now),
     )
