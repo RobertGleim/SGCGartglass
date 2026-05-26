@@ -1293,6 +1293,7 @@ export default function AdminDashboard({
   const handleSaveAdminReview = async (review) => {
     setAdminReviewStatus("");
     setIsSavingReview(true);
+    setExpandedAdminReviewId(null);
     try {
       const reviewKey = String(review.id);
       const pendingPhoto = adminReviewPhotoFiles[reviewKey] || null;
@@ -1326,8 +1327,8 @@ export default function AdminDashboard({
         delete next[reviewKey];
         return next;
       });
-      await loadAdminReviews();
-      setAdminReviewStatus("Review updated.");
+      setAdminReviewStatus("");
+      window.location.reload();
     } catch (error) {
       setAdminReviewStatus(error?.response?.data?.error || error?.message || "Failed to update review.");
     } finally {
@@ -1371,7 +1372,6 @@ export default function AdminDashboard({
     setIsCreatingAdminReview(true);
     try {
       await createAdminReview(payload);
-      setAdminReviewCreateStatus("Review added.");
       setAdminReviewCreateForm({
         name: "",
         rating: 5,
@@ -1383,7 +1383,9 @@ export default function AdminDashboard({
         status: "approved",
         photo: null,
       });
-      await loadAdminReviews();
+      setExpandedAdminReviewId(null);
+      setAdminReviewCreateStatus("");
+      window.location.reload();
     } catch (error) {
       setAdminReviewCreateStatus(error?.response?.data?.error || error?.message || "Failed to add review.");
     } finally {
