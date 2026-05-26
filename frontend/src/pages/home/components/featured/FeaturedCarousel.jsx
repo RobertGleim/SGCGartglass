@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import useCarousel from '../../../../hooks/useCarousel'
 import LoadingMessage from '../../../../components/LoadingMessage'
 import './FeaturedCarousel.css'
@@ -222,6 +222,10 @@ const preloadImage = (url) => {
 export default function FeaturedCarousel({ items, itemsLoading }) {
   const [manualImageFallbacks, setManualImageFallbacks] = useState({})
   const [manualImageFetchState, setManualImageFetchState] = useState({})
+  const [isHoverPaused, setIsHoverPaused] = useState(false)
+  const [isInteractionPaused, setIsInteractionPaused] = useState(false)
+  const [suppressHoverPause, setSuppressHoverPause] = useState(false)
+  const interactionResumeTimerRef = useRef(null)
 
   const itemsNeedingFallback = useMemo(() => {
     return items.filter((item) => {
@@ -292,6 +296,30 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
     goToSlide,
   } = useCarousel(items, { autoplayMs: 4600, maxOffset: 2 })
 
+  useEffect(() => {
+    setIsPaused((isHoverPaused && !suppressHoverPause) || isInteractionPaused)
+  }, [isHoverPaused, isInteractionPaused, suppressHoverPause, setIsPaused])
+
+  useEffect(() => {
+    return () => {
+      if (interactionResumeTimerRef.current) {
+        window.clearTimeout(interactionResumeTimerRef.current)
+      }
+    }
+  }, [])
+
+  const restartCarouselAfterInteraction = () => {
+    setIsInteractionPaused(true)
+    setSuppressHoverPause(true)
+    if (interactionResumeTimerRef.current) {
+      window.clearTimeout(interactionResumeTimerRef.current)
+    }
+    interactionResumeTimerRef.current = window.setTimeout(() => {
+      setIsInteractionPaused(false)
+      interactionResumeTimerRef.current = null
+    }, 15000)
+  }
+
   const visibleCarouselUrls = useMemo(() => {
     if (!items.length) return []
     const indices = [currentSlide - 2, currentSlide - 1, currentSlide, currentSlide + 1, currentSlide + 2]
@@ -320,8 +348,11 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
   return (
     <div
       className="carousel-container featured-carousel"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
+      onMouseEnter={() => setIsHoverPaused(true)}
+      onMouseLeave={() => {
+        setIsHoverPaused(false)
+        setSuppressHoverPause(false)
+      }}
     >
       <div className="carousel-wrapper">
         <div className="carousel-track">
@@ -361,6 +392,7 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
                   cursor: isCenter ? 'pointer' : 'default',
                 }}
                 onClick={() => {
+                  restartCarouselAfterInteraction()
                   if (isCenter) {
                     window.location.hash = `#/product/${item.id}`
                   }
@@ -405,10 +437,16 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
 
       {totalSlides > 1 && (
         <>
-          <button className="carousel-btn prev" onClick={prevSlide} aria-label="Previous">
+          <button className="carousel-btn prev" onClick={() => {
+            restartCarouselAfterInteraction()
+            prevSlide()
+          }} aria-label="Previous">
             ‹
           </button>
-          <button className="carousel-btn next" onClick={nextSlide} aria-label="Next">
+          <button className="carousel-btn next" onClick={() => {
+            restartCarouselAfterInteraction()
+            nextSlide()
+          }} aria-label="Next">
             ›
           </button>
         </>
@@ -425,7 +463,10 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
             <button
               key={index}
               className={`thumbnail ${index === currentSlide ? 'active' : ''}`}
-              onClick={() => goToSlide(index)}
+              onClick={() => {
+                restartCarouselAfterInteraction()
+                goToSlide(index)
+              }}
               aria-label={`View ${item.title || 'item'}`}
             >
               {resolvedThumbUrl ? (
