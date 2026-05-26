@@ -2304,7 +2304,6 @@ export default function AdminDashboard({
       return;
     }
 
-    let cancelled = false;
     setActiveManualProductSaveJobId(nextJob.id);
     Promise.resolve()
       .then(() => nextJob.run())
@@ -2312,14 +2311,9 @@ export default function AdminDashboard({
         console.error("[AdminDashboard] Background manual-product save failed:", error);
       })
       .finally(() => {
-        if (cancelled) return;
         setManualProductSaveQueue((prev) => prev.filter((job) => job.id !== nextJob.id));
         setActiveManualProductSaveJobId("");
       });
-
-    return () => {
-      cancelled = true;
-    };
   }, [activeManualProductSaveJobId, manualProductSaveQueue]);
 
   // Close dropdowns when interacting outside

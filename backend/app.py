@@ -350,6 +350,7 @@ def create_app(config_name=None):
     def send_review_image(filename):
         from pathlib import Path
         from flask import send_from_directory, make_response
+        import base64
         import os
 
         configured_upload_root = app.config.get("UPLOAD_FOLDER") or str(Path(app.root_path) / "uploads")
@@ -373,7 +374,11 @@ def create_app(config_name=None):
         try:
             conn = get_db()
             cursor = conn.cursor()
-            placeholder = "?" if not _is_postgres_backend() else "$1"
+            normalized_candidates = [
+                url_path,
+                f"uploads/reviews/{filename}",
+                filename,
+            ]
             if _is_postgres_backend():
                 cursor.execute(
                     "SELECT review_image_data, review_image_mime FROM customer_reviews WHERE review_image_url = $1 LIMIT 1",
@@ -385,6 +390,37 @@ def create_app(config_name=None):
                     (url_path,),
                 )
             row = cursor.fetchone()
+
+            if not row:
+                like_value = f"%/uploads/reviews/{filename}"
+                if _is_postgres_backend():
+                    cursor.execute(
+                        "SELECT review_image_data, review_image_mime FROM customer_reviews WHERE review_image_url LIKE $1 LIMIT 1",
+                        (like_value,),
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT review_image_data, review_image_mime FROM customer_reviews WHERE review_image_url LIKE ? LIMIT 1",
+                        (like_value,),
+                    )
+                row = cursor.fetchone()
+
+            if not row:
+                for candidate in normalized_candidates:
+                    if _is_postgres_backend():
+                        cursor.execute(
+                            "SELECT review_image_data, review_image_mime FROM customer_reviews WHERE review_image_url = $1 LIMIT 1",
+                            (candidate,),
+                        )
+                    else:
+                        cursor.execute(
+                            "SELECT review_image_data, review_image_mime FROM customer_reviews WHERE review_image_url = ? LIMIT 1",
+                            (candidate,),
+                        )
+                    row = cursor.fetchone()
+                    if row:
+                        break
+
             conn.close()
             if row and row["review_image_data"]:
                 data = bytes(row["review_image_data"])
@@ -404,7 +440,15 @@ def create_app(config_name=None):
         except Exception as exc:
             app.logger.warning("Review image DB fallback failed for %s: %s", filename, exc)
 
-        return jsonify({"error": "Image not found"}), 404
+        # Return a transparent PNG placeholder to avoid ORB blocks on image requests.
+        transparent_png = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
+        )
+        resp = make_response(transparent_png)
+        resp.headers["Content-Type"] = "image/png"
+        resp.headers["Cache-Control"] = "public, max-age=300"
+        resp.headers["X-Image-Placeholder"] = "1"
+        return resp, 200
 
     # Serve any other uploaded file at /uploads/<filename>
     @app.route("/uploads/<path:filename>")

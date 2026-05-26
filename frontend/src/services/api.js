@@ -173,8 +173,19 @@ export const updateAdminOrderShippingStatus = (orderId, status) =>
   api.put(`/admin/orders/${orderId}/shipping-status`, { status });
 export const fetchCustomerReviews = () => api.get('/customer/reviews');
 export const fetchCustomerReviewOptions = () => api.get('/customer/review-options');
-export const createCustomerReview = (review) => api.post('/customer/reviews', review);
-export const updateCustomerReview = (reviewId, payload) => api.put(`/customer/reviews/${reviewId}`, payload);
+export const clearRecentReviewsCache = () => {
+  clearPublicCacheByPathPrefix('/reviews/recent');
+};
+export const createCustomerReview = async (review) => {
+  const response = await api.post('/customer/reviews', review);
+  clearRecentReviewsCache();
+  return response;
+};
+export const updateCustomerReview = async (reviewId, payload) => {
+  const response = await api.put(`/customer/reviews/${reviewId}`, payload);
+  clearRecentReviewsCache();
+  return response;
+};
 export const fetchProductReviews = (params) => api.get('/reviews', { params });
 export const fetchRecentReviews = (params = {}) => api.get('/reviews/recent', { params });
 export const fetchRecentReviewsCached = (params = {}, options = {}) =>
@@ -190,27 +201,47 @@ export const clearManualProductsSummaryCache = () => {
   clearPublicCacheByPathPrefix('/manual-products');
 };
 export const validateReviewInviteCode = (code) => api.post('/reviews/invite-codes/validate', { code });
-export const submitReviewWithCode = (formData) => api.post('/reviews/submit-with-code', formData, {
-  headers: { 'Content-Type': 'multipart/form-data' },
-});
-export const submitPublicReview = (formData) => api.post('/reviews/submit-public', formData, {
-  headers: { 'Content-Type': 'multipart/form-data' },
-});
+export const submitReviewWithCode = async (formData) => {
+  const response = await api.post('/reviews/submit-with-code', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  clearRecentReviewsCache();
+  return response;
+};
+export const submitPublicReview = async (formData) => {
+  const response = await api.post('/reviews/submit-public', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  clearRecentReviewsCache();
+  return response;
+};
 export const submitShopCustomOrderRequest = (payload) => api.post('/shop/custom-order-request', payload);
 export const submitShopContactRequest = (payload) => api.post('/shop/contact-request', payload);
 export const fetchAdminReviews = (params = {}) => api.get('/admin/reviews', { params });
-export const createAdminReview = (formData) => api.post('/admin/reviews', formData, {
-  headers: { 'Content-Type': 'multipart/form-data' },
-});
-export const updateAdminReview = (reviewId, payload) => {
+export const createAdminReview = async (formData) => {
+  const response = await api.post('/admin/reviews', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  clearRecentReviewsCache();
+  return response;
+};
+export const updateAdminReview = async (reviewId, payload) => {
   if (payload instanceof FormData) {
-    return api.put(`/admin/reviews/${reviewId}`, payload, {
+    const response = await api.put(`/admin/reviews/${reviewId}`, payload, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    clearRecentReviewsCache();
+    return response;
   }
-  return api.put(`/admin/reviews/${reviewId}`, payload);
+  const response = await api.put(`/admin/reviews/${reviewId}`, payload);
+  clearRecentReviewsCache();
+  return response;
 };
-export const deleteAdminReview = (reviewId) => api.delete(`/admin/reviews/${reviewId}`);
+export const deleteAdminReview = async (reviewId) => {
+  const response = await api.delete(`/admin/reviews/${reviewId}`);
+  clearRecentReviewsCache();
+  return response;
+};
 export const fetchAdminReviewInviteCodes = (params = {}) => api.get('/admin/review-invite-codes', { params });
 export const createAdminReviewInviteCode = (payload) => api.post('/admin/review-invite-codes', payload);
 export const deleteAdminReviewInviteCode = (inviteId) => api.delete(`/admin/review-invite-codes/${inviteId}`);

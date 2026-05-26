@@ -46,6 +46,8 @@ def _normalize_review_image_fields(rows):
     normalized = []
     for row in rows:
         payload = dict(row)
+        # Never expose raw review image bytes in JSON API responses.
+        payload.pop("review_image_data", None)
         primary_image = payload.get("product_image_url")
         fallback_image = payload.get("fallback_product_image_url")
 
@@ -4050,7 +4052,12 @@ def list_customer_reviews(customer_id):
     )
     rows = cursor.fetchall()
     conn.close()
-    return [dict(row) for row in rows]
+    normalized = []
+    for row in rows:
+        payload = dict(row)
+        payload.pop("review_image_data", None)
+        normalized.append(payload)
+    return normalized
 
 
 def list_admin_reviews(limit=200, status=None):
@@ -4087,7 +4094,12 @@ def list_admin_reviews(limit=200, status=None):
 
     rows = cursor.fetchall()
     conn.close()
-    return [dict(row) for row in rows]
+    normalized = []
+    for row in rows:
+        payload = dict(row)
+        payload.pop("review_image_data", None)
+        normalized.append(payload)
+    return normalized
 
 
 def update_admin_review(review_id, payload):
