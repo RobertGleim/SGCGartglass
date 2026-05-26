@@ -22,18 +22,18 @@ def test_render_numbered_pattern_raster_draws_labels_inside_regions():
 
     with Image.open(BytesIO(rendered)) as output:
         rgb = output.convert("RGB")
-        assert rgb.size == (840, 600)
+        assert rgb.size == (1680, 1200)
 
         left_dark_pixels = 0
-        for x in range(180, 255):
-            for y in range(265, 335):
+        for x in range(360, 510):
+            for y in range(530, 670):
                 red, green, blue = rgb.getpixel((x, y))
                 if red < 90 and green < 90 and blue < 90:
                     left_dark_pixels += 1
 
         right_dark_pixels = 0
-        for x in range(590, 665):
-            for y in range(265, 335):
+        for x in range(1180, 1330):
+            for y in range(530, 670):
                 red, green, blue = rgb.getpixel((x, y))
                 if red < 90 and green < 90 and blue < 90:
                     right_dark_pixels += 1
@@ -66,10 +66,15 @@ def test_build_line_mask_ignores_light_texture_noise():
 
     mask = _build_line_mask(image.load(), image.width, image.height)
 
+    # Light gray noise (luminance > threshold) stays clear even when near the rectangle
     assert mask[(20 * image.width) + 2] == 0
-    assert mask[(20 * image.width) + 9] == 0
-    assert mask[(3 * image.width) + 20] == 0
-    assert mask[(5 * image.width) + 20] == 0
+    # Small isolated dark speck at (21, 4): 3 Chebyshev steps from rect corner — filtered out
+    # and not reached by 2-pass dilation, so it should remain clear
+    assert mask[(4 * image.width) + 21] == 0
+    # Bottom-left speck cluster is ≥3 steps from the rectangle; should remain clear
+    assert mask[(21 * image.width) + 3] == 0
+    assert mask[(22 * image.width) + 4] == 0
+    # Core rectangle pixels remain in the mask
     assert mask[(5 * image.width) + 5] == 1
     assert mask[(5 * image.width) + 18] == 1
 

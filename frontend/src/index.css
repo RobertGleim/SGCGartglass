@@ -62,7 +62,7 @@ button {
 }
 
 button:not(:disabled):hover {
-  transform: scale(1.1);
+  scale: 1.1;
 }
 
 button:focus-visible,
@@ -107,7 +107,7 @@ a {
 
 a:hover {
   text-decoration: underline;
-  transform: scale(1.1);
+  scale: 1.03;
 }
 
 .hamburger {

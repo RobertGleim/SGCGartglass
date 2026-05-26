@@ -7,13 +7,13 @@ from math import cos, floor, hypot, pi, sin
 from PIL import Image, ImageDraw, ImageFont
 
 
-CANVAS_WIDTH = 840
-CANVAS_HEIGHT = 600
+CANVAS_WIDTH = 1680
+CANVAS_HEIGHT = 1200
 BACKGROUND_RGB = (248, 244, 239)
 LINE_LUMINANCE_THRESHOLD = 208
-MIN_LINE_COMPONENT_PIXELS = 10
-MAX_EXISTING_LABEL_COMPONENT_PIXELS = 140
-MAX_EXISTING_LABEL_BOX_PX = 24
+MIN_LINE_COMPONENT_PIXELS = 20
+MAX_EXISTING_LABEL_COMPONENT_PIXELS = 560
+MAX_EXISTING_LABEL_BOX_PX = 48
 
 
 def _get_fitted_section_label_font_px(section_number, width, height, clearance_px=None):
@@ -26,7 +26,7 @@ def _get_fitted_section_label_font_px(section_number, width, height, clearance_p
         max_by_clearance = max(2.0, float(clearance_px) * 1.1)
     else:
         max_by_clearance = 10.0
-    return max(4.0, min(18.0, max_by_height, max_by_width, max_by_clearance))
+    return max(4.0, min(36.0, max_by_height, max_by_width, max_by_clearance))
 
 
 def _get_stable_section_order(regions):
@@ -338,7 +338,8 @@ def _build_line_mask(pixel_access, width, height):
                 mask[row_offset + x] = 1
 
     cleaned = _filter_small_line_components(mask, width, height)
-    return _expand_line_mask(cleaned, width, height)
+    expanded = _expand_line_mask(cleaned, width, height)
+    return _expand_line_mask(expanded, width, height)
 
 
 def _render_clean_line_art(image):

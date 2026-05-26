@@ -977,7 +977,7 @@ export default function DesignerPage() {
         const pixels = regionPixels.get(regionId);
         if (!pixels || pixels.length === 0) return;
         const [r, g, b] = parseHexToRgb(color);
-        const imageData = ctx.getImageData(0, 0, CANVAS_BASE_W, CANVAS_BASE_H);
+        const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
         const data = imageData.data;
         for (const pixelIndex of pixels) {
           const colorIndex = pixelIndex * 4;
@@ -1002,7 +1002,7 @@ export default function DesignerPage() {
       // Restore original black lead lines after region fills.
       const mask = lineMaskRef.current;
       if (mask) {
-        const current = ctx.getImageData(0, 0, CANVAS_BASE_W, CANVAS_BASE_H);
+        const current = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
         const currentPixels = current.data;
         const basePixels = baseImage.data;
         for (let i = 0; i < currentPixels.length; i += 4) {
@@ -1016,7 +1016,7 @@ export default function DesignerPage() {
         ctx.putImageData(current, 0, 0);
       }
 
-      const snap = ctx.getImageData(0, 0, CANVAS_BASE_W, CANVAS_BASE_H);
+      const snap = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
       historyRef.current = [snap];
       historyIdxRef.current = 0;
       return;
@@ -1790,8 +1790,6 @@ export default function DesignerPage() {
     (async () => {
       try {
         const templateType = selectedTemplate.template_type || 'svg';
-        const CANVAS_W = CANVAS_BASE_W;
-        const CANVAS_H = CANVAS_BASE_H;
 
         // ============================================================
         //  IMAGE / PDF TEMPLATE  →  flood-fill on a plain 2D canvas
@@ -1821,10 +1819,20 @@ export default function DesignerPage() {
           }
           if (destroyed || !imgEl) return;
 
-          // Set up the visible canvas for direct 2D drawing
+          // Set up the visible canvas for direct 2D drawing.
+          // Use the image's natural pixel dimensions (never upscale old 840×600 images).
+          // CSS display is kept at the base 840×600 size so the zoom controls remain unchanged.
+          const MAX_RENDER_W = 1680;
+          const MAX_RENDER_H = 1200;
+          const imgRenderScale = Math.min(MAX_RENDER_W / imgEl.naturalWidth, MAX_RENDER_H / imgEl.naturalHeight, 1);
+          const CANVAS_W = Math.round(imgEl.naturalWidth * imgRenderScale);
+          const CANVAS_H = Math.round(imgEl.naturalHeight * imgRenderScale);
           const cvs = canvasRef.current;
           cvs.width = CANVAS_W;
           cvs.height = CANVAS_H;
+          const cssFitScale = Math.min(CANVAS_BASE_W / CANVAS_W, CANVAS_BASE_H / CANVAS_H, 1);
+          cvs.style.width = `${Math.round(CANVAS_W * cssFitScale)}px`;
+          cvs.style.height = `${Math.round(CANVAS_H * cssFitScale)}px`;
           const ctx = cvs.getContext('2d', { willReadFrequently: true });
 
           // Fill background
@@ -2063,7 +2071,7 @@ export default function DesignerPage() {
           // Store cleanup ref
           fabricRef.current = { _floodCleanup: () => cvs.removeEventListener('click', handleClick) };
 
-          // Apply saved WO design data now that canvas is fully initialised at 840x600
+          // Apply saved WO design data now that canvas is fully initialised
           if (woDesignDataRef.current && !destroyed) {
             applyDesignData(woDesignDataRef.current);
           }

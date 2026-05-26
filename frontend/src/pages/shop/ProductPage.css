@@ -25,6 +25,7 @@
   justify-content: center;
   flex-wrap: wrap;
   overflow-x: auto;
+  overflow-y: hidden;
   align-content: flex-start;
 }
 
@@ -43,6 +44,7 @@
 
 .nav-tab:hover {
   color: #222;
+  scale: 1.03;
 }
 
 .nav-tab.active {
