@@ -1327,8 +1327,8 @@ export default function AdminDashboard({
         delete next[reviewKey];
         return next;
       });
-      setAdminReviewStatus("");
-      window.location.reload();
+      await loadAdminReviews();
+      setAdminReviewStatus("Review updated.");
     } catch (error) {
       setAdminReviewStatus(error?.response?.data?.error || error?.message || "Failed to update review.");
     } finally {
@@ -1384,8 +1384,8 @@ export default function AdminDashboard({
         photo: null,
       });
       setExpandedAdminReviewId(null);
-      setAdminReviewCreateStatus("");
-      window.location.reload();
+      await loadAdminReviews();
+      setAdminReviewCreateStatus("Review added.");
     } catch (error) {
       setAdminReviewCreateStatus(error?.response?.data?.error || error?.message || "Failed to add review.");
     } finally {
