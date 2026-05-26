@@ -71,6 +71,13 @@ const resolveReviewImageUrl = (review) => {
   return ''
 }
 
+const stripReviewBodyMeta = (body) => String(body || '')
+  .split(/\r?\n/)
+  .filter((line) => !/^\s*Purchased\s+(At|Via)\s*:/i.test(line))
+  .join('\n')
+  .replace(/\n{3,}/g, '\n\n')
+  .trim()
+
 export default function HomePage({ featuredItems, itemsLoading }) {
   const [recentReviews, setRecentReviews] = useState([])
   const [reviewsLoading, setReviewsLoading] = useState(true)
@@ -145,6 +152,7 @@ export default function HomePage({ featuredItems, itemsLoading }) {
 
   const activeReview = recentReviews[activeReviewIndex] || null
   const activeReviewImageUrl = resolveReviewImageUrl(activeReview)
+  const activeReviewBody = stripReviewBodyMeta(activeReview?.body)
 
   return (
     <main>
@@ -216,7 +224,7 @@ export default function HomePage({ featuredItems, itemsLoading }) {
                 <div className="home-review-content">
                   <p className="home-review-rating">{renderStars(activeReview.rating)}</p>
                   <p className="home-review-title">{activeReview.title || 'Customer review'}</p>
-                  <p className="home-review-body">{activeReview.body || ''}</p>
+                  <p className="home-review-body">{activeReviewBody}</p>
                   <p className="home-review-meta">
                     {(activeReview.first_name || '').trim()} {(activeReview.last_name || '').trim()}
                   </p>
