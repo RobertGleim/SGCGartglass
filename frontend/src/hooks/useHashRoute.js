@@ -32,6 +32,9 @@ const parseParts = (parts) => {
     return { path: '/gallery', params: {} }
   }
   if (parts[0] === 'checkout') {
+    if (parts[1] === 'success') {
+      return { path: '/checkout/success', params: {} }
+    }
     return { path: '/checkout', params: {} }
   }
   if (parts[0] === 'reviews') {

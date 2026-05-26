@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import useCustomerAuth from '../../hooks/useCustomerAuth'
 import { confirmCheckoutSession } from '../../services/api'
 import LoadingMessage from '../../components/LoadingMessage'
@@ -11,6 +11,7 @@ export default function CheckoutSuccessPage() {
   const [order, setOrder] = useState(null)
   const [downloads, setDownloads] = useState([])
   const [errorMessage, setErrorMessage] = useState('')
+  const hasTrackedConversion = useRef(false)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.hash.split('?')[1] || '')
@@ -47,6 +48,18 @@ export default function CheckoutSuccessPage() {
         }
       })
   }, [customerToken])
+
+  useEffect(() => {
+    if (hasTrackedConversion.current) return
+    if (status !== 'success' && status !== 'guest-success') return
+
+    if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+      window.gtag('event', 'conversion', {
+        send_to: 'AW-18106685600/JSdOCJ6z-LMcEKCx-LlD',
+      })
+      hasTrackedConversion.current = true
+    }
+  }, [status])
 
   return (
     <main className="checkout-page">
