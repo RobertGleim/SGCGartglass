@@ -4237,7 +4237,8 @@ export default function AdminDashboard({
           if (raw.startsWith("http://") || raw.startsWith("https://")) {
             try {
               const parsed = new URL(raw);
-              if (parsed.pathname.startsWith("/uploads/") && parsed.origin !== window.location.origin) {
+              const isLocalDev = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+              if (isLocalDev && parsed.pathname.startsWith("/uploads/") && parsed.origin !== window.location.origin) {
                 return `${window.location.origin}${parsed.pathname}`;
               }
             } catch {
