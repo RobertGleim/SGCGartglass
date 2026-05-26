@@ -1,8 +1,10 @@
 """Photo gallery API routes."""
+import io
 import os
 import uuid
 
 from flask import Blueprint, jsonify, request
+from PIL import Image as PilImage
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
 
@@ -297,7 +299,26 @@ def create_gallery_photo():
                     "detail": "This upload is too large to process. Please reduce the number of photos or file sizes.",
                 }), 400
 
-            unique_name = f"{uuid.uuid4().hex}{ext}"
+            # Compress and cap dimensions before storing
+            save_mime = mime_type
+            save_ext = ext
+            try:
+                img = PilImage.open(io.BytesIO(file_bytes))
+                img.thumbnail((2000, 2000), PilImage.LANCZOS)
+                buf = io.BytesIO()
+                fmt = "JPEG" if ext in {".jpg", ".jpeg"} else img.format or "PNG"
+                save_kwargs = {"optimize": True}
+                if fmt == "JPEG":
+                    save_kwargs["quality"] = 82
+                    img = img.convert("RGB")
+                    save_ext = ".jpg"
+                    save_mime = "image/jpeg"
+                img.save(buf, format=fmt, **save_kwargs)
+                file_bytes = buf.getvalue()
+            except Exception:
+                pass  # Keep original bytes if Pillow fails
+
+            unique_name = f"{uuid.uuid4().hex}{save_ext}"
             saved_path = os.path.join(uploads_dir, unique_name)
             with open(saved_path, "wb") as output:
                 output.write(file_bytes)
@@ -313,7 +334,7 @@ def create_gallery_photo():
                 hide_submitter_name=hide_submitter_name,
                 image_url=f"/uploads/gallery/{unique_name}",
                 image_data=file_bytes,
-                image_mime=mime_type,
+                image_mime=save_mime,
                 template_id=template_id,
                 show_description=True,
                 is_hidden=False,

@@ -23,7 +23,7 @@ def create_token(subject, role=None, customer_id=None):
     secret = _jwt_secret()
     issuer = os.environ.get("JWT_ISSUER", "sgcgartglass")
     ttl_seconds = int(os.environ.get("JWT_TTL_SECONDS", "3600"))
-    admin_ttl_seconds = int(os.environ.get("JWT_ADMIN_TTL_SECONDS", "0"))
+    admin_ttl_seconds = int(os.environ.get("JWT_ADMIN_TTL_SECONDS", "3600"))
     now = datetime.now(tz=timezone.utc)
     payload = {
         "sub": subject,
@@ -31,11 +31,8 @@ def create_token(subject, role=None, customer_id=None):
         "iat": int(now.timestamp()),
     }
 
-    # Admin sessions are intended to be browser-session scoped (sessionStorage),
-    # so by default they do not expire server-side unless JWT_ADMIN_TTL_SECONDS is set.
     if role == "admin":
-        if admin_ttl_seconds > 0:
-            payload["exp"] = int((now + timedelta(seconds=admin_ttl_seconds)).timestamp())
+        payload["exp"] = int((now + timedelta(seconds=admin_ttl_seconds)).timestamp())
     else:
         payload["exp"] = int((now + timedelta(seconds=ttl_seconds)).timestamp())
 

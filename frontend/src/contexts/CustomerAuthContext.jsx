@@ -44,7 +44,6 @@ export function CustomerAuthProvider({ children }) {
     if (isValidToken(token)) {
       setCustomerToken(token)
       window.sessionStorage.setItem('sgcg_customer_token', token)
-      window.localStorage.setItem('sgcg_customer_token', token)
       lastActivityRef.current = Date.now()
     } else {
       console.warn('[CustomerAuth] Login response missing valid token')
@@ -57,7 +56,6 @@ export function CustomerAuthProvider({ children }) {
     if (isValidToken(token)) {
       setCustomerToken(token)
       window.sessionStorage.setItem('sgcg_customer_token', token)
-      window.localStorage.setItem('sgcg_customer_token', token)
       lastActivityRef.current = Date.now()
     } else {
       console.warn('[CustomerAuth] Signup response missing valid token')

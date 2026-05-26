@@ -64,7 +64,9 @@ def list_glass_types():
             .order_by(GlassType.display_order.asc(), GlassType.id.asc())
             .all()
         )
-        return jsonify({"items": [g.to_dict() for g in items]})
+        resp = jsonify({"items": [g.to_dict() for g in items]})
+        resp.headers["Cache-Control"] = "public, max-age=300"
+        return resp
     except Exception as e:
         return jsonify({"error": "server_error", "detail": str(e)}), 500
 

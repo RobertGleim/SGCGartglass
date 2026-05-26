@@ -133,8 +133,13 @@ MAX_HOME_FEATURED_PRODUCTS = 20
 
 
 def _save_review_image_file(image_file):
+    """Save a review image to disk and return (url, bytes, mime_type).
+
+    Returns (None, None, None) when image_file is empty.
+    Raises ValueError on validation failure.
+    """
     if not image_file or not image_file.filename:
-        return None
+        return None, None, None
 
     filename = secure_filename(image_file.filename or "review-photo")
     ext = os.path.splitext(filename)[1].lower()
@@ -158,7 +163,7 @@ def _save_review_image_file(image_file):
     output_path = os.path.join(uploads_dir, unique_name)
     with open(output_path, "wb") as output:
         output.write(image_bytes)
-    return f"/uploads/reviews/{unique_name}"
+    return f"/uploads/reviews/{unique_name}", image_bytes, mime_type or "image/jpeg"
 
 
 def _login_policy():
@@ -1946,6 +1951,8 @@ def customer_signup():
 
     if not email or not password:
         return jsonify({"error": "missing_credentials"}), 400
+    if len(password) < 12:
+        return jsonify({"error": "password_too_short"}), 400
     if fetch_customer_by_email(email):
         return jsonify({"error": "email_in_use"}), 409
 
@@ -2103,7 +2110,7 @@ def customer_reset_password():
 
     if not token or not new_password:
         return jsonify({"error": "missing_credentials"}), 400
-    if len(new_password) < 8:
+    if len(new_password) < 12:
         return jsonify({"error": "password_too_short"}), 400
 
     token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
@@ -2206,7 +2213,7 @@ def customer_change_password():
 
     if not old_password or not new_password:
         return jsonify({"error": "missing_password"}), 400
-    if len(new_password) < 8:
+    if len(new_password) < 12:
         return jsonify({"error": "password_too_short"}), 400
 
     customer = fetch_customer_by_id(customer_id)
@@ -3270,10 +3277,12 @@ def submit_review_with_invite_code():
         return jsonify({"error": "invalid_code"}), 400
 
     review_image_url = None
+    review_image_data = None
+    review_image_mime = None
     image_file = request.files.get("photo")
     if image_file and image_file.filename:
         try:
-            review_image_url = _save_review_image_file(image_file)
+            review_image_url, review_image_data, review_image_mime = _save_review_image_file(image_file)
         except ValueError as error:
             return jsonify({"error": str(error)}), 400
 
@@ -3304,6 +3313,8 @@ def submit_review_with_invite_code():
             "title": review_title,
             "body": enriched_body,
             "review_image_url": review_image_url,
+            "review_image_data": review_image_data,
+            "review_image_mime": review_image_mime,
         },
         False,
     )
@@ -3343,31 +3354,14 @@ def submit_public_review():
         return jsonify({"error": "invalid_rating"}), 400
 
     review_image_url = None
+    review_image_data = None
+    review_image_mime = None
     image_file = request.files.get("photo")
     if image_file and image_file.filename:
-        filename = secure_filename(image_file.filename or "review-photo")
-        ext = os.path.splitext(filename)[1].lower()
-        mime_type = str(image_file.content_type or "").lower()
-        if ext not in ALLOWED_REVIEW_IMAGE_EXTENSIONS or (mime_type and mime_type not in ALLOWED_REVIEW_IMAGE_MIME):
-            return jsonify({"error": "invalid_image_type"}), 400
-
-        image_bytes = image_file.read()
-        if len(image_bytes) > MAX_REVIEW_IMAGE_BYTES:
-            return jsonify({"error": "image_too_large"}), 400
-
-        configured_upload_root = current_app.config.get("UPLOAD_FOLDER")
-        if configured_upload_root:
-            uploads_dir = os.path.join(str(configured_upload_root), "reviews")
-        else:
-            uploads_dir = os.path.join(os.path.dirname(__file__), "..", "uploads", "reviews")
-        uploads_dir = os.path.abspath(uploads_dir)
-        os.makedirs(uploads_dir, exist_ok=True)
-
-        unique_name = f"{uuid.uuid4().hex}{ext}"
-        output_path = os.path.join(uploads_dir, unique_name)
-        with open(output_path, "wb") as output:
-            output.write(image_bytes)
-        review_image_url = f"/uploads/reviews/{unique_name}"
+        try:
+            review_image_url, review_image_data, review_image_mime = _save_review_image_file(image_file)
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
 
     first_name, last_name = _split_name(reviewer_name)
     guest_email = f"guest-review-{secrets.token_hex(8)}@sgcg.local"
@@ -3393,6 +3387,8 @@ def submit_public_review():
             "title": review_title,
             "body": enriched_body,
             "review_image_url": review_image_url,
+            "review_image_data": review_image_data,
+            "review_image_mime": review_image_mime,
         },
         False,
     )
@@ -3466,31 +3462,14 @@ def admin_create_review():
         return jsonify({"error": "invalid_rating"}), 400
 
     review_image_url = None
+    review_image_data = None
+    review_image_mime = None
     image_file = request.files.get("photo")
     if image_file and image_file.filename:
-        filename = secure_filename(image_file.filename or "review-photo")
-        ext = os.path.splitext(filename)[1].lower()
-        mime_type = str(image_file.content_type or "").lower()
-        if ext not in ALLOWED_REVIEW_IMAGE_EXTENSIONS or (mime_type and mime_type not in ALLOWED_REVIEW_IMAGE_MIME):
-            return jsonify({"error": "invalid_image_type"}), 400
-
-        image_bytes = image_file.read()
-        if len(image_bytes) > MAX_REVIEW_IMAGE_BYTES:
-            return jsonify({"error": "image_too_large"}), 400
-
-        configured_upload_root = current_app.config.get("UPLOAD_FOLDER")
-        if configured_upload_root:
-            uploads_dir = os.path.join(str(configured_upload_root), "reviews")
-        else:
-            uploads_dir = os.path.join(os.path.dirname(__file__), "..", "uploads", "reviews")
-        uploads_dir = os.path.abspath(uploads_dir)
-        os.makedirs(uploads_dir, exist_ok=True)
-
-        unique_name = f"{uuid.uuid4().hex}{ext}"
-        output_path = os.path.join(uploads_dir, unique_name)
-        with open(output_path, "wb") as output:
-            output.write(image_bytes)
-        review_image_url = f"/uploads/reviews/{unique_name}"
+        try:
+            review_image_url, review_image_data, review_image_mime = _save_review_image_file(image_file)
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
 
     first_name, last_name = _split_name(reviewer_name)
     guest_email = f"admin-testimonial-{secrets.token_hex(8)}@sgcg.local"
@@ -3516,6 +3495,8 @@ def admin_create_review():
             "title": review_title,
             "body": enriched_body,
             "review_image_url": review_image_url,
+            "review_image_data": review_image_data,
+            "review_image_mime": review_image_mime,
         },
         False,
         status,
@@ -3721,7 +3702,10 @@ def admin_update_review(review_id):
         image_file = request.files.get("photo")
         if image_file and image_file.filename:
             try:
-                payload["review_image_url"] = _save_review_image_file(image_file)
+                url, img_data, img_mime = _save_review_image_file(image_file)
+                payload["review_image_url"] = url
+                payload["review_image_data"] = img_data
+                payload["review_image_mime"] = img_mime
             except ValueError as error:
                 return jsonify({"error": str(error)}), 400
     else:

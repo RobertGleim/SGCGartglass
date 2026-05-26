@@ -25,6 +25,8 @@ Flask-Mail==0.9.1
 # --- Production server (Render, Hostinger VPS) ---
 # Use: gunicorn -w 4 -b 0.0.0.0:$PORT "backend.app:create_app()"
 gunicorn==22.0.0
+# Gzip/brotli compression for API JSON responses
+flask-compress==1.15
 
 # --- Image validation (glass type textures: 256x256 PNG/JPG) ---
 Pillow==12.2.0

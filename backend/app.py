@@ -12,10 +12,16 @@ from urllib.parse import urlparse
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
+from werkzeug.middleware.proxy_fix import ProxyFix
 try:
     from flask_mail import Mail
 except Exception:  # pragma: no cover
     Mail = None
+
+try:
+    from flask_compress import Compress
+except Exception:  # pragma: no cover
+    Compress = None
 
 from .config import get_config
 from .models import db
@@ -60,6 +66,8 @@ def _is_private_or_local_host(hostname):
 
 def create_app(config_name=None):
     app = Flask(__name__)
+    # Trust exactly one proxy hop (Render's load balancer) for X-Forwarded-For / X-Forwarded-Proto
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     config_class, resolved_config_name = get_config(config_name)
     app.config.from_object(config_class)
     app.config["ACTIVE_CONFIG"] = resolved_config_name
@@ -73,6 +81,9 @@ def create_app(config_name=None):
             Mail(app)
         except Exception as exc:  # pragma: no cover
             app.logger.warning("Flask-Mail init warning: %s", exc)
+
+    if Compress is not None:
+        Compress(app)
 
     mail_server = (app.config.get("MAIL_SERVER") or "").strip()
     mail_sender = (app.config.get("MAIL_DEFAULT_SENDER") or "").strip()
@@ -100,6 +111,14 @@ def create_app(config_name=None):
 
     # SQLAlchemy
     db.init_app(app)
+
+    @app.after_request
+    def set_security_headers(response):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
 
     @app.route("/", methods=["GET", "HEAD"])
     def root_probe():
@@ -326,11 +345,12 @@ def create_app(config_name=None):
         return jsonify({'error': 'Image not found'}), 404
 
     # Serve uploaded review images at /uploads/reviews/<filename>
-    # Supports both configured upload roots and legacy backend/uploads path.
+    # Falls back to database image_data when file is missing (Render ephemeral FS)
     @app.route("/uploads/reviews/<path:filename>")
     def send_review_image(filename):
         from pathlib import Path
-        from flask import send_from_directory
+        from flask import send_from_directory, make_response
+        import os
 
         configured_upload_root = app.config.get("UPLOAD_FOLDER") or str(Path(app.root_path) / "uploads")
         configured_reviews_dir = Path(str(configured_upload_root)) / "reviews"
@@ -343,10 +363,48 @@ def create_app(config_name=None):
                 candidate_dirs.append(resolved)
 
         for directory in candidate_dirs:
-            if (directory / filename).is_file():
+            file_path = directory / filename
+            if file_path.is_file():
                 return send_from_directory(str(directory), filename)
 
-        return jsonify({'error': 'Image not found'}), 404
+        # File missing (ephemeral FS) — look up blob in DB
+        from .db import get_db, _is_postgres_backend
+        url_path = f"/uploads/reviews/{filename}"
+        try:
+            conn = get_db()
+            cursor = conn.cursor()
+            placeholder = "?" if not _is_postgres_backend() else "$1"
+            if _is_postgres_backend():
+                cursor.execute(
+                    "SELECT review_image_data, review_image_mime FROM customer_reviews WHERE review_image_url = $1 LIMIT 1",
+                    (url_path,),
+                )
+            else:
+                cursor.execute(
+                    "SELECT review_image_data, review_image_mime FROM customer_reviews WHERE review_image_url = ? LIMIT 1",
+                    (url_path,),
+                )
+            row = cursor.fetchone()
+            conn.close()
+            if row and row["review_image_data"]:
+                data = bytes(row["review_image_data"])
+                mime = row["review_image_mime"] or "image/jpeg"
+                # Re-cache to disk for subsequent requests
+                try:
+                    cache_dir = candidate_dirs[0] if candidate_dirs else configured_reviews_dir
+                    os.makedirs(str(cache_dir), exist_ok=True)
+                    with open(str(cache_dir / filename), "wb") as fp:
+                        fp.write(data)
+                except Exception:
+                    pass
+                resp = make_response(data)
+                resp.headers["Content-Type"] = mime
+                resp.headers["Cache-Control"] = "public, max-age=86400"
+                return resp
+        except Exception as exc:
+            app.logger.warning("Review image DB fallback failed for %s: %s", filename, exc)
+
+        return jsonify({"error": "Image not found"}), 404
 
     # Serve any other uploaded file at /uploads/<filename>
     @app.route("/uploads/<path:filename>")

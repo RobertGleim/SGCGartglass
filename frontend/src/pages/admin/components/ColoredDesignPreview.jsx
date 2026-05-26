@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
+import DOMPurify from 'dompurify';
 import styles from './ColoredDesignPreview.module.css';
 
 /**
@@ -416,7 +417,7 @@ export default function ColoredDesignPreview({ designData, template, editable = 
       }
     });
 
-    return svg.outerHTML;
+    return DOMPurify.sanitize(svg.outerHTML, { USE_PROFILES: { svg: true, svgFilters: true } });
   }, [hasSvg, template?.svg_content, sections]);
 
   // Inject numbered labels directly into the SVG after render
