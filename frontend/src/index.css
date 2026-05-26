@@ -62,7 +62,7 @@ button {
 }
 
 button:not(:disabled):hover {
-  transform: translateY(-1px);
+  transform: scale(1.1);
 }
 
 button:focus-visible,
@@ -102,10 +102,12 @@ nav {
 a {
   color: var(--accent);
   text-decoration: none;
+  transition: transform 0.18s ease;
 }
 
 a:hover {
   text-decoration: underline;
+  transform: scale(1.1);
 }
 
 .hamburger {

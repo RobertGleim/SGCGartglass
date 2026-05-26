@@ -52,7 +52,7 @@
 
 .item:hover {
   box-shadow: 0 3px 12px rgba(0,0,0,0.1);
-  transform: translateY(-1px);
+  transform: scale(1.1);
 }
 
 .needsAttention {

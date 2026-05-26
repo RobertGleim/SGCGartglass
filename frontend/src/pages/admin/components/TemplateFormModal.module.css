@@ -56,7 +56,7 @@
 .closeBtn:hover {
   background: rgba(52, 152, 219, 0.14);
   box-shadow: 0 10px 22px rgba(52, 152, 219, 0.2);
-  transform: translateY(-1px);
+  transform: scale(1.1);
 }
 
 .title {
@@ -120,7 +120,7 @@
   outline: none;
   border-color: rgba(52, 152, 219, 0.7);
   box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.14), 0 14px 30px rgba(44, 62, 80, 0.08);
-  transform: translateY(-1px);
+  transform: scale(1.1);
 }
 
 .checkboxField {
@@ -161,7 +161,7 @@
 }
 
 .submitBtn:hover:not(:disabled) {
-  transform: translateY(-1px);
+  transform: scale(1.1);
   box-shadow: 0 20px 34px rgba(44, 62, 80, 0.22);
   filter: saturate(1.05);
 }
@@ -356,7 +356,7 @@
 .permanentDeleteBtn:hover {
   background: #c9302c;
   color: #fff;
-  transform: translateY(-1px);
+  transform: scale(1.1);
 }
 .confirmRow {
   display: flex;

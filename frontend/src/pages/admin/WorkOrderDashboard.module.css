@@ -264,7 +264,7 @@
   transition: transform 0.2s, box-shadow 0.2s;
 }
 .card:hover {
-  transform: translateY(-2px);
+  transform: scale(1.1);
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 .filters {
@@ -484,7 +484,7 @@
 }
 
 .exportActionBtn:hover:not(:disabled) {
-  transform: translateY(-1px);
+  transform: scale(1.1);
   box-shadow: 0 10px 24px rgba(107, 70, 37, 0.24);
 }
 
@@ -581,7 +581,7 @@
 .previewActionBtn:hover:not(:disabled) {
   background: #f9ecdc;
   border-color: #8b5e34;
-  transform: translateY(-1px);
+  transform: scale(1.1);
 }
 
 .previewActionBtn:disabled {

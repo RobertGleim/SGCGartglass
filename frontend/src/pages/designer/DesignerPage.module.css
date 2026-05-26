@@ -142,7 +142,7 @@
 }
 .templateCard:hover {
   box-shadow: 0 6px 18px rgba(50, 30, 10, 0.15);
-  transform: translateY(-3px);
+  transform: scale(1.1);
 }
 .thumb {
   width: 100%;
@@ -715,7 +715,7 @@
 }
 
 .adminFavoriteSlot:hover {
-  transform: translateY(-1px);
+  transform: scale(1.1);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
 }
 
@@ -787,7 +787,7 @@
 }
 
 .paletteActionBtn:hover {
-  transform: translateY(-1px);
+  transform: scale(1.1);
   box-shadow: 0 2px 6px rgba(44, 26, 14, 0.2);
 }
 

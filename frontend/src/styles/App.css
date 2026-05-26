@@ -1173,7 +1173,7 @@
 
 .button-icon:hover {
   background: #f8f9fb;
-  transform: translateY(-1px);
+  transform: scale(1.1);
 }
 
 .button-icon.edit:hover {
@@ -1357,7 +1357,7 @@
 }
 
 .button:hover {
-  transform: translateY(-2px);
+  transform: scale(1.1);
 }
 
 .form-note {
