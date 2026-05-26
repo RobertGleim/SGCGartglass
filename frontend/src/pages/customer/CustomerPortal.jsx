@@ -53,6 +53,41 @@ const resolveDownloadUrl = (value) => {
 }
 const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Math.round(Number(rating) || 0))))
 
+const extractPurchasedAtFromReviewBody = (body) => {
+  const text = String(body || '')
+  const match = text.match(/(?:^|\n)\s*Purchased At:\s*(.+?)\s*(?=\n|$)/i)
+  return match ? match[1].trim() : ''
+}
+
+const stripPurchasedAtFromReviewBody = (body) => {
+  const text = String(body || '')
+  return text
+    .replace(/(?:^|\n)\s*Purchased At:\s*.+?(?=\n|$)/gi, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+const toDateInputValue = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw
+
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return ''
+
+  const year = parsed.getFullYear()
+  const month = String(parsed.getMonth() + 1).padStart(2, '0')
+  const day = String(parsed.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const composeReviewBodyWithPurchasedAt = (body, purchasedAt) => {
+  const strippedBody = stripPurchasedAtFromReviewBody(body)
+  if (!purchasedAt) return strippedBody
+  if (!strippedBody) return `Purchased At: ${purchasedAt}`
+  return `${strippedBody}\n\nPurchased At: ${purchasedAt}`
+}
+
 export default function CustomerPortal({ manualProducts }) {
   const { customerToken, logout } = useCustomerAuth()
   const [activeTab, setActiveTab] = useState('overview')
@@ -93,6 +128,7 @@ export default function CustomerPortal({ manualProducts }) {
     rating: 5,
     title: '',
     body: '',
+    purchased_at: '',
   })
 
   const manualProductMap = useMemo(() => {
@@ -321,12 +357,20 @@ export default function CustomerPortal({ manualProducts }) {
     event.preventDefault()
     setStatus('')
 
+    const purchasedAt = String(reviewForm.purchased_at || '').trim()
+    if (!purchasedAt) {
+      setStatus('Purchase date is required.')
+      return
+    }
+
+    const reviewBody = composeReviewBodyWithPurchasedAt(reviewForm.body, purchasedAt)
+
     try {
       if (reviewForm.review_id) {
         const updatePayload = {
           rating: Number(reviewForm.rating),
           title: reviewForm.title,
-          body: reviewForm.body,
+          body: reviewBody,
         }
         await updateCustomerReview(reviewForm.review_id, updatePayload)
         setReviews((prev) => prev.map((entry) => (
@@ -349,7 +393,7 @@ export default function CustomerPortal({ manualProducts }) {
           product_id: String(selectedOption.product_id),
           rating: Number(reviewForm.rating),
           title: reviewForm.title,
-          body: reviewForm.body,
+          body: reviewBody,
         }
         const response = await createCustomerReview(payload)
         setReviews((prev) => [
@@ -369,6 +413,7 @@ export default function CustomerPortal({ manualProducts }) {
         rating: 5,
         title: '',
         body: '',
+        purchased_at: '',
       })
     } catch (error) {
       setStatus(error?.response?.data?.error || error.message || 'Unable to submit review.')
@@ -381,7 +426,8 @@ export default function CustomerPortal({ manualProducts }) {
       review_key: `${review.product_type}:${review.product_id}`,
       rating: Number(review.rating) || 5,
       title: review.title || '',
-      body: review.body || '',
+      body: stripPurchasedAtFromReviewBody(review.body),
+      purchased_at: toDateInputValue(extractPurchasedAtFromReviewBody(review.body)),
     })
     setStatus('Editing review. Save to apply changes.')
   }
@@ -393,6 +439,7 @@ export default function CustomerPortal({ manualProducts }) {
       rating: 5,
       title: '',
       body: '',
+      purchased_at: '',
     }))
     setStatus('')
   }
@@ -686,6 +733,14 @@ export default function CustomerPortal({ manualProducts }) {
                 }
                 required
               />
+              <input
+                type="date"
+                value={reviewForm.purchased_at}
+                onChange={(event) =>
+                  setReviewForm((prev) => ({ ...prev, purchased_at: event.target.value }))
+                }
+                required
+              />
               <button type="submit">{reviewForm.review_id ? 'Save changes' : 'Submit review'}</button>
               {reviewForm.review_id ? (
                 <button type="button" className="secondary" onClick={handleCancelEditReview}>
@@ -710,7 +765,7 @@ export default function CustomerPortal({ manualProducts }) {
                     <span className="portal-muted">Rating: <span className="portal-stars-readonly">{renderStars(review.rating)}</span></span>
                     <span className="portal-muted">Status: {review.status}</span>
                     {review.title && <span>{review.title}</span>}
-                    {review.body && <span>{review.body}</span>}
+                    {stripPurchasedAtFromReviewBody(review.body) && <span>{stripPurchasedAtFromReviewBody(review.body)}</span>}
                     <div className="portal-actions">
                       <button className="secondary" type="button" onClick={() => handleStartEditReview(review)}>
                         Edit

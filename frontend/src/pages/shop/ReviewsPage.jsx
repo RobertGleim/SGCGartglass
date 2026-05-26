@@ -3,10 +3,27 @@ import LoadingMessage from '../../components/LoadingMessage'
 import { fetchRecentReviewsCached, validateReviewInviteCode, submitReviewWithCode } from '../../services/api'
 import './ReviewsPage.css'
 
+const parseReviewDateValue = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return null
+
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (match) {
+    const year = Number(match[1])
+    const month = Number(match[2])
+    const day = Number(match[3])
+    const localDate = new Date(year, month - 1, day)
+    if (!Number.isNaN(localDate.getTime())) return localDate
+  }
+
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed
+}
+
 const formatReviewDate = (value) => {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
+  const date = parseReviewDateValue(value)
+  if (!date) return ''
   return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
 }
 
