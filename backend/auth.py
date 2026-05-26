@@ -23,7 +23,7 @@ def create_token(subject, role=None, customer_id=None):
     secret = _jwt_secret()
     issuer = os.environ.get("JWT_ISSUER", "sgcgartglass")
     ttl_seconds = int(os.environ.get("JWT_TTL_SECONDS", "3600"))
-    admin_ttl_seconds = int(os.environ.get("JWT_ADMIN_TTL_SECONDS", "3600"))
+    admin_ttl_seconds = int(os.environ.get("JWT_ADMIN_TTL_SECONDS", "7200"))
     now = datetime.now(tz=timezone.utc)
     payload = {
         "sub": subject,
