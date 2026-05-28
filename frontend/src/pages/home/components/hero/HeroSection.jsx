@@ -14,4 +14,13 @@ export default function HeroSection() {
           <a href="#/gallery" className="button hero-btn-secondary">View Gallery</a>
         </div>
       </div>
-      <div className="hero-pa
+      <div className="hero-panel">
+        <div className="hero-card">
+            <div className="card-image">
+                <img src="/logo.png" alt="SGCG Art Glass logo" className="image" />
+            </div>
+        </div>
+      </div>
+    </section>
+  )
+}

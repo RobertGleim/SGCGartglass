@@ -253,7 +253,7 @@
 }
 .fileTypeBadge {
   font-size: 0.82rem;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 0.35rem 0.7rem;
   margin-top: 0.25rem;
 }
@@ -271,7 +271,7 @@
   font-size: 0.85rem;
   color: #555;
   background: #f0f0f0;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 0.3rem 0.6rem;
   margin-top: -0.3rem;
 }

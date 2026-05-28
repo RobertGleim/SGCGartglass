@@ -19,7 +19,7 @@
   display: inline-block;
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 2px solid #ddd;
 }
 .actions {

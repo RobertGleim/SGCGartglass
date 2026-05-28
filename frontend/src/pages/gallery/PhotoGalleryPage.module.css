@@ -30,7 +30,7 @@
 
 .resourceLink {
   font-size: 0.86rem;
-  color: #1f4ea1;
+  color: var(--brand);
   text-decoration: underline;
 }
 

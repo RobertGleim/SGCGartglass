@@ -140,7 +140,7 @@
   width: 12px;
   height: 12px;
   margin: 0;
-  accent-color: #1f4ea1;
+  accent-color: var(--brand);
 }
 
 .sidebar-filter-label {

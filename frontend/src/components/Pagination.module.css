@@ -18,7 +18,7 @@
 .button {
   border: 1px solid var(--pagination-border, #5c8fd7);
   background: var(--pagination-background, #ffffff);
-  color: var(--pagination-color, #1f4ea1);
+  color: var(--pagination-color, var(--brand));
   padding: 0 var(--pagination-button-padding-x, 0.82rem);
   display: inline-flex;
   align-items: center;
@@ -29,7 +29,7 @@
 
 .button:hover:not(:disabled) {
   border-color: var(--pagination-hover-border, #2d66c3);
-  color: var(--pagination-hover-color, #1f4ea1);
+  color: var(--pagination-hover-color, var(--brand));
   background: var(--pagination-hover-background, #f4f8ff);
   box-shadow: var(--pagination-hover-shadow, 0 8px 18px rgba(31, 78, 161, 0.12));
 }
@@ -41,8 +41,8 @@
 }
 
 .button.active {
-  border-color: var(--pagination-active-border, #1f4ea1);
-  background: var(--pagination-active-background, linear-gradient(135deg, #2d5db3 0%, #1f4ea1 100%));
+  border-color: var(--pagination-active-border, var(--brand));
+  background: var(--pagination-active-background, linear-gradient(135deg, #2d5db3 0%, var(--brand) 100%));
   color: var(--pagination-active-color, #ffffff);
   box-shadow: var(--pagination-active-shadow, 0 12px 24px rgba(31, 78, 161, 0.22));
 }

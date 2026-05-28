@@ -72,7 +72,7 @@
   width: 38px;
   height: 30px;
   border: 1px solid #d8d8d8;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #fff;
   padding: 0;
 }
@@ -251,7 +251,7 @@
 .sectionSwatch {
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 2px solid #ddd;
   flex-shrink: 0;
 }

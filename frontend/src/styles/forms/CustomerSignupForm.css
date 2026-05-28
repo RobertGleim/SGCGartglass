@@ -45,14 +45,14 @@
 
 .customer-auth-form input:focus {
   outline: none;
-  border-color: #1f4ea1;
+  border-color: var(--brand);
 }
 
 .customer-auth-form button {
   padding: 0.75rem;
   border: none;
   border-radius: 8px;
-  background: #1f4ea1;
+  background: var(--brand);
   color: #fff;
   font-weight: 600;
   cursor: pointer;
@@ -77,7 +77,7 @@
 }
 
 .customer-auth-footer a {
-  color: #1f4ea1;
+  color: var(--brand);
   text-decoration: underline;
 }
 

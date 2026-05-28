@@ -238,4 +238,3 @@ export default function HomePage({ featuredItems, itemsLoading }) {
     </main>
   )
 }
-       

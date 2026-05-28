@@ -11,7 +11,7 @@
 
 .legal-page-card h1 {
   margin: 0 0 0.85rem;
-  color: #1f4ea1;
+  color: var(--brand);
   font-size: 1.45rem;
 }
 
@@ -37,7 +37,7 @@
 }
 
 .legal-page-card a {
-  color: #1f4ea1;
+  color: var(--brand);
 }
 
 .legal-list {

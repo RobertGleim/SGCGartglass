@@ -10,14 +10,14 @@
 .categoryDropdown {
   min-width: 160px;
   padding: 0.5rem;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid var(--accent);
 }
 .searchBar {
   flex: 1;
   min-width: 200px;
   padding: 0.5rem;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid var(--accent);
 }
 .grid {
