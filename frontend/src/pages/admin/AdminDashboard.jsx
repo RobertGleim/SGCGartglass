@@ -6457,6 +6457,12 @@ export default function AdminDashboard({
                                     src={resolvedReviewImage}
                                     alt="Current review"
                                     className="review-edit-photo-preview"
+                                    onLoad={(event) => {
+                                      const img = event.currentTarget;
+                                      if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
+                                        img.style.display = "none";
+                                      }
+                                    }}
                                     onError={(event) => {
                                       event.currentTarget.style.display = "none";
                                     }}

@@ -4069,12 +4069,7 @@ def list_customer_reviews(customer_id):
     )
     rows = cursor.fetchall()
     conn.close()
-    normalized = []
-    for row in rows:
-        payload = dict(row)
-        payload.pop("review_image_data", None)
-        normalized.append(payload)
-    return normalized
+    return _normalize_review_image_fields(rows)
 
 
 def list_admin_reviews(limit=200, status=None):
