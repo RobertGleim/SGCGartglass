@@ -3,6 +3,15 @@ import { useEffect, useState } from 'react'
 import { fetchCustomerCart } from '../../../services/api'
 import { getGuestCartCount } from '../../../utils/guestCart'
 
+const DEFAULT_SHOP_TAB = 'stained-glass-panels'
+const BARGAIN_SHOP_TAB = 'bargain-basement'
+
+const getStoredShopTab = () => {
+  const stored = String(window.sessionStorage.getItem('sgcg_shop_tab') || '').trim()
+  if (!stored) return DEFAULT_SHOP_TAB
+  return stored
+}
+
 const getHashPath = () => {
   const hash = String(window.location.hash || '#/')
   // strip query params and trailing slashes for matching
@@ -13,14 +22,30 @@ export default function Header({ brandName, authToken, customerToken }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [cartCount, setCartCount] = useState(0)
   const [hashPath, setHashPath] = useState(getHashPath)
+  const [activeShopTab, setActiveShopTab] = useState(getStoredShopTab)
 
   useEffect(() => {
     const handleHashChange = () => {
       setMenuOpen(false)
       setHashPath(getHashPath())
+
+      if (!String(window.location.hash || '').startsWith('#/product')) {
+        setActiveShopTab(DEFAULT_SHOP_TAB)
+      }
     }
+
+    const handleShopTabChange = (event) => {
+      const requested = String(event?.detail?.tab || '').trim()
+      if (!requested) return
+      setActiveShopTab(requested)
+    }
+
     window.addEventListener('hashchange', handleHashChange)
-    return () => window.removeEventListener('hashchange', handleHashChange)
+    window.addEventListener('sgcg-shop-tab-change', handleShopTabChange)
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange)
+      window.removeEventListener('sgcg-shop-tab-change', handleShopTabChange)
+    }
   }, [])
 
   const isActive = (path) => {
@@ -34,6 +59,7 @@ export default function Header({ brandName, authToken, customerToken }) {
 
   const openShopTab = (tabKey) => {
     window.sessionStorage.setItem('sgcg_shop_tab', tabKey)
+    setActiveShopTab(tabKey)
     if (String(window.location.hash || '').startsWith('#/product')) {
       window.dispatchEvent(
         new CustomEvent('sgcg-shop-tab-change', {
@@ -49,8 +75,12 @@ export default function Header({ brandName, authToken, customerToken }) {
   }
 
   const handleOpenBargainBasement = () => {
-    openShopTab('bargain-basement')
+    openShopTab(BARGAIN_SHOP_TAB)
   }
+
+  const isOnProductRoute = isActive('#/product')
+  const isProductNavActive = isOnProductRoute && activeShopTab !== BARGAIN_SHOP_TAB
+  const isBargainNavActive = isOnProductRoute && activeShopTab === BARGAIN_SHOP_TAB
 
   useEffect(() => {
     let active = true
@@ -103,8 +133,8 @@ export default function Header({ brandName, authToken, customerToken }) {
       </button>
       <nav className={`nav-links${menuOpen ? ' open' : ''}`}>
         <a href="#/" onClick={handleNavClick} className={isActive('#/') ? 'nav-active' : undefined}>Home</a>
-        <a href="#/product" onClick={handleOpenProducts} className={isActive('#/product') ? 'nav-active' : undefined}>Product</a>
-        <a href="#/product" onClick={handleOpenBargainBasement} className={`nav-bargin-basement${isActive('#/product') ? ' nav-active' : ''}`}>Bargain Basement</a>
+        <a href="#/product" onClick={handleOpenProducts} className={isProductNavActive ? 'nav-active' : undefined}>Product</a>
+        <a href="#/product" onClick={handleOpenBargainBasement} className={`nav-bargin-basement${isBargainNavActive ? ' nav-active' : ''}`}>Bargain Basement</a>
         <a href="#/reviews" onClick={handleNavClick} className={isActive('#/reviews') ? 'nav-active' : undefined}>Reviews</a>
         <a href="#/designer" onClick={handleNavClick} className={isActive('#/designer') ? 'nav-active' : undefined}>Designer</a>
         <a href="#/gallery" onClick={handleNavClick} className={isActive('#/gallery') ? 'nav-active' : undefined}>Photo Gallery</a>
