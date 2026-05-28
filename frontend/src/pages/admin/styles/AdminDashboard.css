@@ -162,8 +162,8 @@
 }
 
 .product-form-woodwork {
-  --form-scrollbar-thumb: #8B4513;
-  --form-scrollbar-track: rgba(139, 69, 19, 0.14);
+  --form-scrollbar-thumb: #2196F3;
+  --form-scrollbar-track: rgba(33, 150, 243, 0.12);
 }
 
 .product-form-wrapper .modal-overlay,
@@ -1098,6 +1098,59 @@
 
 .customer-insight-trend.is-flat {
   color: #56647a;
+}
+
+.customer-list-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin: 0.8rem 0 1rem;
+}
+
+.customer-list-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid #cfe0fb;
+  background: #f7faff;
+  color: #21456f;
+  border-radius: 999px;
+  padding: 0.55rem 0.95rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.customer-list-tab.active {
+  border-color: #1f4ea1;
+  background: #1f4ea1;
+  color: #fff;
+}
+
+.customer-list-tab-count {
+  min-width: 1.5rem;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(31, 78, 161, 0.12);
+  color: inherit;
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.customer-list-tab.active .customer-list-tab-count {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.customer-list-search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0 0 1rem;
+  flex-wrap: wrap;
+}
+
+.customer-list-search {
+  width: min(420px, 100%);
+  max-width: 100%;
 }
 
 .discount-code-form {

@@ -1066,10 +1066,16 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: #3498db rgba(52, 152, 219, 0.18);
 }
 .glassScrollArea::-webkit-scrollbar { width: 5px; }
+.glassScrollArea::-webkit-scrollbar-track {
+  background: rgba(52, 152, 219, 0.18);
+  border-radius: 3px;
+}
 .glassScrollArea::-webkit-scrollbar-thumb {
-  background: #c8a96e;
+  background: linear-gradient(180deg, #3498db 0%, #1f6fbe 100%);
   border-radius: 3px;
 }
 .glassGrid {

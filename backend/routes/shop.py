@@ -1816,6 +1816,15 @@ def health():
 # List all customers (for admin dashboard)
 from ..db import list_all_customers
 
+
+def _derive_admin_customer_category(customer):
+    email = str((customer or {}).get("email") or "").strip().lower()
+    if email.startswith("admin-testimonial-") and email.endswith("@sgcg.local"):
+        return "admin-testimonial"
+    if email.startswith("guest-review-") and email.endswith("@sgcg.local"):
+        return "review-customer"
+    return "signed-up"
+
 @api.get("/customers")
 @require_auth
 def list_customers():
@@ -1824,6 +1833,7 @@ def list_customers():
     customers = list_all_customers()
     for customer in customers:
         customer.pop("password_hash", None)
+        customer["customer_category"] = _derive_admin_customer_category(customer)
     return jsonify(customers), 200
 
 

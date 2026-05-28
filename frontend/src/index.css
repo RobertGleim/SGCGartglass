@@ -4,11 +4,36 @@
   --accent: #3498DB;
   --background: #ECF0F1;
   --canvas: #FFFFFF;
+  --scrollbar-thumb: #3498DB;
+  --scrollbar-thumb-hover: #1f6fbe;
+  --scrollbar-track: rgba(52, 152, 219, 0.18);
 }
 
 * {
   box-sizing: border-box;
   cursor: url('/cursor-blue-glass.svg') 3 3, auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--scrollbar-thumb) 0%, var(--scrollbar-thumb-hover) 100%);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--scrollbar-thumb-hover) 0%, #155a99 100%);
 }
 
 a, button, [role="button"], select, label[for],

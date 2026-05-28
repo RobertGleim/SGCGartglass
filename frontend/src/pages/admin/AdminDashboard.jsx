@@ -93,6 +93,26 @@ const trendDirectionSymbol = (direction) => {
   return "•";
 };
 
+const CUSTOMER_LIST_TABS = [
+  { key: "signed-up", label: "Sign Up Customers" },
+  { key: "review-customer", label: "Review Customers" },
+  { key: "admin-testimonial", label: "Admin Testimonials" },
+];
+
+const deriveCustomerCategory = (customer) => {
+  const apiCategory = String(customer?.customer_category || "").trim().toLowerCase();
+  if (apiCategory) return apiCategory;
+
+  const email = String(customer?.email || "").trim().toLowerCase();
+  if (email.startsWith("admin-testimonial-") && email.endsWith("@sgcg.local")) {
+    return "admin-testimonial";
+  }
+  if (email.startsWith("guest-review-") && email.endsWith("@sgcg.local")) {
+    return "review-customer";
+  }
+  return "signed-up";
+};
+
 const getApiOrigin = () => {
   const configuredBase = String(import.meta.env.VITE_API_BASE_URL || "/api").trim();
   if (/^https?:\/\//i.test(configuredBase)) {
@@ -1025,6 +1045,8 @@ export default function AdminDashboard({
     },
   });
   const [customerStatus, setCustomerStatus] = useState("");
+  const [customerListTab, setCustomerListTab] = useState("signed-up");
+  const [customerSearch, setCustomerSearch] = useState("");
   const [isSavingCustomer, setIsSavingCustomer] = useState(false);
   const [isDeletingCustomer, setIsDeletingCustomer] = useState(false);
   const [sendTemplateForm, setSendTemplateForm] = useState({
@@ -2070,12 +2092,50 @@ export default function AdminDashboard({
     };
   }, [pagedManualProducts, pagedDeactivatedProducts, linkedTemplatePreviewUrls]);
 
+  const customerCountsByCategory = useMemo(() => {
+    return ensureArray(customers).reduce((acc, customer) => {
+      const category = deriveCustomerCategory(customer);
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {
+      "signed-up": 0,
+      "review-customer": 0,
+      "admin-testimonial": 0,
+    });
+  }, [customers]);
+
+  const filteredCustomers = useMemo(() => {
+    const searchNeedle = String(customerSearch || "").trim().toLowerCase();
+
+    return ensureArray(customers).filter((customer) => {
+      if (deriveCustomerCategory(customer) !== customerListTab) {
+        return false;
+      }
+
+      if (!searchNeedle) {
+        return true;
+      }
+
+      const haystack = [
+        customer?.first_name,
+        customer?.last_name,
+        customer?.email,
+        customer?.phone,
+        customer?.admin_notes,
+      ]
+        .map((value) => String(value || "").toLowerCase())
+        .join(" ");
+
+      return haystack.includes(searchNeedle);
+    });
+  }, [customers, customerListTab, customerSearch]);
+
   const pagedCustomers = useMemo(() => {
     const startIndex = (customersPage - 1) * SECTION_PAGE_SIZE;
-    return customers.slice(startIndex, startIndex + SECTION_PAGE_SIZE);
-  }, [customers, customersPage]);
+    return filteredCustomers.slice(startIndex, startIndex + SECTION_PAGE_SIZE);
+  }, [filteredCustomers, customersPage]);
 
-  const totalCustomersPages = Math.max(1, Math.ceil(customers.length / SECTION_PAGE_SIZE));
+  const totalCustomersPages = Math.max(1, Math.ceil(filteredCustomers.length / SECTION_PAGE_SIZE));
 
   const filteredDigitalCheckoutSessions = useMemo(() => {
     const needle = String(digitalSessionEmailSearch || "").trim().toLowerCase();
@@ -3875,7 +3935,7 @@ export default function AdminDashboard({
 
   useEffect(() => {
     setCustomersPage(1);
-  }, [customers.length]);
+  }, [filteredCustomers.length, customerListTab]);
 
   useEffect(() => {
     setDigitalSessionsPage(1);
@@ -5262,7 +5322,41 @@ export default function AdminDashboard({
 
           <div className="panel-section">
             <h3>Customers</h3>
-            {customers.length === 0 ? (
+            <div className="customer-list-tabs" role="tablist" aria-label="Customer categories">
+              {CUSTOMER_LIST_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={customerListTab === tab.key}
+                  className={`customer-list-tab ${customerListTab === tab.key ? "active" : ""}`}
+                  onClick={() => setCustomerListTab(tab.key)}
+                >
+                  <span>{tab.label}</span>
+                  <span className="customer-list-tab-count">{customerCountsByCategory[tab.key] || 0}</span>
+                </button>
+              ))}
+            </div>
+            <div className="customer-list-search-row">
+              <input
+                type="search"
+                className="customer-list-search"
+                value={customerSearch}
+                onChange={(event) => setCustomerSearch(event.target.value)}
+                placeholder="Search name, email, phone"
+                aria-label="Search customers"
+              />
+              {customerSearch ? (
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => setCustomerSearch("")}
+                >
+                  Clear
+                </button>
+              ) : null}
+            </div>
+            {filteredCustomers.length === 0 ? (
               <p className="form-note">No customers found.</p>
             ) : (
               <div className="admin-table-wrap">
