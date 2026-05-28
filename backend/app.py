@@ -369,7 +369,7 @@ def create_app(config_name=None):
                 return send_from_directory(str(directory), filename)
 
         # File missing (ephemeral FS) — look up blob in DB
-        from .db import get_db, _is_postgres_backend
+        from .db import get_db
         url_path = f"/uploads/reviews/{filename}"
         try:
             conn = get_db()
@@ -379,44 +379,26 @@ def create_app(config_name=None):
                 f"uploads/reviews/{filename}",
                 filename,
             ]
-            if _is_postgres_backend():
-                cursor.execute(
-                    "SELECT review_image_data, review_image_mime FROM customer_reviews WHERE review_image_url = $1 LIMIT 1",
-                    (url_path,),
-                )
-            else:
-                cursor.execute(
-                    "SELECT review_image_data, review_image_mime FROM customer_reviews WHERE review_image_url = ? LIMIT 1",
-                    (url_path,),
-                )
+            cursor.execute(
+                "SELECT review_image_data, review_image_mime FROM customer_reviews WHERE review_image_url = %s LIMIT 1",
+                (url_path,),
+            )
             row = cursor.fetchone()
 
             if not row:
                 like_value = f"%/uploads/reviews/{filename}"
-                if _is_postgres_backend():
-                    cursor.execute(
-                        "SELECT review_image_data, review_image_mime FROM customer_reviews WHERE review_image_url LIKE $1 LIMIT 1",
-                        (like_value,),
-                    )
-                else:
-                    cursor.execute(
-                        "SELECT review_image_data, review_image_mime FROM customer_reviews WHERE review_image_url LIKE ? LIMIT 1",
-                        (like_value,),
-                    )
+                cursor.execute(
+                    "SELECT review_image_data, review_image_mime FROM customer_reviews WHERE review_image_url LIKE %s LIMIT 1",
+                    (like_value,),
+                )
                 row = cursor.fetchone()
 
             if not row:
                 for candidate in normalized_candidates:
-                    if _is_postgres_backend():
-                        cursor.execute(
-                            "SELECT review_image_data, review_image_mime FROM customer_reviews WHERE review_image_url = $1 LIMIT 1",
-                            (candidate,),
-                        )
-                    else:
-                        cursor.execute(
-                            "SELECT review_image_data, review_image_mime FROM customer_reviews WHERE review_image_url = ? LIMIT 1",
-                            (candidate,),
-                        )
+                    cursor.execute(
+                        "SELECT review_image_data, review_image_mime FROM customer_reviews WHERE review_image_url = %s LIMIT 1",
+                        (candidate,),
+                    )
                     row = cursor.fetchone()
                     if row:
                         break
