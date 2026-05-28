@@ -108,6 +108,9 @@ jobs:
           HOST="${HOST#sftp://}"
           HOST="${HOST#ftp://}"
           HOST="${HOST#ftps://}"
+          HOST="${HOST##*@}"
+          HOST="${HOST%%/*}"
+          HOST="$(printf '%s' "$HOST" | tr -d '\r[:space:]')"
           USERNAME="$HOSTINGER_SSH_USER"
           PORT="$(echo "${HOSTINGER_SSH_PORT:-65002}" | tr -d '[:space:]')"
           PASSWORD="$(printf '%s' "$HOSTINGER_SSH_PASSWORD" | tr -d '\r')"
@@ -119,7 +122,6 @@ jobs:
               set cmd:fail-exit yes;
               set cmd:interactive no;
               set sftp:auto-confirm yes;
-              set sftp:connect-program \"ssh -a -x -i ~/.ssh/id_rsa\";
               mirror --reverse --delete --verbose --parallel=4 dist/ \"$HOSTINGER_REMOTE_PATH\";
               bye
             "
@@ -143,6 +145,8 @@ jobs:
             chmod 700 ~/.ssh
             printf '%s\n' "$HOSTINGER_SSH_PRIVATE_KEY" | sed 's/\r$//' > ~/.ssh/id_rsa
             chmod 600 ~/.ssh/id_rsa
+            eval "$(ssh-agent -s)"
+            ssh-add ~/.ssh/id_rsa
 
             if run_lftp_key_auth; then
               echo "SFTP deploy succeeded with private key."
@@ -169,6 +173,9 @@ jobs:
           HOST="${FTP_HOST}"
           HOST="${HOST#ftp://}"
           HOST="${HOST#ftps://}"
+          HOST="${HOST##*@}"
+          HOST="${HOST%%/*}"
+          HOST="$(printf '%s' "$HOST" | tr -d '\r[:space:]')"
           echo "SSH deploy failed, falling back to FTP..."
           lftp -e "
             set ssl:verify-certificate no;
