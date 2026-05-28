@@ -701,6 +701,13 @@ export default function ProductPage({ products }) {
                       src={activeReview.product_image_url}
                       alt={activeReview.product_title || activeReview.title || 'Reviewed product'}
                       className="product-page-review-image"
+                      onLoad={(event) => {
+                        const img = event.currentTarget
+                        if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
+                          img.style.display = 'none'
+                          if (img.parentElement) img.parentElement.style.display = 'none'
+                        }
+                      }}
                       onError={(event) => {
                         const fallback = String(activeReview.fallback_product_image_url || '').trim()
                         const current = String(event.currentTarget.src || '').trim()
@@ -709,6 +716,9 @@ export default function ProductPage({ products }) {
                           return
                         }
                         event.currentTarget.style.display = 'none'
+                        if (event.currentTarget.parentElement) {
+                          event.currentTarget.parentElement.style.display = 'none'
+                        }
                       }}
                     />
                   </div>

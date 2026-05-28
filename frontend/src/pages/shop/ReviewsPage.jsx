@@ -399,6 +399,12 @@ export default function ReviewsPage() {
                         src={reviewPhotoUrl}
                         alt={review.product_title || review.title || 'Reviewed product'}
                         className="reviews-feed-thumb"
+                        onLoad={(event) => {
+                          const img = event.currentTarget
+                          if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
+                            img.style.display = 'none'
+                          }
+                        }}
                         onError={(event) => {
                           const fallback = reviewPhotoFallback
                           const current = String(event.currentTarget.src || '').trim()
