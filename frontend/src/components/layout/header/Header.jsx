@@ -116,4 +116,35 @@ export default function Header({ brandName, authToken, customerToken }) {
             <a
               href="#/checkout"
               onClick={handleNavClick}
-              className={`nav-cart-inline${isActive(
+              className={`nav-cart-inline${isActive('#/checkout') ? ' nav-active' : ''}`}
+              aria-label="Open cart and checkout"
+              title="Checkout"
+            >
+              🛒
+              {cartCount > 0 && (
+                <span className="nav-cart-badge">{cartCount > 99 ? '99+' : cartCount}</span>
+              )}
+            </a>
+            <a href="#/account" onClick={handleNavClick} className={isActive('#/account') ? 'nav-active' : undefined}>Account</a>
+          </>
+        ) : (
+          <>
+            <a
+              href="#/checkout"
+              onClick={handleNavClick}
+              className={`nav-cart-inline${isActive('#/checkout') ? ' nav-active' : ''}`}
+              aria-label="Open cart and checkout"
+              title="Checkout"
+            >
+              🛒
+              {cartCount > 0 && (
+                <span className="nav-cart-badge">{cartCount > 99 ? '99+' : cartCount}</span>
+              )}
+            </a>
+            <a href="#/account/login" onClick={handleNavClick} className={isActive('#/account') ? 'nav-active' : undefined}>Sign In</a>
+          </>
+        )}
+      </nav>
+    </header>
+  )
+}
