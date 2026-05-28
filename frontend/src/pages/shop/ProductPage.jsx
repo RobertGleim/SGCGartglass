@@ -4,6 +4,7 @@ import ProductCard from './components/ProductCard';
 import SearchBar from './components/SearchBar';
 import Pagination from '../../components/Pagination';
 import './ProductPage.css';
+import '../../styles/ReviewCard.css';
 import {
   fetchFavoritesSummary,
   fetchRecentReviewsCached,
@@ -145,7 +146,7 @@ const productHasSubcategory = (product, selectedCategory) => {
 
 const VALID_SHOP_TABS = new Set([
   ...PRODUCT_TABS.map((tab) => tab.key),
-  'bargin-basement',
+  'bargain-basement',
 ])
 
 const inferLegacyType = (product) => {
@@ -263,7 +264,7 @@ export default function ProductPage({ products }) {
   }, [recentReviews.length])
 
   const sectionProducts = useMemo(() => {
-    if (activeTab === 'bargin-basement') {
+    if (activeTab === 'bargain-basement') {
       return products.filter((product) => isOnSale(product))
     }
 
@@ -289,8 +290,8 @@ export default function ProductPage({ products }) {
     })
   }, [products, activeTab])
 
-  const sectionLabel = activeTab === 'bargin-basement'
-    ? 'Bargin Basement'
+  const sectionLabel = activeTab === 'bargain-basement'
+    ? 'Bargain Basement'
     : PRODUCT_TABS.find((tab) => tab.key === activeTab)?.label || 'Products'
 
   useEffect(() => {
@@ -679,18 +680,18 @@ export default function ProductPage({ products }) {
             {recentReviews.length === 0 ? (
               <p className="product-page-reviews-empty">No reviews yet.</p>
             ) : (
-              <div className="product-page-review-stage">
+              <div className="review-card-stage">
                 {activeReview ? (
                   <article
                     key={`${activeReview.id}-${reviewAnimationKey}`}
-                    className="product-page-review-card product-page-review-card-animated"
+                    className="review-card review-card-animated"
                   >
                     {activeReview.product_image_url ? (
-                      <div className="product-page-review-image-shell">
+                      <div className="review-image-shell">
                         <img
                           src={activeReview.product_image_url}
                           alt={activeReview.product_title || activeReview.title || 'Reviewed product'}
-                          className="product-page-review-image"
+                          className="review-image"
                           onLoad={(event) => {
                             const img = event.currentTarget
                             if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
@@ -713,11 +714,11 @@ export default function ProductPage({ products }) {
                         />
                       </div>
                     ) : null}
-                    <div className="product-page-review-content">
-                      <p className="product-page-review-rating">{renderStars(activeReview.rating)}</p>
-                      <p className="product-page-review-title">{activeReview.title || 'Customer review'}</p>
-                      <p className="product-page-review-body">{activeReview.body || ''}</p>
-                      <p className="product-page-review-meta">
+                    <div className="review-content">
+                      <p className="review-rating">{renderStars(activeReview.rating)}</p>
+                      <p className="review-title">{activeReview.title || 'Customer review'}</p>
+                      <p className="review-body">{activeReview.body || ''}</p>
+                      <p className="review-meta">
                         {(activeReview.first_name || '').trim()} {(activeReview.last_name || '').trim()}
                       </p>
                     </div>
@@ -790,3 +791,4 @@ export default function ProductPage({ products }) {
     </div>
   )
 }
+                                                                                  

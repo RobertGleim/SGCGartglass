@@ -132,13 +132,13 @@
 
 .shop-alpha-chip:hover {
   border-color: #2f6ecf;
-  color: #1f4ea1;
+  color: var(--brand);
   box-shadow: 0 2px 6px rgba(31, 78, 161, 0.16);
 }
 
 .shop-alpha-chip.active {
-  background: #1f4ea1;
-  border-color: #1f4ea1;
+  background: var(--brand);
+  border-color: var(--brand);
   color: #fff;
   box-shadow: 0 3px 8px rgba(31, 78, 161, 0.22);
 }
@@ -189,7 +189,7 @@
   width: 100%;
   padding: 0.65rem 1rem;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: 8px;
   background: white;
   font-size: 0.9rem;
   cursor: pointer;
@@ -291,7 +291,7 @@
 
 .price {
   font-weight: bold;
-  color: #1f4ea1;
+  color: var(--brand);
 }
 
 .text-link {
@@ -353,7 +353,7 @@
   padding: 0.35rem 0.85rem;
   border-radius: 999px;
   background: rgba(31, 78, 161, 0.1);
-  color: #1f4ea1;
+  color: var(--brand);
   font-weight: 600;
   margin-bottom: 0.75rem;
 }
@@ -373,7 +373,7 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #1f4ea1;
+  background: var(--brand);
   animation: comingSoonDots 1s ease-in-out infinite;
 }
 
@@ -396,94 +396,7 @@
   color: #222;
 }
 
-.product-page-review-stage {
-  position: relative;
-  min-height: 130px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-}
-
-.product-page-review-card {
-  width: min(400px, 92vw);
-  height: 100px;
-  border: none;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 18px 45px rgba(31, 78, 161, 0.12), inset 0 0 28px rgba(255, 255, 255, 0.35);
-  padding: 0.42rem;
-  display: flex;
-  gap: 0.45rem;
-  align-items: stretch;
-}
-
-.product-page-review-card-animated {
-  animation: reviewCardFloat 5.2s linear both infinite;
-}
-
-.product-page-review-image-shell {
-  position: relative;
-  width: 84px;
-  height: 100%;
-  flex-shrink: 0;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.product-page-review-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 10px;
-  display: block;
-}
-
-.product-page-review-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.08rem;
-  min-width: 0;
-}
-
-.product-page-review-rating {
-  margin: 0;
-  font-weight: 600;
-  color: #f4ba33;
-  font-size: 0.8rem;
-  line-height: 1.1;
-}
-
-.product-page-review-title {
-  margin: 0;
-  font-weight: 600;
-  color: #222;
-  font-size: 0.88rem;
-  line-height: 1.15;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.product-page-review-body {
-  margin: 0;
-  color: #4f607f;
-  font-size: 0.74rem;
-  line-height: 1.2;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.product-page-review-meta {
-  margin: auto 0 0;
-  color: #5d6470;
-  font-size: 0.68rem;
-  line-height: 1.1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+/* Review card styles live in ../../styles/ReviewCard.css */
 
 .product-page-reviews-empty {
   margin: 0;
@@ -529,7 +442,7 @@
 .shop-form-modal-header button {
   border: 1px solid #dbe2ef;
   background: #fff;
-  border-radius: 6px;
+  border-radius: 8px;
   width: 2rem;
   height: 2rem;
   cursor: pointer;
@@ -570,8 +483,8 @@
 }
 
 .shop-form-submit {
-  border: 1px solid #1f4ea1;
-  background: #1f4ea1;
+  border: 1px solid var(--brand);
+  background: var(--brand);
   color: #fff;
   border-radius: 8px;
   padding: 0.65rem 0.9rem;
@@ -586,28 +499,10 @@
 
 .shop-form-status {
   margin: 0;
-  color: #1f4ea1;
+  color: var(--brand);
   font-size: 0.86rem;
 }
 
-@keyframes reviewCardFloat {
-  0% {
-    opacity: 0;
-    transform: translateX(140px) scale(0.97);
-  }
-  22% {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-  72% {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(-140px) scale(0.97);
-  }
-}
 
 @keyframes comingSoonDots {
   0%,
@@ -626,9 +521,11 @@
   0%,
   100% {
     transform: translateY(0);
+    box-shadow: 0 8px 18px rgba(31, 78, 161, 0.09);
   }
   50% {
-    transform: scale(1.1);
+    transform: translateY(-6px);
+    box-shadow: 0 14px 28px rgba(31, 78, 161, 0.15);
   }
 }
 
@@ -642,21 +539,6 @@
 @media (max-width: 640px) {
   .product-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .product-page-review-stage {
-    min-height: 122px;
-  }
-
-  .product-page-review-card {
-    width: min(400px, 95vw);
-    height: 98px;
-    padding: 0.38rem;
-    border-radius: 12px;
-  }
-
-  .product-page-review-image-shell {
-    width: 80px;
   }
 
   .shop-form-row-2,
@@ -757,3 +639,4 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        

@@ -140,7 +140,7 @@
   max-width: 100%;
   padding: 0.65rem;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 1rem;
   font-family: inherit;
   box-sizing: border-box;
@@ -189,7 +189,7 @@
   background-color: #2196F3;
   color: white;
   border: 2px dashed transparent;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 500;
   transition: background-color 0.2s ease;
@@ -204,7 +204,7 @@
   padding: 1rem;
   background-color: #f0f7ff;
   border: 1px solid #2196F3;
-  border-radius: 4px;
+  border-radius: 8px;
   margin-bottom: 0.5rem;
 }
 
@@ -252,7 +252,7 @@
   gap: 0.75rem;
   padding: 1rem;
   background-color: #f5f5f5;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 .image-gallery h4 {
@@ -269,7 +269,7 @@
 
 .image-item {
   position: relative;
-  border-radius: 4px;
+  border-radius: 8px;
   overflow: hidden;
   background-color: #e0e0e0;
   aspect-ratio: 1 / 1;
@@ -345,7 +345,7 @@
   flex: 1;
   padding: 0.5rem;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 .multi-select-add-btn {
@@ -353,7 +353,7 @@
   background-color: #4CAF50;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 0.82rem;
   white-space: nowrap;
@@ -368,7 +368,7 @@
   width: 100%;
   padding: 0.5rem;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 .multi-select-tags {
@@ -382,7 +382,7 @@
 .category-tag {
   background-color: #e3f2fd;
   border: 1px solid #2196F3;
-  border-radius: 16px;
+  border-radius: 999px;
   padding: 0.15rem 0.45rem;
   display: flex;
   align-items: center;
@@ -410,7 +410,7 @@
 .material-tag {
   background-color: #f3e5f5;
   border: 1px solid #9c27b0;
-  border-radius: 16px;
+  border-radius: 999px;
   padding: 0.15rem 0.45rem;
   display: flex;
   align-items: center;
@@ -490,7 +490,7 @@
 .modal-actions .button {
   padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s ease;

@@ -330,7 +330,7 @@
 /* Status select */
 .statusSelect {
   padding: 0.3rem 0.5rem;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 2px solid #ccc;
   font-size: 0.9rem;
   cursor: pointer;
@@ -371,7 +371,7 @@
 }
 .modalContent {
   background: white;
-  border-radius: 16px;
+  border-radius: 999px;
   max-width: 800px;
   width: 100%;
   max-height: 90vh;
@@ -516,7 +516,7 @@
 .invoiceForm textarea {
   padding: 0.5rem;
   border: 1px solid #d9cfba;
-  border-radius: 6px;
+  border-radius: 8px;
   font-family: inherit;
   font-size: 0.95rem;
   color: #1f2937;
@@ -618,7 +618,7 @@
 .swatchColor {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 2px solid #ddd;
   cursor: pointer;
 }
@@ -636,7 +636,7 @@
   margin-left: 0.4rem;
   padding: 0.25rem 0.6rem;
   border: 1px solid #dc3545;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
   color: #dc3545;
   font-size: 0.85rem;
@@ -668,7 +668,7 @@
   margin-left: 0.4rem;
   padding: 0.25rem 0.6rem;
   border: 1px solid #1565c0;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #1565c0;
   color: #fff;
   font-size: 0.85rem;

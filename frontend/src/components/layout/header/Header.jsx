@@ -3,15 +3,30 @@ import { useEffect, useState } from 'react'
 import { fetchCustomerCart } from '../../../services/api'
 import { getGuestCartCount } from '../../../utils/guestCart'
 
+const getHashPath = () => {
+  const hash = String(window.location.hash || '#/')
+  // strip query params and trailing slashes for matching
+  return hash.replace(/\?.*$/, '').replace(/\/$/, '') || '#/'
+}
+
 export default function Header({ brandName, authToken, customerToken }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [cartCount, setCartCount] = useState(0)
+  const [hashPath, setHashPath] = useState(getHashPath)
 
   useEffect(() => {
-    const handleHashChange = () => setMenuOpen(false)
+    const handleHashChange = () => {
+      setMenuOpen(false)
+      setHashPath(getHashPath())
+    }
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
+
+  const isActive = (path) => {
+    if (path === '#/') return hashPath === '#/'
+    return hashPath === path || hashPath.startsWith(path + '/')
+  }
 
   const handleNavClick = () => {
     setMenuOpen(false)
@@ -33,8 +48,8 @@ export default function Header({ brandName, authToken, customerToken }) {
     openShopTab('stained-glass-panels')
   }
 
-  const handleOpenBarginBasement = () => {
-    openShopTab('bargin-basement')
+  const handleOpenBargainBasement = () => {
+    openShopTab('bargain-basement')
   }
 
   useEffect(() => {
@@ -87,49 +102,18 @@ export default function Header({ brandName, authToken, customerToken }) {
         <span className="nav-toggle-icon">☰</span>
       </button>
       <nav className={`nav-links${menuOpen ? ' open' : ''}`}>
-        <a href="#/" onClick={handleNavClick}>Home</a>
-        <a href="#/product" onClick={handleOpenProducts}>Product</a>
-        <a href="#/product" onClick={handleOpenBarginBasement} className="nav-bargin-basement">Bargin Basement</a>
-        <a href="#/reviews" onClick={handleNavClick}>Reviews</a>
-        <a href="#/designer" onClick={handleNavClick}>Designer</a>
-        <a href="#/gallery" onClick={handleNavClick}>Photo Gallery</a>
+        <a href="#/" onClick={handleNavClick} className={isActive('#/') ? 'nav-active' : undefined}>Home</a>
+        <a href="#/product" onClick={handleOpenProducts} className={isActive('#/product') ? 'nav-active' : undefined}>Product</a>
+        <a href="#/product" onClick={handleOpenBargainBasement} className={`nav-bargin-basement${isActive('#/product') ? ' nav-active' : ''}`}>Bargain Basement</a>
+        <a href="#/reviews" onClick={handleNavClick} className={isActive('#/reviews') ? 'nav-active' : undefined}>Reviews</a>
+        <a href="#/designer" onClick={handleNavClick} className={isActive('#/designer') ? 'nav-active' : undefined}>Designer</a>
+        <a href="#/gallery" onClick={handleNavClick} className={isActive('#/gallery') ? 'nav-active' : undefined}>Photo Gallery</a>
         {authToken ? (
-          <a href="#/admin" onClick={handleNavClick}>Admin</a>
+          <a href="#/admin" onClick={handleNavClick} className={isActive('#/admin') ? 'nav-active' : undefined}>Admin</a>
         ) : customerToken ? (
           <>
-            <a href="#/my-projects" onClick={handleNavClick}>My Projects</a>
+            <a href="#/my-projects" onClick={handleNavClick} className={isActive('#/my-projects') ? 'nav-active' : undefined}>My Projects</a>
             <a
               href="#/checkout"
               onClick={handleNavClick}
-              className="nav-cart-inline"
-              aria-label="Open cart and checkout"
-              title="Checkout"
-            >
-              🛒
-              {cartCount > 0 && (
-                <span className="nav-cart-badge">{cartCount > 99 ? '99+' : cartCount}</span>
-              )}
-            </a>
-            <a href="#/account" onClick={handleNavClick}>Account</a>
-          </>
-        ) : (
-          <>
-            <a
-              href="#/checkout"
-              onClick={handleNavClick}
-              className="nav-cart-inline"
-              aria-label="Open cart and checkout"
-              title="Checkout"
-            >
-              🛒
-              {cartCount > 0 && (
-                <span className="nav-cart-badge">{cartCount > 99 ? '99+' : cartCount}</span>
-              )}
-            </a>
-            <a href="#/account/login" onClick={handleNavClick}>Sign In</a>
-          </>
-        )}
-      </nav>
-    </header>
-  )
-}
+              className={`nav-cart-inline${isActive(

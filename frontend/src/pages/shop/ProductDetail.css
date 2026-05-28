@@ -144,7 +144,7 @@
   min-height: 60px;
   height: 60px;
   border: 2px solid #e5e5e5;
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 0;
   cursor: pointer;
   background: #fff;
@@ -393,7 +393,7 @@
 }
 
 .related-links-section a {
-  color: #1f4ea1;
+  color: var(--brand);
   text-decoration: underline;
   font-weight: 500;
 }
@@ -425,7 +425,7 @@
 .quantity-selector select {
   padding: 0.5rem 0.75rem;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 1rem;
   cursor: pointer;
   background-color: white;
@@ -445,7 +445,7 @@
   background-color: #1a1a1a;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -478,7 +478,7 @@
   background-color: white;
   color: #1a1a1a;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -497,7 +497,7 @@
   justify-content: center;
   border: 1px solid #ccc;
   background-color: white;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 1.5rem;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -531,7 +531,7 @@
   margin-bottom: 1rem;
   padding: 0.75rem;
   background-color: #f9f9f9;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 .policy-icon {
@@ -1050,7 +1050,7 @@
   max-width: 100%;
   max-height: 90vh;
   object-fit: contain;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 /* Navigation Arrows */
@@ -1096,7 +1096,7 @@
   width: 80px;
   height: 80px;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 0;
   cursor: pointer;
   background: #000;

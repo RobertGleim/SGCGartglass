@@ -7,18 +7,11 @@ export default function HeroSection() {
         <p className="eyebrow">Art in motion</p>
         <h1>Gallery-worthy art made for your home.</h1>
         <p className="lead">
-          Curated pieces from the SGCG Art, brought into a
-          clean, modern gallery.
+          Handcrafted stained glass, fused art, and wood pieces — made in the USA and brought into a clean, modern gallery.
         </p>
-        
-      </div>
-      <div className="hero-panel">
-        <div className="hero-card">
-            <div className="card-image">
-                <img src="/logo.png" alt="SGCG Art Glass logo" className="image" />
-            </div>
+        <div className="hero-actions">
+          <a href="#/product" className="button hero-btn-primary">Shop Now</a>
+          <a href="#/gallery" className="button hero-btn-secondary">View Gallery</a>
         </div>
       </div>
-    </section>
-  )
-}
+      <div className="hero-pa

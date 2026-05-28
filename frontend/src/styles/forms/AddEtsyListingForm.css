@@ -26,7 +26,7 @@
   width: 100%;
   padding: 0.7rem;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 1rem;
 }
 
@@ -38,7 +38,7 @@
 .inline-form .button {
   padding: 0.7rem 1.15rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -59,7 +59,7 @@
   padding: 0.7rem;
   background-color: #f0f7ff;
   border: 1px solid #2196F3;
-  border-radius: 4px;
+  border-radius: 8px;
   color: #1976D2;
   font-size: 0.9rem;
 }

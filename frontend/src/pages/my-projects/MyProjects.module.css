@@ -43,7 +43,7 @@
   width: 68px;
   height: 48px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid #d8d8d8;
   flex-shrink: 0;
 }
@@ -51,7 +51,7 @@
 .thumbPlaceholder {
   width: 68px;
   height: 48px;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px dashed #c7c7c7;
   color: #8a8a8a;
   display: flex;
@@ -108,7 +108,7 @@
   background: #4169e1;
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 0.34rem 0.72rem;
   font-size: 0.8rem;
   cursor: pointer;

@@ -94,7 +94,7 @@
 .multi-select-dropdown {
   flex: 1;
   padding: 0.5rem;
-  border-radius: 4px;
+  border-radius: 8px;
   font-family: inherit;
   font-size: 1rem;
   border: 1px solid #ccc;
@@ -111,7 +111,7 @@
   width: 100%;
   padding: 0.5rem;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 8px;
   background-color: #fff;
   font-family: inherit;
   font-size: 1rem;
@@ -397,7 +397,7 @@
   display: flex;
   flex-direction: column;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 8px;
   overflow: hidden;
 }
 
@@ -419,7 +419,7 @@
 .multi-select-add-btn {
   padding: 0.5rem 0.75rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 0.85rem;
   white-space: nowrap;
@@ -431,7 +431,7 @@
   width: 100%;
   padding: 0.5rem;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 .input-button-row {
@@ -527,7 +527,7 @@
   display: inline-block;
   padding: 0.75rem 1.25rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 500;
   transition: background-color 0.2s ease;
@@ -654,7 +654,7 @@
   gap: 0.75rem;
   padding: 1rem;
   background-color: #f5f5f5;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 .image-gallery h4 {
@@ -678,7 +678,7 @@
 .image-media-frame {
   position: relative;
   width: 100%;
-  border-radius: 4px;
+  border-radius: 8px;
   overflow: hidden;
   background-color: #e0e0e0;
   aspect-ratio: 1 / 1;
@@ -749,7 +749,7 @@
 
 /* Watermark Base Styles */
 .watermark-section {
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 1rem;
   margin-bottom: 0.5rem;
 }
@@ -809,7 +809,7 @@
 .product-linking-section h4 {
   margin: 0;
   font-size: 0.95rem;
-  color: #1f4ea1;
+  color: var(--brand);
 }
 
 .product-linking-section label {
@@ -871,7 +871,7 @@
   padding: 0.75rem 1rem;
   font-size: 0.95rem;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: 8px;
   background-color: #fafafa;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -902,7 +902,7 @@
 .pattern-template-convert-section h4 {
   margin: 0;
   font-size: 0.98rem;
-  color: #1f4ea1;
+  color: var(--brand);
 }
 
 .pattern-template-convert-controls {
@@ -1121,8 +1121,8 @@
 }
 
 .customer-list-tab.active {
-  border-color: #1f4ea1;
-  background: #1f4ea1;
+  border-color: var(--brand);
+  background: var(--brand);
   color: #fff;
 }
 
@@ -1188,7 +1188,7 @@
 
 .discount-code-card {
   border: 1px solid #d8e4f8;
-  border-radius: 11px;
+  border-radius: 12px;
   background: #fff;
   padding: 0.65rem 0.8rem;
   display: flex;

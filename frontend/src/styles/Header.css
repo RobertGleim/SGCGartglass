@@ -161,7 +161,7 @@
 }
 
 .nav-cart-inline:hover {
-  color: #1f4ea1;
+  color: var(--brand);
   border-color: rgba(31, 78, 161, 0.45);
 }
 
@@ -172,7 +172,7 @@
   min-width: 1rem;
   height: 1rem;
   border-radius: 999px;
-  background: #1f4ea1;
+  background: var(--brand);
   color: #fff;
   font-size: 0.62rem;
   line-height: 1;
@@ -192,7 +192,20 @@
 }
 
 .nav-links a:hover {
-  color: #1f4ea1;
+  color: var(--brand);
+}
+
+/* Active page indicator */
+.nav-links a.nav-active {
+  color: var(--brand);
+  font-weight: 700;
+}
+
+@media (min-width: 1024px) {
+  .nav-links a.nav-active {
+    border-bottom: 2px solid var(--brand);
+    padding-bottom: 2px;
+  }
 }
 
 .nav-bargin-basement {
@@ -223,7 +236,8 @@
   opacity: 0.86;
 }
 
-.nav-bargin-basement:hover {
+.nav-bargin-basement:hover,
+.nav-bargin-basement.nav-active {
   color: #000 !important;
 }
 
@@ -326,23 +340,4 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 0;
-    line-height: 1.05;
-  }
-}
-
-@media (max-width: 767px) {
-  .header-origin-text {
-    display: none;
-  }
-
-  .header-origin-badge {
-    padding-left: 0;
-    gap: 0.35rem;
-  }
-
-  .header-origin-flag {
-    width: 36px;
-    min-width: 36px;
-    height: 24px;
-  }
-}
+  

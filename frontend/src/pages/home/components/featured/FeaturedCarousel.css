@@ -105,13 +105,13 @@
   opacity: 0.7;
   transition: opacity 0.3s;
   flex-shrink: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
 }
 
 .featured-carousel .thumbnail.active {
   opacity: 1;
-  border-color: #1f4ea1;
+  border-color: var(--brand);
   box-shadow: 0 2px 8px rgba(31, 78, 161, 0.18);
 }
 

@@ -3,6 +3,7 @@ import FeaturedCarousel from './components/featured/FeaturedCarousel'
 import HeroSection from './components/hero/HeroSection'
 import { fetchRecentReviewsCached } from '../../services/api'
 import './HomePage.css'
+import '../../styles/ReviewCard.css'
 
 const renderStars = (rating) => '★'.repeat(Math.max(0, Math.min(5, Math.round(Number(rating) || 0))))
 
@@ -193,18 +194,18 @@ export default function HomePage({ featuredItems, itemsLoading }) {
             <p style={{ margin: 0 }}>No reviews posted yet.</p>
           </div>
         ) : (
-          <div className="home-review-stage">
+          <div className="review-card-stage">
             {activeReview ? (
               <article
                 key={`${activeReview.id}-${reviewAnimationKey}`}
-                className="home-review-card home-review-card-animated"
+                className="review-card review-card-animated"
               >
                 {activeReviewImageUrl ? (
-                  <div className="home-review-image-shell">
+                  <div className="review-image-shell">
                     <img
                       src={activeReviewImageUrl}
                       alt={activeReview.product_title || activeReview.title || 'Reviewed product'}
-                      className="home-review-image"
+                      className="review-image"
                       loading="lazy"
                       decoding="async"
                       onError={(event) => {
@@ -221,11 +222,11 @@ export default function HomePage({ featuredItems, itemsLoading }) {
                     />
                   </div>
                 ) : null}
-                <div className="home-review-content">
-                  <p className="home-review-rating">{renderStars(activeReview.rating)}</p>
-                  <p className="home-review-title">{activeReview.title || 'Customer review'}</p>
-                  <p className="home-review-body">{activeReviewBody}</p>
-                  <p className="home-review-meta">
+                <div className="review-content">
+                  <p className="review-rating">{renderStars(activeReview.rating)}</p>
+                  <p className="review-title">{activeReview.title || 'Customer review'}</p>
+                  <p className="review-body">{activeReviewBody}</p>
+                  <p className="review-meta">
                     {(activeReview.first_name || '').trim()} {(activeReview.last_name || '').trim()}
                   </p>
                 </div>
@@ -237,3 +238,4 @@ export default function HomePage({ featuredItems, itemsLoading }) {
     </main>
   )
 }
+       

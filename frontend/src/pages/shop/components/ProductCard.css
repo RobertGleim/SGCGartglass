@@ -83,7 +83,7 @@
   right: 0.55rem;
   bottom: 0.55rem;
   z-index: 2;
-  background: #1f4ea1;
+  background: var(--brand);
   color: #ffffff;
   font-size: 0.72rem;
   font-weight: 700;
@@ -159,7 +159,7 @@
 
 .card-featured-badge {
   background: #e6f0ff;
-  color: #1f4ea1;
+  color: var(--brand);
   border: 1px solid #c7dafc;
   border-radius: 999px;
   font-size: 0.75rem;
@@ -252,7 +252,7 @@
 .instant-download-badge {
   background: #f9dfc3;
   color: #9a5a22;
-  border-radius: 4px;
+  border-radius: 999px;
 }
 
 .pattern-available-badge {
@@ -260,6 +260,5 @@
   color: #2f649a;
   border-radius: 999px;
 }
-
 
 

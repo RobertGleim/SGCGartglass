@@ -280,7 +280,7 @@
   width: 30px;
   height: 30px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 8px;
   border: 1px solid #ddd;
 }
 .thumbPlaceholder {
@@ -292,7 +292,7 @@
   justify-content: center;
   font-size: 0.75rem;
   color: #fff;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 .pagination {
   display: flex;

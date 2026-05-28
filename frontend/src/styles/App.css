@@ -138,7 +138,7 @@
 .carousel-thumbnails .thumbnail {
   width: 55px;
   height: 55px;
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -182,7 +182,7 @@
   display: flex;
   flex-direction: column;
   background: #ffffff;
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   transition: all 0.6s ease;
@@ -514,7 +514,7 @@
 }
 
 .text-link {
-  color: #1f4ea1;
+  color: var(--brand);
   font-weight: 600;
 }
 
@@ -569,7 +569,7 @@
 }
 
 .product-details-list strong {
-  color: #1f4ea1;
+  color: var(--brand);
   margin-right: 0.5rem;
 }
 
@@ -636,12 +636,12 @@
 }
 
 .tab:hover {
-  color: #1f4ea1;
+  color: var(--brand);
 }
 
 .tab.active {
-  color: #1f4ea1;
-  border-bottom-color: #1f4ea1;
+  color: var(--brand);
+  border-bottom-color: var(--brand);
 }
 
 .dashboard-content {
@@ -782,7 +782,7 @@
   align-items: center;
   gap: 0.25rem;
   padding: 0.2rem 0.6rem;
-  background: #1f4ea1;
+  background: var(--brand);
   color: white;
   border-radius: 12px;
   font-size: 0.75rem;
@@ -838,8 +838,8 @@
 }
 
 .button-icon.actions-menu-toggle:hover {
-  border-color: #1f4ea1;
-  color: #1f4ea1;
+  border-color: var(--brand);
+  color: var(--brand);
   background: rgba(31, 78, 161, 0.08);
 }
 
@@ -1180,8 +1180,8 @@
 }
 
 .button-icon.edit:hover {
-  border-color: #1f4ea1;
-  color: #1f4ea1;
+  border-color: var(--brand);
+  color: var(--brand);
   background: rgba(31, 78, 161, 0.05);
 }
 
@@ -1191,14 +1191,14 @@
 }
 
 .button-icon.featured-toggle:hover {
-  border-color: #1f4ea1;
-  color: #1f4ea1;
+  border-color: var(--brand);
+  color: var(--brand);
   background: rgba(31, 78, 161, 0.08);
 }
 
 .button-icon.featured-toggle.active {
-  border-color: #1f4ea1;
-  color: #1f4ea1;
+  border-color: var(--brand);
+  color: var(--brand);
   background: rgba(31, 78, 161, 0.14);
 }
 
@@ -1286,7 +1286,7 @@
   gap: 0.4rem !important;
   padding: 0.3rem 0.5rem;
   background: #f8f9fb;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid #d7dbe4;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1294,14 +1294,14 @@
 
 .checkbox-label:hover {
   background: #eef1f7;
-  border-color: #1f4ea1;
+  border-color: var(--brand);
 }
 
 .checkbox-label input[type="checkbox"] {
   width: 14px;
   height: 14px;
   cursor: pointer;
-  accent-color: #1f4ea1;
+  accent-color: var(--brand);
 }
 
 .checkbox-label span {
@@ -1340,16 +1340,16 @@
 .button {
   padding: 0.7rem 1.4rem;
   border-radius: 999px;
-  border: 1px solid #1f4ea1;
+  border: 1px solid var(--brand);
   background: transparent;
-  color: #1f4ea1;
+  color: var(--brand);
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .button.primary {
-  background: #1f4ea1;
+  background: var(--brand);
   color: #ffffff;
   border-color: transparent;
   box-shadow: 0 12px 24px rgba(31, 78, 161, 0.2);
@@ -1507,7 +1507,7 @@
 .modal-content:hover::-webkit-scrollbar-thumb,
 .modal-content:focus-within::-webkit-scrollbar-thumb,
 .modal-content:active::-webkit-scrollbar-thumb {
-  background: #1f4ea1;
+  background: var(--brand);
 }
 
 .modal-header {
@@ -1543,7 +1543,7 @@
 
 .modal-close:hover {
   background: rgba(31, 78, 161, 0.1);
-  color: #1f4ea1;
+  color: var(--brand);
 }
 
 .modal-form {
@@ -1580,7 +1580,7 @@
 .modal-form select:focus,
 .modal-form textarea:focus {
   outline: none;
-  border-color: #1f4ea1;
+  border-color: var(--brand);
   background: #ffffff;
 }
 
@@ -1675,7 +1675,7 @@
   }
 
   .tab.active {
-    border-color: #1f4ea1;
+    border-color: var(--brand);
     background: rgba(31, 78, 161, 0.06);
   }
 
