@@ -681,61 +681,60 @@ export default function ProductPage({ products }) {
               </button>
             </div>
           )}
+
+          <section className="product-page-reviews" aria-label="Recent customer reviews">
+            {recentReviews.length === 0 ? (
+              <p className="product-page-reviews-empty">No reviews yet.</p>
+            ) : (
+              <div className="product-page-review-stage">
+                {activeReview ? (
+                  <article
+                    key={`${activeReview.id}-${reviewAnimationKey}`}
+                    className="product-page-review-card product-page-review-card-animated"
+                  >
+                    {activeReview.product_image_url ? (
+                      <div className="product-page-review-image-shell">
+                        <img
+                          src={activeReview.product_image_url}
+                          alt={activeReview.product_title || activeReview.title || 'Reviewed product'}
+                          className="product-page-review-image"
+                          onLoad={(event) => {
+                            const img = event.currentTarget
+                            if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
+                              img.style.display = 'none'
+                              if (img.parentElement) img.parentElement.style.display = 'none'
+                            }
+                          }}
+                          onError={(event) => {
+                            const fallback = String(activeReview.fallback_product_image_url || '').trim()
+                            const current = String(event.currentTarget.src || '').trim()
+                            if (fallback && current !== fallback) {
+                              event.currentTarget.src = fallback
+                              return
+                            }
+                            event.currentTarget.style.display = 'none'
+                            if (event.currentTarget.parentElement) {
+                              event.currentTarget.parentElement.style.display = 'none'
+                            }
+                          }}
+                        />
+                      </div>
+                    ) : null}
+                    <div className="product-page-review-content">
+                      <p className="product-page-review-rating">{renderStars(activeReview.rating)}</p>
+                      <p className="product-page-review-title">{activeReview.title || 'Customer review'}</p>
+                      <p className="product-page-review-body">{activeReview.body || ''}</p>
+                      <p className="product-page-review-meta">
+                        {(activeReview.first_name || '').trim()} {(activeReview.last_name || '').trim()}
+                      </p>
+                    </div>
+                  </article>
+                ) : null}
+              </div>
+            )}
+          </section>
         </main>
       </div>
-
-      <section className="product-page-reviews" aria-label="Recent customer reviews">
-        
-        {recentReviews.length === 0 ? (
-          <p className="product-page-reviews-empty">No reviews yet.</p>
-        ) : (
-          <div className="product-page-review-stage">
-            {activeReview ? (
-              <article
-                key={`${activeReview.id}-${reviewAnimationKey}`}
-                className="product-page-review-card product-page-review-card-animated"
-              >
-                {activeReview.product_image_url ? (
-                  <div className="product-page-review-image-shell">
-                    <img
-                      src={activeReview.product_image_url}
-                      alt={activeReview.product_title || activeReview.title || 'Reviewed product'}
-                      className="product-page-review-image"
-                      onLoad={(event) => {
-                        const img = event.currentTarget
-                        if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
-                          img.style.display = 'none'
-                          if (img.parentElement) img.parentElement.style.display = 'none'
-                        }
-                      }}
-                      onError={(event) => {
-                        const fallback = String(activeReview.fallback_product_image_url || '').trim()
-                        const current = String(event.currentTarget.src || '').trim()
-                        if (fallback && current !== fallback) {
-                          event.currentTarget.src = fallback
-                          return
-                        }
-                        event.currentTarget.style.display = 'none'
-                        if (event.currentTarget.parentElement) {
-                          event.currentTarget.parentElement.style.display = 'none'
-                        }
-                      }}
-                    />
-                  </div>
-                ) : null}
-                <div className="product-page-review-content">
-                  <p className="product-page-review-rating">{renderStars(activeReview.rating)}</p>
-                  <p className="product-page-review-title">{activeReview.title || 'Customer review'}</p>
-                  <p className="product-page-review-body">{activeReview.body || ''}</p>
-                  <p className="product-page-review-meta">
-                    {(activeReview.first_name || '').trim()} {(activeReview.last_name || '').trim()}
-                  </p>
-                </div>
-              </article>
-            ) : null}
-          </div>
-        )}
-      </section>
 
       {showCustomOrderModal && (
         <div className="shop-form-modal-overlay">
