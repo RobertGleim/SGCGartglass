@@ -110,28 +110,29 @@ jobs:
           HOST="${HOST#ftps://}"
           USERNAME="$HOSTINGER_SSH_USER"
           PORT="$(echo "${HOSTINGER_SSH_PORT:-65002}" | tr -d '[:space:]')"
-          PASSWORD="$HOSTINGER_SSH_PASSWORD"
+          PASSWORD="$(printf '%s' "$HOSTINGER_SSH_PASSWORD" | tr -d '\r')"
 
           run_lftp_key_auth() {
-            lftp -e "
+            lftp -u "$USERNAME" "sftp://$HOST:$PORT" -e "
               set net:timeout 30;
-              set net:max-retries 3;
+              set net:max-retries 1;
               set cmd:fail-exit yes;
+              set cmd:interactive no;
               set sftp:auto-confirm yes;
-              open -u $USERNAME sftp://$HOST:$PORT;
-              mirror --reverse --delete --verbose --parallel=4 dist/ $HOSTINGER_REMOTE_PATH;
+              set sftp:connect-program \"ssh -a -x -i ~/.ssh/id_rsa\";
+              mirror --reverse --delete --verbose --parallel=4 dist/ \"$HOSTINGER_REMOTE_PATH\";
               bye
             "
           }
 
           run_lftp_password_auth() {
-            lftp -e "
+            lftp -u "$USERNAME","$PASSWORD" "sftp://$HOST:$PORT" -e "
               set net:timeout 30;
-              set net:max-retries 3;
+              set net:max-retries 1;
               set cmd:fail-exit yes;
+              set cmd:interactive no;
               set sftp:auto-confirm yes;
-              open -u $USERNAME,$PASSWORD sftp://$HOST:$PORT;
-              mirror --reverse --delete --verbose --parallel=4 dist/ $HOSTINGER_REMOTE_PATH;
+              mirror --reverse --delete --verbose --parallel=4 dist/ \"$HOSTINGER_REMOTE_PATH\";
               bye
             "
           }
@@ -174,9 +175,11 @@ jobs:
             set ftp:ssl-allow yes;
             set ftp:ssl-force no;
             set net:timeout 30;
-            set net:max-retries 3;
-            open -u $FTP_USERNAME,$FTP_PASSWORD $HOST;
-            mirror --reverse --delete --verbose --parallel=4 dist/ $HOSTINGER_REMOTE_PATH;
+            set net:max-retries 1;
+            set cmd:fail-exit yes;
+            set cmd:interactive no;
+            open -u \"$FTP_USERNAME\",\"$FTP_PASSWORD\" \"$HOST\";
+            mirror --reverse --delete --verbose --parallel=4 dist/ \"$HOSTINGER_REMOTE_PATH\";
             bye
           "
 
