@@ -559,9 +559,14 @@ export default function ProductPage({ products }) {
               </button>
             ))}
             <a
-              className="nav-tab"
+              className="nav-tab nav-tab-link nav-tab-designer"
               href="/#/designer"
-              style={{ textDecoration: 'none' }}
+              onMouseEnter={(event) => {
+                event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'end', behavior: 'smooth' })
+              }}
+              onFocus={(event) => {
+                event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'end', behavior: 'smooth' })
+              }}
             >
               Designer
             </a>

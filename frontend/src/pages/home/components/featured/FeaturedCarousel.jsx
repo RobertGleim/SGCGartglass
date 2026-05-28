@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useCarousel from '../../../../hooks/useCarousel'
 import LoadingMessage from '../../../../components/LoadingMessage'
+import { getProductDimensionsLabel } from '../../../../utils/productDimensions'
 import './FeaturedCarousel.css'
 
 const manualCarouselImageCache = new Map()
@@ -363,6 +364,7 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
             const resolvedImageUrl = manualImageFallbacks[itemId] || resolveCarouselImageUrl(item)
             const isImageLoading = !resolvedImageUrl && manualImageFetchState[itemId] === 'loading'
             const showLoadingText = isCenter && isImageLoading
+            const dimensionsLabel = getProductDimensionsLabel(item)
 
             let scale = 1
             let opacity = 1
@@ -415,7 +417,8 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
                     )}
                   </div>
                   <div className="card-body">
-                    <h3>{item.title || 'Untitled piece'}</h3>
+                    <h3 className="card-title">{item.title || 'Untitled piece'}</h3>
+                    {dimensionsLabel && <p className="card-dimensions">{dimensionsLabel}</p>}
                     <p className="card-description">
                       {item.description}
                     </p>

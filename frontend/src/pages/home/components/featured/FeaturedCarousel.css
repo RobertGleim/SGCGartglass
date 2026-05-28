@@ -153,6 +153,13 @@
   font-size: 0;
 }
 
+.featured-carousel .card-dimensions {
+  margin: -0.22rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  color: #7a7f89;
+}
+
 @keyframes featuredImageShimmer {
   0% {
     background-position: 0% 0;

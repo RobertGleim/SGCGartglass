@@ -22,6 +22,7 @@ import {
   updateCustomerReview,
 } from '../../services/api'
 import { findWishlistEntry } from '../../utils/wishlist'
+import { getProductDimensionsLabel } from '../../utils/productDimensions'
 
 const TABS = ['overview', 'orders', 'downloads', 'favorites', 'cart', 'reviews', 'settings', 'work_orders']
 
@@ -461,6 +462,18 @@ export default function CustomerPortal({ manualProducts }) {
     return `Etsy item #${productId}`
   }
 
+  const renderProductDimensions = (item) => {
+    const directLabel = getProductDimensionsLabel(item)
+    if (directLabel) return directLabel
+
+    if (String(item?.product_type || '').toLowerCase() === 'manual') {
+      const manualProduct = manualProductMap.get(String(item?.product_id || ''))
+      return getProductDimensionsLabel(manualProduct)
+    }
+
+    return ''
+  }
+
   const handleViewWishlistItem = (item) => {
     const rawProductId = String(item?.product_id || '').trim()
     if (!rawProductId) {
@@ -590,6 +603,10 @@ export default function CustomerPortal({ manualProducts }) {
                         {orderItems[order.id].map((item) => (
                           <div key={item.id} className="portal-list-item">
                             <strong>{item.title || renderProductLabel(item.product_type, item.product_id)}</strong>
+                            {(() => {
+                              const dimensionsLabel = renderProductDimensions(item)
+                              return dimensionsLabel ? <span className="portal-dimensions">{dimensionsLabel}</span> : null
+                            })()}
                             <span className="portal-muted">Qty: {item.quantity}</span>
                           </div>
                         ))}
@@ -650,6 +667,10 @@ export default function CustomerPortal({ manualProducts }) {
                 {cartItems.map((item) => (
                   <div key={item.id} className="portal-list-item">
                     <strong>{renderProductLabel(item.product_type, item.product_id)}</strong>
+                    {(() => {
+                      const dimensionsLabel = renderProductDimensions(item)
+                      return dimensionsLabel ? <span className="portal-dimensions">{dimensionsLabel}</span> : null
+                    })()}
                     <span className="portal-muted">Quantity: {item.quantity}</span>
                     <div className="portal-actions">
                       <button className="secondary" onClick={() => handleUpdateCartQuantity(item.id, item.quantity + 1)}>

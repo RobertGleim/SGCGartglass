@@ -46,13 +46,27 @@ def _normalize_review_image_fields(rows):
     normalized = []
     for row in rows:
         payload = dict(row)
+        # Check whether a DB blob exists for this review before removing it.
+        has_db_image = bool(payload.get("review_image_data"))
         # Never expose raw review image bytes in JSON API responses.
         payload.pop("review_image_data", None)
         primary_image = payload.get("product_image_url")
         fallback_image = payload.get("fallback_product_image_url")
+        direct_image = payload.get("review_image_url")
 
-        primary_ok = _review_image_url_is_available(primary_image)
-        fallback_ok = _review_image_url_is_available(fallback_image)
+        def _is_available(url):
+            if _review_image_url_is_available(url):
+                return True
+            # /uploads/reviews/ path missing on disk — still available when DB has a blob.
+            raw = str(url or "").strip()
+            parsed_path = urlparse(raw).path if "://" in raw else raw
+            if parsed_path.startswith("/uploads/reviews/") and has_db_image:
+                return True
+            return False
+
+        primary_ok = _is_available(primary_image)
+        fallback_ok = _is_available(fallback_image)
+        direct_ok = _is_available(direct_image)
 
         if not primary_ok and fallback_ok:
             payload["product_image_url"] = fallback_image
@@ -61,6 +75,9 @@ def _normalize_review_image_fields(rows):
 
         if not fallback_ok:
             payload["fallback_product_image_url"] = None
+
+        if not direct_ok:
+            payload["review_image_url"] = None
 
         normalized.append(payload)
 

@@ -129,6 +129,12 @@
   font-size: 0.9rem;
 }
 
+.portal-dimensions {
+  color: #7a7f89;
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
 .portal-actions {
   display: flex;
   gap: 0.5rem;

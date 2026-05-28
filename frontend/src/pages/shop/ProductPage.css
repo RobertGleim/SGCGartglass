@@ -24,9 +24,10 @@
   row-gap: 0.1rem;
   justify-content: center;
   flex-wrap: wrap;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow-x: clip;
+  overflow-y: clip;
   align-content: flex-start;
+  min-width: 0;
 }
 
 .nav-tab {
@@ -42,9 +43,22 @@
   flex-shrink: 0;
 }
 
+.nav-tab-link,
+.nav-tab-link:visited,
+.nav-tab-link:hover,
+.nav-tab-link:focus {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
 .nav-tab:hover {
   color: #222;
-  scale: 1.03;
+}
+
+.nav-tab-link:hover,
+.nav-tab-link:focus {
+  scale: 1;
 }
 
 .nav-tab.active {
@@ -680,6 +694,8 @@
   }
   
   .nav-tabs {
+    flex: 1 1 auto;
+    min-width: 0;
     justify-content: flex-start;
   }
   

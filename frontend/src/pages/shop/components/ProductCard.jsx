@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import './ProductCard.css'
+import { getProductDimensionsLabel } from '../../../utils/productDimensions'
 
 const templateImageCache = new Map()
 const manualCardImageCache = new Map()
@@ -338,6 +339,7 @@ export default function ProductCard({ product }) {
     && !isPatternProduct
     && Boolean(linkedPatternId)
     && (!manualProductId || linkedPatternId !== manualProductId)
+  const dimensionsLabel = getProductDimensionsLabel(product)
   const shouldShowInstantDownload = isDigitalDownload || isPatternProduct
   const linkedTemplateId = String(product?.originalData?.related_links?.template_id || '').trim()
   const imageCandidates = useMemo(() => resolveCardImageCandidates(product), [product])
@@ -457,6 +459,7 @@ export default function ProductCard({ product }) {
         </div>
         <div className="card-body">
           <h3 className="card-title">{product.title || 'Untitled piece'}</h3>
+          {dimensionsLabel && <p className="card-dimensions">{dimensionsLabel}</p>}
           <div className="card-pricing">
             <div className="price-row">
               {hasDiscount ? (

@@ -38,6 +38,7 @@ import TemplateManagement from "./TemplateManagement";
 import GlassTypeManagement from "./GlassTypeManagement";
 import WorkOrderDashboard from "./WorkOrderDashboard";
 import GalleryManagement from "./GalleryManagement";
+import { getProductDimensionsLabel } from "../../utils/productDimensions";
 import "./styles/AdminDashboard.css";
 import "./styles/forms/stainedglass_form.css";
 import "./styles/forms/woodwork_form.css";
@@ -5692,6 +5693,12 @@ export default function AdminDashboard({
                               <span className="inactive-badge">Sold out</span>
                             )}
                           </h4>
+                          {(() => {
+                            const dimensionsLabel = getProductDimensionsLabel(product);
+                            return dimensionsLabel
+                              ? <p className="product-dimensions-hint">{dimensionsLabel}</p>
+                              : null;
+                          })()}
                           <p className="product-meta">
                             {formatListingPriceLabel(product)}
                             {product.is_digital_download ? " · Digital download" : ` · Qty: ${product.quantity}`}
@@ -5963,6 +5970,12 @@ export default function AdminDashboard({
                               <span className="inactive-badge">Sold out</span>
                             )}
                           </h4>
+                          {(() => {
+                            const dimensionsLabel = getProductDimensionsLabel(product);
+                            return dimensionsLabel
+                              ? <p className="product-dimensions-hint">{dimensionsLabel}</p>
+                              : null;
+                          })()}
                           <p className="product-meta">
                             {formatListingPriceLabel(product)}
                             {product.is_digital_download ? " · Digital download" : ` · Qty: ${product.quantity}`}
