@@ -88,8 +88,12 @@ jobs:
 
           is_placeholder_host() {
             local h="$1"
-            case "$h" in
-              ""|"*"|"**"|"***"|"<hidden>"|"redacted"|"REDACTED"|"changeme"|"CHANGE_ME") return 0 ;;
+            local lower
+            lower="$(printf '%s' "$h" | tr '[:upper:]' '[:lower:]')"
+            if [ -z "$h" ]; then return 0; fi
+            if printf '%s' "$h" | grep -Eq '^\*+$'; then return 0; fi
+            case "$lower" in
+              "<hidden>"|"redacted"|"changeme"|"change_me") return 0 ;;
               *) return 1 ;;
             esac
           }
@@ -144,6 +148,21 @@ jobs:
           HOST="${HOST%%/*}"
           HOST="$(printf '%s' "$HOST" | tr -d '\r[:space:]')"
           test -n "$HOST" || (echo "Normalized HOSTINGER_SSH_HOST is empty" && exit 1)
+          is_placeholder_host() {
+            local h="$1"
+            local lower
+            lower="$(printf '%s' "$h" | tr '[:upper:]' '[:lower:]')"
+            if [ -z "$h" ]; then return 0; fi
+            if printf '%s' "$h" | grep -Eq '^\*+$'; then return 0; fi
+            case "$lower" in
+              "<hidden>"|"redacted"|"changeme"|"change_me") return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+          if is_placeholder_host "$HOST"; then
+            echo "HOSTINGER_SSH_HOST appears to be a placeholder value."
+            exit 1
+          fi
           USERNAME="$HOSTINGER_SSH_USER"
           PORT="$(echo "${HOSTINGER_SSH_PORT:-65002}" | tr -d '[:space:]')"
           PASSWORD="$(printf '%s' "$HOSTINGER_SSH_PASSWORD" | tr -d '\r')"
@@ -188,8 +207,10 @@ jobs:
               fi
             fi
 
-            chmod 600 ~/.ssh/id_rsa
             KEY_READY=false
+            if [ -s ~/.ssh/id_rsa ]; then
+              chmod 600 ~/.ssh/id_rsa
+            fi
             if [ -s ~/.ssh/id_rsa ] && ssh-keygen -y -f ~/.ssh/id_rsa >/dev/null 2>&1; then
               eval "$(ssh-agent -s)"
               if ssh-add ~/.ssh/id_rsa >/dev/null 2>&1; then
@@ -238,8 +259,12 @@ jobs:
 
           is_placeholder_host() {
             local h="$1"
-            case "$h" in
-              ""|"*"|"**"|"***"|"<hidden>"|"redacted"|"REDACTED"|"changeme"|"CHANGE_ME") return 0 ;;
+            local lower
+            lower="$(printf '%s' "$h" | tr '[:upper:]' '[:lower:]')"
+            if [ -z "$h" ]; then return 0; fi
+            if printf '%s' "$h" | grep -Eq '^\*+$'; then return 0; fi
+            case "$lower" in
+              "<hidden>"|"redacted"|"changeme"|"change_me") return 0 ;;
               *) return 1 ;;
             esac
           }
