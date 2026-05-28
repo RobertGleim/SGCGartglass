@@ -1,0 +1,79 @@
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pagination-gap, 0.4rem);
+}
+
+.button,
+.ellipsis {
+  min-width: var(--pagination-button-min-width, 2.5rem);
+  height: var(--pagination-button-height, 2.5rem);
+  border-radius: var(--pagination-radius, 999px);
+  font-size: var(--pagination-font-size, 0.92rem);
+  font-weight: var(--pagination-font-weight, 700);
+}
+
+.button {
+  border: 1px solid var(--pagination-border, #5c8fd7);
+  background: var(--pagination-background, #ffffff);
+  color: var(--pagination-color, #1f4ea1);
+  padding: 0 var(--pagination-button-padding-x, 0.82rem);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--pagination-shadow, 0 4px 14px rgba(31, 78, 161, 0.08));
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--pagination-hover-border, #2d66c3);
+  color: var(--pagination-hover-color, #1f4ea1);
+  background: var(--pagination-hover-background, #f4f8ff);
+  box-shadow: var(--pagination-hover-shadow, 0 8px 18px rgba(31, 78, 161, 0.12));
+}
+
+.button:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.button.active {
+  border-color: var(--pagination-active-border, #1f4ea1);
+  background: var(--pagination-active-background, linear-gradient(135deg, #2d5db3 0%, #1f4ea1 100%));
+  color: var(--pagination-active-color, #ffffff);
+  box-shadow: var(--pagination-active-shadow, 0 12px 24px rgba(31, 78, 161, 0.22));
+}
+
+.ellipsis {
+  color: var(--pagination-muted, #5d7191);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.meta {
+  margin-top: 0.45rem;
+  text-align: center;
+  color: var(--pagination-meta-color, #4f607f);
+  font-size: var(--pagination-meta-size, 0.86rem);
+}
+
+@media (max-width: 640px) {
+  .pagination {
+    gap: calc(var(--pagination-gap, 0.4rem) - 0.06rem);
+  }
+
+  .button,
+  .ellipsis {
+    min-width: var(--pagination-button-min-width-mobile, 2.28rem);
+    height: var(--pagination-button-height-mobile, 2.28rem);
+    font-size: var(--pagination-font-size-mobile, 0.88rem);
+  }
+
+  .button {
+    padding: 0 var(--pagination-button-padding-x-mobile, 0.68rem);
+  }
+}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import LoadingMessage from '../../components/LoadingMessage';
+import Pagination from '../../components/Pagination';
 import TemplateFormModal from './components/TemplateFormModal';
 import styles from './TemplateManagement.module.css';
 
@@ -574,11 +575,13 @@ export default function TemplateManagement() {
           </tbody>
         </table>
       )}
-      <div className={styles.pagination}>
-        <button disabled={page === 1} onClick={() => setPage(page - 1)}>Prev</button>
-        <span>Page {page}</span>
-        <button disabled={page * PAGE_SIZE >= filtered.length} onClick={() => setPage(page + 1)}>Next</button>
-      </div>
+      <Pagination
+        currentPage={page}
+        totalPages={Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))}
+        onPageChange={setPage}
+        ariaLabel="Template pages"
+        metaText={`Page ${page} of ${Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))}`}
+      />
       {showModal && (
         <TemplateFormModal
           open={showModal}

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Sidebar from './components/Sidebar';
 import ProductCard from './components/ProductCard';
 import SearchBar from './components/SearchBar';
+import Pagination from '../../components/Pagination';
 import './ProductPage.css';
 import {
   fetchFavoritesSummary,
@@ -663,22 +664,14 @@ export default function ProductPage({ products }) {
             )}
           </div>
           {filtered.length > PRODUCTS_PER_PAGE && (
-            <div className="product-pagination" aria-label="Product pages">
-              <button
-                type="button"
-                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                disabled={safeCurrentPage === 1}
-              >
-                Previous
-              </button>
-              <span>Page {safeCurrentPage} of {totalPages}</span>
-              <button
-                type="button"
-                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                disabled={safeCurrentPage === totalPages}
-              >
-                Next
-              </button>
+            <div className="product-pagination">
+              <Pagination
+                currentPage={safeCurrentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                ariaLabel="Product pages"
+                metaText={`Page ${safeCurrentPage} of ${totalPages}`}
+              />
             </div>
           )}
 

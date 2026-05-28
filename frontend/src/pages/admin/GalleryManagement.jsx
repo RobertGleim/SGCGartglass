@@ -7,6 +7,7 @@ import {
   updateAdminGalleryPhoto,
 } from '../../services/api';
 import LoadingMessage from '../../components/LoadingMessage';
+import Pagination from '../../components/Pagination';
 import styles from './GalleryManagement.module.css';
 
 const ADMIN_DEFAULT_DISPLAY_NAME = 'SGCG Art';
@@ -642,25 +643,12 @@ export default function GalleryManagement() {
         <div className={styles.paginationHeaderRow}>
           <span>Showing most recent {Math.min(ADMIN_GALLERY_PAGE_SIZE, totalItems)} of {totalItems} submissions</span>
           {totalPages > 1 && (
-            <div className={styles.paginationControls}>
-              <button
-                type="button"
-                className={styles.button}
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              >
-                Previous
-              </button>
-              <span>Page {currentPage} of {totalPages}</span>
-              <button
-                type="button"
-                className={styles.button}
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-              >
-                Next
-              </button>
-            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              ariaLabel="Admin gallery pages"
+            />
           )}
         </div>
         {isQuickEditMode && (

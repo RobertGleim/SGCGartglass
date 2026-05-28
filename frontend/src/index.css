@@ -7,6 +7,27 @@
   --scrollbar-thumb: #3498DB;
   --scrollbar-thumb-hover: #1f6fbe;
   --scrollbar-track: rgba(52, 152, 219, 0.18);
+  --pagination-gap: 0.3rem;
+  --pagination-radius: 999px;
+  --pagination-button-height: 2.05rem;
+  --pagination-button-min-width: 2.05rem;
+  --pagination-button-padding-x: 0.56rem;
+  --pagination-font-size: 0.86rem;
+  --pagination-font-weight: 700;
+  --pagination-border: #5c8fd7;
+  --pagination-background: #ffffff;
+  --pagination-color: #1f4ea1;
+  --pagination-hover-border: #2d66c3;
+  --pagination-hover-background: #f4f8ff;
+  --pagination-hover-color: #1f4ea1;
+  --pagination-active-border: #1f4ea1;
+  --pagination-active-background: linear-gradient(135deg, #2d5db3 0%, #1f4ea1 100%);
+  --pagination-active-color: #ffffff;
+  --pagination-meta-color: #4f607f;
+  --pagination-button-height-mobile: 1.92rem;
+  --pagination-button-min-width-mobile: 1.92rem;
+  --pagination-button-padding-x-mobile: 0.46rem;
+  --pagination-font-size-mobile: 0.82rem;
 }
 
 * {

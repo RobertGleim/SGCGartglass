@@ -38,6 +38,7 @@ import TemplateManagement from "./TemplateManagement";
 import GlassTypeManagement from "./GlassTypeManagement";
 import WorkOrderDashboard from "./WorkOrderDashboard";
 import GalleryManagement from "./GalleryManagement";
+import Pagination from "../../components/Pagination";
 import { getProductDimensionsLabel } from "../../utils/productDimensions";
 import "./styles/AdminDashboard.css";
 import "./styles/forms/stainedglass_form.css";
@@ -3986,33 +3987,13 @@ export default function AdminDashboard({
   const renderSectionPagination = (currentPage, totalPages, setPage) => {
     if (totalPages <= 1) return null;
     return (
-      <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", justifyContent: "center", flexWrap: "wrap", marginTop: "0.8rem" }}>
-        <button
-          type="button"
-          className="button"
-          disabled={currentPage <= 1}
-          onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-        >
-          Prev
-        </button>
-        {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
-          <button
-            key={`section-page-${pageNumber}`}
-            type="button"
-            className={`button ${currentPage === pageNumber ? "primary" : ""}`}
-            onClick={() => setPage(pageNumber)}
-          >
-            {pageNumber}
-          </button>
-        ))}
-        <button
-          type="button"
-          className="button"
-          disabled={currentPage >= totalPages}
-          onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-        >
-          Next
-        </button>
+      <div style={{ marginTop: "0.8rem" }}>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          ariaLabel="Section pages"
+        />
       </div>
     );
   };

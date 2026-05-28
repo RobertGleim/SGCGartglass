@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useAuth from '../../hooks/useAuth';
 import useCustomerAuth from '../../hooks/useCustomerAuth';
+import Pagination from '../../components/Pagination';
 import {
   fetchCustomerProfile,
   fetchManualProductsCached,
@@ -677,25 +678,13 @@ export default function PhotoGalleryPage() {
 
       {!loading && !error && !selectedPhotoId && totalPages > 1 && (
         <div className={styles.paginationWrap}>
-          <button
-            type="button"
-            className={styles.resetBtn}
-            disabled={currentPage <= 1}
-            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-          >
-            Previous
-          </button>
-          <span className={styles.paginationLabel}>
-            Page {currentPage} of {totalPages} · {totalItems} cards
-          </span>
-          <button
-            type="button"
-            className={styles.resetBtn}
-            disabled={currentPage >= totalPages}
-            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-          >
-            Next
-          </button>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            ariaLabel="Gallery pages"
+            metaText={`Page ${currentPage} of ${totalPages} · ${totalItems} cards`}
+          />
         </div>
       )}
 

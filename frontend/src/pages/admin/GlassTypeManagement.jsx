@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import LoadingMessage from '../../components/LoadingMessage';
 import GlassTypeFormModal from './components/GlassTypeFormModal';
+import Pagination from '../../components/Pagination';
 import styles from './GlassTypeManagement.module.css';
 
 const PAGE_SIZE = 10;
@@ -162,20 +163,12 @@ export default function GlassTypeManagement() {
           </table>
 
           {totalPages > 1 && (
-            <div className={styles.pagination}>
-              <button type="button" onClick={() => setPage((prev) => Math.max(1, prev - 1))} disabled={currentPage <= 1}>Prev</button>
-              {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
-                <button
-                  key={`glass-type-page-${pageNumber}`}
-                  type="button"
-                  onClick={() => setPage(pageNumber)}
-                  className={currentPage === pageNumber ? styles.activePage : ''}
-                >
-                  {pageNumber}
-                </button>
-              ))}
-              <button type="button" onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))} disabled={currentPage >= totalPages}>Next</button>
-            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              ariaLabel="Glass type pages"
+            />
           )}
         </>
       )}
