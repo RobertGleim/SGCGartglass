@@ -11,6 +11,8 @@ from urllib.error import URLError, HTTPError
 from urllib.parse import urlparse
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 from werkzeug.middleware.proxy_fix import ProxyFix
 try:
@@ -25,6 +27,13 @@ except Exception:  # pragma: no cover
 
 from .config import get_config
 from .models import db
+
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per minute", "2000 per hour"],
+    storage_uri="memory://",
+)
 
 
 def _get_allowed_origins(configured_origins):
@@ -111,6 +120,7 @@ def create_app(config_name=None):
 
     # SQLAlchemy
     db.init_app(app)
+    limiter.init_app(app)
 
     @app.after_request
     def set_security_headers(response):
@@ -135,6 +145,13 @@ def create_app(config_name=None):
             "error": "file_too_large",
             "detail": "Upload is too large. Please reduce the number of photos/videos or upload smaller files.",
         }), 413
+
+    @app.errorhandler(429)
+    def handle_rate_limit_exceeded(_error):
+        return jsonify({
+            "error": "rate_limit_exceeded",
+            "detail": "Too many requests. Try again later.",
+        }), 429
 
     @app.errorhandler(HTTPException)
     def handle_http_exception(error):
@@ -513,6 +530,7 @@ def create_app(config_name=None):
                     "price_amount": "DOUBLE PRECISION",
                     "price_currency": "VARCHAR(10) DEFAULT 'USD'",
                     "is_digital_download": "BOOLEAN DEFAULT FALSE",
+                    "is_free": "BOOLEAN DEFAULT FALSE",
                 }
                 for col, col_type in additions.items():
                     if col not in existing:

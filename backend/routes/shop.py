@@ -16,17 +16,18 @@ import time
 import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
-from io import BytesIO
-from urllib.parse import quote, urlencode, unquote_to_bytes
+from urllib.parse import quote, urlencode
 from urllib import request as urllib_request
 from urllib.error import HTTPError, URLError
 
-from flask import Blueprint, jsonify, request, g, current_app, send_file
+from flask import Blueprint, jsonify, request, g, current_app
 from sqlalchemy import func
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 from ..auth import create_token, require_auth, require_customer
+from ..app import limiter
+from ..services.download_service import build_pattern_download_response
 from ..services.pattern_render_service import render_numbered_pattern_raster
 from ..db import (
     fetch_item,
@@ -1359,130 +1360,6 @@ def _resolve_pattern_download_url(download_token):
     return f"{api_url}/pattern-downloads/{quote(download_token)}"
 
 
-def _resolve_pattern_image_bytes(record):
-    image_data = record.get("image_data")
-    if image_data:
-        if isinstance(image_data, memoryview):
-            image_data = image_data.tobytes()
-        return image_data
-
-    image_url = str(record.get("image_url") or "").strip()
-    if not image_url:
-        return None
-
-    if image_url.startswith("data:"):
-        try:
-            header, encoded = image_url.split(",", 1)
-            if ";base64" in header:
-                return base64.b64decode(encoded)
-            return unquote_to_bytes(encoded)
-        except Exception:
-            current_app.logger.exception("failed to decode data-url pattern image for token %s", record.get("download_token") or "runtime")
-            return None
-
-    if image_url.startswith("/uploads/"):
-        relative_path = image_url.lstrip("/").replace("/", os.sep)
-        file_path = os.path.join(current_app.root_path, relative_path)
-        if os.path.isfile(file_path):
-            try:
-                with open(file_path, "rb") as handle:
-                    return handle.read()
-            except OSError:
-                current_app.logger.exception("failed to read pattern image file %s", file_path)
-    return None
-
-
-def _build_pattern_download_response(record, download_token=None):
-    if not record:
-        return jsonify({"error": "download_unavailable"}), 404
-
-    safe_base = secure_filename(str(record.get("pattern_name") or "sgcg-pattern").strip()) or "sgcg-pattern"
-
-    svg_content = record.get("svg_content")
-    if svg_content:
-        return send_file(
-            BytesIO(svg_content.encode("utf-8")),
-            mimetype="image/svg+xml",
-            as_attachment=True,
-            download_name=f"{safe_base}.svg",
-        )
-
-    if str(record.get("template_type") or "").strip().lower() == "image":
-        numbered_bytes = render_numbered_pattern_raster(_resolve_pattern_image_bytes({**record, "download_token": download_token}))
-        if numbered_bytes:
-            return send_file(
-                BytesIO(numbered_bytes),
-                mimetype="image/png",
-                as_attachment=True,
-                download_name=f"{safe_base}.png",
-            )
-
-    image_data = record.get("image_data")
-    if image_data:
-        if isinstance(image_data, memoryview):
-            image_data = image_data.tobytes()
-        mime_type = record.get("image_mime") or "application/octet-stream"
-        extension = mimetypes.guess_extension(mime_type) or ".bin"
-        if extension == ".jpe":
-            extension = ".jpg"
-        return send_file(
-            BytesIO(image_data),
-            mimetype=mime_type,
-            as_attachment=True,
-            download_name=f"{safe_base}{extension}",
-        )
-
-    image_url = str(record.get("image_url") or "").strip()
-    if image_url.startswith("data:"):
-        try:
-            header, encoded = image_url.split(",", 1)
-            mime_type = header[5:].split(";", 1)[0] or "application/octet-stream"
-            if ";base64" in header:
-                raw_bytes = base64.b64decode(encoded)
-            else:
-                raw_bytes = unquote_to_bytes(encoded)
-            extension = mimetypes.guess_extension(mime_type) or ".bin"
-            if extension == ".jpe":
-                extension = ".jpg"
-            return send_file(
-                BytesIO(raw_bytes),
-                mimetype=mime_type,
-                as_attachment=True,
-                download_name=f"{safe_base}{extension}",
-            )
-        except Exception:
-            current_app.logger.exception("failed to decode data-url pattern download for token %s", download_token or "admin")
-
-    if image_url.startswith("/uploads/templates/"):
-        file_name = image_url.rsplit("/", 1)[-1]
-        uploads_dir = os.path.join(current_app.root_path, "uploads", "templates")
-        file_path = os.path.join(uploads_dir, file_name)
-        if os.path.isfile(file_path):
-            mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
-            extension = os.path.splitext(file_path)[1] or ".bin"
-            return send_file(
-                file_path,
-                mimetype=mime_type,
-                as_attachment=True,
-                download_name=f"{safe_base}{extension}",
-            )
-
-    if image_url.startswith("/uploads/"):
-        relative_path = image_url.lstrip("/").replace("/", os.sep)
-        file_path = os.path.join(current_app.root_path, relative_path)
-        if os.path.isfile(file_path):
-            mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
-            extension = os.path.splitext(file_path)[1] or ".bin"
-            return send_file(
-                file_path,
-                mimetype=mime_type,
-                as_attachment=True,
-                download_name=f"{safe_base}{extension}",
-            )
-
-    return jsonify({"error": "download_unavailable"}), 404
-
-
 def _send_customer_pattern_download_email(customer_email, customer_name, downloads):
     if not customer_email or not downloads:
         return False
@@ -1927,6 +1804,7 @@ def admin_delete_customer(customer_id):
 
 
 @api.post("/auth/login")
+@limiter.limit("10 per minute")
 def login():
     payload = request.get_json(silent=True) or {}
     email = payload.get("email", "").strip().lower()
@@ -1978,6 +1856,7 @@ def customer_signup():
 
 
 @api.post("/customer/login")
+@limiter.limit("10 per minute")
 def customer_login():
     init_db()
     payload = request.get_json(silent=True) or {}
@@ -2422,6 +2301,7 @@ def guest_checkout_preview():
 
 
 @api.post("/customer/checkout/session")
+@limiter.limit("20 per hour")
 @require_customer
 def customer_checkout_session():
     """Create a Stripe Checkout Session (hosted payment page) and return the redirect URL."""
@@ -2556,6 +2436,7 @@ def customer_checkout_session():
 
 
 @api.post("/checkout/session")
+@limiter.limit("20 per hour")
 def guest_checkout_session():
     """Create a Stripe Checkout session for guests (no sign-in required)."""
     init_db()
@@ -3030,13 +2911,14 @@ def customer_pattern_downloads():
 
 
 @api.get("/pattern-downloads/<download_token>")
+@limiter.limit("30 per hour")
 def download_pattern_asset(download_token):
     init_db()
     record = get_customer_pattern_download_by_token(download_token)
     if not record:
         return jsonify({"error": "not_found"}), 404
 
-    return _build_pattern_download_response(record, download_token=download_token)
+    return build_pattern_download_response(record, download_token=download_token)
 
 
 @api.get("/admin/manual-products/<int:product_id>/pattern-download")
@@ -3063,7 +2945,7 @@ def admin_download_manual_product_pattern(product_id):
             "manual_product_id": product_id,
             "image_url": first_image.get("image_url") or first_image.get("url") or "",
         }
-    return _build_pattern_download_response(record, download_token=f"admin:{product_id}")
+    return build_pattern_download_response(record, download_token=f"admin:{product_id}")
 
 
 @api.get("/customer/orders/<int:order_id>/items")

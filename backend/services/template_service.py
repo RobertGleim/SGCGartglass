@@ -256,6 +256,17 @@ def validate_template_data(data: Any) -> tuple[bool, dict[str, Any], str]:
     else:
         is_digital_download = False
 
+    is_free = payload.get("is_free")
+    if is_free is not None:
+        if isinstance(is_free, bool):
+            pass
+        elif isinstance(is_free, str):
+            is_free = is_free.strip().lower() in ("1", "true", "yes", "on")
+        else:
+            is_free = bool(is_free)
+    else:
+        is_free = False
+
     price_amount = payload.get("price_amount")
     if price_amount in (None, ""):
         price_amount = None
@@ -327,6 +338,7 @@ def validate_template_data(data: Any) -> tuple[bool, dict[str, Any], str]:
         "price_amount": price_amount,
         "price_currency": price_currency,
         "is_digital_download": is_digital_download,
+        "is_free": is_free,
     }
     if svg_content is not None:
         normalized["svg_content"] = svg_content

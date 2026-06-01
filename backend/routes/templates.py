@@ -7,13 +7,17 @@ from sqlalchemy import func
 from werkzeug.utils import secure_filename
 
 from ..models import db, GalleryPhoto, Template, TemplateRegion
-from ..auth import decode_token
+from ..auth import decode_token, require_customer
+from ..app import limiter
 from ..db import (
     create_manual_product,
     fetch_manual_product,
     fetch_manual_products,
+    get_customer_pattern_download_by_token,
+    upsert_customer_pattern_download,
     update_manual_product,
 )
+from ..services.download_service import build_pattern_download_response
 from ..services.template_service import (
     validate_template_data,
     parse_svg_regions,
@@ -103,6 +107,14 @@ def _to_int(value):
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def _free_download_rate_limit_key():
+    auth_payload = _get_request_auth_payload() or {}
+    customer_id = _to_int(auth_payload.get("customer_id"))
+    if customer_id:
+        return f"customer:{customer_id}"
+    return request.remote_addr or "anonymous"
 
 
 def _normalize_pattern_related_links(value):
@@ -282,6 +294,47 @@ def get_template(template_id):
         return jsonify({"error": "server_error", "detail": str(e)}), 500
 
 
+@templates_bp.get("/templates/<int:template_id>/free-download")
+@limiter.limit("10 per hour", key_func=_free_download_rate_limit_key)
+@require_customer
+def download_free_template(template_id):
+    try:
+        auth_payload = _get_request_auth_payload() or {}
+        customer_id = _to_int(auth_payload.get("customer_id"))
+        if not customer_id:
+            return jsonify({"error": "forbidden"}), 403
+
+        template = Template.query.filter(
+            Template.id == template_id,
+            Template.is_active.is_(True),
+        ).first()
+        if not template:
+            return jsonify({"error": "not_found", "detail": "Template not found"}), 404
+        if not bool(template.is_free):
+            return jsonify({"error": "forbidden", "detail": "This template is not available as a free download."}), 403
+
+        customer_email = str(
+            auth_payload.get("email")
+            or auth_payload.get("sub")
+            or ""
+        ).strip() or None
+
+        grant = upsert_customer_pattern_download(
+            customer_id,
+            "template",
+            template_id,
+            order_id=None,
+            customer_email=customer_email,
+        )
+        record = get_customer_pattern_download_by_token(grant.get("download_token"))
+        if not record:
+            return jsonify({"error": "download_unavailable"}), 404
+
+        return build_pattern_download_response(record, download_token=grant.get("download_token"))
+    except Exception as e:
+        return jsonify({"error": "server_error", "detail": str(e)}), 500
+
+
 @admin_templates_bp.get("/templates")
 @_require_admin
 def admin_list_templates():
@@ -438,6 +491,7 @@ def create_template():
             price_amount=data.get("price_amount"),
             price_currency=data.get("price_currency") or "USD",
             is_digital_download=bool(data.get("is_digital_download")),
+            is_free=bool(data.get("is_free")),
             is_active=data.get("is_active", True),
         )
         db.session.add(template)
@@ -496,6 +550,7 @@ def update_template(template_id):
             "price_amount": template.price_amount,
             "price_currency": template.price_currency,
             "is_digital_download": template.is_digital_download,
+            "is_free": template.is_free,
             "is_active": template.is_active,
         }
         # Only include existing svg_content if it's non-empty (skip for image templates)
@@ -525,6 +580,7 @@ def update_template(template_id):
         template.price_amount = data.get("price_amount")
         template.price_currency = data.get("price_currency") or "USD"
         template.is_digital_download = bool(data.get("is_digital_download"))
+        template.is_free = bool(data.get("is_free"))
         template.is_active = data.get("is_active", True)
 
         # Update image_url if provided

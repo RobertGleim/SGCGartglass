@@ -5,6 +5,7 @@ import useCustomerAuth from '../../hooks/useCustomerAuth'
 import {
   addCustomerCartItem,
   addCustomerFavorite,
+  downloadFreeTemplatePattern,
   fetchCustomerFavorites,
   fetchManualProduct,
   fetchProductReviews,
@@ -257,8 +258,10 @@ export default function ProductDetail({ product, products = [] }) {
   const [wishlistStatus, setWishlistStatus] = useState('')
   const [manualProductDetails, setManualProductDetails] = useState(null)
   const [linkedTemplatePreviewUrl, setLinkedTemplatePreviewUrl] = useState('')
+  const [linkedTemplateDetails, setLinkedTemplateDetails] = useState(null)
   const [favorites, setFavorites] = useState([])
   const [productReviews, setProductReviews] = useState([])
+  const [freeDownloadStatus, setFreeDownloadStatus] = useState('')
   const { customerToken } = useCustomerAuth()
 
   useEffect(() => {
@@ -299,6 +302,7 @@ export default function ProductDetail({ product, products = [] }) {
   useEffect(() => {
     let isActive = true
     setLinkedTemplatePreviewUrl('')
+    setLinkedTemplateDetails(null)
 
     if (!product?.isManual) {
       return () => {
@@ -369,6 +373,7 @@ export default function ProductDetail({ product, products = [] }) {
     getTemplate(linkedTemplateId)
       .then((payload) => {
         if (!isActive) return
+        setLinkedTemplateDetails(payload || null)
         const resolved = resolveImageUrl(payload?.thumbnail_url || payload?.image_url || '')
         setLinkedTemplatePreviewUrl(resolved || '')
         if (resolved) {
@@ -376,7 +381,10 @@ export default function ProductDetail({ product, products = [] }) {
         }
       })
       .catch(() => {
-        if (isActive) setLinkedTemplatePreviewUrl('')
+        if (isActive) {
+          setLinkedTemplatePreviewUrl('')
+          setLinkedTemplateDetails(null)
+        }
       })
 
     return () => {
@@ -707,8 +715,58 @@ export default function ProductDetail({ product, products = [] }) {
     }
   }
 
+  const handleDownloadFreePattern = async () => {
+    setFreeDownloadStatus('')
+
+    if (!linkedTemplateId) {
+      setFreeDownloadStatus('No linked template was found for this product.')
+      return
+    }
+
+    if (!customerToken) {
+      setFreeDownloadStatus('Sign in to download free patterns.')
+      window.location.hash = '#/account/login'
+      return
+    }
+
+    try {
+      const blobPayload = await downloadFreeTemplatePattern(linkedTemplateId)
+      const blob = blobPayload instanceof Blob ? blobPayload : new Blob([blobPayload])
+      const mime = String(blob.type || '').toLowerCase()
+      const extension = mime.includes('svg')
+        ? '.svg'
+        : mime.includes('png')
+          ? '.png'
+          : mime.includes('jpeg') || mime.includes('jpg')
+            ? '.jpg'
+            : '.bin'
+
+      const safeName = String(linkedTemplateDetails?.name || `template-${linkedTemplateId}`)
+        .trim()
+        .replace(/[^a-zA-Z0-9-_]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+      const fileName = `${safeName || `template-${linkedTemplateId}`}${extension}`
+
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(downloadUrl)
+
+      setFreeDownloadStatus('Free pattern download started.')
+    } catch (error) {
+      const detail = error?.response?.data?.detail || error?.response?.data?.error || error?.message || 'Download failed.'
+      setFreeDownloadStatus(String(detail))
+    }
+  }
+
   const isDigitalDownload = Boolean(product.is_digital_download)
   const isDigitalPatternListing = isDigitalDownload && isPatternProductEntry(manualProductDetails || product?.originalData || product)
+  const canDownloadFreeTemplate = Boolean(linkedTemplateId) && Boolean(linkedTemplateDetails?.is_free)
   const primaryPriceLabel = isDigitalDownload ? 'Digital Price' : 'Price'
   const availableQuantity = Number(manualProductDetails?.quantity ?? product.originalData?.quantity)
   const hasManualQuantity = Boolean(product.isManual) && Number.isFinite(availableQuantity)
@@ -997,6 +1055,11 @@ export default function ProductDetail({ product, products = [] }) {
             <button className="add-to-cart-btn" onClick={handleAddToCart} disabled={isSoldOut}>
               {isSoldOut ? 'Sold out' : isDigitalDownload ? 'Buy digital download' : 'Add to cart'}
             </button>
+            {canDownloadFreeTemplate && (
+              <button className="add-to-cart-btn" onClick={handleDownloadFreePattern}>
+                Download free pattern
+              </button>
+            )}
             <button className="wishlist-btn" onClick={handleAddToWishlist}>
               {isWishlisted ? 'In wishlist' : 'Add to wishlist'}
             </button>
@@ -1012,6 +1075,7 @@ export default function ProductDetail({ product, products = [] }) {
           </div>
           {cartStatus && <p className="currency-note">{cartStatus}</p>}
           {wishlistStatus && <p className="currency-note">{wishlistStatus}</p>}
+          {freeDownloadStatus && <p className="currency-note">{freeDownloadStatus}</p>}
 
           {/* Shop Policies */}
           <div className="shop-policies">

@@ -779,6 +779,7 @@ def init_db(force=False):
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1")
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS is_digital_download INTEGER DEFAULT 0")
         cursor.execute("ALTER TABLE manual_products ADD COLUMN IF NOT EXISTS is_home_featured INTEGER DEFAULT 0")
+        cursor.execute("ALTER TABLE templates ADD COLUMN IF NOT EXISTS is_free BOOLEAN DEFAULT FALSE")
         cursor.execute(
             """
             UPDATE manual_products

@@ -190,6 +190,7 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
     template_type: template?.template_type || 'svg',
     piece_count: template?.piece_count ?? 0,
     is_digital_download: Boolean(template?.is_digital_download),
+    is_free: Boolean(template?.is_free),
     price_amount: template?.price_amount ?? '',
     related_links: normalizeRelatedLinksForForm(template?.related_links),
   });
@@ -247,6 +248,7 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
       template_type: template?.template_type || 'svg',
       piece_count: template?.piece_count ?? 0,
       is_digital_download: Boolean(template?.is_digital_download),
+      is_free: Boolean(template?.is_free),
       price_amount: template?.price_amount ?? '',
       related_links: normalizeRelatedLinksForForm(template?.related_links),
     });
@@ -467,6 +469,7 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
         is_active: true,
         template_type: form.template_type,
         is_digital_download: Boolean(form.is_digital_download),
+        is_free: Boolean(form.is_free),
         price_amount: form.is_digital_download ? Number(form.price_amount) : null,
         price_currency: 'USD',
         related_links: buildRelatedLinksPayload(form.related_links),
@@ -554,6 +557,15 @@ export default function TemplateFormModal({ open, onClose, template, onSuccess, 
               onChange={e => handleChange('is_digital_download', e.target.checked)}
             />
             <span className={styles.checkboxText}>Sell as digital pattern download</span>
+          </label>
+          <label className={styles.checkboxField}>
+            <input
+              className={styles.checkboxInput}
+              type="checkbox"
+              checked={Boolean(form.is_free)}
+              onChange={e => handleChange('is_free', e.target.checked)}
+            />
+            <span className={styles.checkboxText}>Allow free customer download</span>
           </label>
           {form.is_digital_download && (
             <label className={styles.field}>

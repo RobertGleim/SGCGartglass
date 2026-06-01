@@ -477,6 +477,8 @@ api.interceptors.response.use(
 
 export const getTemplates = (filters) => api.get('/templates', { params: filters });
 export const getTemplate = (id) => api.get(`/templates/${id}`);
+export const downloadFreeTemplatePattern = (id) =>
+  api.get(`/templates/${id}/free-download`, { responseType: 'blob' });
 export const getTemplatesCached = (filters = {}, options = {}) =>
   fetchWithPublicCache({
     path: '/templates',
