@@ -103,8 +103,8 @@ const CUSTOMER_LIST_TABS = [
 const MANUAL_PRODUCT_LIST_TABS = [
   { key: "all", label: "All Products" },
   { key: "manual", label: "Manual Products" },
-  { key: "featured", label: "Featured Products" },
-  { key: "home-carousel", label: "Home Carousel Products" },
+  { key: "featured", label: "★ Featured Products" },
+  { key: "home-carousel", label: "🏠 Home Carousel Products" },
 ];
 
 const deriveCustomerCategory = (customer) => {
