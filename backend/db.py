@@ -1509,6 +1509,56 @@ def count_home_featured_manual_products(exclude_product_id=None):
     return int(row_payload.get("total") or 0)
 
 
+def demote_oldest_home_featured_manual_product(exclude_product_id=None):
+    conn = get_db()
+    cursor = conn.cursor()
+    is_mysql = _use_mysql()
+    placeholder = "%s" if is_mysql else "?"
+    now = datetime.utcnow().isoformat()
+
+    base_query = (
+        "SELECT id FROM manual_products "
+        "WHERE is_home_featured = 1"
+    )
+    params = []
+
+    if exclude_product_id is not None:
+        base_query += f" AND id != {placeholder}"
+        params.append(exclude_product_id)
+
+    base_query += (
+        " ORDER BY "
+        "CASE WHEN created_at IS NULL OR created_at = '' THEN 1 ELSE 0 END, "
+        "created_at ASC, "
+        "id ASC "
+        "LIMIT 1"
+    )
+
+    cursor.execute(base_query, tuple(params))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return None
+
+    oldest_id = int(dict(row).get("id") or 0)
+    if oldest_id <= 0:
+        conn.close()
+        return None
+
+    cursor.execute(
+        f"""
+        UPDATE manual_products
+        SET is_home_featured = 0,
+            updated_at = {placeholder}
+        WHERE id = {placeholder}
+        """,
+        (now, oldest_id),
+    )
+    conn.commit()
+    conn.close()
+    return oldest_id if cursor.rowcount else None
+
+
 def delete_manual_product(product_id):
     conn = get_db()
     cursor = conn.cursor()

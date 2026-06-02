@@ -100,6 +100,13 @@ const CUSTOMER_LIST_TABS = [
   { key: "admin-testimonial", label: "Admin Testimonials" },
 ];
 
+const MANUAL_PRODUCT_LIST_TABS = [
+  { key: "all", label: "All Products" },
+  { key: "manual", label: "Manual Products" },
+  { key: "featured", label: "Featured Products" },
+  { key: "home-carousel", label: "Home Carousel Products" },
+];
+
 const deriveCustomerCategory = (customer) => {
   const apiCategory = String(customer?.customer_category || "").trim().toLowerCase();
   if (apiCategory) return apiCategory;
@@ -940,26 +947,33 @@ const normalizeManualProductRecord = (value) => {
   };
 };
 
-const sortManualProductsFeaturedFirst = (products) => {
-  const asFeaturedFlag = (product) =>
-    product?.is_featured === 1 || product?.is_featured === true;
+const sortManualProductsNewestFirst = (products) => {
+  const parseDateValue = (value) => {
+    if (!value) return 0;
+    const parsed = Date.parse(String(value));
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const getRecencyValue = (product) => {
+    const byDate = Math.max(
+      parseDateValue(product?.created_at),
+      parseDateValue(product?.createdAt),
+      parseDateValue(product?.uploaded_at),
+      parseDateValue(product?.upload_date),
+      parseDateValue(product?.updated_at),
+      parseDateValue(product?.updatedAt),
+    );
+    if (byDate > 0) return byDate;
+    return Number(product?.id || 0);
+  };
 
   return [...products].sort((left, right) => {
-    const leftFeatured = asFeaturedFlag(left);
-    const rightFeatured = asFeaturedFlag(right);
-    if (leftFeatured !== rightFeatured) {
-      return leftFeatured ? -1 : 1;
+    const recencyDiff = getRecencyValue(right) - getRecencyValue(left);
+    if (recencyDiff !== 0) {
+      return recencyDiff;
     }
 
-    const byName = String(left?.name || "").localeCompare(String(right?.name || ""), undefined, {
-      sensitivity: "base",
-      numeric: true,
-    });
-    if (byName !== 0) {
-      return byName;
-    }
-
-    return Number(left?.id || 0) - Number(right?.id || 0);
+    return Number(right?.id || 0) - Number(left?.id || 0);
   });
 };
 
@@ -1668,6 +1682,7 @@ export default function AdminDashboard({
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [manualProductSearch, setManualProductSearch] = useState("");
   const [deactivatedProductSearch, setDeactivatedProductSearch] = useState("");
+  const [manualProductsListTab, setManualProductsListTab] = useState("all");
   const [manualProductTypeFilter, setManualProductTypeFilter] = useState("all");
   const [openProductActionMenuId, setOpenProductActionMenuId] = useState("");
   const [patternToTemplateSelection, setPatternToTemplateSelection] = useState("");
@@ -1962,6 +1977,19 @@ export default function AdminDashboard({
   }, [normalizedManualProducts, editingProduct, inferManualProductTab]);
 
   const filteredManualProducts = useMemo(() => {
+    const isFeaturedProduct = (product) => product?.is_featured === 1 || product?.is_featured === true;
+    const isHomeCarouselProduct = (product) =>
+      product?.is_home_featured === 1 || product?.is_home_featured === true;
+
+    const matchesManualProductsListTab = (product) => {
+      if (manualProductsListTab === "featured") return isFeaturedProduct(product);
+      if (manualProductsListTab === "home-carousel") return isHomeCarouselProduct(product);
+      if (manualProductsListTab === "manual") {
+        return !isFeaturedProduct(product) && !isHomeCarouselProduct(product);
+      }
+      return true;
+    };
+
     const activeManualProducts = normalizedManualProducts.filter((product) => product.is_active);
     const searchLower = manualProductSearch.toLowerCase();
     const matchedProducts = activeManualProducts.filter((product) => {
@@ -1975,6 +2003,8 @@ export default function AdminDashboard({
         || inferManualProductTab(product) === manualProductTypeFilter;
 
       return (
+        matchesManualProductsListTab(product)
+        &&
         matchesType
         && (
           name.includes(searchLower)
@@ -1984,8 +2014,14 @@ export default function AdminDashboard({
         )
       );
     });
-    return sortManualProductsFeaturedFirst(matchedProducts);
-  }, [normalizedManualProducts, manualProductSearch, manualProductTypeFilter, inferManualProductTab]);
+    return sortManualProductsNewestFirst(matchedProducts);
+  }, [
+    normalizedManualProducts,
+    manualProductSearch,
+    manualProductsListTab,
+    manualProductTypeFilter,
+    inferManualProductTab,
+  ]);
 
   const filteredDeactivatedProducts = useMemo(() => {
     const deactivatedManualProducts = normalizedManualProducts.filter((product) => !product.is_active);
@@ -2010,8 +2046,38 @@ export default function AdminDashboard({
         )
       );
     });
-    return sortManualProductsFeaturedFirst(matchedProducts);
+    return sortManualProductsNewestFirst(matchedProducts);
   }, [normalizedManualProducts, deactivatedProductSearch, manualProductTypeFilter, inferManualProductTab]);
+
+  const activeManualProducts = useMemo(
+    () => normalizedManualProducts.filter((product) => product.is_active),
+    [normalizedManualProducts],
+  );
+
+  const manualProductListTabCounts = useMemo(() => {
+    const isFeaturedProduct = (product) => product?.is_featured === 1 || product?.is_featured === true;
+    const isHomeCarouselProduct = (product) =>
+      product?.is_home_featured === 1 || product?.is_home_featured === true;
+
+    const counts = {
+      all: activeManualProducts.length,
+      manual: 0,
+      featured: 0,
+      "home-carousel": 0,
+    };
+
+    activeManualProducts.forEach((product) => {
+      if (isFeaturedProduct(product)) counts.featured += 1;
+      if (isHomeCarouselProduct(product)) counts["home-carousel"] += 1;
+      if (!isFeaturedProduct(product) && !isHomeCarouselProduct(product)) counts.manual += 1;
+    });
+
+    return counts;
+  }, [activeManualProducts]);
+
+  const activeManualProductsCount = activeManualProducts.length;
+  const activeManualProductsTabLabel =
+    MANUAL_PRODUCT_LIST_TABS.find((entry) => entry.key === manualProductsListTab)?.label || "All Products";
 
   const filteredPatternProducts = useMemo(
     () => filteredManualProducts.filter((product) => inferManualProductTab(product) === "patterns"),
@@ -3743,11 +3809,6 @@ export default function AdminDashboard({
     const isCurrentlyHomeFeatured = product?.is_home_featured === 1 || product?.is_home_featured === true;
     const nextHomeFeatured = !isCurrentlyHomeFeatured;
 
-    if (nextHomeFeatured && homeFeaturedProductsCount >= MAX_HOME_FEATURED_PRODUCTS) {
-      setManualProductErrorStatus("Home page carousel limit met (20). Remove a home page feature before adding more.");
-      return;
-    }
-
     setActiveProductHomeFeaturedId(productId);
     try {
       setStatus(nextHomeFeatured ? "Adding product to home carousel..." : "Removing product from home carousel...");
@@ -3908,7 +3969,7 @@ export default function AdminDashboard({
 
   useEffect(() => {
     setManualProductsPage(1);
-  }, [manualProductSearch, manualProductTypeFilter]);
+  }, [manualProductSearch, manualProductsListTab, manualProductTypeFilter]);
 
   useEffect(() => {
     setDeactivatedProductsPage(1);
@@ -5576,7 +5637,7 @@ export default function AdminDashboard({
             <div className="panel-section">
               <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
                 <h3 style={{ margin: 0 }}>
-                  Manual Products ({filteredManualProducts.length})
+                  {activeManualProductsTabLabel} ({filteredManualProducts.length})
                   <span className="form-note" style={{ marginLeft: "0.6rem" }}>
                     Home Carousel: {homeFeaturedProductsCount}/{MAX_HOME_FEATURED_PRODUCTS}
                   </span>
@@ -5586,7 +5647,7 @@ export default function AdminDashboard({
                     type="button"
                     className="button"
                     onClick={handlePrintListedProducts}
-                    disabled={filteredManualProducts.length === 0}
+                    disabled={activeManualProductsCount === 0}
                   >
                     Print Product Listing
                   </button>
@@ -5599,6 +5660,21 @@ export default function AdminDashboard({
                     {isRefreshingCatalog ? "Refreshing..." : "Refresh Catalog"}
                   </button>
                 </div>
+              </div>
+              <div className="customer-list-tabs" role="tablist" aria-label="Manual product list filters" style={{ marginTop: "0.75rem" }}>
+                {MANUAL_PRODUCT_LIST_TABS.map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={manualProductsListTab === tab.key}
+                    className={`customer-list-tab ${manualProductsListTab === tab.key ? "active" : ""}`}
+                    onClick={() => setManualProductsListTab(tab.key)}
+                  >
+                    <span>{tab.label}</span>
+                    <span className="customer-list-tab-count">{manualProductListTabCounts[tab.key] || 0}</span>
+                  </button>
+                ))}
               </div>
               <div
                 style={{
@@ -7467,10 +7543,6 @@ export default function AdminDashboard({
                     type="checkbox"
                     checked={manualProduct.is_home_featured}
                     onChange={(e) => {
-                      if (e.target.checked && !manualProduct.is_home_featured && homeFeaturedProductsCount >= MAX_HOME_FEATURED_PRODUCTS) {
-                        setStatus("Home page carousel limit met (20). Remove a home page feature before adding more.");
-                        return;
-                      }
                       setManualProduct({
                         ...manualProduct,
                         is_home_featured: e.target.checked,

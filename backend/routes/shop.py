@@ -40,6 +40,7 @@ from ..db import (
     fetch_manual_product,
     update_manual_product,
     count_home_featured_manual_products,
+    demote_oldest_home_featured_manual_product,
     delete_manual_product,
     fetch_customer_by_email,
     fetch_customer_by_id,
@@ -3895,12 +3896,13 @@ def create_manual_product_endpoint():
     if payload.get("quantity") is None or payload.get("quantity") == "":
         return jsonify({"error": "missing_quantity", "detail": "Product quantity is required"}), 400
     if payload.get("is_home_featured"):
-        current_home_featured_count = count_home_featured_manual_products()
-        if current_home_featured_count >= MAX_HOME_FEATURED_PRODUCTS:
-            return jsonify({
-                "error": "home_featured_limit_reached",
-                "detail": "Home page carousel limit met (20). Remove a home page feature before adding more.",
-            }), 400
+        while count_home_featured_manual_products() >= MAX_HOME_FEATURED_PRODUCTS:
+            demoted_id = demote_oldest_home_featured_manual_product()
+            if not demoted_id:
+                return jsonify({
+                    "error": "home_featured_rotation_failed",
+                    "detail": "Home page carousel is full and the oldest item could not be rotated out.",
+                }), 500
     try:
         product_id = create_manual_product(payload)
         product = fetch_manual_product(product_id)
@@ -3960,12 +3962,13 @@ def update_manual_product_endpoint(product_id):
     next_home_featured = _coerce_bool_value(merged_payload.get("is_home_featured", False))
     previous_home_featured = _coerce_bool_value(product.get("is_home_featured", False))
     if next_home_featured and not previous_home_featured:
-        current_home_featured_count = count_home_featured_manual_products(exclude_product_id=product_id)
-        if current_home_featured_count >= MAX_HOME_FEATURED_PRODUCTS:
-            return jsonify({
-                "error": "home_featured_limit_reached",
-                "detail": "Home page carousel limit met (20). Remove a home page feature before adding more.",
-            }), 400
+        while count_home_featured_manual_products(exclude_product_id=product_id) >= MAX_HOME_FEATURED_PRODUCTS:
+            demoted_id = demote_oldest_home_featured_manual_product(exclude_product_id=product_id)
+            if not demoted_id:
+                return jsonify({
+                    "error": "home_featured_rotation_failed",
+                    "detail": "Home page carousel is full and the oldest item could not be rotated out.",
+                }), 500
     try:
         update_manual_product(product_id, merged_payload)
         updated_product = fetch_manual_product(product_id)
