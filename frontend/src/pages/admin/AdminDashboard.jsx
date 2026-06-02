@@ -2085,8 +2085,8 @@ export default function AdminDashboard({
   );
 
   const homeFeaturedProductsCount = useMemo(
-    () => normalizedManualProducts.filter((product) => product.is_home_featured).length,
-    [normalizedManualProducts],
+    () => manualProductListTabCounts["home-carousel"] || 0,
+    [manualProductListTabCounts],
   );
 
   const totalManualProductPages = Math.max(
