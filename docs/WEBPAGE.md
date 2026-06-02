@@ -117,6 +117,8 @@ Base URL in production: `https://api.sgcgart.com` (or configured via `VITE_API_B
 | GET | `/api/items` | Legacy Etsy-linked product catalog |
 | GET | `/api/manual-products` | Manual product list (summary) |
 | GET | `/api/manual-products/<id>` | Single manual product detail |
+| GET | `/api/google-merchant-feed.xml` | Public Google Merchant Center XML feed (no auth) |
+| GET | `/api/google-merchant-live.xml` | Public live XML feed alias for Merchant scheduled fetch (no auth) |
 | GET | `/api/texture-proxy` | SSRF-guarded external texture proxy |
 | GET | `/uploads/textures/<filename>` | Serve glass type texture images |
 | GET | `/uploads/templates/<filename>` | Serve template images (DB fallback) |

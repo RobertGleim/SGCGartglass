@@ -7,6 +7,7 @@ Loaded as backend.routes.shop; api blueprint is re-exported from backend.routes.
 """
 import json
 import base64
+import html
 import mimetypes
 import os
 import hashlib
@@ -16,11 +17,11 @@ import time
 import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urljoin
 from urllib import request as urllib_request
 from urllib.error import HTTPError, URLError
 
-from flask import Blueprint, jsonify, request, g, current_app
+from flask import Blueprint, jsonify, request, g, current_app, Response
 from sqlalchemy import func
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -3729,6 +3730,167 @@ def list_manual_products():
         return jsonify(products), 200
     except Exception as exc:
         return jsonify({"error": "server_error", "detail": str(exc)}), 500
+
+
+def _resolve_google_merchant_storefront_base_url():
+    candidates = [
+        os.environ.get("GOOGLE_MERCHANT_SITE_URL"),
+        os.environ.get("PUBLIC_SITE_URL"),
+        os.environ.get("WEBSITE_URL"),
+        "https://sgcgart.com",
+    ]
+    for candidate in candidates:
+        normalized = str(candidate or "").strip()
+        if normalized:
+            return normalized.rstrip("/")
+    return "https://sgcgart.com"
+
+
+def _resolve_google_merchant_api_base_url():
+    forwarded_proto = str(request.headers.get("X-Forwarded-Proto") or "").split(",")[0].strip()
+    forwarded_host = str(request.headers.get("X-Forwarded-Host") or "").split(",")[0].strip()
+    scheme = forwarded_proto or request.scheme or "https"
+    host = forwarded_host or request.host or ""
+    if not host:
+        return ""
+    return f"{scheme}://{host}".rstrip("/")
+
+
+def _to_google_feed_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _to_google_feed_price(value):
+    try:
+        amount = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except Exception:
+        return None
+    if amount <= 0:
+        return None
+    return amount
+
+
+def _to_google_feed_quantity(value):
+    try:
+        return int(value)
+    except Exception:
+        return 0
+
+
+def _resolve_google_feed_image_link(images, api_base_url, storefront_base_url):
+    image_entries = images if isinstance(images, list) else []
+    for entry in image_entries:
+        media_type = str((entry or {}).get("media_type") or "").strip().lower()
+        if media_type == "video":
+            continue
+
+        raw_url = str((entry or {}).get("image_url") or (entry or {}).get("url") or "").strip()
+        if not raw_url:
+            continue
+
+        if raw_url.startswith("http://") or raw_url.startswith("https://"):
+            return raw_url
+
+        if raw_url.startswith("/uploads/") and api_base_url:
+            return f"{api_base_url}{raw_url}"
+
+        if raw_url.startswith("/"):
+            return f"{storefront_base_url}{raw_url}"
+
+        return urljoin(f"{storefront_base_url}/", raw_url.lstrip("./"))
+
+    return ""
+
+
+def _build_google_merchant_feed_xml():
+    products = fetch_manual_products_catalog() or []
+    storefront_base_url = _resolve_google_merchant_storefront_base_url()
+    api_base_url = _resolve_google_merchant_api_base_url()
+
+    item_rows = []
+    for product in products:
+        if not _to_google_feed_bool(product.get("is_active", True)):
+            continue
+        if _to_google_feed_bool(product.get("is_digital_download")):
+            continue
+
+        product_id = product.get("id")
+        if not product_id:
+            continue
+
+        price_value = _to_google_feed_price(product.get("price"))
+        if price_value is None:
+            continue
+
+        image_link = _resolve_google_feed_image_link(
+            product.get("images"),
+            api_base_url=api_base_url,
+            storefront_base_url=storefront_base_url,
+        )
+        if not image_link:
+            continue
+
+        quantity = _to_google_feed_quantity(product.get("quantity"))
+        availability = "in stock" if quantity > 0 else "out of stock"
+
+        title = str(product.get("name") or "Untitled Product").strip() or "Untitled Product"
+        description = str(product.get("description") or title).strip() or title
+        product_path = f"/#/product/m-{product_id}"
+        product_link = f"{storefront_base_url}{product_path}"
+
+        item_rows.append(
+            "\n".join([
+                "    <item>",
+                f"      <g:id>{html.escape(str(product_id), quote=True)}</g:id>",
+                f"      <title>{html.escape(title, quote=True)}</title>",
+                f"      <description>{html.escape(description, quote=True)}</description>",
+                f"      <link>{html.escape(product_link, quote=True)}</link>",
+                f"      <g:image_link>{html.escape(image_link, quote=True)}</g:image_link>",
+                f"      <g:availability>{availability}</g:availability>",
+                "      <g:condition>new</g:condition>",
+                f"      <g:price>{price_value} USD</g:price>",
+                "      <g:identifier_exists>no</g:identifier_exists>",
+                "    </item>",
+            ])
+        )
+
+    generated_at = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    xml_payload = "\n".join([
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">',
+        "  <channel>",
+        "    <title>SGCG Art Product Feed</title>",
+        f"    <link>{html.escape(storefront_base_url, quote=True)}</link>",
+        "    <description>Google Merchant Center product feed</description>",
+        f"    <lastBuildDate>{generated_at}</lastBuildDate>",
+        *item_rows,
+        "  </channel>",
+        "</rss>",
+        "",
+    ])
+    return xml_payload
+
+
+@api.get("/google-merchant-feed.xml")
+def google_merchant_feed():
+    init_db()
+    xml_payload = _build_google_merchant_feed_xml()
+    response = Response(xml_payload, mimetype="application/xml")
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response
+
+
+@api.get("/google-merchant-live.xml")
+def google_merchant_live_feed():
+    init_db()
+    xml_payload = _build_google_merchant_feed_xml()
+    response = Response(xml_payload, mimetype="application/xml")
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response
 
 
 @api.get("/manual-products/<int:product_id>")
