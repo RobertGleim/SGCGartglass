@@ -1,7 +1,5 @@
-const CACHE_NAME = 'sgcg-v1';
+const CACHE_NAME = 'sgcg-v2';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
   '/site.webmanifest',
   '/banner.png',
   '/logo.png',
@@ -38,6 +36,22 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(request).catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // Always prefer network for document navigations so new deployments win over stale cache.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match('/index.html').then((cached) => cached || caches.match('/')))
     );
     return;
   }
