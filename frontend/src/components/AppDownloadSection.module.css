@@ -176,7 +176,7 @@
   flex-shrink: 0;
 }
 
-/* ── iOS Instructions Modal ───────────────────────────────── */
+/* iOS Instructions Modal */
 
 .modalBackdrop {
   position: fixed;
@@ -314,7 +314,7 @@
   background: #0070d0;
 }
 
-/* ── QR Code ─────────────────────────────────────────────── */
+/* QR Code */
 
 .qrWrap {
   display: flex;
@@ -339,7 +339,7 @@
   text-align: center;
 }
 
-/* ── Responsive ──────────────────────────────────────────── */
+/* Responsive */
 @media (max-width: 480px) {
   .inner {
     flex-direction: column;
