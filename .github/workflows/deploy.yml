@@ -312,6 +312,7 @@ jobs:
         env:
           FTP_HOST: ${{ secrets.FTP_HOST }}
           HOSTINGER_SSH_HOST: ${{ secrets.HOSTINGER_SSH_HOST }}
+          HOSTINGER_SSH_PORT: ${{ secrets.HOSTINGER_SSH_PORT }}
           HOSTINGER_SSH_USER: ${{ secrets.HOSTINGER_SSH_USER }}
           HOSTINGER_SSH_PASSWORD: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
@@ -407,6 +408,7 @@ jobs:
           HOST_ONLY="$(extract_host_only "$HOST")"
           SSH_HOST_ONLY="$(extract_host_only "$SSH_HOST_NORMALIZED")"
           SSH_PORT="$(extract_port "$SSH_HOST_NORMALIZED")"
+          if [ -z "$SSH_PORT" ]; then SSH_PORT="$(echo "${HOSTINGER_SSH_PORT:-21}" | tr -d '[:space:]')"; fi
           if [ -z "$SSH_PORT" ]; then SSH_PORT="21"; fi
           test -n "$HOST_ONLY" || (echo "FTP host became empty after host/port parsing" && exit 1)
           test -n "$PORT" || (echo "FTP port parsing failed" && exit 1)
@@ -421,6 +423,12 @@ jobs:
               echo "Check FTP_HOST secret value (host only, no typos, no path), or set a valid resolvable domain/IP."
               exit 1
             fi
+          fi
+
+          if ! timeout 8 bash -c "</dev/tcp/$HOST_ONLY/$PORT" 2>/dev/null; then
+            echo "TCP connection failed to FTP endpoint $HOST_ONLY:$PORT."
+            echo "Verify host/port/account protocol in Hostinger and ensure remote access is allowed from GitHub Actions."
+            exit 1
           fi
 
           echo "SSH deploy failed, falling back to FTP..."
