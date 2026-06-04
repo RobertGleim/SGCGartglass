@@ -42,9 +42,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
+    continue-on-error: true
     timeout-minutes: 20
 
-    steps:
+    steps: &frontend_deploy_steps
       - name: Checkout code
         uses: actions/checkout@v6
 
@@ -489,6 +490,40 @@ jobs:
           TARGET_URL="${FRONTEND_URL:-https://sgcgart.com/}"
           echo "Smoke testing $TARGET_URL"
           curl --fail --silent --show-error "$TARGET_URL" >/dev/null
+
+  build-and-deploy-frontend-retry:
+    runs-on: ubuntu-latest
+    needs:
+      - changes
+      - build-and-deploy-frontend
+    if: needs.changes.outputs.frontend == 'true' && needs.build-and-deploy-frontend.result == 'failure'
+    timeout-minutes: 20
+
+    steps: *frontend_deploy_steps
+
+  frontend-deploy-result:
+    runs-on: ubuntu-latest
+    needs:
+      - changes
+      - build-and-deploy-frontend
+      - build-and-deploy-frontend-retry
+    if: always() && needs.changes.outputs.frontend == 'true'
+
+    steps:
+      - name: Evaluate frontend deploy attempts
+        run: |
+          FIRST="${{ needs.build-and-deploy-frontend.result }}"
+          RETRY="${{ needs.build-and-deploy-frontend-retry.result }}"
+          echo "Frontend deploy attempt #1 result: $FIRST"
+          echo "Frontend deploy attempt #2 result: $RETRY"
+
+          if [ "$FIRST" = "success" ] || [ "$RETRY" = "success" ]; then
+            echo "Frontend deploy succeeded."
+            exit 0
+          fi
+
+          echo "Both frontend deploy attempts failed."
+          exit 1
 
   deploy-backend-render:
     runs-on: ubuntu-latest
