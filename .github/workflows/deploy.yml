@@ -236,6 +236,7 @@ jobs:
           PORT="$(echo "${HOSTINGER_SSH_PORT:-$HOST_PORT_FROM_HOST}" | tr -d '[:space:]')"
           PORT="${PORT:-65002}"
           PASSWORD="$(printf '%s' "$HOSTINGER_SSH_PASSWORD" | tr -d '\r')"
+          SSH_OPTS="-p $PORT -o ConnectTimeout=15 -o ConnectionAttempts=2 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
           if ! is_ip_literal "$HOST" && ! getent hosts "$HOST" >/dev/null 2>&1; then
             echo "DNS lookup failed for HOSTINGER_SSH_HOST '$HOST'."
@@ -244,17 +245,17 @@ jobs:
           fi
 
           run_rsync_key_auth() {
-            ssh -p "$PORT" -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$USERNAME@$HOST" "mkdir -p '$HOSTINGER_REMOTE_PATH'"
+            ssh $SSH_OPTS -i ~/.ssh/id_rsa "$USERNAME@$HOST" "mkdir -p '$HOSTINGER_REMOTE_PATH'"
             rsync -az --delete --info=progress2 \
-              -e "ssh -p $PORT -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+              -e "ssh $SSH_OPTS -i ~/.ssh/id_rsa" \
               dist/ "$USERNAME@$HOST:$HOSTINGER_REMOTE_PATH/"
           }
 
           run_rsync_password_auth() {
             test -n "$PASSWORD" || (echo "HOSTINGER_SSH_PASSWORD is empty" && return 1)
-            SSHPASS="$PASSWORD" sshpass -e ssh -p "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$USERNAME@$HOST" "mkdir -p '$HOSTINGER_REMOTE_PATH'"
+            SSHPASS="$PASSWORD" sshpass -e ssh $SSH_OPTS "$USERNAME@$HOST" "mkdir -p '$HOSTINGER_REMOTE_PATH'"
             SSHPASS="$PASSWORD" sshpass -e rsync -az --delete --info=progress2 \
-              -e "ssh -p $PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+              -e "ssh $SSH_OPTS" \
               dist/ "$USERNAME@$HOST:$HOSTINGER_REMOTE_PATH/"
           }
 
@@ -303,7 +304,7 @@ jobs:
           fi
 
       - name: Fallback - Deploy via FTP (lftp)
-        if: steps.ssh_deploy.outcome == 'failure'
+        if: always() && steps.ssh_deploy.outcome != 'success'
         env:
           FTP_HOST: ${{ secrets.FTP_HOST }}
           HOSTINGER_SSH_HOST: ${{ secrets.HOSTINGER_SSH_HOST }}
