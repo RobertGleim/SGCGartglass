@@ -6,6 +6,12 @@ import { CustomerAuthProvider } from './contexts/CustomerAuthContext.jsx';
 import { installInteractionGuard } from './utils/interactionGuard.js';
 import './index.css';
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 const cleanupInteractionGuard = installInteractionGuard();
 
 if (import.meta.hot) {
