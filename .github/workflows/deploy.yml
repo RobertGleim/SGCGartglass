@@ -170,7 +170,11 @@ jobs:
           HOSTINGER_SSH_PASSWORD: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y lftp openssh-client
+          sudo apt-get install -y lftp openssh-client rsync sshpass
+
+          RUNNER_IP="$(curl -fsS https://api.ipify.org || true)"
+          echo "Runner egress IP: ${RUNNER_IP:-unavailable}"
+          echo "Deploy protocol: SSH rsync"
 
           normalize_host() {
             local h="$1"
@@ -239,32 +243,19 @@ jobs:
             exit 1
           fi
 
-          run_lftp_key_auth() {
-            lftp -d -u "$USERNAME" "sftp://$HOST:$PORT" -e "
-              set net:timeout 30;
-              set net:max-retries 2;
-              set net:reconnect-interval-base 5;
-              set cmd:fail-exit yes;
-              set cmd:interactive no;
-              set sftp:auto-confirm yes;
-              pwd;
-              mirror --reverse --delete --verbose --parallel=4 dist/ \"$HOSTINGER_REMOTE_PATH\";
-              bye
-            "
+          run_rsync_key_auth() {
+            ssh -p "$PORT" -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$USERNAME@$HOST" "mkdir -p '$HOSTINGER_REMOTE_PATH'"
+            rsync -az --delete --info=progress2 \
+              -e "ssh -p $PORT -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+              dist/ "$USERNAME@$HOST:$HOSTINGER_REMOTE_PATH/"
           }
 
-          run_lftp_password_auth() {
-            lftp -d -u "$USERNAME","$PASSWORD" "sftp://$HOST:$PORT" -e "
-              set net:timeout 30;
-              set net:max-retries 2;
-              set net:reconnect-interval-base 5;
-              set cmd:fail-exit yes;
-              set cmd:interactive no;
-              set sftp:auto-confirm yes;
-              pwd;
-              mirror --reverse --delete --verbose --parallel=4 dist/ \"$HOSTINGER_REMOTE_PATH\";
-              bye
-            "
+          run_rsync_password_auth() {
+            test -n "$PASSWORD" || (echo "HOSTINGER_SSH_PASSWORD is empty" && return 1)
+            SSHPASS="$PASSWORD" sshpass -e ssh -p "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$USERNAME@$HOST" "mkdir -p '$HOSTINGER_REMOTE_PATH'"
+            SSHPASS="$PASSWORD" sshpass -e rsync -az --delete --info=progress2 \
+              -e "ssh -p $PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+              dist/ "$USERNAME@$HOST:$HOSTINGER_REMOTE_PATH/"
           }
 
           if [ -n "$HOSTINGER_SSH_PRIVATE_KEY" ]; then
@@ -298,17 +289,17 @@ jobs:
               echo "Private key format is invalid; trying password auth next."
             fi
 
-            if [ "$KEY_READY" = true ] && run_lftp_key_auth; then
-              echo "SFTP deploy succeeded with private key."
+            if [ "$KEY_READY" = true ] && run_rsync_key_auth; then
+              echo "SSH deploy succeeded with private key (rsync)."
             elif [ -n "$PASSWORD" ]; then
-              echo "Key auth failed; retrying SFTP deploy with password..."
-              run_lftp_password_auth
+              echo "Key auth failed; retrying SSH deploy with password (rsync)..."
+              run_rsync_password_auth
             else
               echo "Key auth failed and HOSTINGER_SSH_PASSWORD is not set."
               exit 1
             fi
           else
-            run_lftp_password_auth
+            run_rsync_password_auth
           fi
 
       - name: Fallback - Deploy via FTP (lftp)
