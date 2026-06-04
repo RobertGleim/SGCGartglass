@@ -46,6 +46,38 @@ def _env_bool(name, default=False):
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _env_int(name, default):
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return int(str(raw).strip())
+    except (TypeError, ValueError):
+        return default
+
+
+def _sqlalchemy_connect_args():
+    sslmode = (os.environ.get('PGSSLMODE') or os.environ.get('DB_SSLMODE') or '').strip().lower()
+    if not sslmode:
+        # Most managed Postgres providers require TLS.
+        sslmode = 'require'
+
+    connect_args = {
+        'connect_timeout': _env_int('PGCONNECT_TIMEOUT', 10),
+        'keepalives': 1,
+        'keepalives_idle': _env_int('PG_KEEPALIVES_IDLE', 30),
+        'keepalives_interval': _env_int('PG_KEEPALIVES_INTERVAL', 10),
+        'keepalives_count': _env_int('PG_KEEPALIVES_COUNT', 5),
+        'sslmode': sslmode,
+    }
+
+    sslrootcert = (os.environ.get('PGSSLROOTCERT') or '').strip()
+    if sslrootcert:
+        connect_args['sslrootcert'] = sslrootcert
+
+    return connect_args
+
+
 class BaseConfig:
     PORT = int(os.environ.get('PORT', '5000'))
     SECRET_KEY = os.environ.get('SECRET_KEY') or os.environ.get('JWT_SECRET', 'dev-secret')
@@ -61,6 +93,8 @@ class BaseConfig:
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
         'pool_recycle': 300,
+        'pool_timeout': _env_int('DB_POOL_TIMEOUT', 30),
+        'connect_args': _sqlalchemy_connect_args(),
     }
 
     # Uploads (glass type textures: backend/uploads/)

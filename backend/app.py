@@ -36,6 +36,18 @@ limiter = Limiter(
 )
 
 
+def _is_transient_db_disconnect(error):
+    message = str(error).lower()
+    markers = (
+        "ssl connection has been closed unexpectedly",
+        "consuming input failed",
+        "server closed the connection unexpectedly",
+        "could not receive data from server",
+        "connection reset by peer",
+    )
+    return any(marker in message for marker in markers)
+
+
 def _get_allowed_origins(configured_origins):
     configured = (configured_origins or "*").strip()
     if configured == "*":
@@ -164,6 +176,12 @@ def create_app(config_name=None):
     def handle_unexpected_exception(error):
         if not request.path.startswith("/api"):
             raise error
+        if _is_transient_db_disconnect(error):
+            app.logger.warning("Transient database connection interruption on %s: %s", request.path, error)
+            return jsonify({
+                "error": "database_unavailable",
+                "detail": "Temporary database connection issue. Please retry.",
+            }), 503
         app.logger.exception("Unhandled API exception on %s", request.path)
         return jsonify({"error": "server_error", "detail": str(error)}), 500
 

@@ -5,7 +5,7 @@ import re
 import secrets
 import time
 from datetime import datetime, timedelta
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 try:
     from .models import db as db
@@ -90,6 +90,62 @@ def _preferred_database_url():
     if app_env in {"development", "testing"} or is_debug:
         return (os.environ.get("POSTGRES_URL") or os.environ.get("DATABASE_URL") or "").strip()
     return (os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL") or "").strip()
+
+
+def _env_int(name, default):
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return int(str(raw).strip())
+    except (TypeError, ValueError):
+        return default
+
+
+def _default_sslmode_for_conninfo(conninfo):
+    explicit_sslmode = (os.environ.get("PGSSLMODE") or os.environ.get("DB_SSLMODE") or "").strip().lower()
+    if explicit_sslmode:
+        return explicit_sslmode
+
+    hostname = (urlparse(conninfo).hostname or "").strip().lower()
+    if hostname in {"localhost", "127.0.0.1", "::1"}:
+        # Local developer databases often run without TLS.
+        return "prefer"
+    return "require"
+
+
+def _normalize_conninfo(conninfo):
+    parsed = urlparse(conninfo)
+    params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+
+    params.setdefault("sslmode", _default_sslmode_for_conninfo(conninfo))
+    params.setdefault("connect_timeout", str(_env_int("PGCONNECT_TIMEOUT", 10)))
+
+    # Keepalive prevents middleboxes/NAT from dropping quiet SSL sockets.
+    params.setdefault("keepalives", "1")
+    params.setdefault("keepalives_idle", str(_env_int("PG_KEEPALIVES_IDLE", 30)))
+    params.setdefault("keepalives_interval", str(_env_int("PG_KEEPALIVES_INTERVAL", 10)))
+    params.setdefault("keepalives_count", str(_env_int("PG_KEEPALIVES_COUNT", 5)))
+
+    sslrootcert = (os.environ.get("PGSSLROOTCERT") or "").strip()
+    if sslrootcert:
+        params.setdefault("sslrootcert", sslrootcert)
+
+    return urlunparse(parsed._replace(query=urlencode(params)))
+
+
+def _is_transient_connection_error(exc):
+    message = str(exc).lower()
+    markers = (
+        "ssl connection has been closed unexpectedly",
+        "consuming input failed",
+        "server closed the connection unexpectedly",
+        "connection not open",
+        "connection reset by peer",
+        "terminating connection",
+        "could not receive data from server",
+    )
+    return any(marker in message for marker in markers)
 
 
 def _db_backend():
@@ -317,17 +373,19 @@ def get_db():
         conninfo = raw_url.replace("postgresql+psycopg://", "postgresql://", 1)
         if conninfo.startswith("postgres://"):
             conninfo = conninfo.replace("postgres://", "postgresql://", 1)
+        conninfo = _normalize_conninfo(conninfo)
 
         last_error = None
-        for attempt in range(3):
+        max_attempts = max(1, _env_int("DB_CONNECT_RETRIES", 4))
+        for attempt in range(max_attempts):
             try:
-                conn = psycopg.connect(conninfo, row_factory=dict_row, connect_timeout=5)
+                conn = psycopg.connect(conninfo, row_factory=dict_row)
                 conn.autocommit = False
                 return conn
             except psycopg.OperationalError as exc:
                 last_error = exc
-                if attempt < 2:
-                    time.sleep(0.6 * (attempt + 1))
+                if attempt < (max_attempts - 1) and _is_transient_connection_error(exc):
+                    time.sleep(0.5 * (attempt + 1))
                     continue
                 raise
 
