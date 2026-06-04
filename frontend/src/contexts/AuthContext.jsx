@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { adminLogin } from '../services/api'
 import { AuthContext } from './AuthContext'
 import { isValidToken, cleanupCorruptedTokens } from '../utils/auth'
+import { getCurrentPathname, navigateTo } from '../utils/navigation'
 
 // Clean up any corrupted tokens on module load
 cleanupCorruptedTokens();
@@ -19,8 +20,8 @@ export function AuthProvider({ children }) {
     window.sessionStorage.removeItem('sgcg_token')
     window.localStorage.removeItem('sgcg_token')
     // Redirect to sign-in page
-    if (window.location.hash.includes('/admin')) {
-      window.location.hash = '#/account/login'
+    if (getCurrentPathname().startsWith('/admin')) {
+      navigateTo('/account/login')
     }
   }, [])
 

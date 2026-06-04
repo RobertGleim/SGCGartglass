@@ -1,6 +1,7 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { customerLogin, customerSignup } from '../services/api'
 import { isValidToken, cleanupCorruptedTokens } from '../utils/auth'
+import { getCurrentPathname, navigateTo } from '../utils/navigation'
 
 const INACTIVITY_TIMEOUT = 60 * 60 * 1000 // 1 hour in milliseconds
 const CHECK_INTERVAL = 60 * 1000 // Check every minute
@@ -34,8 +35,8 @@ export function CustomerAuthProvider({ children }) {
     window.sessionStorage.removeItem('sgcg_customer_token')
     window.localStorage.removeItem('sgcg_customer_token')
     // Redirect to sign-in page
-    if (window.location.hash.includes('/account')) {
-      window.location.hash = '#/account/login'
+    if (getCurrentPathname().startsWith('/account')) {
+      navigateTo('/account/login')
     }
   }, [])
 

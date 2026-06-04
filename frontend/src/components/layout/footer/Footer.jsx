@@ -62,12 +62,12 @@ export default function Footer() {
         ))}
       </div>
       <div className="footer-legal-links" role="navigation" aria-label="Legal links">
-        <a href="#/terms">Terms of Service</a>
-        <a href="#/privacy">Privacy Policy</a>
-        <a href="#/custom-order-terms">Custom Order Terms</a>
-        <a href="#/repair-warranty">Repair &amp; Warranty</a>
-        <a href="#/faq">FAQ</a>
-        <a href="#/stained-glass-guide">Stained Glass Guide</a>
+        <a href="/terms">Terms of Service</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/custom-order-terms">Custom Order Terms</a>
+        <a href="/repair-warranty">Repair &amp; Warranty</a>
+        <a href="/faq">FAQ</a>
+        <a href="/stained-glass-guide">Stained Glass Guide</a>
       </div>
       <p>© {new Date().getFullYear()} SGCG Art</p>
     </footer>

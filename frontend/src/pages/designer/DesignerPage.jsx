@@ -8,16 +8,16 @@ import { addGuestCartItem } from '../../utils/guestCart';
 import useCustomerAuth from '../../hooks/useCustomerAuth';
 import useAuth from '../../hooks/useAuth';
 import LoadingMessage from '../../components/LoadingMessage';
+import { getCurrentSearch, navigateTo } from '../../utils/navigation';
 import styles from './DesignerPage.module.css';
 
 const STEP = { GALLERY: 'gallery', DESIGN: 'design' };
 
-// Parse URL query params from hash router (?project=123&submit=true)
+// Parse URL query params from clean routing (with legacy hash fallback)
 const getQueryParams = () => {
-  const hash = window.location.hash || '';
-  const queryIdx = hash.indexOf('?');
-  if (queryIdx === -1) return {};
-  return Object.fromEntries(new URLSearchParams(hash.slice(queryIdx + 1)));
+  const search = getCurrentSearch();
+  if (!search) return {};
+  return Object.fromEntries(new URLSearchParams(search.slice(1)));
 };
 
 const getLinkedParamsFromHash = () => {
@@ -671,12 +671,14 @@ export default function DesignerPage() {
   }, []);
 
   useEffect(() => {
-    const handleHashChange = () => {
+    const handleRouteChange = () => {
       setLinkedParams(getLinkedParamsFromHash());
     };
-    window.addEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handleRouteChange);
+    window.addEventListener('sgcg:navigation', handleRouteChange);
     return () => {
-      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('popstate', handleRouteChange);
+      window.removeEventListener('sgcg:navigation', handleRouteChange);
     };
   }, []);
 
@@ -2851,8 +2853,7 @@ export default function DesignerPage() {
       });
       setSubmitModal(false);
       alert('Work order submitted! We will contact you shortly.');
-      window.location.hash = `#/my-work-orders?status=pending&refresh=${Date.now()}`;
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      navigateTo(`/my-work-orders?status=pending&refresh=${Date.now()}`);
     } catch (err) {
       const statusCode = err?.response?.status;
       const responseData = err?.response?.data || {};
@@ -2861,8 +2862,7 @@ export default function DesignerPage() {
       if (statusCode === 409 && existingWorkOrderId) {
         setSubmitModal(false);
         alert('A work order already exists for this project. Opening it now.');
-        window.location.hash = `#/designer?workorder=${existingWorkOrderId}`;
-        window.dispatchEvent(new HashChangeEvent('hashchange'));
+        navigateTo(`/designer?workorder=${existingWorkOrderId}`);
         return;
       }
 
@@ -2992,8 +2992,7 @@ export default function DesignerPage() {
       if (sendForReview) {
         alert(isAdmin ? 'Revision sent to customer for review!' : 'Revision submitted for admin review!');
         // Navigate back to the appropriate dashboard
-        window.location.hash = isAdmin ? '#/admin' : `#/my-work-orders?refresh=${Date.now()}`;
-        window.dispatchEvent(new HashChangeEvent('hashchange'));
+        navigateTo(isAdmin ? '/admin' : `/my-work-orders?refresh=${Date.now()}`);
       } else {
         alert('Revision saved!');
       }
@@ -3011,8 +3010,7 @@ export default function DesignerPage() {
     try {
       await apiApproveWorkOrder(workOrderId);
       alert('Design approved! The work order will move to production.');
-      window.location.hash = `#/my-work-orders?refresh=${Date.now()}`;
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      navigateTo(`/my-work-orders?refresh=${Date.now()}`);
     } catch (err) {
       console.error('[DesignerPage] Failed to approve:', err);
       alert('Failed to approve design. Please try again.');
@@ -3077,8 +3075,7 @@ export default function DesignerPage() {
 
     const patternId = String(linkedPatternId || '').trim();
     if (patternId) {
-      window.location.hash = `#/product/m-${patternId}`;
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      navigateTo(`/product/m-${patternId}`);
       return;
     }
 
@@ -3178,7 +3175,7 @@ export default function DesignerPage() {
       dedup.set(productId, {
         id: productId,
         name: productName,
-        href: `#/product/m-${productId}`,
+        href: `/product/m-${productId}`,
       });
     });
 
@@ -3192,11 +3189,11 @@ export default function DesignerPage() {
     if (activeLinkedResources.gallery_template_id) params.set('template_id', activeLinkedResources.gallery_template_id);
     if (activeLinkedResources.template_id) params.set('template', activeLinkedResources.template_id);
     if (activeLinkedResources.pattern_product_id) params.set('pattern_product_id', activeLinkedResources.pattern_product_id);
-    return `#/gallery?${params.toString()}`;
+    return `/gallery?${params.toString()}`;
   }, [activeLinkedResources]);
 
   const activeLinkedPatternHref = activeLinkedResources.pattern_product_id
-    ? `#/product/m-${activeLinkedResources.pattern_product_id}`
+    ? `/product/m-${activeLinkedResources.pattern_product_id}`
     : '';
 
   const shouldShowPatternHeaderLink = useMemo(() => {
@@ -3526,9 +3523,9 @@ export default function DesignerPage() {
                         if (linkedTemplateId) galleryParams.set('template', linkedTemplateId);
                         if (linkedPatternId) galleryParams.set('pattern_product_id', linkedPatternId);
                         const cardGalleryHref = galleryParams.toString()
-                          ? `#/gallery?${galleryParams.toString()}`
-                          : `#/gallery?template_id=${t.id}`;
-                        const cardPatternHref = linkedPatternId ? `#/product/m-${linkedPatternId}` : '';
+                          ? `/gallery?${galleryParams.toString()}`
+                          : `/gallery?template_id=${t.id}`;
+                        const cardPatternHref = linkedPatternId ? `/product/m-${linkedPatternId}` : '';
                         return (
                           <div className={styles.cardLinks}>
                             <a
@@ -3589,8 +3586,7 @@ export default function DesignerPage() {
       <div className={styles.toolbar}>
         {workOrderMode ? (
           <button className={styles.toolBtn} onClick={() => {
-            window.location.hash = isAdmin ? '#/admin' : '#/my-work-orders';
-            window.dispatchEvent(new HashChangeEvent('hashchange'));
+            navigateTo(isAdmin ? '/admin' : '/my-work-orders');
           }}>
             ← Back
           </button>
@@ -3721,7 +3717,7 @@ export default function DesignerPage() {
         ) : (
           <button
             className={`${styles.toolBtn} ${styles.loginPrompt}`}
-            onClick={() => window.location.hash = '#/account/login'}
+            onClick={() => navigateTo('/account/login')}
           >
             🔒 Login to Save
           </button>

@@ -167,11 +167,11 @@ export default function StainedGlassGuidePage() {
       <section className="seo-guide-section">
         <h2>Recommended SGCG Art Pages</h2>
         <ul>
-          <li><a href="#/product">Shop stained glass and handcrafted pieces</a></li>
-          <li><a href="#/designer">Design your own custom stained glass project</a></li>
-          <li><a href="#/gallery">Browse real customer and portfolio gallery photos</a></li>
-          <li><a href="#/reviews">Read customer reviews and examples</a></li>
-          <li><a href="#/faq">Review ordering, shipping, and policy answers</a></li>
+          <li><a href="/product">Shop stained glass and handcrafted pieces</a></li>
+          <li><a href="/designer">Design your own custom stained glass project</a></li>
+          <li><a href="/gallery">Browse real customer and portfolio gallery photos</a></li>
+          <li><a href="/reviews">Read customer reviews and examples</a></li>
+          <li><a href="/faq">Review ordering, shipping, and policy answers</a></li>
         </ul>
       </section>
 

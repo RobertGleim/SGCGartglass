@@ -6,6 +6,7 @@ import LoadingMessage from './components/LoadingMessage'
 import useHashRoute from './hooks/useHashRoute'
 import useAuth from './hooks/useAuth'
 import useCustomerAuth from './hooks/useCustomerAuth'
+import { getCurrentUrlKey } from './utils/navigation'
 import {
   createItem,
   createManualProduct,
@@ -46,8 +47,8 @@ const BRAND_NAME = 'SGCG Art'
 const CATALOG_CACHE_KEY = 'sgcg_catalog_cache_v2'
 const PRODUCT_VIEW_CACHE_KEY = 'sgcg_product_view_cache_v1'
 const CATALOG_CACHE_TTL_MS = 5 * 60 * 1000
-const PREVIOUS_ROUTE_KEY = 'sgcg_previous_hash_route'
-const CURRENT_ROUTE_KEY = 'sgcg_current_hash_route'
+const PREVIOUS_ROUTE_KEY = 'sgcg_previous_route'
+const CURRENT_ROUTE_KEY = 'sgcg_current_route'
 
 const readCatalogCache = () => {
   try {
@@ -201,14 +202,14 @@ function App() {
   }, [items, manualProducts, catalogLoaded])
 
   useEffect(() => {
-    const currentHash = window.location.hash || '#/'
-    const previousHash = window.sessionStorage.getItem(CURRENT_ROUTE_KEY)
+    const currentRoute = getCurrentUrlKey()
+    const previousRoute = window.sessionStorage.getItem(CURRENT_ROUTE_KEY)
 
-    if (previousHash && previousHash !== currentHash) {
-      window.sessionStorage.setItem(PREVIOUS_ROUTE_KEY, previousHash)
+    if (previousRoute && previousRoute !== currentRoute) {
+      window.sessionStorage.setItem(PREVIOUS_ROUTE_KEY, previousRoute)
     }
 
-    window.sessionStorage.setItem(CURRENT_ROUTE_KEY, currentHash)
+    window.sessionStorage.setItem(CURRENT_ROUTE_KEY, currentRoute)
   }, [route.path, route.params?.id])
 
   // Scroll to top whenever route changes
@@ -267,8 +268,7 @@ function App() {
     if (!token && !persisted) {
       throw new Error('Login failed: no token returned')
     }
-    // Use full hash navigation so hosted builds reliably switch views immediately
-    window.location.assign('/#/admin')
+    window.location.assign('/admin')
   }
 
   const handleAddItem = async (value) => {
@@ -348,7 +348,7 @@ function App() {
                   <div style={{ padding: '2rem', textAlign: 'center' }}>
                     <h2>Product not found</h2>
                     <p>The product you're looking for doesn't exist.</p>
-                    <a href="#/product" style={{ color: '#1a1a1a', textDecoration: 'underline' }}>
+                    <a href="/product" style={{ color: '#1a1a1a', textDecoration: 'underline' }}>
                       Back to shop
                     </a>
                   </div>

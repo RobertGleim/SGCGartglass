@@ -562,7 +562,7 @@ export default function ProductPage({ products }) {
             ))}
             <a
               className="nav-tab nav-tab-link nav-tab-designer"
-              href="/#/designer"
+              href="/designer"
               onMouseEnter={(event) => {
                 event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'end', behavior: 'smooth' })
               }}

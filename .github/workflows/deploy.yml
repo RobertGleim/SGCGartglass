@@ -257,6 +257,35 @@ jobs:
             printf '%s' "$h" | tr -d '\r[:space:]'
           }
 
+          detect_scheme() {
+            local raw
+            raw="$(printf '%s' "$1" | tr -d '\r[:space:]')"
+            case "$raw" in
+              ftps://*) printf 'ftps' ;;
+              ftp://*) printf 'ftp' ;;
+              *) printf 'ftp' ;;
+            esac
+          }
+
+          extract_port() {
+            local h="$1"
+            # Supports host:port after normalization.
+            if printf '%s' "$h" | grep -Eq ':[0-9]+$'; then
+              printf '%s' "${h##*:}"
+            else
+              printf '%s' "21"
+            fi
+          }
+
+          extract_host_only() {
+            local h="$1"
+            if printf '%s' "$h" | grep -Eq ':[0-9]+$'; then
+              printf '%s' "${h%:*}"
+            else
+              printf '%s' "$h"
+            fi
+          }
+
           is_placeholder_host() {
             local h="$1"
             local lower
@@ -269,6 +298,7 @@ jobs:
             esac
           }
 
+          FTP_SCHEME="$(detect_scheme "$FTP_HOST")"
           FTP_HOST_NORMALIZED="$(normalize_host "$FTP_HOST")"
           SSH_HOST_NORMALIZED="$(normalize_host "$HOSTINGER_SSH_HOST")"
 
@@ -283,8 +313,19 @@ jobs:
             exit 1
           fi
 
+          PORT="$(extract_port "$HOST")"
+          HOST_ONLY="$(extract_host_only "$HOST")"
+          test -n "$HOST_ONLY" || (echo "FTP host became empty after host/port parsing" && exit 1)
+          test -n "$PORT" || (echo "FTP port parsing failed" && exit 1)
+
+          if ! getent hosts "$HOST_ONLY" >/dev/null 2>&1; then
+            echo "DNS lookup failed for FTP host '$HOST_ONLY'."
+            echo "Check FTP_HOST secret value (host only, no typos, no path), or set a valid resolvable domain/IP."
+            exit 1
+          fi
+
           echo "SSH deploy failed, falling back to FTP..."
-          lftp -e "
+          lftp -u "$FTP_USERNAME","$FTP_PASSWORD" "${FTP_SCHEME}://$HOST_ONLY:$PORT" -e "
             set ssl:verify-certificate no;
             set ftp:ssl-allow yes;
             set ftp:ssl-force no;
@@ -292,7 +333,6 @@ jobs:
             set net:max-retries 1;
             set cmd:fail-exit yes;
             set cmd:interactive no;
-            open -u \"$FTP_USERNAME\",\"$FTP_PASSWORD\" \"$HOST\";
             mirror --reverse --delete --verbose --parallel=4 dist/ \"$HOSTINGER_REMOTE_PATH\";
             bye
           "

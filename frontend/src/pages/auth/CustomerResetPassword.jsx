@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react'
 import { resetCustomerPassword } from '../../services/api'
+import { getCurrentSearch } from '../../utils/navigation'
 import '../../styles/CustomerAuth.css'
 
 const getResetToken = () => {
-  const rawHash = window.location.hash || ''
-  const queryString = rawHash.includes('?') ? rawHash.split('?')[1] : ''
-  const params = new URLSearchParams(queryString)
+  const params = new URLSearchParams(getCurrentSearch().slice(1))
   return params.get('token') || ''
 }
 
@@ -104,7 +103,7 @@ export default function CustomerResetPassword() {
       </form>
 
       <div className="customer-auth-footer">
-        <a href="#/account/login">Back to sign in</a>
+        <a href="/account/login">Back to sign in</a>
       </div>
     </div>
   )

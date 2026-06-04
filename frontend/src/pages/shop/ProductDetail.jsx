@@ -14,8 +14,9 @@ import {
 } from '../../services/api'
 import { addGuestCartItem } from '../../utils/guestCart'
 import { findWishlistEntry, resolveWishlistTarget } from '../../utils/wishlist'
+import { getCurrentUrlKey, navigateTo } from '../../utils/navigation'
 
-const PREVIOUS_ROUTE_KEY = 'sgcg_previous_hash_route'
+const PREVIOUS_ROUTE_KEY = 'sgcg_previous_route'
 const PRODUCT_VIEW_CACHE_KEY = 'sgcg_product_view_cache_v1'
 
 const readProductViewCache = () => {
@@ -276,11 +277,17 @@ export default function ProductDetail({ product, products = [] }) {
   }, [])
 
   const handleBackNavigation = () => {
-    const previousHash = String(window.sessionStorage.getItem(PREVIOUS_ROUTE_KEY) || '').trim()
-    const currentHash = window.location.hash || ''
+    const previousRoute = String(window.sessionStorage.getItem(PREVIOUS_ROUTE_KEY) || '').trim()
+    const currentRoute = getCurrentUrlKey()
 
-    if (previousHash && previousHash !== currentHash && !previousHash.startsWith('#/product/')) {
-      window.location.hash = previousHash
+    const normalizedPrevious = previousRoute.startsWith('#')
+      ? previousRoute.slice(1)
+      : previousRoute
+
+    const isPreviousProductDetail = normalizedPrevious.startsWith('/product/')
+
+    if (normalizedPrevious && normalizedPrevious !== currentRoute && !isPreviousProductDetail) {
+      navigateTo(normalizedPrevious)
       return
     }
 
@@ -289,7 +296,7 @@ export default function ProductDetail({ product, products = [] }) {
       return
     }
 
-    window.location.hash = '#/product'
+    navigateTo('/product')
   }
 
   const wishlistTarget = useMemo(() => resolveWishlistTarget(product), [product])
@@ -629,7 +636,7 @@ export default function ProductDetail({ product, products = [] }) {
   const relatedProductHref = useMemo(() => {
     const linkedProductId = String(relatedProductFromTemplate?.id || '').trim()
     if (!linkedProductId) return ''
-    return `#/product/m-${linkedProductId}`
+    return `/product/m-${linkedProductId}`
   }, [relatedProductFromTemplate])
 
   const relatedQuerySuffix = useMemo(() => {
@@ -652,7 +659,7 @@ export default function ProductDetail({ product, products = [] }) {
     if (resolvedRelatedLinks.pattern_product_id) params.set('pattern_product_id', String(resolvedRelatedLinks.pattern_product_id))
     if (resolvedRelatedLinks.template_id) params.set('template', String(resolvedRelatedLinks.template_id))
     const query = params.toString()
-    return query ? `#/gallery?${query}` : '#/gallery'
+    return query ? `/gallery?${query}` : '/gallery'
   }, [resolvedRelatedLinks])
 
   useEffect(() => {
@@ -725,7 +732,7 @@ export default function ProductDetail({ product, products = [] }) {
 
     if (!customerToken) {
       setFreeDownloadStatus('Sign in to download free patterns.')
-      window.location.hash = '#/account/login'
+      navigateTo('/account/login')
       return
     }
 
@@ -776,7 +783,7 @@ export default function ProductDetail({ product, products = [] }) {
     setWishlistStatus('')
     if (!customerToken) {
       setWishlistStatus('Sign in to save items to your wishlist.')
-      window.location.hash = '#/account/login'
+      navigateTo('/account/login')
       return
     }
 
@@ -804,7 +811,7 @@ export default function ProductDetail({ product, products = [] }) {
     setWishlistStatus('')
     if (!customerToken) {
       setWishlistStatus('Sign in to save items to your wishlist.')
-      window.location.hash = '#/account/login'
+      navigateTo('/account/login')
       return
     }
 
@@ -927,9 +934,9 @@ export default function ProductDetail({ product, products = [] }) {
         <div className="product-info-section">
           {/* Shop info */}
           <div className="shop-info">
-            <a href="/#/product" className="shop-link">SGCG Art Glass</a>
+            <a href="/product" className="shop-link">SGCG Art Glass</a>
             <span className="separator">•</span>
-            <a href="/#/product" className="reviews-link">Excellent (2.8k reviews)</a>
+            <a href="/product" className="reviews-link">Excellent (2.8k reviews)</a>
           </div>
 
           {/* Title */}
@@ -1019,7 +1026,7 @@ export default function ProductDetail({ product, products = [] }) {
               <ul>
                 {resolvedRelatedLinks.template_id && (
                   <li>
-                    <a href={`#/designer?template=${resolvedRelatedLinks.template_id}${relatedQuerySuffix}`}>
+                    <a href={`/designer?template=${resolvedRelatedLinks.template_id}${relatedQuerySuffix}`}>
                       View linked template{resolvedRelatedLinks.template_name ? `: ${resolvedRelatedLinks.template_name}` : ''}
                     </a>
                   </li>
@@ -1033,14 +1040,14 @@ export default function ProductDetail({ product, products = [] }) {
                 )}
                 {shouldShowPatternLink && (
                   <li>
-                    <a href={`#/product/m-${resolvedRelatedLinks.pattern_product_id}${relatedQuerySuffix ? `?${relatedQuerySuffix.slice(1)}` : ''}`}>
+                    <a href={`/product/m-${resolvedRelatedLinks.pattern_product_id}${relatedQuerySuffix ? `?${relatedQuerySuffix.slice(1)}` : ''}`}>
                       View related pattern{resolvedRelatedLinks.pattern_product_name ? `: ${resolvedRelatedLinks.pattern_product_name}` : ''}
                     </a>
                   </li>
                 )}
                 {resolvedRelatedLinks.gallery_photo_id && (
                   <li>
-                    <a href={galleryHref || '#/gallery'}>
+                    <a href={galleryHref || '/gallery'}>
                       View photo gallery example{resolvedRelatedLinks.gallery_panel_name ? `: ${resolvedRelatedLinks.gallery_panel_name}` : ''}
                     </a>
                   </li>

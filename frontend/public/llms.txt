@@ -7,12 +7,12 @@ SGCG Art is a U.S.-based handcrafted art business focused on stained glass artwo
 
 ## Primary Pages
 - Home: https://sgcgart.com/
-- Shop: https://sgcgart.com/#/product
-- Custom Designer: https://sgcgart.com/#/designer
-- Gallery: https://sgcgart.com/#/gallery
-- Reviews: https://sgcgart.com/#/reviews
-- FAQ: https://sgcgart.com/#/faq
-- Stained Glass Guide: https://sgcgart.com/#/stained-glass-guide
+- Shop: https://sgcgart.com/product
+- Custom Designer: https://sgcgart.com/designer
+- Gallery: https://sgcgart.com/gallery
+- Reviews: https://sgcgart.com/reviews
+- FAQ: https://sgcgart.com/faq
+- Stained Glass Guide: https://sgcgart.com/stained-glass-guide
 
 ## Products and Services
 - Handcrafted stained glass panels

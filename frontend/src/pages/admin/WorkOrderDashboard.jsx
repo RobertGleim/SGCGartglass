@@ -11,6 +11,7 @@ import {
 } from '../../services/api';
 import LoadingMessage from '../../components/LoadingMessage';
 import ColoredDesignPreview from './components/ColoredDesignPreview';
+import { navigateTo } from '../../utils/navigation';
 import styles from './WorkOrderDashboard.module.css';
 
 const STATUS_OPTIONS = ['pending', 'review', 'revision_requested', 'revision_submitted', 'quote', 'approved', 'production', 'completed', 'cancelled'];
@@ -1370,8 +1371,7 @@ export default function WorkOrderDashboard() {
                     className={styles.designerBtn}
                     onClick={(e) => {
                       e.stopPropagation();
-                      window.location.hash = `#/designer?workorder=${o.id}`;
-                      window.dispatchEvent(new HashChangeEvent('hashchange'));
+                      navigateTo(`/designer?workorder=${o.id}`);
                     }}
                   >
                     🎨 Edit
@@ -1688,8 +1688,7 @@ export default function WorkOrderDashboard() {
               <button
                 className={styles.designerBtnLarge}
                 onClick={() => {
-                  window.location.hash = `#/designer?workorder=${selectedOrder.id}`;
-                  window.dispatchEvent(new HashChangeEvent('hashchange'));
+                  navigateTo(`/designer?workorder=${selectedOrder.id}`);
                 }}
               >
                 🎨 Edit in Designer

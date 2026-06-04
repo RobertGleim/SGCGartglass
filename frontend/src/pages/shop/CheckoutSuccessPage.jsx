@@ -3,6 +3,7 @@ import useCustomerAuth from '../../hooks/useCustomerAuth'
 import { confirmCheckoutSession } from '../../services/api'
 import LoadingMessage from '../../components/LoadingMessage'
 import { clearGuestCart } from '../../utils/guestCart'
+import { getCurrentSearch } from '../../utils/navigation'
 import './CheckoutPage.css'
 
 export default function CheckoutSuccessPage() {
@@ -14,7 +15,7 @@ export default function CheckoutSuccessPage() {
   const hasTrackedConversion = useRef(false)
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.split('?')[1] || '')
+    const params = new URLSearchParams(getCurrentSearch().slice(1))
     const sessionId = params.get('session_id')
 
     if (!sessionId) {
@@ -100,12 +101,12 @@ export default function CheckoutSuccessPage() {
             </p>
             {downloads.length > 0 && (
               <p className="checkout-success-contact">
-                Your digital pattern download is ready now in <a href="#/account">your customer portal</a> and has also been emailed to you.
+                Your digital pattern download is ready now in <a href="/account">your customer portal</a> and has also been emailed to you.
               </p>
             )}
             <div className="checkout-success-actions">
-              <a className="checkout-link checkout-link--primary" href="#/account">View my orders</a>
-              <a className="checkout-link" href="#/product">Continue shopping</a>
+              <a className="checkout-link checkout-link--primary" href="/account">View my orders</a>
+              <a className="checkout-link" href="/product">Continue shopping</a>
             </div>
           </div>
         )}
@@ -118,7 +119,7 @@ export default function CheckoutSuccessPage() {
               Questions? Email <a href="mailto:customersupport@sgcgart.com">customersupport@sgcgart.com</a>.
             </p>
             <div className="checkout-success-actions">
-              <a className="checkout-link" href="#/account">Check order history</a>
+              <a className="checkout-link" href="/account">Check order history</a>
             </div>
           </div>
         )}
@@ -132,8 +133,8 @@ export default function CheckoutSuccessPage() {
               For physical products, we will use the shipping address entered in Stripe.
             </p>
             <div className="checkout-success-actions">
-              <a className="checkout-link" href="#/product">Continue shopping</a>
-              <a className="checkout-link" href="#/account/login">Sign in to view order history</a>
+              <a className="checkout-link" href="/product">Continue shopping</a>
+              <a className="checkout-link" href="/account/login">Sign in to view order history</a>
             </div>
           </div>
         )}
@@ -146,8 +147,8 @@ export default function CheckoutSuccessPage() {
               Need help? Email <a href="mailto:customersupport@sgcgart.com">customersupport@sgcgart.com</a>.
             </p>
             <div className="checkout-success-actions">
-              <a className="checkout-link" href="#/checkout">Back to checkout</a>
-              <a className="checkout-link" href="#/account">My orders</a>
+              <a className="checkout-link" href="/checkout">Back to checkout</a>
+              <a className="checkout-link" href="/account">My orders</a>
             </div>
           </div>
         )}

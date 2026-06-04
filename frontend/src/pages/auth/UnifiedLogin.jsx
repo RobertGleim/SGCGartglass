@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { requestCustomerPasswordReset } from '../../services/api'
+import { getCurrentPathname, navigateTo } from '../../utils/navigation'
 import '../../styles/CustomerAuth.css'
 
 const getCurrentRoutePath = () => {
-  const hash = window.location.hash || ''
-  return hash.startsWith('#') ? hash.slice(1) : hash
+  return getCurrentPathname()
 }
 
 const isCredentialFailure = (error) => {
@@ -56,8 +56,7 @@ export default function UnifiedLogin({ onAdminLogin, onCustomerLogin, preferredR
         try {
           await attempt.run()
           if (attempt.role === 'customer') {
-            window.location.hash = '#/account'
-            window.dispatchEvent(new HashChangeEvent('hashchange'))
+            navigateTo('/account')
           }
           return
         } catch (loginError) {
@@ -194,7 +193,7 @@ export default function UnifiedLogin({ onAdminLogin, onCustomerLogin, preferredR
       )}
 
       <div className="customer-auth-footer">
-        New customer? <a href="#/account/signup">Create an account</a>
+        New customer? <a href="/account/signup">Create an account</a>
       </div>
     </div>
   )

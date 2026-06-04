@@ -3,6 +3,7 @@ import api from '../../services/api';
 import LoadingMessage from '../../components/LoadingMessage';
 import Pagination from '../../components/Pagination';
 import TemplateFormModal from './components/TemplateFormModal';
+import { navigateTo } from '../../utils/navigation';
 import styles from './TemplateManagement.module.css';
 
 const PAGE_SIZE = 10;
@@ -51,8 +52,7 @@ const toArray = (value) => {
 
 const openTemplateDefaultsDesigner = (templateId) => {
   if (!templateId) return;
-  window.location.hash = `#/designer?template=${templateId}&mode=template-defaults`;
-  window.dispatchEvent(new HashChangeEvent('hashchange'));
+  navigateTo(`/designer?template=${templateId}&mode=template-defaults`);
 };
 
 export default function TemplateManagement() {

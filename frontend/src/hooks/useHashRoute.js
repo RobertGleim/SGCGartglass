@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { getCurrentPathname } from '../utils/navigation'
 
 const parseParts = (parts) => {
   if (parts[0] === 'product') {
@@ -69,14 +70,7 @@ const parseParts = (parts) => {
 }
 
 const getRoute = () => {
-  const rawHash = window.location.hash.replace('#', '') || ''
-  const hashParts = rawHash.split('?')[0].split('/').filter(Boolean)
-  const hashRoute = parseParts(hashParts)
-  if (hashRoute) {
-    return hashRoute
-  }
-
-  const pathname = window.location.pathname || '/'
+  const pathname = getCurrentPathname()
   const pathParts = pathname.split('/').filter(Boolean)
   const pathRoute = parseParts(pathParts)
   if (pathRoute) {
@@ -90,9 +84,13 @@ export default function useHashRoute() {
   const [route, setRoute] = useState(getRoute())
 
   useEffect(() => {
-    const handleHashChange = () => setRoute(getRoute())
-    window.addEventListener('hashchange', handleHashChange)
-    return () => window.removeEventListener('hashchange', handleHashChange)
+    const refreshRoute = () => setRoute(getRoute())
+    window.addEventListener('popstate', refreshRoute)
+    window.addEventListener('sgcg:navigation', refreshRoute)
+    return () => {
+      window.removeEventListener('popstate', refreshRoute)
+      window.removeEventListener('sgcg:navigation', refreshRoute)
+    }
   }, [])
 
   return route

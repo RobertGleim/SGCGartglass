@@ -2,6 +2,7 @@ import '../../../styles/Header.css'
 import { useEffect, useState } from 'react'
 import { fetchCustomerCart } from '../../../services/api'
 import { getGuestCartCount } from '../../../utils/guestCart'
+import { getCurrentPathname } from '../../../utils/navigation'
 
 const DEFAULT_SHOP_TAB = 'stained-glass-panels'
 const BARGAIN_SHOP_TAB = 'bargain-basement'
@@ -12,24 +13,19 @@ const getStoredShopTab = () => {
   return stored
 }
 
-const getHashPath = () => {
-  const hash = String(window.location.hash || '#/')
-  // strip query params and trailing slashes for matching
-  return hash.replace(/\?.*$/, '').replace(/\/$/, '') || '#/'
-}
-
 export default function Header({ brandName, authToken, customerToken }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [cartCount, setCartCount] = useState(0)
-  const [hashPath, setHashPath] = useState(getHashPath)
+  const [currentPath, setCurrentPath] = useState(getCurrentPathname)
   const [activeShopTab, setActiveShopTab] = useState(getStoredShopTab)
 
   useEffect(() => {
-    const handleHashChange = () => {
+    const handleRouteChange = () => {
       setMenuOpen(false)
-      setHashPath(getHashPath())
+      const nextPath = getCurrentPathname()
+      setCurrentPath(nextPath)
 
-      if (!String(window.location.hash || '').startsWith('#/product')) {
+      if (!nextPath.startsWith('/product')) {
         setActiveShopTab(DEFAULT_SHOP_TAB)
       }
     }
@@ -40,17 +36,19 @@ export default function Header({ brandName, authToken, customerToken }) {
       setActiveShopTab(requested)
     }
 
-    window.addEventListener('hashchange', handleHashChange)
+    window.addEventListener('popstate', handleRouteChange)
+    window.addEventListener('sgcg:navigation', handleRouteChange)
     window.addEventListener('sgcg-shop-tab-change', handleShopTabChange)
     return () => {
-      window.removeEventListener('hashchange', handleHashChange)
+      window.removeEventListener('popstate', handleRouteChange)
+      window.removeEventListener('sgcg:navigation', handleRouteChange)
       window.removeEventListener('sgcg-shop-tab-change', handleShopTabChange)
     }
   }, [])
 
   const isActive = (path) => {
-    if (path === '#/') return hashPath === '#/'
-    return hashPath === path || hashPath.startsWith(path + '/')
+    if (path === '/') return currentPath === '/'
+    return currentPath === path || currentPath.startsWith(path + '/')
   }
 
   const handleNavClick = () => {
@@ -60,7 +58,7 @@ export default function Header({ brandName, authToken, customerToken }) {
   const openShopTab = (tabKey) => {
     window.sessionStorage.setItem('sgcg_shop_tab', tabKey)
     setActiveShopTab(tabKey)
-    if (String(window.location.hash || '').startsWith('#/product')) {
+    if (getCurrentPathname().startsWith('/product')) {
       window.dispatchEvent(
         new CustomEvent('sgcg-shop-tab-change', {
           detail: { tab: tabKey },
@@ -78,7 +76,7 @@ export default function Header({ brandName, authToken, customerToken }) {
     openShopTab(BARGAIN_SHOP_TAB)
   }
 
-  const isOnProductRoute = isActive('#/product')
+  const isOnProductRoute = isActive('/product')
   const isProductNavActive = isOnProductRoute && activeShopTab !== BARGAIN_SHOP_TAB
   const isBargainNavActive = isOnProductRoute && activeShopTab === BARGAIN_SHOP_TAB
 
@@ -104,19 +102,21 @@ export default function Header({ brandName, authToken, customerToken }) {
 
     refreshCartCount()
     const handleCartRefresh = () => refreshCartCount()
-    window.addEventListener('hashchange', handleCartRefresh)
+    window.addEventListener('popstate', handleCartRefresh)
+    window.addEventListener('sgcg:navigation', handleCartRefresh)
     window.addEventListener('cart-updated', handleCartRefresh)
 
     return () => {
       active = false
-      window.removeEventListener('hashchange', handleCartRefresh)
+      window.removeEventListener('popstate', handleCartRefresh)
+      window.removeEventListener('sgcg:navigation', handleCartRefresh)
       window.removeEventListener('cart-updated', handleCartRefresh)
     }
   }, [customerToken])
 
   return (
     <header className="site-header">
-      <a href="#/" className="logo-block" aria-label="SGCG Art Glass - Go to home">
+      <a href="/" className="logo-block" aria-label="SGCG Art Glass - Go to home">
         <img src="/logo.png" alt="SGCG Art Glass logo" />
         <div className="header-origin-badge" aria-label="HandCrafted in the USA">
           <span className="header-origin-flag" aria-hidden="true">
@@ -132,21 +132,21 @@ export default function Header({ brandName, authToken, customerToken }) {
         <span className="nav-toggle-icon">☰</span>
       </button>
       <nav className={`nav-links${menuOpen ? ' open' : ''}`}>
-        <a href="#/" onClick={handleNavClick} className={isActive('#/') ? 'nav-active' : undefined}>Home</a>
-        <a href="#/product" onClick={handleOpenProducts} className={isProductNavActive ? 'nav-active' : undefined}>Product</a>
-        <a href="#/product" onClick={handleOpenBargainBasement} className={`nav-bargin-basement${isBargainNavActive ? ' nav-active' : ''}`}>Bargain Basement</a>
-        <a href="#/reviews" onClick={handleNavClick} className={isActive('#/reviews') ? 'nav-active' : undefined}>Reviews</a>
-        <a href="#/designer" onClick={handleNavClick} className={isActive('#/designer') ? 'nav-active' : undefined}>Designer</a>
-        <a href="#/gallery" onClick={handleNavClick} className={isActive('#/gallery') ? 'nav-active' : undefined}>Photo Gallery</a>
+        <a href="/" onClick={handleNavClick} className={isActive('/') ? 'nav-active' : undefined}>Home</a>
+        <a href="/product" onClick={handleOpenProducts} className={isProductNavActive ? 'nav-active' : undefined}>Product</a>
+        <a href="/product" onClick={handleOpenBargainBasement} className={`nav-bargin-basement${isBargainNavActive ? ' nav-active' : ''}`}>Bargain Basement</a>
+        <a href="/reviews" onClick={handleNavClick} className={isActive('/reviews') ? 'nav-active' : undefined}>Reviews</a>
+        <a href="/designer" onClick={handleNavClick} className={isActive('/designer') ? 'nav-active' : undefined}>Designer</a>
+        <a href="/gallery" onClick={handleNavClick} className={isActive('/gallery') ? 'nav-active' : undefined}>Photo Gallery</a>
         {authToken ? (
-          <a href="#/admin" onClick={handleNavClick} className={isActive('#/admin') ? 'nav-active' : undefined}>Admin</a>
+          <a href="/admin" onClick={handleNavClick} className={isActive('/admin') ? 'nav-active' : undefined}>Admin</a>
         ) : customerToken ? (
           <>
-            <a href="#/my-projects" onClick={handleNavClick} className={isActive('#/my-projects') ? 'nav-active' : undefined}>My Projects</a>
+            <a href="/my-projects" onClick={handleNavClick} className={isActive('/my-projects') ? 'nav-active' : undefined}>My Projects</a>
             <a
-              href="#/checkout"
+              href="/checkout"
               onClick={handleNavClick}
-              className={`nav-cart-inline${isActive('#/checkout') ? ' nav-active' : ''}`}
+              className={`nav-cart-inline${isActive('/checkout') ? ' nav-active' : ''}`}
               aria-label="Open cart and checkout"
               title="Checkout"
             >
@@ -155,14 +155,14 @@ export default function Header({ brandName, authToken, customerToken }) {
                 <span className="nav-cart-badge">{cartCount > 99 ? '99+' : cartCount}</span>
               )}
             </a>
-            <a href="#/account" onClick={handleNavClick} className={isActive('#/account') ? 'nav-active' : undefined}>Account</a>
+            <a href="/account" onClick={handleNavClick} className={isActive('/account') ? 'nav-active' : undefined}>Account</a>
           </>
         ) : (
           <>
             <a
-              href="#/checkout"
+              href="/checkout"
               onClick={handleNavClick}
-              className={`nav-cart-inline${isActive('#/checkout') ? ' nav-active' : ''}`}
+              className={`nav-cart-inline${isActive('/checkout') ? ' nav-active' : ''}`}
               aria-label="Open cart and checkout"
               title="Checkout"
             >
@@ -171,7 +171,7 @@ export default function Header({ brandName, authToken, customerToken }) {
                 <span className="nav-cart-badge">{cartCount > 99 ? '99+' : cartCount}</span>
               )}
             </a>
-            <a href="#/account/login" onClick={handleNavClick} className={isActive('#/account') ? 'nav-active' : undefined}>Sign In</a>
+            <a href="/account/login" onClick={handleNavClick} className={isActive('/account') ? 'nav-active' : undefined}>Sign In</a>
           </>
         )}
       </nav>
