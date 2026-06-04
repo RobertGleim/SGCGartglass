@@ -171,15 +171,15 @@ export default function HomePage({ featuredItems, itemsLoading }) {
 
       <HeroSection />
 
-      <section className="featured" style={{ margin: '0 auto' }}>
-        <div className="section-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80px' }}>
+      <section className="featured" style={{ margin: '0 auto', paddingBottom: '0.4rem' }}>
+        <div className="section-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '56px' }}>
           <h2 style={{ margin: 0, textAlign: 'center' }}>Featured items</h2>
         </div>
         <FeaturedCarousel items={featuredItems} itemsLoading={itemsLoading} />
       </section>
 
-      <section className="featured" style={{ margin: '1.5rem auto 0' }}>
-        <div className="section-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '64px' }}>
+      <section className="featured" style={{ margin: '0 auto 0', paddingTop: '0.35rem' }}>
+        <div className="section-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '36px' }}>
           <h2 style={{ margin: 0, textAlign: 'center' }}>Recent reviews</h2>
         </div>
         {reviewsLoading ? (

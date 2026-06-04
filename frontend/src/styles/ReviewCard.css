@@ -27,6 +27,13 @@
   animation: reviewCardFloat 5.2s linear both infinite;
 }
 
+@keyframes reviewCardFadeMobile {
+  0%   { opacity: 0; transform: translateX(0); }
+  10%  { opacity: 1; transform: translateX(0); }
+  82%  { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(0); }
+}
+
 .review-image-shell {
   position: relative;
   width: 84px;
@@ -111,5 +118,21 @@
 
   .review-image-shell {
     width: 90px;
+  }
+}
+
+@media (max-width: 640px) {
+  .review-card-stage {
+    padding: 0 0.35rem;
+    overflow: visible;
+  }
+
+  .review-card {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .review-card-animated {
+    animation: reviewCardFadeMobile 5.2s linear both infinite;
   }
 }

@@ -10,7 +10,7 @@
 .featured,
 .product-page,
 .admin-page {
-  padding: 1.5rem 4vw 2.5rem;
+  padding: 1rem 4vw 1.75rem;
 }
 
 .section-header h2 {
@@ -21,7 +21,7 @@
 
 .section-header p {
   color: #4b5160;
-  margin: 0 0 1.5rem;
+  margin: 0 0 1rem;
 }
 
 .featured-grid {
@@ -33,19 +33,19 @@
 /* Carousel styles - mobile-first */
 .carousel-container {
   position: relative;
-  margin-top: 0.75rem;
-  padding: 1.5rem 0;
+  margin-top: 0.4rem;
+  padding: 1rem 0;
   overflow: visible;
-  min-height: 450px;
+  min-height: 410px;
 }
 
 .carousel-wrapper {
   position: relative;
-  height: 400px;
+  height: 360px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   overflow: visible;
 }
 
@@ -301,7 +301,7 @@
   .featured,
   .product-page,
   .admin-page {
-    padding: 1.75rem 5vw 3rem;
+    padding: 1.25rem 5vw 2.2rem;
   }
 
   .featured-grid {
@@ -314,17 +314,17 @@
   }
 
   .section-header p {
-    margin: 0 0 1.75rem;
+    margin: 0 0 1.2rem;
   }
 
   .carousel-container {
-    min-height: 500px;
-    padding: 1.75rem 0;
+    min-height: 440px;
+    padding: 1.25rem 0;
   }
 
   .carousel-wrapper {
-    height: 460px;
-    margin-bottom: 1.75rem;
+    height: 410px;
+    margin-bottom: 1.2rem;
   }
 
   .carousel-container .product-card {
@@ -373,7 +373,7 @@
   .featured,
   .product-page,
   .admin-page {
-    padding: 2rem 6vw 4rem;
+    padding: 1.5rem 6vw 2.8rem;
   }
 
   .featured-grid {
@@ -387,18 +387,18 @@
   }
 
   .section-header p {
-    margin: 0 0 2rem;
+    margin: 0 0 1.3rem;
   }
 
   .carousel-container {
-    margin-top: 1rem;
-    padding: 2rem 0;
-    min-height: 550px;
+    margin-top: 0.5rem;
+    padding: 1.3rem 0;
+    min-height: 490px;
   }
 
   .carousel-wrapper {
-    height: 480px;
-    margin-bottom: 2rem;
+    height: 430px;
+    margin-bottom: 1.2rem;
   }
 
   .carousel-container .product-card {
