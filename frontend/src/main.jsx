@@ -9,11 +9,12 @@ import './index.css';
 
 migrateLegacyHashToCleanUrl();
 const cleanupLegacyHashNavigation = watchLegacyHashNavigation();
+const SERVICE_WORKER_URL = '/sw.js?v=20260604-2';
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     if (import.meta.env.PROD) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      navigator.serviceWorker.register(SERVICE_WORKER_URL, { updateViaCache: 'none' }).catch(() => {});
       return;
     }
 
