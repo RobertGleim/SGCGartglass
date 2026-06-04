@@ -430,21 +430,21 @@ jobs:
           fi
 
           if ! timeout 8 bash -c "</dev/tcp/$HOST_ONLY/$PORT" 2>/dev/null; then
-            echo "TCP connection failed to FTP endpoint $HOST_ONLY:$PORT."
-            echo "Verify host/port/account protocol in Hostinger and ensure remote access is allowed from GitHub Actions."
-            exit 1
+            echo "Warning: TCP precheck failed for $HOST_ONLY:$PORT."
+            echo "Continuing with lftp attempts (protocol/port fallback may still succeed)."
           fi
 
           echo "SSH deploy failed, falling back to FTP..."
           run_ftp_mirror() {
             local scheme="$1"
+            local port="$2"
             local ssl_force="no"
             if [ "$scheme" = "ftps" ]; then
               ssl_force="yes"
             fi
 
-            echo "Attempting ${scheme^^} deploy to $HOST_ONLY:$PORT"
-            lftp -d -u "$USERNAME","$PASSWORD" "${scheme}://$HOST_ONLY:$PORT" -e "
+            echo "Attempting ${scheme^^} deploy to $HOST_ONLY:$port"
+            lftp -d -u "$USERNAME","$PASSWORD" "${scheme}://$HOST_ONLY:$port" -e "
               set ssl:verify-certificate no;
               set ftp:ssl-allow yes;
               set ftp:ssl-force $ssl_force;
@@ -459,14 +459,35 @@ jobs:
             "
           }
 
-          if run_ftp_mirror "$FTP_SCHEME"; then
-            echo "FTP fallback deploy succeeded using scheme '$FTP_SCHEME'."
+          PORT_ALT=""
+          if [ "$PORT" = "21" ]; then
+            PORT_ALT="990"
+          elif [ "$PORT" = "990" ]; then
+            PORT_ALT="21"
+          fi
+
+          if run_ftp_mirror "$FTP_SCHEME" "$PORT"; then
+            echo "FTP fallback deploy succeeded using scheme '$FTP_SCHEME' on port '$PORT'."
+          elif [ -n "$PORT_ALT" ] && run_ftp_mirror "$FTP_SCHEME" "$PORT_ALT"; then
+            echo "FTP fallback deploy succeeded using scheme '$FTP_SCHEME' on alternate port '$PORT_ALT'."
           elif [ "$FTP_SCHEME" = "ftp" ]; then
-            echo "FTP attempt failed; retrying with FTPS..."
-            run_ftp_mirror "ftps"
+            echo "FTP attempts failed; retrying with FTPS..."
+            if run_ftp_mirror "ftps" "$PORT"; then
+              echo "FTP fallback deploy succeeded using scheme 'ftps' on port '$PORT'."
+            elif [ -n "$PORT_ALT" ]; then
+              run_ftp_mirror "ftps" "$PORT_ALT"
+            else
+              run_ftp_mirror "ftps" "990"
+            fi
           else
-            echo "FTPS attempt failed; retrying with FTP..."
-            run_ftp_mirror "ftp"
+            echo "FTPS attempts failed; retrying with FTP..."
+            if run_ftp_mirror "ftp" "$PORT"; then
+              echo "FTP fallback deploy succeeded using scheme 'ftp' on port '$PORT'."
+            elif [ -n "$PORT_ALT" ]; then
+              run_ftp_mirror "ftp" "$PORT_ALT"
+            else
+              run_ftp_mirror "ftp" "21"
+            fi
           fi
 
       - name: Frontend smoke test
