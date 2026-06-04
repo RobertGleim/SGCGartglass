@@ -264,6 +264,11 @@
   line-height: 1.4;
 }
 
+.stepText {
+  flex: 1;
+  min-width: 0;
+}
+
 .stepIcon {
   background: #0a84ff;
   color: #fff;

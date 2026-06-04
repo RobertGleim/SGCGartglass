@@ -20,16 +20,15 @@ function IOSInstructionsModal({ onClose }) {
         <ol className={styles.steps}>
           <li>
             <span className={styles.stepIcon}>1</span>
-            Tap the <strong>Share (⬆)</strong> button at the bottom of Safari.
+            <span className={styles.stepText}>Tap the <strong>Share (⬆)</strong> button at the bottom of Safari.</span>
           </li>
           <li>
             <span className={styles.stepIcon}>2</span>
-            Scroll down and tap{' '}
-            <strong>"Add to Home Screen"</strong>
+            <span className={styles.stepText}>Scroll down and tap <strong>"Add to Home Screen"</strong></span>
           </li>
           <li>
             <span className={styles.stepIcon}>3</span>
-            Tap <strong>"Add"</strong> — done! SGCG Art will appear on your home screen.
+            <span className={styles.stepText}>Tap <strong>"Add"</strong> — done! SGCG Art will appear on your home screen.</span>
           </li>
         </ol>
         <p className={styles.modalNote}>⚠️ Works in Safari only. If you're in another browser, open this page in Safari first.</p>
@@ -49,15 +48,15 @@ function AndroidInstructionsModal({ onClose }) {
         <ol className={styles.steps}>
           <li>
             <span className={styles.stepIcon}>1</span>
-            Tap the <strong>Menu (⋮)</strong> button in the top-right corner of Chrome.
+            <span className={styles.stepText}>Tap the <strong>Menu (⋮)</strong> button in the top-right corner of Chrome.</span>
           </li>
           <li>
             <span className={styles.stepIcon}>2</span>
-            Tap <strong>"Add to Home screen"</strong>
+            <span className={styles.stepText}>Tap <strong>"Add to Home screen"</strong></span>
           </li>
           <li>
             <span className={styles.stepIcon}>3</span>
-            Tap <strong>"Add"</strong> — SGCG Art will appear on your home screen.
+            <span className={styles.stepText}>Tap <strong>"Add"</strong> — SGCG Art will appear on your home screen.</span>
           </li>
         </ol>
         <p className={styles.modalNote}>Works best in Chrome. Samsung Internet also supports this feature.</p>
