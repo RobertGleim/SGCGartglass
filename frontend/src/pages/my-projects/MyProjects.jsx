@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import LoadingMessage from '../../components/LoadingMessage';
+import { navigateTo } from '../../utils/navigation';
 import styles from './MyProjects.module.css';
 
 const PROJECTS_CACHE_KEY = 'sgcg_my_projects_cache_v1';
@@ -140,7 +141,7 @@ export default function MyProjects() {
 
   // Handle edit - navigate to designer with project ID
   const handleEdit = (project) => {
-    window.location.hash = `#/designer?project=${project.id}`;
+    navigateTo(`/designer?project=${project.id}`);
   };
 
   // Handle delete
@@ -163,9 +164,9 @@ export default function MyProjects() {
   const handleSubmit = (project) => {
     if (project.work_order_id) {
       // Already has a work order — open directly in revision mode
-      window.location.hash = `#/designer?workorder=${project.work_order_id}`;
+      navigateTo(`/designer?workorder=${project.work_order_id}`);
     } else {
-      window.location.hash = `#/designer?project=${project.id}&submit=true`;
+      navigateTo(`/designer?project=${project.id}&submit=true`);
     }
   };
 

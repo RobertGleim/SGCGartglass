@@ -3842,7 +3842,7 @@ export default function AdminDashboard({
       return false;
     }
 
-    const productLink = `${window.location.origin}/#/product/m-${productId}`;
+    const productLink = `${window.location.origin}/product/m-${productId}`;
     const rawPrice = Number(product?.price || 0);
     const priceText = Number.isFinite(rawPrice) && rawPrice > 0 ? `$${rawPrice}` : "";
     const quote = [product?.name || "Manual Product", priceText, productLink]

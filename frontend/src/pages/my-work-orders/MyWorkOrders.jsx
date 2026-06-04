@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api, { approveWorkOrder } from '../../services/api';
 import LoadingMessage from '../../components/LoadingMessage';
+import { getCurrentSearch, navigateTo } from '../../utils/navigation';
 import styles from './MyWorkOrders.module.css';
 
 const WORK_ORDERS_CACHE_KEY = 'sgcg_my_work_orders_cache_v1';
@@ -87,8 +88,7 @@ const EDITABLE_STATUSES = ['pending', 'revision_requested', 'revision_submitted'
 
 export default function MyWorkOrders() {
   const initialStatus = (() => {
-    const query = window.location.hash.split('?')[1] || '';
-    const params = new URLSearchParams(query);
+    const params = new URLSearchParams(getCurrentSearch().slice(1));
     const status = params.get('status');
     return status || 'all';
   })();
@@ -197,8 +197,7 @@ export default function MyWorkOrders() {
 
   const openDesigner = (orderId, e) => {
     if (e) e.stopPropagation();
-    window.location.hash = `#/designer?workorder=${orderId}`;
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    navigateTo(`/designer?workorder=${orderId}`);
   };
 
   const filtered = orders.filter(o => filter === 'all' || normalizeStatus(o?.status) === filter);

@@ -301,6 +301,7 @@ export const customerSignup = async (payload) => {
 };
 import axios from 'axios';
 import { getAuthToken, isValidToken, cleanupCorruptedTokens } from '../utils/auth';
+import { getCurrentPathname } from '../utils/navigation';
 
 // Clean up any corrupted tokens on module load
 cleanupCorruptedTokens();
@@ -326,8 +327,7 @@ const api = axios.create({
 });
 
 const getRoutePath = () => {
-  const hash = window.location.hash || '';
-  return hash.startsWith('#') ? hash.slice(1) : hash;
+  return getCurrentPathname();
 };
 
 const isTopLevelEndpoint = (requestUrl, endpoint) =>

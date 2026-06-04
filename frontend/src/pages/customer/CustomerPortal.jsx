@@ -23,6 +23,7 @@ import {
 } from '../../services/api'
 import { findWishlistEntry } from '../../utils/wishlist'
 import { getProductDimensionsLabel } from '../../utils/productDimensions'
+import { navigateTo } from '../../utils/navigation'
 
 const TABS = ['overview', 'orders', 'downloads', 'favorites', 'cart', 'reviews', 'settings', 'work_orders']
 
@@ -477,7 +478,7 @@ export default function CustomerPortal({ manualProducts }) {
   const handleViewWishlistItem = (item) => {
     const rawProductId = String(item?.product_id || '').trim()
     if (!rawProductId) {
-      window.location.hash = '#/product'
+      navigateTo('/product')
       return
     }
 
@@ -485,7 +486,7 @@ export default function CustomerPortal({ manualProducts }) {
       ? `m-${rawProductId}`
       : rawProductId
 
-    window.location.hash = `#/product/${routeProductId}`
+    navigateTo(`/product/${routeProductId}`)
   }
 
   return (
@@ -507,8 +508,7 @@ export default function CustomerPortal({ manualProducts }) {
             className={`${tab === activeTab ? 'active' : ''} ${tab === 'work_orders' ? 'work-orders-tab' : ''}`.trim()}
             onClick={() => {
               if (tab === 'work_orders') {
-                window.location.hash = '#/my-work-orders'
-                window.dispatchEvent(new HashChangeEvent('hashchange'))
+                navigateTo('/my-work-orders')
                 return
               }
               setActiveTab(tab)
@@ -688,7 +688,7 @@ export default function CustomerPortal({ manualProducts }) {
                 ))}
               </div>
               <div className="portal-actions" style={{ marginTop: '0.75rem' }}>
-                <button onClick={() => { window.location.hash = '#/checkout' }}>Proceed to checkout</button>
+                <button onClick={() => { navigateTo('/checkout') }}>Proceed to checkout</button>
               </div>
             </>
           )}

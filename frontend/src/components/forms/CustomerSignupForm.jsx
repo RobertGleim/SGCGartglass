@@ -1,5 +1,6 @@
 
 import { useState } from 'react'
+import { navigateTo } from '../../utils/navigation'
 import '../../styles/forms/CustomerSignupForm.css'
 
 export default function CustomerSignupForm({ onSignup }) {
@@ -24,7 +25,7 @@ export default function CustomerSignupForm({ onSignup }) {
     setLoading(true)
     try {
       await onSignup(form)
-      window.location.hash = '#/account'
+      navigateTo('/account')
     } catch (err) {
       setError(err.message || 'Unable to create account. Please try again.')
     } finally {
@@ -81,7 +82,7 @@ export default function CustomerSignupForm({ onSignup }) {
         {error && <div className="customer-auth-error">{error}</div>}
       </form>
       <div className="customer-auth-footer">
-        Already have an account? <a href="#/account/login">Sign in</a>
+        Already have an account? <a href="/account/login">Sign in</a>
       </div>
     </div>
   )

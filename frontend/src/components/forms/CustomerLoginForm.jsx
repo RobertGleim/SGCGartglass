@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { navigateTo } from '../../utils/navigation'
 import '../../styles/forms/CustomerLoginForm.css'
 
 export default function CustomerLoginForm({ onLogin }) {
@@ -14,7 +15,7 @@ export default function CustomerLoginForm({ onLogin }) {
 
     try {
       await onLogin(email, password)
-      window.location.hash = '#/account'
+      navigateTo('/account')
     } catch (err) {
       setError(err.message || 'Unable to sign in. Please try again.')
     } finally {
@@ -58,7 +59,7 @@ export default function CustomerLoginForm({ onLogin }) {
       </form>
 
       <div className="customer-auth-footer">
-        New here? <a href="#/account/signup">Create an account</a>
+        New here? <a href="/account/signup">Create an account</a>
       </div>
     </div>
   )

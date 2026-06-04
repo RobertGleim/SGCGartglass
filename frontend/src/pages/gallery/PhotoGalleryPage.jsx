@@ -9,29 +9,27 @@ import {
   getTemplatesCached,
   submitGalleryPhoto,
 } from '../../services/api';
+import { getCurrentSearch } from '../../utils/navigation';
 import styles from './PhotoGalleryPage.module.css';
 
 const getInitialTemplateIdFromHash = () => {
-  const raw = window.location.hash || '';
-  const idx = raw.indexOf('?');
-  if (idx === -1) return '';
-  const params = new URLSearchParams(raw.slice(idx + 1));
+  const search = getCurrentSearch();
+  if (!search) return '';
+  const params = new URLSearchParams(search.slice(1));
   return params.get('template_id') || params.get('template') || '';
 };
 
 const getInitialPhotoIdFromHash = () => {
-  const raw = window.location.hash || '';
-  const idx = raw.indexOf('?');
-  if (idx === -1) return '';
-  const params = new URLSearchParams(raw.slice(idx + 1));
+  const search = getCurrentSearch();
+  if (!search) return '';
+  const params = new URLSearchParams(search.slice(1));
   return params.get('photo_id') || params.get('gallery_photo_id') || '';
 };
 
 const getLinkedParamsFromHash = () => {
-  const raw = window.location.hash || '';
-  const idx = raw.indexOf('?');
-  if (idx === -1) return {};
-  const params = new URLSearchParams(raw.slice(idx + 1));
+  const search = getCurrentSearch();
+  if (!search) return {};
+  const params = new URLSearchParams(search.slice(1));
   return {
     template_id: params.get('template') || params.get('template_id') || '',
     pattern_product_id: params.get('pattern_product_id') || '',
@@ -220,14 +218,18 @@ export default function PhotoGalleryPage() {
   }, []);
 
   useEffect(() => {
-    const syncFromHash = () => {
+    const syncFromRoute = () => {
       setSelectedTemplateId(getInitialTemplateIdFromHash());
       setSelectedPhotoId(getInitialPhotoIdFromHash());
       setLinkedParams(getLinkedParamsFromHash());
       setCurrentPage(1);
     };
-    window.addEventListener('hashchange', syncFromHash);
-    return () => window.removeEventListener('hashchange', syncFromHash);
+    window.addEventListener('popstate', syncFromRoute);
+    window.addEventListener('sgcg:navigation', syncFromRoute);
+    return () => {
+      window.removeEventListener('popstate', syncFromRoute);
+      window.removeEventListener('sgcg:navigation', syncFromRoute);
+    };
   }, []);
 
   useEffect(() => {
@@ -489,11 +491,11 @@ export default function PhotoGalleryPage() {
     if (viewerLinkedResources.pattern_product_id) params.set('pattern_product_id', viewerLinkedResources.pattern_product_id);
     if (viewerLinkedResources.gallery_photo_id) params.set('gallery_photo_id', viewerLinkedResources.gallery_photo_id);
     if (viewerLinkedResources.gallery_template_id) params.set('gallery_template_id', viewerLinkedResources.gallery_template_id);
-    return `#/designer?${params.toString()}`;
+    return `/designer?${params.toString()}`;
   }, [viewerLinkedResources]);
 
   const viewerPatternHref = viewerLinkedResources.pattern_product_id
-    ? `#/product/m-${viewerLinkedResources.pattern_product_id}`
+    ? `/product/m-${viewerLinkedResources.pattern_product_id}`
     : '';
 
   const viewerGalleryHref = useMemo(() => {
@@ -503,7 +505,7 @@ export default function PhotoGalleryPage() {
     if (viewerLinkedResources.gallery_template_id) params.set('template_id', viewerLinkedResources.gallery_template_id);
     if (viewerLinkedResources.template_id) params.set('template', viewerLinkedResources.template_id);
     if (viewerLinkedResources.pattern_product_id) params.set('pattern_product_id', viewerLinkedResources.pattern_product_id);
-    return `#/gallery?${params.toString()}`;
+    return `/gallery?${params.toString()}`;
   }, [viewerLinkedResources]);
 
   const viewerHasLinkedResources = Boolean(
@@ -883,7 +885,7 @@ export default function PhotoGalleryPage() {
                 <div className={styles.viewerTagRow}>
                   {viewerGroup?.category && <span className={styles.badge}>{viewerGroup.category}</span>}
                   {(viewerGroup?.template_name || viewerGroup?.template_id) && (
-                    <a href={`#/gallery?template_id=${viewerGroup?.template_id}`} className={styles.templateLink}>
+                    <a href={`/gallery?template_id=${viewerGroup?.template_id}`} className={styles.templateLink}>
                       {viewerGroup?.template_name || templateNameMap.get(String(viewerGroup?.template_id)) || 'Template'}
                     </a>
                   )}

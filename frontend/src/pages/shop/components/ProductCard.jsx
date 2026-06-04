@@ -438,7 +438,7 @@ export default function ProductCard({ product }) {
   }
 
   return (
-    <a href={`#/product/${product.id}`} className="product-card-link">
+    <a href={`/product/${product.id}`} className="product-card-link">
       <article className="product-card">
         <div className="card-image">
           {hasDiscount && <span className="sale-badge">On Sale</span>}

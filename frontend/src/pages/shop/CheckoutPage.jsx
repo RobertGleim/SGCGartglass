@@ -292,7 +292,7 @@ export default function CheckoutPage() {
               {(summary.items || []).length === 0 ? (
                 <div className="checkout-card checkout-empty">
                   <p>Your cart is empty.</p>
-                  <a className="checkout-link" href="#/product">Continue shopping</a>
+                  <a className="checkout-link" href="/product">Continue shopping</a>
                 </div>
               ) : (
                 <div className="checkout-products">

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import useCarousel from '../../../../hooks/useCarousel'
 import LoadingMessage from '../../../../components/LoadingMessage'
 import { getProductDimensionsLabel } from '../../../../utils/productDimensions'
+import { navigateTo } from '../../../../utils/navigation'
 import './FeaturedCarousel.css'
 
 const manualCarouselImageCache = new Map()
@@ -396,7 +397,7 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
                 onClick={() => {
                   restartCarouselAfterInteraction()
                   if (isCenter) {
-                    window.location.hash = `#/product/${item.id}`
+                    navigateTo(`/product/${item.id}`)
                   }
                 }}
               >
@@ -426,7 +427,7 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
                       <span className="price">
                         {item.price_amount ? `$${item.price_amount}` : '--'}
                       </span>
-                      <a className="text-link" href={`#/product/${item.id}`}>
+                      <a className="text-link" href={`/product/${item.id}`}>
                         View
                       </a>
                     </div>

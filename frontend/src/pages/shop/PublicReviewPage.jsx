@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import LoadingMessage from '../../components/LoadingMessage'
 import { submitPublicReview } from '../../services/api'
+import { getCurrentSearch } from '../../utils/navigation'
 import './PublicReviewPage.css'
 
 const PRODUCT_TYPES = {
@@ -18,8 +19,7 @@ const PURCHASE_SOURCES = {
 }
 
 const getQueryParam = (param) => {
-  const query = window.location.hash.split('?')[1] || ''
-  const params = new URLSearchParams(query)
+  const params = new URLSearchParams(getCurrentSearch().slice(1))
   return params.get(param) || ''
 }
 
