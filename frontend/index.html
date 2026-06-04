@@ -1,6 +1,24 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      (function () {
+        var hash = String(window.location.hash || '').trim();
+        if (!hash || !hash.startsWith('#/')) return;
+
+        var legacyTarget = hash.slice(1);
+        try {
+          var parsed = new URL(legacyTarget, window.location.origin);
+          var cleanUrl = parsed.pathname + parsed.search + parsed.hash;
+          var currentUrl = window.location.pathname + window.location.search + window.location.hash;
+          if (cleanUrl !== currentUrl) {
+            window.history.replaceState({}, '', cleanUrl);
+          }
+        } catch (_) {
+          // Ignore malformed hash values and keep normal app boot flow.
+        }
+      })();
+    </script>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18106685600"></script>
     <script>
