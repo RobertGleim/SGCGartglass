@@ -1101,13 +1101,6 @@ export default function ProductDetail({ product, products = [] }) {
                 <p>Buyers are responsible for return shipping</p>
               </div>
             </div>
-            <div className="policy-item">
-              <span className="policy-icon">✓</span>
-              <div>
-                <strong>Shop is protected by Buyer Protection</strong>
-                <p>Learn more</p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
