@@ -505,7 +505,7 @@ export default function ProductDetail({ product, products = [] }) {
 
     const currentId = String(product?.id || '').trim()
     const candidates = products.filter((entry) => String(entry?.id || '').trim() !== currentId)
-    if (candidates.length <= 3) return candidates
+    if (candidates.length <= 8) return candidates
 
     const shuffled = [...candidates]
     for (let idx = shuffled.length - 1; idx > 0; idx -= 1) {
@@ -515,7 +515,7 @@ export default function ProductDetail({ product, products = [] }) {
       shuffled[randomIdx] = temp
     }
 
-    return shuffled.slice(0, 3)
+    return shuffled.slice(0, 8)
   }, [products, product?.id])
   
   // Normalize media records from various API payload shapes and drop invalid URLs.
