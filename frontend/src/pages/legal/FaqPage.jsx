@@ -105,6 +105,13 @@ export default function FaqPage() {
             </p>
           </li>
         </ol>
+
+        <div className="legal-secondary-link-group" aria-label="Additional reading">
+          <p className="legal-secondary-link-label">Additional reading</p>
+          <a className="legal-secondary-link" href="/stained-glass-guide">
+            Stained Glass Guide
+          </a>
+        </div>
       </section>
     </main>
   )

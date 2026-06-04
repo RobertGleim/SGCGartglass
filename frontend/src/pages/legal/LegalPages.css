@@ -47,6 +47,25 @@
   gap: 0.9rem;
 }
 
+.legal-secondary-link-group {
+  margin-top: 1.5rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.legal-secondary-link-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.88rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.legal-secondary-link {
+  font-size: 0.95rem;
+  color: #475569;
+}
+
 @media (min-width: 768px) {
   .legal-page {
     padding: 2rem 6vw 3rem;
