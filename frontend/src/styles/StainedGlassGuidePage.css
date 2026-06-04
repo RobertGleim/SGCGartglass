@@ -1,0 +1,79 @@
+.seo-guide-page {
+  margin: 0 auto;
+  max-width: 960px;
+  padding: 2.5rem 1.25rem 3rem;
+  color: #212121;
+  line-height: 1.65;
+}
+
+.seo-guide-header {
+  margin-bottom: 2rem;
+}
+
+.seo-guide-kicker {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #735226;
+  font-weight: 700;
+}
+
+.seo-guide-header h1 {
+  margin: 0.35rem 0 1rem;
+  font-size: clamp(1.6rem, 2.4vw, 2.3rem);
+  line-height: 1.2;
+}
+
+.seo-guide-section {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid #eadfcd;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fffdf7 0%, #fffaf0 100%);
+}
+
+.seo-guide-section h2 {
+  margin-top: 0;
+  margin-bottom: 0.6rem;
+}
+
+.seo-guide-subsection {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid #f0e7da;
+}
+
+.seo-guide-subsection h3 {
+  margin: 0;
+  font-size: 1.03rem;
+}
+
+.seo-guide-subsection p {
+  margin: 0.35rem 0 0;
+}
+
+.seo-guide-section ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.seo-guide-section li {
+  margin-bottom: 0.4rem;
+}
+
+.seo-guide-page a {
+  color: #7f3000;
+  text-decoration: underline;
+  text-underline-offset: 0.16rem;
+}
+
+@media (max-width: 640px) {
+  .seo-guide-page {
+    padding-top: 1.7rem;
+  }
+
+  .seo-guide-section {
+    padding: 1rem;
+  }
+}

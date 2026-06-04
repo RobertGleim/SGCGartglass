@@ -40,6 +40,7 @@ const PrivacyPolicyPage = lazy(() => import('./pages/legal/PrivacyPolicyPage'))
 const CustomOrderTermsPage = lazy(() => import('./pages/legal/CustomOrderTermsPage'))
 const RepairWarrantyPage = lazy(() => import('./pages/legal/RepairWarrantyPage'))
 const FaqPage = lazy(() => import('./pages/legal/FaqPage'))
+const StainedGlassGuidePage = lazy(() => import('./pages/StainedGlassGuidePage'))
 
 const BRAND_NAME = 'SGCG Art'
 const CATALOG_CACHE_KEY = 'sgcg_catalog_cache_v2'
@@ -493,6 +494,12 @@ function App() {
         {route.path === '/faq' && (
           <main>
             <FaqPage />
+          </main>
+        )}
+
+        {route.path === '/stained-glass-guide' && (
+          <main>
+            <StainedGlassGuidePage />
           </main>
         )}
       </Suspense>

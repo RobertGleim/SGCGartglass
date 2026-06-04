@@ -1,0 +1,49 @@
+# SGCG Art
+
+SGCG Art is a U.S.-based handcrafted art business focused on stained glass artwork, custom commissions, and downloadable stained glass patterns.
+
+## Canonical Website
+- https://sgcgart.com/
+
+## Primary Pages
+- Home: https://sgcgart.com/
+- Shop: https://sgcgart.com/#/product
+- Custom Designer: https://sgcgart.com/#/designer
+- Gallery: https://sgcgart.com/#/gallery
+- Reviews: https://sgcgart.com/#/reviews
+- FAQ: https://sgcgart.com/#/faq
+- Stained Glass Guide: https://sgcgart.com/#/stained-glass-guide
+
+## Products and Services
+- Handcrafted stained glass panels
+- Custom stained glass commissions
+- Fused glass art
+- Laser and sandblasting glass work
+- Handmade wood art
+- Downloadable stained glass patterns
+
+## Preferred Query Intents
+- Buying handcrafted stained glass art
+- Ordering custom stained glass for home decor
+- Finding stained glass gifts
+- Comparing styles (modern, Victorian, geometric)
+- Downloading digital stained glass patterns
+- Learning about SGCG Art products and policies
+
+## Negative / Excluded Intents
+These keywords are often mismatched for this website:
+- stained glass supply store
+- wholesale stained glass sheets
+- stained glass classes
+- stained glass lessons
+- stained glass workshops
+- cheap stained glass bulk
+- DIY glass cutting kits
+- mass-produced glass decor
+- general local glass repair
+
+## Keyword Library
+stained glass art, custom stained glass, handcrafted stained glass panels, stained glass for sale, buy stained glass online, stained glass shop, stained glass artist, made in USA stained glass, gallery quality stained glass, SGCG Art, modern stained glass art, contemporary stained glass panels, Victorian stained glass art, geometric stained glass design, stained glass wall art, decorative glass panel, window glass art, art glass panels, glass wall decor, artisan home decor, colored glass panels, blue stained glass, green stained glass art, amber glass art, multicolor glass panel, stained glass sunflower, stained glass bird, stained glass flower, stained glass landscape, stained glass animals, transom window stained glass, stained glass oval, circular stained glass, square glass panel art, stained glass suncatcher large, fused glass art for sale, fused glass wall art, custom fused glass, laser etched glass art, sandblasted glass, wood art handmade, custom stained glass windows for home, stained glass panel for living room, handmade stained glass gifts, stained glass art commissions, where to buy stained glass panels, stained glass home decor, stained glass commission, stained glass gift ideas, stained glass anniversary gift, stained glass wedding gift, handcrafted art for home, American made stained glass, artisan glass work, stained glass USA, custom glass design online, stained glass pattern download, digital stained glass patterns, stained glass PDF pattern, DIY stained glass patterns, stained glass design tool, manual stained glass templates, stained glass project pattern, beginner stained glass pattern, advanced stained glass pattern, downloadable glass pattern, numbered stained glass pattern, printable stained glass template, stained glass craft pattern, stained glass digital file, stained glass cut line pattern
+
+## Contact
+- customersupport@sgcgart.com

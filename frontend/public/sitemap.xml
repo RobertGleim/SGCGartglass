@@ -46,6 +46,13 @@
   </url>
 
   <url>
+    <loc>https://sgcgart.com/#/stained-glass-guide</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
     <loc>https://sgcgart.com/#/public-review</loc>
     <lastmod>2026-06-01</lastmod>
     <changefreq>weekly</changefreq>

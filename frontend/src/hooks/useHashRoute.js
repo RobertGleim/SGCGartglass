@@ -61,6 +61,9 @@ const parseParts = (parts) => {
   if (parts[0] === 'faq') {
     return { path: '/faq', params: {} }
   }
+  if (parts[0] === 'stained-glass-guide') {
+    return { path: '/stained-glass-guide', params: {} }
+  }
 
   return null
 }
