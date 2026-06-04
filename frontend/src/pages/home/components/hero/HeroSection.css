@@ -86,36 +86,82 @@
 }
 
 .hero-panel {
-  width: clamp(240px, 62vw, 360px);
+  width: 100%;
   margin: 0 auto;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .hero-card {
-  background: #f4f4f5;
-  border-radius: 14px;
-  padding: 0.95rem;
-  box-shadow: 0 12px 24px rgba(31, 46, 77, 0.08);
-  width: 100%;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 1rem;
+  width: max-content;
   animation: float-in 1s ease-out;
 }
 
+.hero-box {
+  width: 300px;
+  height: 300px;
+  background: #f4f4f5;
+  border-radius: 14px;
+  padding: 0.75rem;
+  box-shadow: 0 12px 24px rgba(31, 46, 77, 0.08);
+  border: 1px solid #dde3e8;
+}
+
 .card-image {
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #ececed;
   border-radius: 10px;
   padding: 0.35rem;
+  overflow: hidden;
 }
 
 .card-image .image {
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
   border-radius: 8px;
-  object-fit: contain;
+  object-fit: cover;
+}
+
+.hero-box-qr {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.hero-qr {
+  width: 220px;
+  height: 220px;
+  border-radius: 10px;
+  border: 3px solid #ffffff;
+  background: #ffffff;
+}
+
+.hero-qr-label {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #516273;
+  text-align: center;
+}
+
+@media (max-width: 899px) {
+  .hero-panel {
+    display: none;
+  }
+
+  .hero-card,
+  .hero-box {
+    display: none;
+  }
 }
 
 /* Small phones (375px+) */
@@ -163,23 +209,37 @@
     min-width: 140px;
   }
 
-  .hero-panel {
-    width: clamp(280px, 50vw, 390px);
-  }
 }
 
 /* Tablets and up */
 @media (min-width: 900px) {
   .hero {
-    min-height: 320px;
-    padding-right: clamp(260px, 30vw, 420px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 1.25rem;
+    min-height: 0;
+    padding: 2.5rem 4vw;
   }
 
   .hero-panel {
-    position: absolute;
-    top: 1.2rem;
-    right: clamp(1rem, 2.5vw, 2rem);
-    width: clamp(260px, 28vw, 380px);
+    position: static;
+    width: min(100%, 940px);
     margin: 0;
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+}
+
+@media (min-width: 1200px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr) 940px;
+    gap: 1.25rem;
+  }
+
+  .hero-panel {
+    width: 940px;
+    justify-content: flex-end;
+    overflow: visible;
   }
 }

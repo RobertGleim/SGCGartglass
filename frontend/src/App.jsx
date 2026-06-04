@@ -3,7 +3,6 @@ import './styles/App.css'
 import Footer from './components/layout/footer/Footer'
 import Header from './components/layout/header/Header'
 import LoadingMessage from './components/LoadingMessage'
-import PWAInstallPrompt from './components/PWAInstallPrompt'
 import useHashRoute from './hooks/useHashRoute'
 import useAuth from './hooks/useAuth'
 import useCustomerAuth from './hooks/useCustomerAuth'
@@ -315,7 +314,6 @@ function App() {
 
   return (
     <div className="page">
-      <PWAInstallPrompt />
       <Header
         brandName={BRAND_NAME}
         authToken={authToken}

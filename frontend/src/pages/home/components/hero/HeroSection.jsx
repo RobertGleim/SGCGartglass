@@ -1,4 +1,5 @@
 import './HeroSection.css'
+import AppDownloadSection from '../../../../components/AppDownloadSection'
 
 export default function HeroSection() {
   return (
@@ -16,9 +17,18 @@ export default function HeroSection() {
       </div>
       <div className="hero-panel">
         <div className="hero-card">
+          <div className="hero-box hero-box-image">
             <div className="card-image">
-                <img src="/logo.png" alt="SGCG Art Glass logo" className="image" />
+              <img src="/logo.png" alt="SGCG Art Glass logo" className="image" />
             </div>
+          </div>
+          <div className="hero-box hero-box-download">
+            <AppDownloadSection variant="heroCardBox" />
+          </div>
+          <div className="hero-box hero-box-qr">
+            <img src="/qrblack2.png" alt="Scan to open SGCG Art on your phone" className="hero-qr" />
+            <p className="hero-qr-label">Scan to open on phone</p>
+          </div>
         </div>
       </div>
     </section>

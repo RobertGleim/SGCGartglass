@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import FeaturedCarousel from './components/featured/FeaturedCarousel'
 import HeroSection from './components/hero/HeroSection'
-import AppDownloadSection from '../../components/AppDownloadSection'
 import { fetchRecentReviewsCached } from '../../services/api'
 import './HomePage.css'
 import '../../styles/ReviewCard.css'
@@ -236,6 +235,6 @@ export default function HomePage({ featuredItems, itemsLoading }) {
           </div>
         )}
       </section>
-      <AppDownloadSection />    </main>
+    </main>
   )
 }

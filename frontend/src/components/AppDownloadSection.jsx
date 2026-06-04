@@ -71,7 +71,7 @@ function AndroidInstructionsModal({ onClose }) {
   );
 }
 
-export default function AppDownloadSection() {
+export default function AppDownloadSection({ variant = 'default' }) {
   const { prompt, triggerInstall } = useInstallPrompt();
   const [showIOSModal, setShowIOSModal] = useState(false);
   const [showAndroidModal, setShowAndroidModal] = useState(false);
@@ -87,12 +87,18 @@ export default function AppDownloadSection() {
     }
   };
 
+  const sectionClassName = [
+    styles.section,
+    variant === 'hero' ? styles.sectionHero : '',
+    variant === 'heroCardBox' ? styles.sectionHeroCard : '',
+  ].filter(Boolean).join(' ');
+
   return (
     <>
       {showIOSModal && <IOSInstructionsModal onClose={() => setShowIOSModal(false)} />}
       {showAndroidModal && <AndroidInstructionsModal onClose={() => setShowAndroidModal(false)} />}
 
-      <section className={styles.section} aria-label="Download app">
+      <section className={sectionClassName} aria-label="Download app">
         <div className={styles.inner}>
           <img src="/web-app-manifest-192x192.png" alt="SGCG Art app icon" className={styles.appIcon} />
           <div className={styles.copy}>

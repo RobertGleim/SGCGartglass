@@ -4,6 +4,95 @@
   max-width: 900px;
 }
 
+.sectionHero {
+  margin: 0 0 0.55rem;
+  padding: 0;
+  max-width: none;
+}
+
+.sectionHero .inner {
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  gap: 0.7rem;
+}
+
+.sectionHero .appIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+}
+
+.sectionHero .heading {
+  font-size: 0.9rem;
+}
+
+.sectionHero .sub {
+  font-size: 0.72rem;
+}
+
+.sectionHero .btn {
+  padding: 0.38rem 0.62rem;
+  font-size: 0.74rem;
+}
+
+.sectionHero .qrWrap {
+  display: none;
+}
+
+.sectionHeroCard {
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  height: 100%;
+}
+
+.sectionHeroCard .inner {
+  height: 100%;
+  padding: 0.9rem;
+  border-radius: 12px;
+  gap: 0.75rem;
+  align-items: flex-start;
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+
+.sectionHeroCard .appIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+
+.sectionHeroCard .copy {
+  min-width: 0;
+}
+
+.sectionHeroCard .heading {
+  font-size: 1rem;
+}
+
+.sectionHeroCard .sub {
+  font-size: 0.82rem;
+}
+
+.sectionHeroCard .buttons {
+  display: grid;
+  grid-template-columns: 1fr;
+  width: 100%;
+  gap: 0.55rem;
+  margin-top: auto;
+}
+
+.sectionHeroCard .btn {
+  width: 100%;
+  justify-content: center;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.sectionHeroCard .qrWrap {
+  display: none;
+}
+
 .inner {
   display: flex;
   align-items: center;
