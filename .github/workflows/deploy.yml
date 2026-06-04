@@ -240,24 +240,28 @@ jobs:
           fi
 
           run_lftp_key_auth() {
-            lftp -u "$USERNAME" "sftp://$HOST:$PORT" -e "
+            lftp -d -u "$USERNAME" "sftp://$HOST:$PORT" -e "
               set net:timeout 30;
-              set net:max-retries 1;
+              set net:max-retries 2;
+              set net:reconnect-interval-base 5;
               set cmd:fail-exit yes;
               set cmd:interactive no;
               set sftp:auto-confirm yes;
+              pwd;
               mirror --reverse --delete --verbose --parallel=4 dist/ \"$HOSTINGER_REMOTE_PATH\";
               bye
             "
           }
 
           run_lftp_password_auth() {
-            lftp -u "$USERNAME","$PASSWORD" "sftp://$HOST:$PORT" -e "
+            lftp -d -u "$USERNAME","$PASSWORD" "sftp://$HOST:$PORT" -e "
               set net:timeout 30;
-              set net:max-retries 1;
+              set net:max-retries 2;
+              set net:reconnect-interval-base 5;
               set cmd:fail-exit yes;
               set cmd:interactive no;
               set sftp:auto-confirm yes;
+              pwd;
               mirror --reverse --delete --verbose --parallel=4 dist/ \"$HOSTINGER_REMOTE_PATH\";
               bye
             "
@@ -432,17 +436,38 @@ jobs:
           fi
 
           echo "SSH deploy failed, falling back to FTP..."
-          lftp -u "$USERNAME","$PASSWORD" "${FTP_SCHEME}://$HOST_ONLY:$PORT" -e "
-            set ssl:verify-certificate no;
-            set ftp:ssl-allow yes;
-            set ftp:ssl-force no;
-            set net:timeout 30;
-            set net:max-retries 1;
-            set cmd:fail-exit yes;
-            set cmd:interactive no;
-            mirror --reverse --delete --verbose --parallel=4 dist/ \"$HOSTINGER_REMOTE_PATH\";
-            bye
-          "
+          run_ftp_mirror() {
+            local scheme="$1"
+            local ssl_force="no"
+            if [ "$scheme" = "ftps" ]; then
+              ssl_force="yes"
+            fi
+
+            echo "Attempting ${scheme^^} deploy to $HOST_ONLY:$PORT"
+            lftp -d -u "$USERNAME","$PASSWORD" "${scheme}://$HOST_ONLY:$PORT" -e "
+              set ssl:verify-certificate no;
+              set ftp:ssl-allow yes;
+              set ftp:ssl-force $ssl_force;
+              set net:timeout 30;
+              set net:max-retries 2;
+              set net:reconnect-interval-base 5;
+              set cmd:fail-exit yes;
+              set cmd:interactive no;
+              pwd;
+              mirror --reverse --delete --verbose --parallel=4 dist/ \"$HOSTINGER_REMOTE_PATH\";
+              bye
+            "
+          }
+
+          if run_ftp_mirror "$FTP_SCHEME"; then
+            echo "FTP fallback deploy succeeded using scheme '$FTP_SCHEME'."
+          elif [ "$FTP_SCHEME" = "ftp" ]; then
+            echo "FTP attempt failed; retrying with FTPS..."
+            run_ftp_mirror "ftps"
+          else
+            echo "FTPS attempt failed; retrying with FTP..."
+            run_ftp_mirror "ftp"
+          fi
 
       - name: Frontend smoke test
         env:
