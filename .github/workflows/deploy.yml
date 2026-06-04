@@ -428,6 +428,24 @@ jobs:
           fi
 
           echo "SSH deploy failed, falling back to FTP..."
+          tcp_ok() {
+            local host="$1"
+            local port="$2"
+            timeout 6 bash -c "</dev/tcp/$host/$port" >/dev/null 2>&1
+          }
+
+          pick_first_reachable_port() {
+            local host="$1"
+            shift
+            for p in "$@"; do
+              if [ -n "$p" ] && tcp_ok "$host" "$p"; then
+                printf '%s' "$p"
+                return 0
+              fi
+            done
+            return 1
+          }
+
           run_ftp_mirror() {
             local scheme="$1"
             local port="$2"
@@ -436,13 +454,18 @@ jobs:
               ssl_force="yes"
             fi
 
+            if ! tcp_ok "$HOST_ONLY" "$port"; then
+              echo "Skipping ${scheme^^} attempt: $HOST_ONLY:$port is not reachable from this runner."
+              return 1
+            fi
+
             echo "Attempting ${scheme^^} deploy to $HOST_ONLY:$port"
             lftp -d -u "$USERNAME","$PASSWORD" "${scheme}://$HOST_ONLY:$port" -e "
               set ssl:verify-certificate no;
               set ftp:ssl-allow yes;
               set ftp:ssl-force $ssl_force;
-              set net:timeout 30;
-              set net:max-retries 2;
+              set net:timeout 12;
+              set net:max-retries 1;
               set net:reconnect-interval-base 5;
               set cmd:fail-exit yes;
               set cmd:interactive no;
@@ -457,6 +480,20 @@ jobs:
             PORT_ALT="990"
           elif [ "$PORT" = "990" ]; then
             PORT_ALT="21"
+          fi
+
+          CANDIDATE_PORT="$(pick_first_reachable_port "$HOST_ONLY" "$PORT" "$PORT_ALT" "21" "990" || true)"
+          if [ -n "$CANDIDATE_PORT" ]; then
+            PORT="$CANDIDATE_PORT"
+            if [ "$PORT" = "21" ]; then
+              PORT_ALT="990"
+            else
+              PORT_ALT="21"
+            fi
+          else
+            echo "No reachable FTP/FTPS ports detected on $HOST_ONLY (tested: ${PORT:-n/a}, ${PORT_ALT:-n/a}, 21, 990)."
+            echo "Failing fast so workflow retry can run on a fresh GitHub runner/IP."
+            exit 1
           fi
 
           if run_ftp_mirror "$FTP_SCHEME" "$PORT"; then
