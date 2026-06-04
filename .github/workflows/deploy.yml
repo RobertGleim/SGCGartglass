@@ -130,9 +130,9 @@ jobs:
           fi
 
           if ! getent hosts "$SSH_HOST_NORMALIZED" >/dev/null 2>&1; then
-            echo "DNS lookup failed for HOSTINGER_SSH_HOST '$SSH_HOST_NORMALIZED'."
-            echo "Set HOSTINGER_SSH_HOST to a resolvable host only (no protocol, username, or path)."
-            exit 1
+            echo "Warning: DNS lookup failed for HOSTINGER_SSH_HOST '$SSH_HOST_NORMALIZED' during precheck."
+            echo "Continuing so SSH deploy can run and FTP fallback can attempt if configured."
+            echo "If SSH step also fails DNS, set HOSTINGER_SSH_HOST to a resolvable host only (no protocol, username, or path)."
           fi
 
           if [ -z "$HOSTINGER_SSH_PRIVATE_KEY" ] && [ -z "$HOSTINGER_SSH_PASSWORD" ]; then
