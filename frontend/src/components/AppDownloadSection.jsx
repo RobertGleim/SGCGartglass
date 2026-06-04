@@ -20,9 +20,7 @@ function IOSInstructionsModal({ onClose }) {
         <ol className={styles.steps}>
           <li>
             <span className={styles.stepIcon}>1</span>
-            Tap the <strong>Share</strong> button (
-            <span className={styles.shareIcon} aria-label="share icon">⬆</span>)
-            at the bottom of Safari
+            Tap the <strong>Share (⬆)</strong> button at the bottom of Safari.
           </li>
           <li>
             <span className={styles.stepIcon}>2</span>
@@ -51,9 +49,7 @@ function AndroidInstructionsModal({ onClose }) {
         <ol className={styles.steps}>
           <li>
             <span className={styles.stepIcon}>1</span>
-            Tap the <strong>Menu</strong> button (
-            <span className={styles.shareIcon} aria-label="menu icon">⋮</span>)
-            in the top-right corner of Chrome
+            Tap the <strong>Menu (⋮)</strong> button in the top-right corner of Chrome.
           </li>
           <li>
             <span className={styles.stepIcon}>2</span>
