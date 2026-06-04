@@ -4,10 +4,11 @@ import App from './App.jsx';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import { CustomerAuthProvider } from './contexts/CustomerAuthContext.jsx';
 import { installInteractionGuard } from './utils/interactionGuard.js';
-import { migrateLegacyHashToCleanUrl } from './utils/navigation.js';
+import { migrateLegacyHashToCleanUrl, watchLegacyHashNavigation } from './utils/navigation.js';
 import './index.css';
 
 migrateLegacyHashToCleanUrl();
+const cleanupLegacyHashNavigation = watchLegacyHashNavigation();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -28,6 +29,7 @@ const cleanupInteractionGuard = installInteractionGuard();
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     cleanupInteractionGuard();
+    cleanupLegacyHashNavigation();
   });
 }
 
