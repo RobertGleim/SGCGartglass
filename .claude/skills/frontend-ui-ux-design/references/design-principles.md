@@ -1,5 +1,8 @@
 # Design Principles
 
+**Last Updated:** 2026-06-04
+
+
 ## 1. Visual Hierarchy
 
 - **Size**: Larger elements draw more attention

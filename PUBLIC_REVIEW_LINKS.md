@@ -1,5 +1,8 @@
 # Public Review Links for QR Codes
 
+**Last Updated:** 2026-06-04
+
+
 ## Overview
 Customers can now leave reviews without needing a review code or sign-in. Perfect for QR codes on thank you cards!
 

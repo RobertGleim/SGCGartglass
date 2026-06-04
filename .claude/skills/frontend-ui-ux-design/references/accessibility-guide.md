@@ -1,5 +1,8 @@
 # Accessibility Guidelines (WCAG 2.1/2.2)
 
+**Last Updated:** 2026-06-04
+
+
 Comprehensive guide for designing and implementing accessible user interfaces.
 
 ## WCAG Principles: POUR
@@ -244,7 +247,7 @@ Highest level of accessibility. Not required for entire sites, but aim for criti
 <span id="error">Email is invalid</span>
 
 <!-- Labels and descriptions -->
-<button aria-label="Close dialog">Ã—</button>
+<button aria-label="Close dialog">+ù</button>
 <input aria-labelledby="label" aria-describedby="help" />
 ```
 
@@ -548,7 +551,7 @@ function navigateToPage(page) {
   <h2>Section</h2>
 ```
 
-- Don't skip levels (h1 â†’ h3)
+- Don't skip levels (h1 GåÆ h3)
 - Use for structure, not styling
 - One h1 per page (usually)
 
@@ -674,16 +677,16 @@ Easy improvements with high impact:
 
 ## Common Mistakes
 
-1. **Placeholder as label** â†’ Always provide label
-2. **Removing focus outline** â†’ Provide alternative
-3. **Click div/span** â†’ Use button/link
-4. **Color-only indicators** â†’ Add icon/text
-5. **Low contrast text** â†’ Increase contrast
-6. **Auto-playing media** â†’ Provide controls
-7. **Small touch targets** â†’ Minimum 44x44px
-8. **Keyboard traps** â†’ Allow escape
-9. **Missing alt text** â†’ Describe image
-10. **Generic link text** â†’ Be descriptive
+1. **Placeholder as label** GåÆ Always provide label
+2. **Removing focus outline** GåÆ Provide alternative
+3. **Click div/span** GåÆ Use button/link
+4. **Color-only indicators** GåÆ Add icon/text
+5. **Low contrast text** GåÆ Increase contrast
+6. **Auto-playing media** GåÆ Provide controls
+7. **Small touch targets** GåÆ Minimum 44x44px
+8. **Keyboard traps** GåÆ Allow escape
+9. **Missing alt text** GåÆ Describe image
+10. **Generic link text** GåÆ Be descriptive
 
 ---
 

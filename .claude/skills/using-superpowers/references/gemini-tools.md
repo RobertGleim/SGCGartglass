@@ -1,5 +1,8 @@
 # Gemini CLI Tool Mapping
 
+**Last Updated:** 2026-06-04
+
+
 Skills use Claude Code tool names. When you encounter these in a skill, use your platform equivalent:
 
 | Skill references | Gemini CLI equivalent |
@@ -18,7 +21,7 @@ Skills use Claude Code tool names. When you encounter these in a skill, use your
 
 ## Subagent support
 
-Gemini CLI supports subagents natively via the `@` syntax. Use the built-in `@generalist` agent to dispatch any task â€” it has access to all tools and follows the prompt you provide.
+Gemini CLI supports subagents natively via the `@` syntax. Use the built-in `@generalist` agent to dispatch any task GÇö it has access to all tools and follows the prompt you provide.
 
 When a skill says to dispatch a named agent type, use `@generalist` with the full prompt from the skill's prompt template:
 
@@ -32,7 +35,7 @@ When a skill says to dispatch a named agent type, use `@generalist` with the ful
 
 ### Prompt filling
 
-Skills provide prompt templates with placeholders like `{WHAT_WAS_IMPLEMENTED}` or `[FULL TEXT of task]`. Fill all placeholders and pass the complete prompt as the message to `@generalist`. The prompt template itself contains the agent's role, review criteria, and expected output format â€” `@generalist` will follow it.
+Skills provide prompt templates with placeholders like `{WHAT_WAS_IMPLEMENTED}` or `[FULL TEXT of task]`. Fill all placeholders and pass the complete prompt as the message to `@generalist`. The prompt template itself contains the agent's role, review criteria, and expected output format GÇö `@generalist` will follow it.
 
 ### Parallel dispatch
 

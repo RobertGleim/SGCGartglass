@@ -1,5 +1,8 @@
 # Design System Components Reference
 
+**Last Updated:** 2026-06-04
+
+
 Comprehensive guide for designing and implementing common UI components.
 
 ## Basic Components
@@ -399,7 +402,7 @@ Comprehensive guide for designing and implementing common UI components.
     <h4 class="alert-title">Success!</h4>
     <p class="alert-message">Your changes have been saved.</p>
   </div>
-  <button class="alert-close" aria-label="Close alert">Ã—</button>
+  <button class="alert-close" aria-label="Close alert">+ù</button>
 </div>
 ```
 

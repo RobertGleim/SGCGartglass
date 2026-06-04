@@ -1,5 +1,8 @@
 # MVP
 
+**Last Updated:** 2026-06-04
+
+
 ## Goals
 - Mirror the Etsy seller experience with a branded landing page and a product spotlight page.
 - Allow the admin to link Etsy listings and automatically populate image, description, and price.

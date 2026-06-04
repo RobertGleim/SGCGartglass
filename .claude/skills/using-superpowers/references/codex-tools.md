@@ -1,5 +1,8 @@
 # Codex Tool Mapping
 
+**Last Updated:** 2026-06-04
+
+
 Skills use Claude Code tool names. When you encounter these in a skill, use your platform equivalent:
 
 | Skill references | Codex equivalent |
@@ -9,7 +12,7 @@ Skills use Claude Code tool names. When you encounter these in a skill, use your
 | Task returns result | `wait_agent` |
 | Task completes automatically | `close_agent` to free slot |
 | `TodoWrite` (task tracking) | `update_plan` |
-| `Skill` tool (invoke a skill) | Skills load natively â€” just follow the instructions |
+| `Skill` tool (invoke a skill) | Skills load natively GÇö just follow the instructions |
 | `Read`, `Write`, `Edit` (files) | Use your native file tools |
 | `Bash` (run commands) | Use your native shell tools |
 
@@ -40,8 +43,8 @@ GIT_COMMON=$(cd "$(git rev-parse --git-common-dir)" 2>/dev/null && pwd -P)
 BRANCH=$(git branch --show-current)
 ```
 
-- `GIT_DIR != GIT_COMMON` â†’ already in a linked worktree (skip creation)
-- `BRANCH` empty â†’ detached HEAD (cannot branch/push/PR from sandbox)
+- `GIT_DIR != GIT_COMMON` GåÆ already in a linked worktree (skip creation)
+- `BRANCH` empty GåÆ detached HEAD (cannot branch/push/PR from sandbox)
 
 See `using-git-worktrees` Step 0 and `finishing-a-development-branch`
 Step 1 for how each skill uses these signals.
@@ -52,8 +55,8 @@ When the sandbox blocks branch/push operations (detached HEAD in an
 externally managed worktree), the agent commits all work and informs
 the user to use the App's native controls:
 
-- **"Create branch"** â€” names the branch, then commit/push/PR via App UI
-- **"Hand off to local"** â€” transfers work to the user's local checkout
+- **"Create branch"** GÇö names the branch, then commit/push/PR via App UI
+- **"Hand off to local"** GÇö transfers work to the user's local checkout
 
 The agent can still run tests, stage files, and output suggested branch
 names, commit messages, and PR descriptions for the user to copy.

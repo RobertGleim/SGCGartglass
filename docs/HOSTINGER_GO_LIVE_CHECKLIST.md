@@ -1,5 +1,8 @@
 # Hostinger Go-Live Checklist
 
+**Last Updated:** 2026-06-04
+
+
 Use this checklist during launch day.
 
 ## 1) Deployment architecture
@@ -23,20 +26,20 @@ MySQL credentials are already configured in local env:
 - [x] Database password is set
 
 Set these in Render dashboard > Environment:
-- [x ] `DB_HOST=<your-mysql-host>`
-- [x ] `DB_PORT=3306`
-- [x ] `DB_USER=<your-mysql-user>`
-- [x ] `DB_PASSWORD=<your-mysql-password>`
-- [x ] `DB_NAME=<your-mysql-database>`
-- [ x] `JWT_SECRET=<your-long-random-secret>`
-- [ x] `ADMIN_EMAIL=sgcgartglass@gmail.com`
-- [x ] `ADMIN_PASSWORD_HASH=<your-generated-password-hash>`
-- [x ] `ETSY_API_KEY=<your-etsy-api-key>`
-- [x ] `ETSY_SHARED_SECRET=<your-etsy-shared-secret>`
-- [x ] `CORS_ORIGINS=https://sgcgart.com,https://www.sgcgart.com`
-- [x ] `FLASK_DEBUG=false`
+- [x] `DB_HOST=<your-mysql-host>`
+- [x] `DB_PORT=3306`
+- [x] `DB_USER=<your-mysql-user>`
+- [x] `DB_PASSWORD=<your-mysql-password>`
+- [x] `DB_NAME=<your-mysql-database>`
+- [x] `JWT_SECRET=<your-long-random-secret>`
+- [x] `ADMIN_EMAIL=sgcgartglass@gmail.com`
+- [x] `ADMIN_PASSWORD_HASH=<your-generated-password-hash>`
+- [x] `ETSY_API_KEY=<your-etsy-api-key>`
+- [x] `ETSY_SHARED_SECRET=<your-etsy-shared-secret>`
+- [x] `CORS_ORIGINS=https://sgcgart.com,https://www.sgcgart.com`
+- [x] `FLASK_DEBUG=false`
 
-## 3a) Hostinger MySQL Remote Access ⚠️ CRITICAL
+## 3a) Hostinger MySQL Remote Access G��n+� CRITICAL
 
 - [x ] In Hostinger hPanel > Databases > Remote MySQL
 - [ x] Add Render's IP address: **`<render-egress-ip>`**
@@ -56,6 +59,13 @@ Set these in Render dashboard > Environment:
 - [ ] Confirm `.htaccess` exists in uploaded root.
 - [ ] Open `https://sgcgart.com` and verify homepage loads.
 - [ ] Open a deep route (for example `#/admin`) and verify routing works.
+
+### 5a) GitHub Actions deploy secrets
+
+- [ ] `HOSTINGER_SSH_HOST` is set to a resolvable host (host only preferred).
+- [ ] `HOSTINGER_SSH_USER` and `HOSTINGER_REMOTE_PATH` are set.
+- [ ] At least one SSH auth method is set: `HOSTINGER_SSH_PRIVATE_KEY` or `HOSTINGER_SSH_PASSWORD`.
+- [ ] Optional FTP fallback creds are set (`FTP_HOST`, `FTP_USERNAME`, `FTP_PASSWORD`) if fallback is desired.
 
 ## 6) Backend deployment (Render)
 

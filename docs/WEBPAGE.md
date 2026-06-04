@@ -1,4 +1,7 @@
-# SGCG Art Glass â€” Webpage Reference
+# SGCG Art Glass GÇö Webpage Reference
+
+**Last Updated:** 2026-06-04
+
 
 > Living document. Update whenever routes, APIs, or environment variables change.  
 > Last reviewed: 2026-05-26
@@ -25,13 +28,13 @@
 SGCG Art Glass is a full-stack e-commerce + design SaaS for custom stained glass art.
 
 **Core features:**
-- Interactive canvas designer (Fabric.js) â€” customers build stained glass patterns
-- Work order submission â€” submit custom designs for production quotes
-- E-commerce shop â€” digital pattern downloads and physical products
-- Customer portal â€” track orders, saved projects, invoices
-- Admin dashboard â€” manage templates, glass types, gallery, products, orders
-- Gallery â€” community photo submissions with moderation
-- Review system â€” invite-codeâ€“gated customer reviews
+- Interactive canvas designer (Fabric.js) GÇö customers build stained glass patterns
+- Work order submission GÇö submit custom designs for production quotes
+- E-commerce shop GÇö digital pattern downloads and physical products
+- Customer portal GÇö track orders, saved projects, invoices
+- Admin dashboard GÇö manage templates, glass types, gallery, products, orders
+- Gallery GÇö community photo submissions with moderation
+- Review system GÇö invite-codeGÇôgated customer reviews
 
 ---
 
@@ -50,14 +53,14 @@ SGCG Art Glass is a full-stack e-commerce + design SaaS for custom stained glass
 | HTTP client | Axios | 1.15.0 |
 | Backend framework | Flask | 3.1.3 |
 | ORM | Flask-SQLAlchemy | 3.1.1 |
-| Database | PostgreSQL (via psycopg 3.3.3) | â€” |
-| Auth | JWT (PyJWT 2.12.0) | â€” |
+| Database | PostgreSQL (via psycopg 3.3.3) | GÇö |
+| Auth | JWT (PyJWT 2.12.0) | GÇö |
 | Image processing | Pillow | 12.2.0 |
 | Payments | Stripe SDK | 11.1.0 |
 | Email | Flask-Mail (Hostinger SMTP) | 0.9.1 |
 | Production server | Gunicorn | 22.0.0 |
-| Hosting (backend) | Render | â€” |
-| Hosting (frontend) | Hostinger / static | â€” |
+| Hosting (backend) | Render | GÇö |
+| Hosting (frontend) | Hostinger / static | GÇö |
 
 **CSS approach:** Plain CSS with CSS Modules (component-scoped). CSS variables in `frontend/src/index.css`. No Tailwind or SCSS.
 
@@ -95,7 +98,7 @@ All routing is **hash-based** (`/#/path`). Managed by custom `useHashRoute` hook
 **Auth tokens:**
 - Admin: JWT stored in `sessionStorage` key `sgcg_token`
 - Customer: JWT stored in `sessionStorage` key `sgcg_customer_token`  
-  *(previously also mirrored to `localStorage` â€” should be sessionStorage-only)*
+  *(previously also mirrored to `localStorage` GÇö should be sessionStorage-only)*
 
 ---
 
@@ -107,7 +110,7 @@ Base URL in production: `https://api.sgcgart.com` (or configured via `VITE_API_B
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/health` | Health check â€” returns `{"status": "ok"}` |
+| GET | `/api/health` | Health check GÇö returns `{"status": "ok"}` |
 | GET | `/` | Root probe for Render uptime checks |
 | GET | `/api/templates` | List published templates (paginated) |
 | GET | `/api/templates/<id>` | Single template detail |
@@ -130,7 +133,7 @@ Base URL in production: `https://api.sgcgart.com` (or configured via `VITE_API_B
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/api/account/login` | Customer login â†’ returns JWT |
+| POST | `/api/account/login` | Customer login GåÆ returns JWT |
 | POST | `/api/account/signup` | Customer registration |
 | POST | `/api/account/reset-password/request` | Send reset email |
 | POST | `/api/account/reset-password/confirm` | Set new password |
@@ -145,7 +148,7 @@ Base URL in production: `https://api.sgcgart.com` (or configured via `VITE_API_B
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/api/admin/login` | Admin login â†’ returns JWT |
+| POST | `/api/admin/login` | Admin login GåÆ returns JWT |
 | GET | `/api/admin/templates` | All templates (including private) |
 | POST | `/api/admin/templates` | Create template |
 | PUT | `/api/admin/templates/<id>` | Update template |
@@ -185,23 +188,23 @@ Base URL in production: `https://api.sgcgart.com` (or configured via `VITE_API_B
 |----------|----------|---------|---------|
 | `APP_ENV` | Yes | Config profile: `development` / `production` | `production` |
 | `FLASK_DEBUG` | No | Enable Flask debug mode | `false` |
-| `DATABASE_URL` | Yes | PostgreSQL connection string | â€” |
-| `POSTGRES_URL` | Dev | Dev PostgreSQL override | â€” |
+| `DATABASE_URL` | Yes | PostgreSQL connection string | GÇö |
+| `POSTGRES_URL` | Dev | Dev PostgreSQL override | GÇö |
 | `JWT_SECRET` | Prod | JWT signing secret (256-bit minimum) | `dev-secret` in dev |
 | `JWT_TTL_SECONDS` | No | Customer token lifetime (seconds) | `3600` |
 | `JWT_ADMIN_TTL_SECONDS` | No | Admin token lifetime; `0` = no server expiry | `0` |
 | `ADMIN_EMAIL` | Yes | Admin login email | `sgcgartglass@gmail.com` (insecure default) |
-| `ADMIN_PASSWORD_HASH` | Yes | Werkzeug-hashed admin password | â€” |
+| `ADMIN_PASSWORD_HASH` | Yes | Werkzeug-hashed admin password | GÇö |
 | `MAIL_SERVER` | Yes | SMTP server hostname | `smtp.hostinger.com` |
 | `MAIL_PORT` | No | SMTP port | `465` |
 | `MAIL_USE_SSL` | No | Use SSL for SMTP | `true` |
 | `MAIL_USE_TLS` | No | Use STARTTLS for SMTP | `false` |
-| `MAIL_USERNAME` | Yes | SMTP login username | â€” |
-| `MAIL_PASSWORD` | Yes | SMTP login password | â€” |
+| `MAIL_USERNAME` | Yes | SMTP login username | GÇö |
+| `MAIL_PASSWORD` | Yes | SMTP login password | GÇö |
 | `SUPPORT_EMAIL` | No | Reply-to address for emails | `customersupport@sgcgart.com` |
-| `STRIPE_SECRET_KEY` | Yes | Stripe secret key (`sk_live_...`) | â€” |
-| `STRIPE_PUBLISHABLE_KEY` | Yes | Stripe publishable key (`pk_live_...`) | â€” |
-| `STRIPE_WEBHOOK_SECRET` | Yes | Stripe webhook signature secret | â€” |
+| `STRIPE_SECRET_KEY` | Yes | Stripe secret key (`sk_live_...`) | GÇö |
+| `STRIPE_PUBLISHABLE_KEY` | Yes | Stripe publishable key (`pk_live_...`) | GÇö |
+| `STRIPE_WEBHOOK_SECRET` | Yes | Stripe webhook signature secret | GÇö |
 | `CHECKOUT_TAX_RATE` | No | Sales tax rate as decimal | `0.0825` |
 | `CORS_ORIGINS` | Prod | Comma-separated allowed origins | `http://localhost:5173,...` |
 | `UPLOAD_FOLDER` | No | Absolute path for uploaded files | `backend/uploads/` |
@@ -213,15 +216,15 @@ Base URL in production: `https://api.sgcgart.com` (or configured via `VITE_API_B
 
 ## 6. File Upload System
 
-All uploads land in `backend/uploads/` (ephemeral on Render â€” blobs are mirrored to the DB).
+All uploads land in `backend/uploads/` (ephemeral on Render GÇö blobs are mirrored to the DB).
 
 | Category | Path | Max Size | DB Fallback | Notes |
 |----------|------|----------|-------------|-------|
-| Glass textures | `uploads/textures/` | 5 MB | No | 256Ã—256 PNG/JPG |
+| Glass textures | `uploads/textures/` | 5 MB | No | 256+ù256 PNG/JPG |
 | Template images | `uploads/templates/` | 50 MB | Yes (image_data column) | PNG; re-cached to disk on first request |
 | Gallery photos | `uploads/gallery/` | 20 MB per file | Yes (image_data column) | Up to 120 MB per batch |
 | Product images | `uploads/products/` | 150 MB total | Yes | Served DB-first |
-| Review images | `uploads/reviews/` | â€” | No | â€” |
+| Review images | `uploads/reviews/` | GÇö | No | GÇö |
 
 **Global upload limit:** `MAX_CONTENT_LENGTH = 150 MB` (supports short videos).
 
@@ -232,33 +235,33 @@ All uploads land in `backend/uploads/` (ephemeral on Render â€” blobs are mirror
 ### App shell (`frontend/src/App.jsx`)
 ```
 App
-â”œâ”€â”€ Header          (layout/header/Header.jsx)
-â”œâ”€â”€ Suspense fallback â†’ LoadingMessage
-â”‚   â”œâ”€â”€ HomePage
-â”‚   â”‚   â”œâ”€â”€ HeroSection        (hero/HeroSection.jsx) â€” /logo.png, banner
-â”‚   â”‚   â””â”€â”€ FeaturedCarousel   (featured/FeaturedCarousel.jsx)
-â”‚   â”œâ”€â”€ ProductPage
-â”‚   â”‚   â””â”€â”€ ProductCard        (shop/components/ProductCard.jsx)
-â”‚   â”œâ”€â”€ ProductDetail
-â”‚   â”œâ”€â”€ AdminDashboard
-â”‚   â”‚   â”œâ”€â”€ TemplateManager
-â”‚   â”‚   â”œâ”€â”€ GlassTypeManager
-â”‚   â”‚   â”œâ”€â”€ GalleryManager
-â”‚   â”‚   â”œâ”€â”€ WorkOrderManager
-â”‚   â”‚   â””â”€â”€ ColoredDesignPreview  â† dangerouslySetInnerHTML (SVG)
-â”‚   â”œâ”€â”€ CustomerPortal
-â”‚   â”‚   â”œâ”€â”€ OrderHistory
-â”‚   â”‚   â””â”€â”€ InvoiceList
-â”‚   â”œâ”€â”€ DesignerPage            (Fabric.js canvas, lazy chunk vendor-fabric)
-â”‚   â”œâ”€â”€ PhotoGalleryPage
-â”‚   â”œâ”€â”€ CheckoutPage            (Stripe.js)
-â”‚   â””â”€â”€ â€¦ (legal, auth, diagnostics pages)
-â””â”€â”€ Footer          (layout/footer/Footer.jsx)
+Gö£GöÇGöÇ Header          (layout/header/Header.jsx)
+Gö£GöÇGöÇ Suspense fallback GåÆ LoadingMessage
+Göé   Gö£GöÇGöÇ HomePage
+Göé   Göé   Gö£GöÇGöÇ HeroSection        (hero/HeroSection.jsx) GÇö /logo.png, banner
+Göé   Göé   GööGöÇGöÇ FeaturedCarousel   (featured/FeaturedCarousel.jsx)
+Göé   Gö£GöÇGöÇ ProductPage
+Göé   Göé   GööGöÇGöÇ ProductCard        (shop/components/ProductCard.jsx)
+Göé   Gö£GöÇGöÇ ProductDetail
+Göé   Gö£GöÇGöÇ AdminDashboard
+Göé   Göé   Gö£GöÇGöÇ TemplateManager
+Göé   Göé   Gö£GöÇGöÇ GlassTypeManager
+Göé   Göé   Gö£GöÇGöÇ GalleryManager
+Göé   Göé   Gö£GöÇGöÇ WorkOrderManager
+Göé   Göé   GööGöÇGöÇ ColoredDesignPreview  GåÉ dangerouslySetInnerHTML (SVG)
+Göé   Gö£GöÇGöÇ CustomerPortal
+Göé   Göé   Gö£GöÇGöÇ OrderHistory
+Göé   Göé   GööGöÇGöÇ InvoiceList
+Göé   Gö£GöÇGöÇ DesignerPage            (Fabric.js canvas, lazy chunk vendor-fabric)
+Göé   Gö£GöÇGöÇ PhotoGalleryPage
+Göé   Gö£GöÇGöÇ CheckoutPage            (Stripe.js)
+Göé   GööGöÇGöÇ GÇª (legal, auth, diagnostics pages)
+GööGöÇGöÇ Footer          (layout/footer/Footer.jsx)
 ```
 
 ### Auth contexts (`frontend/src/contexts/`)
-- `AdminAuthContext.jsx` â€” admin JWT, stored in `sessionStorage`
-- `CustomerAuthContext.jsx` â€” customer JWT, 1-hour inactivity timeout
+- `AdminAuthContext.jsx` GÇö admin JWT, stored in `sessionStorage`
+- `CustomerAuthContext.jsx` GÇö customer JWT, 1-hour inactivity timeout
 
 ### API client (`frontend/src/services/api.js`)
 - Single Axios instance with Bearer-token interceptor
@@ -284,17 +287,17 @@ Cache is **busted** when the user navigates away from `/product`.
 
 ## 9. Deployment
 
-### Backend â€” Render
+### Backend GÇö Render
 
 - **Start command:** `gunicorn -w 4 -b 0.0.0.0:$PORT "backend.app:create_app()"`
-- **Filesystem:** Ephemeral â€” uploaded files must survive via DB blob fallback
+- **Filesystem:** Ephemeral GÇö uploaded files must survive via DB blob fallback
 - **Config:** `render.yaml` in project root
 - **Health check:** `GET /api/health`
 - **CORS origins:** Set `CORS_ORIGINS` env var to `https://sgcgart.com,https://www.sgcgart.com`
 
-### Frontend â€” Hostinger (static)
+### Frontend GÇö Hostinger (static)
 
-- **Build command:** `cd frontend && npm run build` â†’ outputs to `dist/`
+- **Build command:** `cd frontend && npm run build` GåÆ outputs to `dist/`
 - **Deploy:** Upload `dist/` to Hostinger static hosting
 - **Routing:** All non-asset paths must rewrite to `index.html` (SPA, hash routing)
 
@@ -315,8 +318,8 @@ Cache is **busted** when the user navigates away from `/product`.
 - **Ephemeral FS on Render:** Any file uploaded to `backend/uploads/` is lost on dyno restart. The DB fallback routes re-cache on first request, but there's a brief miss window. Always ensure `image_data` is saved to DB alongside disk.
 - **Hash routing:** The app uses `/#/route` hash-based routing, not HTML5 history. Deep-link URLs (e.g., `/#/product?id=5`) work without server-side rewrites.
 - **Admin token expiry:** By default `JWT_ADMIN_TTL_SECONDS=0` means admin tokens never expire server-side. Set this to `3600` in production.
-- **Stripe live keys in dev:** `.env.local` contains live Stripe keys â€” never commit this file. Use test keys (`pk_test_...`) for local development.
+- **Stripe live keys in dev:** `.env.local` contains live Stripe keys GÇö never commit this file. Use test keys (`pk_test_...`) for local development.
 - **Texture proxy SSRF guard:** If `TEXTURE_PROXY_ALLOWED_HOSTS` is unset, any non-private external host is permitted. Set it explicitly in production.
-- **Image sizes:** `banner.png` (2 MB) and `logo.png` (1.6 MB) in `frontend/public/` are uncompressed â€” convert to WebP for production.
-- **DOMPurify not applied to SVG:** `ColoredDesignPreview.jsx` renders raw SVG via `dangerouslySetInnerHTML` â€” SVG content from DB should be sanitized with DOMPurify before rendering.
-- **Custom cursor on `*`:** `index.css` applies `cursor: url(...)` to every element with `!important`. This forces a network fetch of the cursor SVG on every page â€” ensure the file is cached aggressively.
+- **Image sizes:** `banner.png` (2 MB) and `logo.png` (1.6 MB) in `frontend/public/` are uncompressed GÇö convert to WebP for production.
+- **DOMPurify not applied to SVG:** `ColoredDesignPreview.jsx` renders raw SVG via `dangerouslySetInnerHTML` GÇö SVG content from DB should be sanitized with DOMPurify before rendering.
+- **Custom cursor on `*`:** `index.css` applies `cursor: url(...)` to every element with `!important`. This forces a network fetch of the cursor SVG on every page GÇö ensure the file is cached aggressively.

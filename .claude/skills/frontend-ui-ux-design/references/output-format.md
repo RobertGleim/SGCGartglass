@@ -1,5 +1,8 @@
 # Output Format
 
+**Last Updated:** 2026-06-04
+
+
 When presenting UI/UX designs, structure your response as follows:
 
 ## 1. Design Brief

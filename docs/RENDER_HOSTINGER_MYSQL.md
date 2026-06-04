@@ -1,5 +1,8 @@
 # Render + Hostinger MySQL Setup Guide
 
+**Last Updated:** 2026-06-04
+
+
 This guide shows how to connect your Render-hosted Flask backend to Hostinger's MySQL database.
 
 ## Prerequisites

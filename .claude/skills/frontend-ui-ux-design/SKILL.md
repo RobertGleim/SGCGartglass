@@ -3,6 +3,9 @@ name: frontend-ui-ux-design
 description: Creates comprehensive frontend UI/UX designs including user interfaces, design systems, component libraries, responsive layouts, and accessibility implementations. Produces wireframes, mockups, design specifications, and implementation guidelines. Use when designing user interfaces, creating design systems, building component libraries, implementing responsive designs, ensuring accessibility compliance, or when users mention UI design, UX design, interface design, design systems, user experience, or frontend design patterns.
 ---
 
+**Last Updated:** 2026-06-04
+
+
 # Frontend UI/UX Design
 
 ## Overview

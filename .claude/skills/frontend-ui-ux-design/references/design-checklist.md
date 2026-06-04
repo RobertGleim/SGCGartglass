@@ -1,5 +1,8 @@
 # Design Checklist
 
+**Last Updated:** 2026-06-04
+
+
 ## Before Development
 
 - [ ] User research completed and documented

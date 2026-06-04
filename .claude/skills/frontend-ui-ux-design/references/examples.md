@@ -1,8 +1,11 @@
 # Examples
 
+**Last Updated:** 2026-06-04
+
+
 ## Example 1: E-Commerce Product Page
 
-**User Journey**: Browse â†’ View Product â†’ Add to Cart â†’ Checkout
+**User Journey**: Browse GåÆ View Product GåÆ Add to Cart GåÆ Checkout
 
 **Key Components**:
 
@@ -30,7 +33,7 @@
 
 ### Example 2: Dashboard Analytics
 
-**User Journey**: Login â†’ View Overview â†’ Drill into Metrics â†’ Export
+**User Journey**: Login GåÆ View Overview GåÆ Drill into Metrics GåÆ Export
 
 **Key Components**:
 
@@ -55,7 +58,7 @@
 
 ### Example 3: Mobile App Onboarding
 
-**User Journey**: Open App â†’ Welcome Screens â†’ Sign Up â†’ Tutorial
+**User Journey**: Open App GåÆ Welcome Screens GåÆ Sign Up GåÆ Tutorial
 
 **Key Screens**:
 

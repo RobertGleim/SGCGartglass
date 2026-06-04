@@ -86,6 +86,24 @@ jobs:
             printf '%s' "$h" | tr -d '\r[:space:]'
           }
 
+          extract_port() {
+            local h="$1"
+            if printf '%s' "$h" | grep -Eq ':[0-9]+$'; then
+              printf '%s' "${h##*:}"
+            else
+              printf '%s' ""
+            fi
+          }
+
+          extract_host_only() {
+            local h="$1"
+            if printf '%s' "$h" | grep -Eq ':[0-9]+$'; then
+              printf '%s' "${h%:*}"
+            else
+              printf '%s' "$h"
+            fi
+          }
+
           is_placeholder_host() {
             local h="$1"
             local lower
@@ -103,10 +121,17 @@ jobs:
           test -n "$HOSTINGER_SSH_USER" || (echo "Missing secret: HOSTINGER_SSH_USER" && exit 1)
           test -n "$(echo "${HOSTINGER_SSH_PORT:-65002}" | tr -d '[:space:]')" || (echo "Missing/invalid HOSTINGER_SSH_PORT" && exit 1)
 
-          SSH_HOST_NORMALIZED="$(normalize_host "$HOSTINGER_SSH_HOST")"
+          SSH_HOST_RAW="$(normalize_host "$HOSTINGER_SSH_HOST")"
+          SSH_HOST_NORMALIZED="$(extract_host_only "$SSH_HOST_RAW")"
           test -n "$SSH_HOST_NORMALIZED" || (echo "HOSTINGER_SSH_HOST is invalid after normalization" && exit 1)
           if is_placeholder_host "$SSH_HOST_NORMALIZED"; then
             echo "HOSTINGER_SSH_HOST appears to be a placeholder value."
+            exit 1
+          fi
+
+          if ! getent hosts "$SSH_HOST_NORMALIZED" >/dev/null 2>&1; then
+            echo "DNS lookup failed for HOSTINGER_SSH_HOST '$SSH_HOST_NORMALIZED'."
+            echo "Set HOSTINGER_SSH_HOST to a resolvable host only (no protocol, username, or path)."
             exit 1
           fi
 
@@ -115,13 +140,12 @@ jobs:
             exit 1
           fi
 
-          # Ensure FTP fallback remains usable.
-          test -n "$FTP_HOST" || (echo "Missing secret: FTP_HOST" && exit 1)
-          test -n "$FTP_USERNAME" || (echo "Missing secret: FTP_USERNAME" && exit 1)
-          test -n "$FTP_PASSWORD" || (echo "Missing secret: FTP_PASSWORD" && exit 1)
-
+          # Validate FTP fallback only when configured.
           FTP_HOST_NORMALIZED="$(normalize_host "$FTP_HOST")"
-          if is_placeholder_host "$FTP_HOST_NORMALIZED"; then
+          if [ -z "$FTP_HOST" ] || [ -z "$FTP_USERNAME" ] || [ -z "$FTP_PASSWORD" ]; then
+            echo "FTP fallback is not fully configured (FTP_HOST/FTP_USERNAME/FTP_PASSWORD)."
+            echo "SSH deploy can still succeed; configure FTP secrets only if fallback is required."
+          elif is_placeholder_host "$FTP_HOST_NORMALIZED"; then
             echo "Warning: FTP_HOST appears to be a placeholder; fallback will reuse HOSTINGER_SSH_HOST."
           fi
 
@@ -139,14 +163,38 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y lftp openssh-client
 
-          HOST="$HOSTINGER_SSH_HOST"
-          HOST="${HOST#ssh://}"
-          HOST="${HOST#sftp://}"
-          HOST="${HOST#ftp://}"
-          HOST="${HOST#ftps://}"
-          HOST="${HOST##*@}"
-          HOST="${HOST%%/*}"
-          HOST="$(printf '%s' "$HOST" | tr -d '\r[:space:]')"
+          normalize_host() {
+            local h="$1"
+            h="${h#ssh://}"
+            h="${h#sftp://}"
+            h="${h#ftp://}"
+            h="${h#ftps://}"
+            h="${h##*@}"
+            h="${h%%/*}"
+            printf '%s' "$h" | tr -d '\r[:space:]'
+          }
+
+          extract_port() {
+            local h="$1"
+            if printf '%s' "$h" | grep -Eq ':[0-9]+$'; then
+              printf '%s' "${h##*:}"
+            else
+              printf '%s' ""
+            fi
+          }
+
+          extract_host_only() {
+            local h="$1"
+            if printf '%s' "$h" | grep -Eq ':[0-9]+$'; then
+              printf '%s' "${h%:*}"
+            else
+              printf '%s' "$h"
+            fi
+          }
+
+          HOST_RAW="$(normalize_host "$HOSTINGER_SSH_HOST")"
+          HOST="$(extract_host_only "$HOST_RAW")"
+          HOST_PORT_FROM_HOST="$(extract_port "$HOST_RAW")"
           test -n "$HOST" || (echo "Normalized HOSTINGER_SSH_HOST is empty" && exit 1)
           is_placeholder_host() {
             local h="$1"
@@ -164,8 +212,15 @@ jobs:
             exit 1
           fi
           USERNAME="$HOSTINGER_SSH_USER"
-          PORT="$(echo "${HOSTINGER_SSH_PORT:-65002}" | tr -d '[:space:]')"
+          PORT="$(echo "${HOSTINGER_SSH_PORT:-$HOST_PORT_FROM_HOST}" | tr -d '[:space:]')"
+          PORT="${PORT:-65002}"
           PASSWORD="$(printf '%s' "$HOSTINGER_SSH_PASSWORD" | tr -d '\r')"
+
+          if ! getent hosts "$HOST" >/dev/null 2>&1; then
+            echo "DNS lookup failed for HOSTINGER_SSH_HOST '$HOST'."
+            echo "Set HOSTINGER_SSH_HOST to a resolvable host only (no protocol, username, or path)."
+            exit 1
+          fi
 
           run_lftp_key_auth() {
             lftp -u "$USERNAME" "sftp://$HOST:$PORT" -e "
@@ -174,6 +229,7 @@ jobs:
               set cmd:fail-exit yes;
               set cmd:interactive no;
               set sftp:auto-confirm yes;
+              set sftp:connect-program \"ssh -a -x -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no\";
               mirror --reverse --delete --verbose --parallel=4 dist/ \"$HOSTINGER_REMOTE_PATH\";
               bye
             "
@@ -240,6 +296,8 @@ jobs:
         env:
           FTP_HOST: ${{ secrets.FTP_HOST }}
           HOSTINGER_SSH_HOST: ${{ secrets.HOSTINGER_SSH_HOST }}
+          HOSTINGER_SSH_USER: ${{ secrets.HOSTINGER_SSH_USER }}
+          HOSTINGER_SSH_PASSWORD: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
           HOSTINGER_REMOTE_PATH: ${{ secrets.HOSTINGER_REMOTE_PATH }}
@@ -303,9 +361,17 @@ jobs:
           SSH_HOST_NORMALIZED="$(normalize_host "$HOSTINGER_SSH_HOST")"
 
           HOST="$FTP_HOST_NORMALIZED"
-          if is_placeholder_host "$HOST"; then
+          if [ -z "$HOST" ] || is_placeholder_host "$HOST"; then
             HOST="$SSH_HOST_NORMALIZED"
           fi
+
+          USERNAME="$FTP_USERNAME"
+          PASSWORD="$FTP_PASSWORD"
+          if [ -z "$USERNAME" ]; then USERNAME="$HOSTINGER_SSH_USER"; fi
+          if [ -z "$PASSWORD" ]; then PASSWORD="$HOSTINGER_SSH_PASSWORD"; fi
+
+          test -n "$USERNAME" || (echo "FTP username is missing (set FTP_USERNAME or HOSTINGER_SSH_USER)." && exit 1)
+          test -n "$PASSWORD" || (echo "FTP password is missing (set FTP_PASSWORD or HOSTINGER_SSH_PASSWORD)." && exit 1)
 
           test -n "$HOST" || (echo "Normalized FTP_HOST is empty" && exit 1)
           if is_placeholder_host "$HOST"; then
@@ -325,7 +391,7 @@ jobs:
           fi
 
           echo "SSH deploy failed, falling back to FTP..."
-          lftp -u "$FTP_USERNAME","$FTP_PASSWORD" "${FTP_SCHEME}://$HOST_ONLY:$PORT" -e "
+          lftp -u "$USERNAME","$PASSWORD" "${FTP_SCHEME}://$HOST_ONLY:$PORT" -e "
             set ssl:verify-certificate no;
             set ftp:ssl-allow yes;
             set ftp:ssl-force no;

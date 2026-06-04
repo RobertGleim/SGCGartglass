@@ -1,5 +1,8 @@
 # Hostinger Deployment Guide (Frontend + Flask API)
 
+**Last Updated:** 2026-06-04
+
+
 This project has two parts:
 - `frontend` (Vite React app)
 - `backend` (Flask API)
@@ -55,6 +58,25 @@ Upload everything from `frontend/dist` to your web root (`public_html` for share
 This repo includes `frontend/public/.htaccess`, so Vite copies it to `dist` and React routes resolve to `index.html`.
 
 If frontend and backend use different domains, keep `VITE_API_BASE_URL` set to backend URL before build.
+
+### CI/CD (GitHub Actions)
+
+The workflow in `.github/workflows/deploy.yml` deploys frontend assets via `lftp` SFTP and falls back to FTP only when SSH deploy fails.
+
+Recommended secret formats:
+- `HOSTINGER_SSH_HOST`: host only (for example `example.hostinger.com`)
+- `HOSTINGER_SSH_PORT`: optional when host contains `:port`
+- `HOSTINGER_SSH_USER`
+- `HOSTINGER_SSH_PRIVATE_KEY` (preferred) or `HOSTINGER_SSH_PASSWORD`
+- `HOSTINGER_REMOTE_PATH`
+
+Optional fallback secrets:
+- `FTP_HOST`, `FTP_USERNAME`, `FTP_PASSWORD`
+
+Workflow safeguards:
+- Host placeholders are rejected.
+- DNS lookup is validated before transfer.
+- Host strings with protocol/user/path are normalized automatically.
 
 ---
 

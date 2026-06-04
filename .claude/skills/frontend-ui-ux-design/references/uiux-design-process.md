@@ -1,5 +1,8 @@
 # UI/UX Design Process
 
+**Last Updated:** 2026-06-04
+
+
 Follow this systematic approach when designing user interfaces:
 
 ## Phase 1: Research & Discovery

@@ -1,5 +1,8 @@
 # Component Patterns
 
+**Last Updated:** 2026-06-04
+
+
 ## Forms Best Practices
 
 1. **Input Design**

@@ -1,5 +1,8 @@
 # Code Reviewer Prompt Template
 
+**Last Updated:** 2026-06-04
+
+
 Use this template when dispatching a code reviewer subagent.
 
 **Purpose:** Review completed work against requirements and code quality standards before it cascades into more work.
@@ -65,7 +68,7 @@ Task tool (general-purpose):
     ## Calibration
 
     Categorize issues by actual severity. Not everything is Critical.
-    Acknowledge what was done well before listing issues â€” accurate praise
+    Acknowledge what was done well before listing issues GÇö accurate praise
     helps the implementer trust the rest of the feedback.
 
     If you find significant deviations from the plan, flag them specifically
@@ -122,10 +125,10 @@ Task tool (general-purpose):
 ```
 
 **Placeholders:**
-- `{DESCRIPTION}` â€” brief summary of what was built
-- `{PLAN_OR_REQUIREMENTS}` â€” what it should do (plan file path, task text, or requirements)
-- `{BASE_SHA}` â€” starting commit
-- `{HEAD_SHA}` â€” ending commit
+- `{DESCRIPTION}` GÇö brief summary of what was built
+- `{PLAN_OR_REQUIREMENTS}` GÇö what it should do (plan file path, task text, or requirements)
+- `{BASE_SHA}` GÇö starting commit
+- `{HEAD_SHA}` GÇö ending commit
 
 **Reviewer returns:** Strengths, Issues (Critical / Important / Minor), Recommendations, Assessment
 

@@ -1,5 +1,8 @@
 # Responsive Design Patterns Reference
 
+**Last Updated:** 2026-06-04
+
+
 Comprehensive guide to responsive web design patterns and techniques.
 
 ## Responsive Breakpoints
@@ -33,30 +36,30 @@ Comprehensive guide to responsive web design patterns and techniques.
 
 ```css
 /* Extra small: <576px */
-/* Small: â‰¥576px */
+/* Small: GëÑ576px */
 @media (min-width: 576px) { }
 
-/* Medium: â‰¥768px */
+/* Medium: GëÑ768px */
 @media (min-width: 768px) { }
 
-/* Large: â‰¥992px */
+/* Large: GëÑ992px */
 @media (min-width: 992px) { }
 
-/* Extra large: â‰¥1200px */
+/* Extra large: GëÑ1200px */
 @media (min-width: 1200px) { }
 
-/* XXL: â‰¥1400px */
+/* XXL: GëÑ1400px */
 @media (min-width: 1400px) { }
 ```
 
 **Tailwind CSS Approach**
 
 ```css
-/* sm: â‰¥640px */
-/* md: â‰¥768px */
-/* lg: â‰¥1024px */
-/* xl: â‰¥1280px */
-/* 2xl: â‰¥1536px */
+/* sm: GëÑ640px */
+/* md: GëÑ768px */
+/* lg: GëÑ1024px */
+/* xl: GëÑ1280px */
+/* 2xl: GëÑ1536px */
 ```
 
 ### Device-Based Breakpoints
@@ -355,7 +358,7 @@ img {
 <nav class="navbar">
   <button class="menu-toggle" aria-expanded="false">
     <span class="sr-only">Menu</span>
-    â˜°
+    Gÿ¦
   </button>
   
   <ul class="nav-menu">
@@ -770,14 +773,14 @@ input, select, textarea {
 
 ## Common Responsive Mistakes
 
-1. **Fixed widths** â†’ Use percentages or max-width
-2. **Viewport meta tag missing** â†’ Add `<meta name="viewport">`
-3. **Desktop-first approach** â†’ Start mobile-first
-4. **Too many breakpoints** â†’ Keep it simple (3-4 max)
-5. **Neglecting touch targets** â†’ Minimum 44x44px
-6. **Ignoring landscape** â†’ Test both orientations
-7. **Large image files** â†’ Optimize and use srcset
-8. **Horizontal scroll** â†’ Use max-width: 100%
+1. **Fixed widths** GåÆ Use percentages or max-width
+2. **Viewport meta tag missing** GåÆ Add `<meta name="viewport">`
+3. **Desktop-first approach** GåÆ Start mobile-first
+4. **Too many breakpoints** GåÆ Keep it simple (3-4 max)
+5. **Neglecting touch targets** GåÆ Minimum 44x44px
+6. **Ignoring landscape** GåÆ Test both orientations
+7. **Large image files** GåÆ Optimize and use srcset
+8. **Horizontal scroll** GåÆ Use max-width: 100%
 
 ---
 

@@ -1,6 +1,9 @@
 # SGCG Designer
 
-Stained glass template design and work order submission — full-stack web app for interactive design (SVG templates, flat colors + textures) and work order workflow. No customer downloads; designs are submitted as work orders only.
+**Last Updated:** 2026-06-04
+
+
+Stained glass template design and work order submission G�� full-stack web app for interactive design (SVG templates, flat colors + textures) and work order workflow. No customer downloads; designs are submitted as work orders only.
 
 ## Tech stack
 
@@ -15,31 +18,31 @@ Stained glass template design and work order submission — full-stack web app f
 
 ```
 Sgcg/
-├── backend/                 # Flask API
-│   ├── app.py
-│   ├── config.py
-│   ├── models/
-│   ├── routes/
-│   ├── services/
-│   ├── utils/
-│   ├── requirements.txt
-│   ├── .env.example
-│   └── .gitignore
-├── frontend/                # React app (Vite)
-│   ├── public/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   ├── hooks/
-│   │   ├── utils/
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── package.json
-│   └── .gitignore
-├── database/
-│   └── schema.sql           # MySQL schema (templates, work_orders, etc.)
-└── README.md
+G��G��G�� backend/                 # Flask API
+G��   G��G��G�� app.py
+G��   G��G��G�� config.py
+G��   G��G��G�� models/
+G��   G��G��G�� routes/
+G��   G��G��G�� services/
+G��   G��G��G�� utils/
+G��   G��G��G�� requirements.txt
+G��   G��G��G�� .env.example
+G��   G��G��G�� .gitignore
+G��G��G�� frontend/                # React app (Vite)
+G��   G��G��G�� public/
+G��   G��G��G�� src/
+G��   G��   G��G��G�� components/
+G��   G��   G��G��G�� pages/
+G��   G��   G��G��G�� services/
+G��   G��   G��G��G�� hooks/
+G��   G��   G��G��G�� utils/
+G��   G��   G��G��G�� App.jsx
+G��   G��   G��G��G�� main.jsx
+G��   G��G��G�� package.json
+G��   G��G��G�� .gitignore
+G��G��G�� database/
+G��   G��G��G�� schema.sql           # MySQL schema (templates, work_orders, etc.)
+G��G��G�� README.md
 ```
 
 ## Setup instructions
@@ -74,9 +77,9 @@ cp .env.example .env
 
 **Required in `.env`:**
 
-- `SECRET_KEY` — random string for sessions (e.g. `openssl rand -hex 32`)
-- `DATABASE_URL` — `mysql+pymysql://USER:PASSWORD@HOST:PORT/DATABASE`
-- `CORS_ORIGINS` — allowed frontend origins, e.g. `http://localhost:5173`
+- `SECRET_KEY` G�� random string for sessions (e.g. `openssl rand -hex 32`)
+- `DATABASE_URL` G�� `mysql+pymysql://USER:PASSWORD@HOST:PORT/DATABASE`
+- `CORS_ORIGINS` G�� allowed frontend origins, e.g. `http://localhost:5173`
 - For work order emails: `MAIL_*` and `ADMIN_EMAIL`
 
 Run the API (development):
@@ -104,12 +107,12 @@ App runs at `http://localhost:5173` (or the port Vite prints).
 
 **Main dependencies:**
 
-- **react** / **react-dom** — UI
-- **react-router-dom** — routing (Designer, My Projects, Work Orders)
-- **axios** — API calls to Flask
-- **fabric** — canvas drawing and SVG manipulation for template regions
-- **react-color** — color picker for glass colors
-- **vite** — build tool and dev server
+- **react** / **react-dom** G�� UI
+- **react-router-dom** G�� routing (Designer, My Projects, Work Orders)
+- **axios** G�� API calls to Flask
+- **fabric** G�� canvas drawing and SVG manipulation for template regions
+- **react-color** G�� color picker for glass colors
+- **vite** G�� build tool and dev server
 
 ### 4. Database
 
@@ -163,10 +166,10 @@ c:/Users/rglei/OneDrive/Desktop/Sgcg/.venv/Scripts/python.exe migrate_all_sqlite
 
 ## Key behaviors
 
-- **Guests** can open the designer and use templates; they see “Sign in to save” and cannot save or submit.
+- **Guests** can open the designer and use templates; they see GǣSign in to saveGǥ and cannot save or submit.
 - **Registered users** can save projects (auto-save ~60s + manual save) and submit work orders.
 - **Work orders** are the only output; no design downloads.
-- **Admin** receives an email when a new work order is submitted and can manage status (e.g. review → quote).
+- **Admin** receives an email when a new work order is submitted and can manage status (e.g. review G�� quote).
 - **Customer checkout** supports cart summary, shipping details, Stripe payment-intent creation, and order placement.
 - **Admin sales** shows recent customer orders, highlights unseen new-order alerts, and includes per-order payment event timeline entries from Stripe webhooks.
 
@@ -186,25 +189,28 @@ The repo includes `.github/workflows/deploy.yml` to run one GitHub Actions deplo
 
 Set these GitHub repository secrets:
 
-- `HOSTINGER_SSH_HOST` — SSH host (for example, your Hostinger SSH endpoint)
-- `HOSTINGER_SSH_PORT` — SSH port (usually `22`)
-- `HOSTINGER_SSH_USER` — SSH username
-- `HOSTINGER_SSH_PRIVATE_KEY` — private key content (PEM/OpenSSH)
-- `HOSTINGER_SSH_PASSWORD` — optional, if using password-based SSH instead of key
-- `HOSTINGER_REMOTE_PATH` — absolute path to your domain docroot (for example `/home/USER/domains/sgcgart.com/public_html/`)
-- `RENDER_BACKEND_DEPLOY_HOOK_URL` — Render deploy hook URL for your backend service
-- `FRONTEND_URL` — optional frontend URL for CI smoke-test (defaults to `https://sgcgart.com/`)
+- `HOSTINGER_SSH_HOST` G�� SSH host (host only recommended; protocol/user/path are normalized automatically)
+- `HOSTINGER_SSH_PORT` G�� SSH port (optional if included in `HOSTINGER_SSH_HOST`; defaults to `65002`)
+- `HOSTINGER_SSH_USER` G�� SSH username
+- `HOSTINGER_SSH_PRIVATE_KEY` G�� private key content (PEM/OpenSSH)
+- `HOSTINGER_SSH_PASSWORD` G�� optional, if using password-based SSH instead of key
+- `HOSTINGER_REMOTE_PATH` G�� absolute path to your domain docroot (for example `/home/USER/domains/sgcgart.com/public_html/`)
+- `RENDER_BACKEND_DEPLOY_HOOK_URL` G�� Render deploy hook URL for your backend service
+- `FRONTEND_URL` G�� optional frontend URL for CI smoke-test (defaults to `https://sgcgart.com/`)
 
 Notes:
 
-- The workflow can fall back to existing `FTP_HOST` / `FTP_USERNAME` / `FTP_PASSWORD` secrets for host/user/password values during SSH deploy.
+- Frontend deploy uses `lftp` over SFTP first, then falls back to FTP only if SSH deploy fails.
+- SSH deploy now validates DNS resolution for `HOSTINGER_SSH_HOST` before upload.
+- The workflow can use existing `FTP_HOST` / `FTP_USERNAME` / `FTP_PASSWORD` as fallback values.
+- If FTP credentials are missing, fallback can reuse `HOSTINGER_SSH_USER` / `HOSTINGER_SSH_PASSWORD`.
 - For Hostinger shared hosting with SSH enabled, password auth is supported if private key auth is not configured.
 
 Behavior:
 
 - Runs `npm install` + `npm run build` in `frontend/`
 - Builds hashed assets into `dist/assets/`
-- Deploys with `rsync --delete` so the server always matches the latest commit
+- Deploys frontend with `lftp mirror --reverse --delete` so remote files match the latest commit
 - Triggers the Render backend deploy hook when backend files change
 - Performs post-deploy smoke checks for frontend and backend health
 

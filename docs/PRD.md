@@ -1,5 +1,8 @@
 # Product Requirements Document
 
+**Last Updated:** 2026-06-04
+
+
 ## Overview
 SGCG Art Glass needs a branded web experience that mirrors the Etsy seller page while giving full control of featured items and presentation. The site must begin with a home page, a product spotlight page, and an admin page for syncing Etsy listings.
 
