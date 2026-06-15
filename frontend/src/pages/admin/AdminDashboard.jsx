@@ -4515,13 +4515,15 @@ export default function AdminDashboard({
           product?.height ? `H: ${product.height}` : "",
           product?.depth ? `D: ${product.depth}` : "",
         ].filter(Boolean);
-        const dimensionsLabel = `Size: ${dimensionParts.length > 0 ? dimensionParts.join(" · ") : "No size listed"}`;
+        const itemNumber = getProductItemNumber(product);
+        const dimensionsLabel = `Size: ${dimensionParts.length > 0 ? dimensionParts.join(" · ") : "No size listed"}${itemNumber ? ` · Item #: ${itemNumber}` : ""}`;
 
         const contentWidth = rowWidth - textXOffset - 2;
         const nameLines = doc.splitTextToSize(String(product?.name || "Untitled product"), contentWidth);
+        const dimensionsLines = doc.splitTextToSize(dimensionsLabel, contentWidth);
         const tagsLines = doc.splitTextToSize(tagsLabel, contentWidth);
 
-        const textLineCount = Math.max(4, nameLines.length + 1 + 1 + tagsLines.length);
+        const textLineCount = Math.max(4, nameLines.length + 1 + dimensionsLines.length + tagsLines.length);
         const rowHeight = Math.max(24, 6 + (textLineCount * lineHeight));
 
         if (y + rowHeight > pageHeight - bottomMargin) {
@@ -4578,8 +4580,10 @@ export default function AdminDashboard({
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8.8);
         doc.setTextColor(31, 41, 55);
-        doc.text(dimensionsLabel, rowStartX + textXOffset, textY);
-        textY += lineHeight;
+        dimensionsLines.forEach((line) => {
+          doc.text(String(line), rowStartX + textXOffset, textY);
+          textY += lineHeight;
+        });
 
         doc.setTextColor(55, 65, 81);
         tagsLines.forEach((line) => {

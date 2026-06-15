@@ -129,6 +129,20 @@ const pickDimension = (sources, keys) => {
   return undefined;
 };
 
+const parseDimensionString = (value) => {
+  const normalized = String(value ?? "")
+    .replace(/[xX×]/g, "x")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return { width: undefined, height: undefined };
+
+  const match = normalized.match(
+    /(\d+(?:\.\d+)?(?:[\s-]+\d+\/\d+)?|\d+\/\d+)\s*(?:["']|in(?:ches?)?\.?)?\s*x\s*(\d+(?:\.\d+)?(?:[\s-]+\d+\/\d+)?|\d+\/\d+)\s*(?:["']|in(?:ches?)?\.?)?/i,
+  );
+  if (!match) return { width: undefined, height: undefined };
+  return { width: match[1], height: match[2] };
+};
+
 // Convenience wrapper for storefront components: derive the item number straight
 // from a normalized product object (mirrors getProductDimensionsLabel's sources).
 export const getProductItemNumber = (product) => {
@@ -138,7 +152,18 @@ export const getProductItemNumber = (product) => {
     product.category ??
     product.originalData?.category ??
     product.manualProductDetails?.category;
-  const width = pickDimension(sources, ["width", "width_inches", "width_in", "widthInches"]);
-  const height = pickDimension(sources, ["height", "height_inches", "height_in", "heightInches"]);
+  let width = pickDimension(sources, ["width", "width_inches", "width_in", "widthInches"]);
+  let height = pickDimension(sources, ["height", "height_inches", "height_in", "heightInches"]);
+
+  if (!width || !height) {
+    for (const source of sources) {
+      if (!source || typeof source !== "object") continue;
+      const parsed = parseDimensionString(source.dimensions || source.dimension || source.size);
+      if (!width && parsed.width) width = parsed.width;
+      if (!height && parsed.height) height = parsed.height;
+      if (width && height) break;
+    }
+  }
+
   return buildItemNumber({ category, width, height });
 };
