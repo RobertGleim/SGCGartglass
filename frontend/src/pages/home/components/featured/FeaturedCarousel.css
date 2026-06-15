@@ -160,6 +160,13 @@
   color: #7a7f89;
 }
 
+.featured-carousel .card-item-number {
+  margin-left: 0.5rem;
+  font-weight: 600;
+  color: #5a5f69;
+  letter-spacing: 0.02em;
+}
+
 @keyframes featuredImageShimmer {
   0% {
     background-position: 0% 0;

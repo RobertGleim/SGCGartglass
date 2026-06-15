@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import useCarousel from '../../../../hooks/useCarousel'
 import LoadingMessage from '../../../../components/LoadingMessage'
 import { getProductDimensionsLabel } from '../../../../utils/productDimensions'
+import { getProductItemNumber } from '../../../../utils/itemNumber'
 import { navigateTo } from '../../../../utils/navigation'
 import './FeaturedCarousel.css'
 
@@ -366,6 +367,7 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
             const isImageLoading = !resolvedImageUrl && manualImageFetchState[itemId] === 'loading'
             const showLoadingText = isCenter && isImageLoading
             const dimensionsLabel = getProductDimensionsLabel(item)
+            const itemNumber = getProductItemNumber(item)
 
             let scale = 1
             let opacity = 1
@@ -419,7 +421,14 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
                   </div>
                   <div className="card-body">
                     <h3 className="card-title">{item.title || 'Untitled piece'}</h3>
-                    {dimensionsLabel && <p className="card-dimensions">{dimensionsLabel}</p>}
+                    {(dimensionsLabel || itemNumber) && (
+                      <p className="card-dimensions">
+                        {dimensionsLabel}
+                        {itemNumber && (
+                          <span className="card-item-number">Item #: {itemNumber}</span>
+                        )}
+                      </p>
+                    )}
                     <p className="card-description">
                       {item.description}
                     </p>
