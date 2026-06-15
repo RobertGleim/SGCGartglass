@@ -13,7 +13,7 @@ const getStoredShopTab = () => {
   return stored
 }
 
-export default function Header({ brandName, authToken, customerToken }) {
+export default function Header({ authToken, customerToken }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [cartCount, setCartCount] = useState(0)
   const [currentPath, setCurrentPath] = useState(getCurrentPathname)

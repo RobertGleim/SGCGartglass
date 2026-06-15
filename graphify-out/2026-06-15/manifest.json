@@ -560,8 +560,8 @@
     "semantic_hash": "05ed4d2902a1656d60d15009e6c40d21"
   },
   "frontend/src/pages/admin/AdminDashboard.jsx": {
-    "mtime": 1781542138.4186642,
-    "ast_hash": "48fe7310db995f72a80a349c498bfecf",
+    "mtime": 1781551900.2278645,
+    "ast_hash": "4ab2324de5d040181173dfe4270037f5",
     "semantic_hash": ""
   },
   "frontend/src/pages/admin/AdminGlassTypesPage.jsx": {
@@ -2655,13 +2655,13 @@
     "semantic_hash": ""
   },
   ".remember/tmp/last-save.json": {
-    "mtime": 1781543527.3762312,
-    "ast_hash": "9fbcade8b45d46b9c1612323ca92ed87",
+    "mtime": 1781544132.370443,
+    "ast_hash": "8b3e25c517881da3becdda2ee42d1edb",
     "semantic_hash": ""
   },
   "frontend/src/utils/itemNumber.js": {
-    "mtime": 1781542474.1634386,
-    "ast_hash": "bf771255790332a589fbfd96cb6cccf1",
+    "mtime": 1781551885.3364294,
+    "ast_hash": "b20fa6a771f1bd43b2fa2204a72c9496",
     "semantic_hash": ""
   },
   ".remember/archive.md": {
@@ -2670,8 +2670,8 @@
     "semantic_hash": ""
   },
   ".remember/now.md": {
-    "mtime": 1781543526.7620924,
-    "ast_hash": "20a2d8d44cc769673ef5646da28f8e5b",
+    "mtime": 1781544131.9388335,
+    "ast_hash": "1d39a0fc921ae5f82a863b7dd444faf6",
     "semantic_hash": ""
   },
   ".remember/recent.md": {
@@ -2707,6 +2707,86 @@
   "backend/uploads/gallery/513398a3fc0a41afad848a654003a7d6.jpg": {
     "mtime": 1781541944.9514935,
     "ast_hash": "296c34bf3f38f22a6f2382cb6b2606f8",
+    "semantic_hash": ""
+  },
+  ".swarm/schema.sql": {
+    "mtime": 1781551685.9003024,
+    "ast_hash": "e77aa28e593ec565313c8c084b1fd289",
+    "semantic_hash": ""
+  },
+  ".agents/skills/frontend-ui-ux-design/SKILL.md": {
+    "mtime": 1781551436.6764228,
+    "ast_hash": "5ed74497ba8da26b264c0cedb4da6756",
+    "semantic_hash": ""
+  },
+  ".agents/skills/frontend-ui-ux-design/references/accessibility-guide.md": {
+    "mtime": 1780597868.0630448,
+    "ast_hash": "cfb55b543f2ed05c96ce0e53fd4cfb1d",
+    "semantic_hash": ""
+  },
+  ".agents/skills/frontend-ui-ux-design/references/component-library.md": {
+    "mtime": 1780597868.0630448,
+    "ast_hash": "42c2d2fdfe3d1e5135cb41193404316a",
+    "semantic_hash": ""
+  },
+  ".agents/skills/frontend-ui-ux-design/references/component-patterns.md": {
+    "mtime": 1780597868.0686684,
+    "ast_hash": "7d078d6087c9a47a39b06bfd7a4437f5",
+    "semantic_hash": ""
+  },
+  ".agents/skills/frontend-ui-ux-design/references/design-checklist.md": {
+    "mtime": 1780597868.0701745,
+    "ast_hash": "9eec881c2a30b81d436422b1093dec0a",
+    "semantic_hash": ""
+  },
+  ".agents/skills/frontend-ui-ux-design/references/design-principles.md": {
+    "mtime": 1780597868.0716748,
+    "ast_hash": "44d18efca2a784a5c39b6468db20e018",
+    "semantic_hash": ""
+  },
+  ".agents/skills/frontend-ui-ux-design/references/design-systems.md": {
+    "mtime": 1780597868.0762868,
+    "ast_hash": "552ad0a47a6a884a02f25dc837bbfd2d",
+    "semantic_hash": ""
+  },
+  ".agents/skills/frontend-ui-ux-design/references/design-tools-and-resources.md": {
+    "mtime": 1780597868.0762868,
+    "ast_hash": "eca09530683b698505dfad01a6f21d66",
+    "semantic_hash": ""
+  },
+  ".agents/skills/frontend-ui-ux-design/references/examples.md": {
+    "mtime": 1780597868.08304,
+    "ast_hash": "27f8368a0e1f4a3b9dcb63c7e385875e",
+    "semantic_hash": ""
+  },
+  ".agents/skills/frontend-ui-ux-design/references/output-format.md": {
+    "mtime": 1780597868.0850456,
+    "ast_hash": "7f3f24122f95d49298146825c55219e8",
+    "semantic_hash": ""
+  },
+  ".agents/skills/frontend-ui-ux-design/references/performance-optimization.md": {
+    "mtime": 1780597868.0883741,
+    "ast_hash": "ae5b0b4efdcb0763e9787c2c2abe92aa",
+    "semantic_hash": ""
+  },
+  ".agents/skills/frontend-ui-ux-design/references/responsive-design.md": {
+    "mtime": 1780597868.0946586,
+    "ast_hash": "f99607de8c055a26a38aa5e8cb25543a",
+    "semantic_hash": ""
+  },
+  ".agents/skills/frontend-ui-ux-design/references/uiux-design-process.md": {
+    "mtime": 1780597868.0946586,
+    "ast_hash": "ae744d5f8568b3f4223b94bf1911416c",
+    "semantic_hash": ""
+  },
+  ".agents/skills/requesting-code-review/code-reviewer.md": {
+    "mtime": 1780597868.1072826,
+    "ast_hash": "17293efb01b1459b2e92b26e0ef3b61c",
+    "semantic_hash": ""
+  },
+  "AGENTS.md": {
+    "mtime": 1781551436.641453,
+    "ast_hash": "3af14c5d6754668eeda3d24486212d00",
     "semantic_hash": ""
   }
 }

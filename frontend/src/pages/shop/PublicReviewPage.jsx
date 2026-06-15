@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import LoadingMessage from '../../components/LoadingMessage'
 import { submitPublicReview } from '../../services/api'
 import { getCurrentSearch } from '../../utils/navigation'

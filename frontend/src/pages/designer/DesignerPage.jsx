@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Point } from 'fabric';
 import api, { addCustomerCartItem, fetchManualProductsCached, getTemplatesCached, saveProject, submitWorkOrder, getProject, getTemplate,
   getWorkOrder, getAdminWorkOrder, createCustomerRevision, createAdminRevision,
   approveWorkOrder as apiApproveWorkOrder, getWorkOrderRevisions, getAdminWorkOrderRevisions,
@@ -118,6 +119,8 @@ const CLEAR_GLASS_COLOR = '#eaf6ff';
 const REMOVE_COLOR_HEX = '#ffffff';
 const CANVAS_BASE_W = 840;
 const CANVAS_BASE_H = 600;
+const CANVAS_W = CANVAS_BASE_W;
+const CANVAS_H = CANVAS_BASE_H;
 const ADMIN_FAVORITE_COLOR_SLOTS = 4;
 const ADMIN_FAVORITE_COLORS_STORAGE_KEY = 'sgcg_admin_favorite_colors_v1';
 
@@ -379,7 +382,7 @@ const getAnchorForFabricObject = (obj, bounds) => {
 
   const testInside = (x, y) => {
     try {
-      return !!obj.containsPoint(new fabric.Point(x, y));
+      return !!obj.containsPoint(new Point(x, y));
     } catch {
       return false;
     }
@@ -414,14 +417,6 @@ const resolveBackendAssetUrl = (value, fallbackFolder = '') => {
   if (value.startsWith('/')) return `${getApiOrigin()}${value}`;
   if (fallbackFolder) return `${getApiOrigin()}${fallbackFolder}/${value}`;
   return `${getApiOrigin()}/${value}`;
-};
-
-const appendAssetVersion = (url, version) => {
-  const baseUrl = String(url || '').trim();
-  const versionValue = String(version || '').trim();
-  if (!baseUrl || !versionValue) return baseUrl;
-  const separator = baseUrl.includes('?') ? '&' : '?';
-  return `${baseUrl}${separator}v=${encodeURIComponent(versionValue)}`;
 };
 
 const getTextureLoadUrl = (textureUrl) => {
@@ -3449,10 +3444,6 @@ export default function DesignerPage() {
                         if (full?.default_design_data && typeof full.default_design_data === 'object') {
                           woDesignDataRef.current = full.default_design_data;
                         }
-                                const src = appendAssetVersion(
-                                  resolveBackendAssetUrl(selectedTemplate.image_url, '/uploads/templates'),
-                                  selectedTemplate.updated_at || selectedTemplate.image_url,
-                                );
                       } catch (err) {
                         console.error('[DesignerPage] Template fetch failed:', err);
                         setSelectedTemplate(t); // fallback to gallery data

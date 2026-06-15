@@ -1,16 +1,16 @@
 # Graph Report - Sgcg  (2026-06-15)
 
 ## Corpus Check
-- 241 files · ~9,706,637 words
+- 241 files · ~9,706,638 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2425 nodes · 3983 edges · 184 communities (162 shown, 22 thin omitted)
+- 2425 nodes · 3983 edges · 185 communities (163 shown, 22 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 25 edges (avg confidence: 0.84)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0ccf9626`
+- Built from commit: `d8f0f792`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -169,6 +169,7 @@
 - [[_COMMUNITY_Community 179|Community 179]]
 - [[_COMMUNITY_Community 180|Community 180]]
 - [[_COMMUNITY_Community 181|Community 181]]
+- [[_COMMUNITY_Community 182|Community 182]]
 - [[_COMMUNITY_Community 183|Community 183]]
 
 ## God Nodes (most connected - your core abstractions)
@@ -206,7 +207,7 @@
 - **Admin Product Forms System (StainedGlass + Woodwork forms with scoped CSS)** — forms_readme_stainedglass_form, forms_readme_woodwork_form, docs_form_customization_stainedglass_css, docs_form_customization_woodwork_css, docs_webpage_admin_dashboard [EXTRACTED 1.00]
 - **Cross-Platform Skill Tool Mapping (Claude Code, Copilot CLI, Codex, Gemini CLI)** — using_superpowers_skill_framework, references_codex_tools_mapping, references_copilot_tools_mapping, references_gemini_tools_mapping [EXTRACTED 1.00]
 
-## Communities (184 total, 22 thin omitted)
+## Communities (185 total, 22 thin omitted)
 
 ### Community 0 - "Project Stack & Docs"
 Cohesion: 0.33
@@ -266,11 +267,11 @@ Nodes (12): getApiOrigin(), resolveGalleryImageUrl(), buildPageItems(), Paginati
 
 ### Community 16 - "Admin Glasstypemanagement Glasstypemanag"
 Cohesion: 0.06
-Nodes (81): _add_column_if_missing(), count_customer_favorites_total(), create_customer(), delete_admin_digital_checkout_session(), fetch_customer_by_id(), get_manual_product_download_metadata(), get_review_invite_code_by_hash(), init_db() (+73 more)
+Nodes (52): add_customer_favorite(), count_customer_favorites_total(), count_recent_password_reset_requests(), create_customer_password_reset(), fetch_items(), list_all_customers(), list_customer_favorites(), list_customer_order_items() (+44 more)
 
 ### Community 17 - "Admin Templatemanagement Templatemanagem"
 Cohesion: 0.06
-Nodes (84): add_customer_favorite(), append_customer_order_event(), _coerce_manual_product_digital_download(), consume_customer_password_reset(), consume_review_invite_code(), count_recent_password_reset_requests(), create_customer_address(), create_customer_checkout_session_snapshot() (+76 more)
+Nodes (49): append_customer_order_event(), consume_customer_password_reset(), create_discount_code(), delete_customer_admin(), discount_email_has_paid_order(), fetch_customer_by_id(), get_db(), get_discount_code_by_code() (+41 more)
 
 ### Community 18 - "Admin Workorderdashboard Workorderdashbo"
 Cohesion: 0.04
@@ -305,8 +306,8 @@ Cohesion: 0.38
 Nodes (3): _CursorStub, test_manual_product_download_metadata_falls_back_to_manual_image_without_template_asset(), test_manual_product_download_metadata_prefers_linked_template_assets()
 
 ### Community 28 - "Components Glasstypeformmodal Glasstypef"
-Cohesion: 0.06
-Nodes (31): Accordion, Alert / Notification, Animation Durations, Animation & Motion, Basic Components, Best Practices, Breadcrumbs, Button (+23 more)
+Cohesion: 0.07
+Nodes (38): _add_column_if_missing(), delete_admin_digital_checkout_session(), delete_admin_review(), delete_review_invite_code(), init_db(), list_admin_reviews(), list_customer_addresses(), list_customer_order_events() (+30 more)
 
 ### Community 29 - "Components Glasstypeselector Glasstypese"
 Cohesion: 0.05
@@ -337,8 +338,8 @@ Cohesion: 0.06
 Nodes (31): audio-recorder, backlink, bases, bookmarks, canvas, command-palette, daily-notes, editor-status (+23 more)
 
 ### Community 40 - "Components Signinmodal Signinmodal"
-Cohesion: 0.13
-Nodes (22): _count_unique_homepage_ips(), create_discount_code(), discount_email_has_paid_order(), _fetch_manual_product_download_metadata(), _fetch_template_download_metadata(), get_customer_pattern_download_by_token(), get_discount_code_by_code(), get_homepage_visit_insights() (+14 more)
+Cohesion: 0.06
+Nodes (31): Accordion, Alert / Notification, Animation Durations, Animation & Motion, Basic Components, Best Practices, Breadcrumbs, Button (+23 more)
 
 ### Community 41 - "Components Specificationstable Specifica"
 Cohesion: 0.06
@@ -365,8 +366,8 @@ Cohesion: 0.29
 Nodes (6): ACTIONS, TOOL_ICONS, TOOL_NAMES, Toolbar(), TOOL_KEYS, useToolbar()
 
 ### Community 48 - "Contexts Authcontext Authprovider"
-Cohesion: 0.13
-Nodes (21): _apply_linked_template_preview(), _coerce_bool(), _deserialize_related_links(), fetch_items(), _fetch_linked_template_preview(), fetch_manual_product(), fetch_manual_products(), fetch_manual_products_catalog() (+13 more)
+Cohesion: 0.10
+Nodes (42): _apply_linked_template_preview(), _coerce_bool(), _coerce_manual_product_digital_download(), _count_unique_homepage_ips(), create_customer_order_with_items(), create_manual_product(), _db_backend(), _default_sslmode_for_conninfo() (+34 more)
 
 ### Community 49 - "Contexts Customerauthcontext Customeraut"
 Cohesion: 0.07
@@ -374,7 +375,7 @@ Nodes (29): active, bases:Create new base, canvas:Create new canvas, command-pal
 
 ### Community 50 - "Customer Customerlogin Customerlogin"
 Cohesion: 0.11
-Nodes (29): admin_recover_checkout_session(), _apply_discount_to_summary(), _as_money(), _build_checkout_pricing_preview(), _build_checkout_summary(), _build_checkout_summary_from_items(), _calculate_checkout_totals(), customer_add_cart_item() (+21 more)
+Nodes (28): create_customer_checkout_session_snapshot(), list_customer_cart_items(), upsert_customer_cart_item(), _apply_discount_to_summary(), _as_money(), _build_checkout_pricing_preview(), _build_checkout_summary(), _build_checkout_summary_from_items() (+20 more)
 
 ### Community 51 - "Customer Customerportal Customerportal"
 Cohesion: 0.15
@@ -397,8 +398,8 @@ Cohesion: 0.26
 Nodes (10): buildItemNumber(), coerceCategoryArray(), COLOR_OPTIONS, floorDimensionDigits(), getProductItemNumber(), parseDimensionString(), parseDimensionToNumber(), pickDimension() (+2 more)
 
 ### Community 56 - "Footer Footer Footer"
-Cohesion: 0.13
-Nodes (19): get_customer_order_id_by_payment_reference(), list_customer_orders(), mark_pattern_downloads_emailed(), record_discount_redemption(), admin_resend_checkout_download_email(), _build_order_response(), customer_orders(), customer_pattern_downloads() (+11 more)
+Cohesion: 0.11
+Nodes (25): get_customer_checkout_session_snapshot(), get_customer_order_id_by_payment_reference(), list_customer_orders(), mark_customer_checkout_session_processed(), mark_pattern_downloads_emailed(), update_customer_order_payment_by_reference(), admin_recover_checkout_session(), admin_resend_checkout_download_email() (+17 more)
 
 ### Community 58 - "Forms Adminloginform Adminloginform"
 Cohesion: 0.25
@@ -470,11 +471,11 @@ Nodes (40): composeReviewBodyWithPurchasedAt(), STAR_SCALE, stripPurchasedAtFrom
 
 ### Community 79 - "Hooks Useregionselection Useregionselect"
 Cohesion: 0.17
-Nodes (15): count_home_featured_manual_products(), demote_oldest_home_featured_manual_product(), fetch_item(), _is_mysql_backend(), upsert_item(), extract_listing_id(), admin_order_items(), _catalog_cache_invalidate() (+7 more)
+Nodes (15): count_home_featured_manual_products(), delete_manual_product(), demote_oldest_home_featured_manual_product(), fetch_item(), list_customer_order_items_for_order(), extract_listing_id(), admin_order_items(), _catalog_cache_invalidate() (+7 more)
 
 ### Community 80 - "Hooks Usetoolbar Usetoolbar"
 Cohesion: 0.13
-Nodes (14): 1. Understand Requirements, 2. Research & Strategy, 3. Design & Prototype, 4. Ensure Accessibility, 5. Design Responsive Layouts, 6. Build Component Libraries, 7. Optimize Performance, 8. Document & Handoff (+6 more)
+Nodes (23): consume_review_invite_code(), create_customer(), create_customer_address(), create_customer_review(), create_review_invite_code(), delete_invoice(), get_review_invite_code_by_hash(), has_verified_purchase() (+15 more)
 
 ### Community 81 - "Hooks Useworkordersubmit Useworkordersub"
 Cohesion: 0.13
@@ -493,8 +494,8 @@ Cohesion: 0.19
 Nodes (8): EDITABLE_STATUSES, getProjectName(), getStatusBadgeStyle(), MyWorkOrders(), normalizeStatus(), STATUS_COLORS, STATUS_LABELS, approveWorkOrder()
 
 ### Community 92 - "Shop Checkoutpage Checkoutpage"
-Cohesion: 0.18
-Nodes (17): _auth_login_retention_days(), clear_login_failures(), fetch_customer_by_email(), get_login_lockout_remaining(), _login_identifiers(), _prune_auth_login_failures(), record_login_failure(), _to_datetime() (+9 more)
+Cohesion: 0.19
+Nodes (16): _auth_login_retention_days(), clear_login_failures(), fetch_customer_by_email(), get_login_lockout_remaining(), _login_identifiers(), _prune_auth_login_failures(), record_login_failure(), _to_datetime() (+8 more)
 
 ### Community 93 - "Shop Checkoutsuccesspage Checkoutsuccess"
 Cohesion: 0.14
@@ -525,16 +526,16 @@ Cohesion: 0.18
 Nodes (11): 1) Deployment architecture, 2) DNS setup (if using custom domain on Hostinger), 3) Backend environment (Render), 3a) Hostinger MySQL Remote Access G��n+� CRITICAL, 4) Frontend build variables, 5) Upload frontend to Hostinger, 5a) GitHub Actions deploy secrets, 6) Backend deployment (Render) (+3 more)
 
 ### Community 101 - "Utils Auth Isauthenticated"
-Cohesion: 0.19
-Nodes (13): bytesToBase64(), createGalleryUploadFileFromImage(), extensionFromMimeType(), extensionFromUrl(), getApiOrigin(), hexStringToBytes(), imageDataToBytes(), imageDataToDataUrl() (+5 more)
+Cohesion: 0.13
+Nodes (14): 1. Understand Requirements, 2. Research & Strategy, 3. Design & Prototype, 4. Ensure Accessibility, 5. Design Responsive Layouts, 6. Build Component Libraries, 7. Optimize Performance, 8. Document & Handoff (+6 more)
 
 ### Community 102 - "Utils Auth Isvalidtoken"
 Cohesion: 0.18
 Nodes (11): 10. Charts & Data (LOW), 1. Accessibility (CRITICAL), 2. Touch & Interaction (CRITICAL), 3. Performance (HIGH), 4. Style Selection (HIGH), 5. Layout & Responsive (HIGH), 6. Typography & Color (MEDIUM), 7. Animation (MEDIUM) (+3 more)
 
 ### Community 103 - "Community 103"
-Cohesion: 0.21
-Nodes (12): AdminDashboard(), applyRelatedLinkSelection(), createDefaultRelatedLinkManualOverrides(), createDefaultRelatedLinks(), createEmptyManualProduct(), createEmptyRelatedGalleryUpload(), createEmptyRelatedTemplateUpload(), createEmptyUnifiedTemplate() (+4 more)
+Cohesion: 0.19
+Nodes (13): bytesToBase64(), createGalleryUploadFileFromImage(), extensionFromMimeType(), extensionFromUrl(), getApiOrigin(), hexStringToBytes(), imageDataToBytes(), imageDataToDataUrl() (+5 more)
 
 ### Community 104 - "Utils Canvasrenderer Applycolortoregion"
 Cohesion: 0.20
@@ -553,8 +554,8 @@ Cohesion: 0.11
 Nodes (18): decode_token(), admin_list_glass_types(), list_glass_types(), Glass type API: public list (active only) and admin CRUD + toggle + reorder., PUT /api/admin/glass-types/<id>/toggle     Flips is_active (activate/deactivate, PUT /api/admin/glass-types/reorder     Body: { "items": [ { "id": 1, "display_o, GET /api/glass-types     Returns only active glass types, ordered by display_or, GET /api/admin/glass-types     Returns all glass types (active and inactive), o (+10 more)
 
 ### Community 108 - "Utils Svgparser Extractregions"
-Cohesion: 0.18
-Nodes (10): 1. Design Brief, 2. Information Architecture, 3. Wireframes, 4. Visual Design, 5. Component Library, 6. Responsive Design, 7. Accessibility Report, 8. Implementation Guidelines (+2 more)
+Cohesion: 0.21
+Nodes (12): AdminDashboard(), applyRelatedLinkSelection(), createDefaultRelatedLinkManualOverrides(), createDefaultRelatedLinks(), createEmptyManualProduct(), createEmptyRelatedGalleryUpload(), createEmptyRelatedTemplateUpload(), createEmptyUnifiedTemplate() (+4 more)
 
 ### Community 109 - "Utils Svgparser Parsesvg"
 Cohesion: 0.36
@@ -569,8 +570,8 @@ Cohesion: 0.22
 Nodes (8): dependencies, axios, react, react-dom, react-router-dom, stripe, scripts, build
 
 ### Community 112 - "Community 112"
-Cohesion: 0.33
-Nodes (5): AppDownloadSection(), isAndroid(), isIOS(), PWAInstallPrompt(), useInstallPrompt()
+Cohesion: 0.18
+Nodes (10): 1. Design Brief, 2. Information Architecture, 3. Wireframes, 4. Visual Design, 5. Component Library, 6. Responsive Design, 7. Accessibility Report, 8. Implementation Guidelines (+2 more)
 
 ### Community 113 - "Community 113"
 Cohesion: 0.25
@@ -601,8 +602,8 @@ Cohesion: 0.29
 Nodes (6): Example, How to Request, Integration with Workflows, Red Flags, Requesting Code Review, When to Request Review
 
 ### Community 120 - "Community 120"
-Cohesion: 0.31
-Nodes (7): getApiOrigin(), HomePage(), renderStars(), resolveReviewImageUrl(), stripReviewBodyMeta(), toCleanImageUrl(), fetchRecentReviewsCached()
+Cohesion: 0.33
+Nodes (5): AppDownloadSection(), isAndroid(), isIOS(), PWAInstallPrompt(), useInstallPrompt()
 
 ### Community 121 - "Community 121"
 Cohesion: 0.33
@@ -645,16 +646,16 @@ Cohesion: 0.40
 Nodes (4): Codex App Finishing, Codex Tool Mapping, Environment Detection, Subagent dispatch requires multi-agent support
 
 ### Community 132 - "Community 132"
-Cohesion: 0.22
-Nodes (8): Phase 1: Research & Discovery, Phase 2: Ideation & Wireframing, Phase 3: Visual Design, Phase 4: Responsive & Adaptive Design, Phase 5: Accessibility & Inclusivity, Phase 6: Implementation Guidelines, Phase 7: Testing & Validation, UI/UX Design Process
+Cohesion: 0.31
+Nodes (7): getApiOrigin(), HomePage(), renderStars(), resolveReviewImageUrl(), stripReviewBodyMeta(), toCleanImageUrl(), fetchRecentReviewsCached()
 
 ### Community 133 - "Community 133"
 Cohesion: 0.22
 Nodes (8): Phase 1: Research & Discovery, Phase 2: Ideation & Wireframing, Phase 3: Visual Design, Phase 4: Responsive & Adaptive Design, Phase 5: Accessibility & Inclusivity, Phase 6: Implementation Guidelines, Phase 7: Testing & Validation, UI/UX Design Process
 
 ### Community 134 - "Community 134"
-Cohesion: 0.25
-Nodes (7): 1. Visual Hierarchy, 2. Consistency, 3. Simplicity, 4. Feedback & Response, 5. Error Prevention & Recovery, 6. User Control, Design Principles
+Cohesion: 0.22
+Nodes (8): Phase 1: Research & Discovery, Phase 2: Ideation & Wireframing, Phase 3: Visual Design, Phase 4: Responsive & Adaptive Design, Phase 5: Accessibility & Inclusivity, Phase 6: Implementation Guidelines, Phase 7: Testing & Validation, UI/UX Design Process
 
 ### Community 135 - "Community 135"
 Cohesion: 0.25
@@ -673,8 +674,8 @@ Cohesion: 0.50
 Nodes (3): Expanding the ESLint configuration, React Compiler, React + Vite
 
 ### Community 139 - "Community 139"
-Cohesion: 0.47
-Nodes (6): ensureArray(), getProductDisplayThumbnailCandidates(), getProductThumbnailCandidates(), imageNeedsLinkedTemplateFallback(), isPatternProductRecord(), normalizeManualProductRecord()
+Cohesion: 0.25
+Nodes (7): 1. Visual Hierarchy, 2. Consistency, 3. Simplicity, 4. Feedback & Response, 5. Error Prevention & Recovery, 6. User Control, Design Principles
 
 ### Community 140 - "Community 140"
 Cohesion: 0.50
@@ -689,20 +690,20 @@ Cohesion: 0.50
 Nodes (3): compounds, configurations, version
 
 ### Community 143 - "Community 143"
-Cohesion: 0.40
-Nodes (4): Component Patterns, Forms Best Practices, Modal/Dialog Patterns, Navigation Patterns
+Cohesion: 0.47
+Nodes (6): ensureArray(), getProductDisplayThumbnailCandidates(), getProductThumbnailCandidates(), imageNeedsLinkedTemplateFallback(), isPatternProductRecord(), normalizeManualProductRecord()
 
 ### Community 152 - "Community 152"
 Cohesion: 0.40
-Nodes (4): After Launch, Before Development, Design Checklist, During Development
+Nodes (4): Component Patterns, Forms Best Practices, Modal/Dialog Patterns, Navigation Patterns
 
 ### Community 167 - "Community 167"
 Cohesion: 0.40
-Nodes (4): CSS Frameworks, Design Tools, Design Tools & Resources, Frontend Frameworks
+Nodes (4): After Launch, Before Development, Design Checklist, During Development
 
 ### Community 168 - "Community 168"
 Cohesion: 0.40
-Nodes (4): Example 1: E-Commerce Product Page, Example 2: Dashboard Analytics, Example 3: Mobile App Onboarding, Examples
+Nodes (4): CSS Frameworks, Design Tools, Design Tools & Resources, Frontend Frameworks
 
 ### Community 169 - "Community 169"
 Cohesion: 0.40
@@ -721,22 +722,26 @@ Cohesion: 0.40
 Nodes (4): Example 1: E-Commerce Product Page, Example 2: Dashboard Analytics, Example 3: Mobile App Onboarding, Examples
 
 ### Community 173 - "Community 173"
-Cohesion: 0.67
-Nodes (4): extensionFromFileName(), isImageFile(), isSupportedProductUploadFile(), isVideoFile()
+Cohesion: 0.40
+Nodes (4): Example 1: E-Commerce Product Page, Example 2: Dashboard Analytics, Example 3: Mobile App Onboarding, Examples
 
 ### Community 174 - "Community 174"
 Cohesion: 0.67
-Nodes (4): getDefaultQuantityByDigitalFlag(), normalizeQuantityInput(), resolveAutoQuantityForMode(), syncQuantityWithDownloadMode()
+Nodes (4): extensionFromFileName(), isImageFile(), isSupportedProductUploadFile(), isVideoFile()
 
 ### Community 175 - "Community 175"
-Cohesion: 0.50
-Nodes (3): Design System Structure, Design Systems, Popular Design Systems
+Cohesion: 0.67
+Nodes (4): getDefaultQuantityByDigitalFlag(), normalizeQuantityInput(), resolveAutoQuantityForMode(), syncQuantityWithDownloadMode()
 
 ### Community 176 - "Community 176"
 Cohesion: 0.50
 Nodes (3): Design System Structure, Design Systems, Popular Design Systems
 
 ### Community 177 - "Community 177"
+Cohesion: 0.50
+Nodes (3): Design System Structure, Design Systems, Popular Design Systems
+
+### Community 178 - "Community 178"
 Cohesion: 0.67
 Nodes (3): canUseTemplateForCustomer(), isDirectMessageTemplate(), normalizeCategory()
 
@@ -750,7 +755,7 @@ _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `decode_token()` connect `Utils Svgparser Createfabricpath` to `Components Loadingmessage Loadingmessage`, `Hooks Usecustomerauth Usecustomerauth`, `Hooks Useglasstypes Useglasstypes`, `Utils Interactionguard Installinteractio`, `Components Templategallery Templategalle`, `Customer Customerportal Customerportal`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._
-- **Why does `get_db()` connect `Admin Templatemanagement Templatemanagem` to `Components Loadingmessage Loadingmessage`, `Hero Herosection Herosection`, `Glass Designer Canvas`, `Components Signinmodal Signinmodal`, `Hooks Useregionselection Useregionselect`, `Admin Glasstypemanagement Glasstypemanag`, `Contexts Authcontext Authprovider`, `Footer Footer Footer`, `Shop Checkoutpage Checkoutpage`?**
+- **Why does `get_db()` connect `Admin Templatemanagement Templatemanagem` to `Components Loadingmessage Loadingmessage`, `Hero Herosection Herosection`, `Glass Designer Canvas`, `Components Glasstypeformmodal Glasstypef`, `Hooks Useregionselection Useregionselect`, `Contexts Authcontext Authprovider`, `Admin Glasstypemanagement Glasstypemanag`, `Hooks Usetoolbar Usetoolbar`, `Customer Customerlogin Customerlogin`, `Footer Footer Footer`, `Shop Checkoutpage Checkoutpage`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._
 - **Why does `WorkOrder` connect `Hooks Usezoompan Usezoompan` to `Components Loadingmessage Loadingmessage`, `Hooks Useglasstypes Useglasstypes`, `Admin Admininvoicesdashboard Admininvoic`, `Components Templategallery Templategalle`, `Community 115`, `Diagnostics Diagnosticspage Diagnosticsp`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._

@@ -22,7 +22,7 @@ const parseDimensionString = (value) => {
     .replace(/[×xX]/g, 'x')
     .replace(/\s+/g, ' ')
 
-  const pairMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:\"|in(?:ches?)?\.?)?\s*x\s*(\d+(?:\.\d+)?)\s*(?:\"|in(?:ches?)?\.?)?/i)
+  const pairMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:"|in(?:ches?)?\.?)?\s*x\s*(\d+(?:\.\d+)?)\s*(?:"|in(?:ches?)?\.?)?/i)
   if (pairMatch) {
     return {
       width: cleanDimensionToken(pairMatch[1]),
