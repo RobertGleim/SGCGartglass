@@ -1,4 +1,4 @@
-# MySQL Configuration Complete G£ô
+# MySQL Configuration Complete Gï¿½ï¿½
 
 **Last Updated:** 2026-06-04
 
@@ -23,10 +23,10 @@ DB_NAME=your-mysql-database
 (Your local IP must be allowlisted in Hostinger to use MySQL locally)
 
 ### 2. Code changes:
-- G£ô `backend/db.py` - Now supports both SQLite and MySQL
-- G£ô `requirements.txt` - Added PyMySQL driver
-- G£ô `.env.example` - Updated with MySQL template
-- G£ô Backend auto-detects MySQL when `DB_HOST` is set
+- Gï¿½ï¿½ `backend/db.py` - Now supports both SQLite and MySQL
+- Gï¿½ï¿½ `requirements.txt` - Added PyMySQL driver
+- Gï¿½ï¿½ `.env.example` - Updated with MySQL template
+- Gï¿½ï¿½ Backend auto-detects MySQL when `DB_HOST` is set
 
 ### 3. Documentation created:
 - `docs/RENDER_HOSTINGER_MYSQL.md` - Full integration guide
@@ -36,13 +36,13 @@ DB_NAME=your-mysql-database
 
 ## CRITICAL: Next steps for Render deployment
 
-### Step 1: Render's outbound IP discovered G£ô
+### Step 1: Render's outbound IP discovered Gï¿½ï¿½
 
 **Your Render service's outbound IP is: `<render-egress-ip>`**
 
 (This was detected from the MySQL connection error in your Render logs)
 
-### Step 2: Allowlist Render's IP in Hostinger GÜán+Å DO THIS NOW
+### Step 2: Allowlist Render's IP in Hostinger Gï¿½ï¿½n+ï¿½ DO THIS NOW
 
 1. Log into Hostinger hPanel
 2. Go to **Databases** > **Remote MySQL**

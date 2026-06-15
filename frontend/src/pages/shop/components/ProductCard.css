@@ -151,6 +151,13 @@
   color: #7a7f89;
 }
 
+.card-item-number {
+  margin-left: 0.5rem;
+  font-weight: 600;
+  color: #5a5f69;
+  letter-spacing: 0.02em;
+}
+
 .card-featured-star {
   color: inherit;
   font-size: 0.78rem;

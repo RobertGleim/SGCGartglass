@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import './ProductDetail.css'
 import ProductCard from './components/ProductCard'
 import useCustomerAuth from '../../hooks/useCustomerAuth'
+import { getProductItemNumber } from '../../utils/itemNumber'
 import {
   addCustomerCartItem,
   addCustomerFavorite,
@@ -958,6 +959,9 @@ export default function ProductDetail({ product, products = [] }) {
             </div>
             {product.price_currency && product.price_currency !== 'USD' && (
               <div className="currency-note">Prices shown in USD</div>
+            )}
+            {getProductItemNumber(product) && (
+              <div className="detail-item-number">Item #: {getProductItemNumber(product)}</div>
             )}
           </div>
 

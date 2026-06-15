@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import './ProductCard.css'
 import { getProductDimensionsLabel } from '../../../utils/productDimensions'
+import { getProductItemNumber } from '../../../utils/itemNumber'
 
 const templateImageCache = new Map()
 const manualCardImageCache = new Map()
@@ -340,6 +341,7 @@ export default function ProductCard({ product }) {
     && Boolean(linkedPatternId)
     && (!manualProductId || linkedPatternId !== manualProductId)
   const dimensionsLabel = getProductDimensionsLabel(product)
+  const itemNumber = getProductItemNumber(product)
   const shouldShowInstantDownload = isDigitalDownload || isPatternProduct
   const linkedTemplateId = String(product?.originalData?.related_links?.template_id || '').trim()
   const imageCandidates = useMemo(() => resolveCardImageCandidates(product), [product])
@@ -459,7 +461,14 @@ export default function ProductCard({ product }) {
         </div>
         <div className="card-body">
           <h3 className="card-title">{product.title || 'Untitled piece'}</h3>
-          {dimensionsLabel && <p className="card-dimensions">{dimensionsLabel}</p>}
+          {(dimensionsLabel || itemNumber) && (
+            <p className="card-dimensions">
+              {dimensionsLabel}
+              {itemNumber && (
+                <span className="card-item-number">Item #: {itemNumber}</span>
+              )}
+            </p>
+          )}
           <div className="card-pricing">
             <div className="price-row">
               {hasDiscount ? (

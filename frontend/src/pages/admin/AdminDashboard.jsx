@@ -40,6 +40,13 @@ import WorkOrderDashboard from "./WorkOrderDashboard";
 import GalleryManagement from "./GalleryManagement";
 import Pagination from "../../components/Pagination";
 import { getProductDimensionsLabel } from "../../utils/productDimensions";
+import {
+  buildItemNumber,
+  getProductItemNumber,
+  SHAPE_OPTIONS,
+  COLOR_OPTIONS,
+  STYLE_OPTIONS,
+} from "../../utils/itemNumber";
 import "./styles/AdminDashboard.css";
 import "./styles/forms/stainedglass_form.css";
 import "./styles/forms/woodwork_form.css";
@@ -595,16 +602,11 @@ const PRODUCT_TYPE_CONFIG = [
   { key: "laserAndSandblasting", label: "Laser and Sandblasting", theme: "stainedGlass" },
   { key: "woodArt", label: "Wood Art", theme: "woodwork" },
 ];
-const STYLE_FILTER_OPTIONS = [
-  "Transom",
-  "Contemporary",
-  "Modern",
-  "Victorian",
-  "Geometric",
-  "Animals / Landscape",
-];
-const SHAPE_FILTER_OPTIONS = ["Rectangular", "Square", "Oval", "Circle", "Other"];
-const COLOR_FILTER_OPTIONS = ["Blue", "Green", "Red", "Amber", "Clear", "Multicolor"];
+// Option lists now live in utils/itemNumber.js so the form and the storefront
+// item-number generator classify against the exact same labels.
+const STYLE_FILTER_OPTIONS = STYLE_OPTIONS;
+const SHAPE_FILTER_OPTIONS = SHAPE_OPTIONS;
+const COLOR_FILTER_OPTIONS = COLOR_OPTIONS;
 
 const normalizeCategoryTagValue = (value) =>
   String(value || "")
@@ -5846,9 +5848,15 @@ export default function AdminDashboard({
                           </h4>
                           {(() => {
                             const dimensionsLabel = getProductDimensionsLabel(product);
-                            return dimensionsLabel
-                              ? <p className="product-dimensions-hint">{dimensionsLabel}</p>
-                              : null;
+                            const itemNumber = getProductItemNumber(product);
+                            return dimensionsLabel || itemNumber ? (
+                              <p className="product-dimensions-hint">
+                                {dimensionsLabel}
+                                {itemNumber && (
+                                  <span className="product-item-number-hint">Item #: {itemNumber}</span>
+                                )}
+                              </p>
+                            ) : null;
                           })()}
                           <p className="product-meta">
                             {formatListingPriceLabel(product)}
@@ -6123,9 +6131,15 @@ export default function AdminDashboard({
                           </h4>
                           {(() => {
                             const dimensionsLabel = getProductDimensionsLabel(product);
-                            return dimensionsLabel
-                              ? <p className="product-dimensions-hint">{dimensionsLabel}</p>
-                              : null;
+                            const itemNumber = getProductItemNumber(product);
+                            return dimensionsLabel || itemNumber ? (
+                              <p className="product-dimensions-hint">
+                                {dimensionsLabel}
+                                {itemNumber && (
+                                  <span className="product-item-number-hint">Item #: {itemNumber}</span>
+                                )}
+                              </p>
+                            ) : null;
                           })()}
                           <p className="product-meta">
                             {formatListingPriceLabel(product)}
@@ -7453,6 +7467,24 @@ export default function AdminDashboard({
                   </label>
                 </div>
                 <p className="form-note">Dimensions accept decimals or fractions, for example 25.25, 3/8, or 48 3/8 inch.</p>
+
+                <div className="item-number-preview">
+                  <span className="item-number-preview-label">Item Number</span>
+                  {(() => {
+                    const itemNumber = buildItemNumber({
+                      category: manualProduct.category,
+                      width: manualProduct.width,
+                      height: manualProduct.height,
+                    });
+                    return itemNumber ? (
+                      <span className="item-number-preview-value">{itemNumber}</span>
+                    ) : (
+                      <span className="item-number-preview-empty">
+                        — select shape, color, size, and style to generate
+                      </span>
+                    );
+                  })()}
+                </div>
 
                 <div className={`price-quantity-inputs ${productModePhysical ? "price-quarter-row" : "price-triple-row"}`}>
                   <label>
