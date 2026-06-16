@@ -143,12 +143,17 @@ const parseDimensionString = (value) => {
   return { width: match[1], height: match[2] };
 };
 
-// Takes an ordered array of products; returns Map<product.id, finalItemNumber>.
-// First product with a given base code keeps it; duplicates get .2, .3, etc.
+// Takes an array of products; returns Map<product.id, finalItemNumber>.
+// The oldest product (by created_at) with a given base code keeps it; newer duplicates get .2, .3, etc.
 export const buildDeduplicatedItemNumbers = (products) => {
   const seen = new Map();
   const result = new Map();
-  for (const product of (products || [])) {
+  const sorted = [...(products || [])].sort((a, b) => {
+    const ta = Date.parse(String(a?.created_at || a?.createdAt || '')) || 0;
+    const tb = Date.parse(String(b?.created_at || b?.createdAt || '')) || 0;
+    return ta - tb;
+  });
+  for (const product of sorted) {
     const base = getProductItemNumber(product);
     if (!base) { result.set(product.id, ''); continue; }
     const n = (seen.get(base) || 0) + 1;

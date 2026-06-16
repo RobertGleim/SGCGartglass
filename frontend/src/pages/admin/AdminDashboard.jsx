@@ -43,6 +43,7 @@ import { getProductDimensionsLabel } from "../../utils/productDimensions";
 import {
   buildItemNumber,
   buildDeduplicatedItemNumbers,
+  getProductItemNumber,
   SHAPE_OPTIONS,
   COLOR_OPTIONS,
   STYLE_OPTIONS,
@@ -7486,18 +7487,49 @@ export default function AdminDashboard({
                 <div className="item-number-preview">
                   <span className="item-number-preview-label">Item Number</span>
                   {(() => {
-                    const itemNumber = buildItemNumber({
+                    const base = buildItemNumber({
                       category: manualProduct.category,
                       width: manualProduct.width,
                       height: manualProduct.height,
                     });
-                    return itemNumber ? (
-                      <span className="item-number-preview-value">{itemNumber}</span>
-                    ) : (
-                      <span className="item-number-preview-empty">
-                        — select shape, color, size, and style to generate
-                      </span>
-                    );
+                    if (!base) {
+                      return (
+                        <span className="item-number-preview-empty">
+                          — select shape, color, size, and style to generate
+                        </span>
+                      );
+                    }
+                    let previewNumber;
+                    if (editingProduct) {
+                      const originalInList = normalizedManualProducts.find(
+                        (p) => p.id === editingProduct.id,
+                      );
+                      const originalBase = originalInList
+                        ? getProductItemNumber(originalInList)
+                        : null;
+                      if (originalBase === base) {
+                        const sortedGroup = normalizedManualProducts
+                          .filter((p) => getProductItemNumber(p) === base)
+                          .sort(
+                            (a, b) =>
+                              (Date.parse(String(a.created_at || "")) || 0) -
+                              (Date.parse(String(b.created_at || "")) || 0),
+                          );
+                        const rank = sortedGroup.findIndex((p) => p.id === editingProduct.id) + 1;
+                        previewNumber = rank === 1 ? base : `${base}.${rank}`;
+                      } else {
+                        const count = normalizedManualProducts.filter(
+                          (p) => getProductItemNumber(p) === base,
+                        ).length;
+                        previewNumber = count === 0 ? base : `${base}.${count + 1}`;
+                      }
+                    } else {
+                      const count = normalizedManualProducts.filter(
+                        (p) => getProductItemNumber(p) === base,
+                      ).length;
+                      previewNumber = count === 0 ? base : `${base}.${count + 1}`;
+                    }
+                    return <span className="item-number-preview-value">{previewNumber}</span>;
                   })()}
                 </div>
 

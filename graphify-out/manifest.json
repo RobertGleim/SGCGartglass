@@ -560,8 +560,8 @@
     "semantic_hash": "05ed4d2902a1656d60d15009e6c40d21"
   },
   "frontend/src/pages/admin/AdminDashboard.jsx": {
-    "mtime": 1781551900.2278645,
-    "ast_hash": "4ab2324de5d040181173dfe4270037f5",
+    "mtime": 1781630429.7748816,
+    "ast_hash": "47654522d411a6da2cb2b177e371f494",
     "semantic_hash": ""
   },
   "frontend/src/pages/admin/AdminGlassTypesPage.jsx": {
@@ -680,8 +680,8 @@
     "semantic_hash": "91403f417007b4326a3f2f992507ea0b"
   },
   "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx": {
-    "mtime": 1781543570.1429768,
-    "ast_hash": "6195c4e1027a49246d74a56e45775ba4",
+    "mtime": 1781630248.804992,
+    "ast_hash": "cc0a234726841ed5893a66ead4e2671f",
     "semantic_hash": ""
   },
   "frontend/src/pages/home/components/hero/HeroSection.jsx": {
@@ -735,14 +735,14 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/shop/ProductDetail.jsx": {
-    "mtime": 1781627260.3411632,
-    "ast_hash": "fec774ef1270252daef99428ff31e785",
+    "mtime": 1781630215.9947774,
+    "ast_hash": "8b2efff42ce36e144c36362ea8622566",
     "semantic_hash": ""
   },
   "frontend/src/pages/shop/ProductPage.jsx": {
-    "mtime": 1780594735.4720826,
-    "ast_hash": "60f07dd5168b59a3690c433dcb18e5a9",
-    "semantic_hash": "60f07dd5168b59a3690c433dcb18e5a9"
+    "mtime": 1781630171.1721654,
+    "ast_hash": "5eb5aab2c08699da9e0eaf89ef32eb2e",
+    "semantic_hash": ""
   },
   "frontend/src/pages/shop/PublicReviewPage.jsx": {
     "mtime": 1781553004.8590472,
@@ -755,8 +755,8 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/shop/components/ProductCard.jsx": {
-    "mtime": 1781541781.3413243,
-    "ast_hash": "102cf772be391355d4f337be3f9ea0cf",
+    "mtime": 1781630132.5289443,
+    "ast_hash": "b86c321002327e1e855bf464114e2975",
     "semantic_hash": ""
   },
   "frontend/src/pages/shop/components/SearchBar.jsx": {
@@ -2655,13 +2655,13 @@
     "semantic_hash": ""
   },
   ".remember/tmp/last-save.json": {
-    "mtime": 1781626982.423744,
-    "ast_hash": "83dd5002a4df1dbb1a174ea8b5da65c1",
+    "mtime": 1781629773.330356,
+    "ast_hash": "6a4859ffd06a9a5d251d77fa3ed1f68b",
     "semantic_hash": ""
   },
   "frontend/src/utils/itemNumber.js": {
-    "mtime": 1781551885.3364294,
-    "ast_hash": "b20fa6a771f1bd43b2fa2204a72c9496",
+    "mtime": 1781630108.7805421,
+    "ast_hash": "dd37b20ae909a2fff1f2d0a18e604680",
     "semantic_hash": ""
   },
   ".remember/archive.md": {
@@ -2670,8 +2670,8 @@
     "semantic_hash": ""
   },
   ".remember/now.md": {
-    "mtime": 1781626981.2372186,
-    "ast_hash": "d06b34625928abac9d892e6c0226e85c",
+    "mtime": 1781629772.5750997,
+    "ast_hash": "34469106682db86be8fd9318ca4ad351",
     "semantic_hash": ""
   },
   ".remember/recent.md": {

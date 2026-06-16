@@ -93,34 +93,194 @@
   },
   "nodes": [
     {
-      "label": "Header.jsx",
-      "file_type": "code",
-      "source_file": "frontend/src/components/layout/header/Header.jsx",
+      "label": "CLAUDE.md",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "header_header",
-      "community": 66,
-      "norm_label": "header.jsx"
+      "id": "claude",
+      "community": 74,
+      "norm_label": "claude.md"
     },
     {
-      "label": "getStoredShopTab()",
-      "file_type": "code",
-      "source_file": "frontend/src/components/layout/header/Header.jsx",
-      "source_location": "L10",
+      "label": "CLAUDE.md",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L1",
       "_origin": "ast",
-      "id": "header_header_getstoredshoptab",
-      "community": 66,
-      "norm_label": "getstoredshoptab()"
+      "id": "claude_claude_md",
+      "community": 74,
+      "norm_label": "claude.md"
     },
     {
-      "label": "Header()",
-      "file_type": "code",
-      "source_file": "frontend/src/components/layout/header/Header.jsx",
+      "label": "Agent Policy",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "claude_agent_policy",
+      "community": 74,
+      "norm_label": "agent policy"
+    },
+    {
+      "label": "Commands",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
       "source_location": "L16",
       "_origin": "ast",
-      "id": "header_header_header",
-      "community": 66,
-      "norm_label": "header()"
+      "id": "claude_commands",
+      "community": 74,
+      "norm_label": "commands"
+    },
+    {
+      "label": "Frontend (`cd frontend`)",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L18",
+      "_origin": "ast",
+      "id": "claude_frontend_cd_frontend",
+      "community": 74,
+      "norm_label": "frontend (`cd frontend`)"
+    },
+    {
+      "label": "Backend (`cd backend`)",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L26",
+      "_origin": "ast",
+      "id": "claude_backend_cd_backend",
+      "community": 74,
+      "norm_label": "backend (`cd backend`)"
+    },
+    {
+      "label": "Tests",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L37",
+      "_origin": "ast",
+      "id": "claude_tests",
+      "community": 74,
+      "norm_label": "tests"
+    },
+    {
+      "label": "Architecture",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L44",
+      "_origin": "ast",
+      "id": "claude_architecture",
+      "community": 74,
+      "norm_label": "architecture"
+    },
+    {
+      "label": "Frontend (`frontend/src/`)",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L54",
+      "_origin": "ast",
+      "id": "claude_frontend_frontend_src",
+      "community": 74,
+      "norm_label": "frontend (`frontend/src/`)"
+    },
+    {
+      "label": "Backend (`backend/`)",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L61",
+      "_origin": "ast",
+      "id": "claude_backend_backend",
+      "community": 74,
+      "norm_label": "backend (`backend/`)"
+    },
+    {
+      "label": "Key Patterns",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L71",
+      "_origin": "ast",
+      "id": "claude_key_patterns",
+      "community": 74,
+      "norm_label": "key patterns"
+    },
+    {
+      "label": "Authentication",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L73",
+      "_origin": "ast",
+      "id": "claude_authentication",
+      "community": 74,
+      "norm_label": "authentication"
+    },
+    {
+      "label": "Work Order Status Machine",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L78",
+      "_origin": "ast",
+      "id": "claude_work_order_status_machine",
+      "community": 74,
+      "norm_label": "work order status machine"
+    },
+    {
+      "label": "Image Storage / DB Fallback",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L82",
+      "_origin": "ast",
+      "id": "claude_image_storage_db_fallback",
+      "community": 74,
+      "norm_label": "image storage / db fallback"
+    },
+    {
+      "label": "Design Data Format",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L85",
+      "_origin": "ast",
+      "id": "claude_design_data_format",
+      "community": 74,
+      "norm_label": "design data format"
+    },
+    {
+      "label": "Database",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L90",
+      "_origin": "ast",
+      "id": "claude_database",
+      "community": 74,
+      "norm_label": "database"
+    },
+    {
+      "label": "Deployment",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L98",
+      "_origin": "ast",
+      "id": "claude_deployment",
+      "community": 74,
+      "norm_label": "deployment"
+    },
+    {
+      "label": "Environment Variables",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L108",
+      "_origin": "ast",
+      "id": "claude_environment_variables",
+      "community": 74,
+      "norm_label": "environment variables"
+    },
+    {
+      "label": "graphify",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L130",
+      "_origin": "ast",
+      "id": "claude_graphify",
+      "community": 74,
+      "norm_label": "graphify"
     },
     {
       "label": "DesignerPage.jsx",
@@ -373,14 +533,394 @@
       "norm_label": "designerpage()"
     },
     {
+      "label": "CheckoutSuccessPage.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "shop_checkoutsuccesspage",
+      "community": 103,
+      "norm_label": "checkoutsuccesspage.jsx"
+    },
+    {
+      "label": "CheckoutSuccessPage()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "shop_checkoutsuccesspage_checkoutsuccesspage",
+      "community": 103,
+      "norm_label": "checkoutsuccesspage()"
+    },
+    {
+      "label": "ProductDetail.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "shop_productdetail",
+      "community": 52,
+      "norm_label": "productdetail.jsx"
+    },
+    {
+      "label": "readProductViewCache()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L23",
+      "_origin": "ast",
+      "id": "shop_productdetail_readproductviewcache",
+      "community": 52,
+      "norm_label": "readproductviewcache()"
+    },
+    {
+      "label": "writeProductViewCache()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L39",
+      "_origin": "ast",
+      "id": "shop_productdetail_writeproductviewcache",
+      "community": 52,
+      "norm_label": "writeproductviewcache()"
+    },
+    {
+      "label": "readProductViewCacheEntry()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L47",
+      "_origin": "ast",
+      "id": "shop_productdetail_readproductviewcacheentry",
+      "community": 52,
+      "norm_label": "readproductviewcacheentry()"
+    },
+    {
+      "label": "writeProductViewCacheEntry()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L55",
+      "_origin": "ast",
+      "id": "shop_productdetail_writeproductviewcacheentry",
+      "community": 52,
+      "norm_label": "writeproductviewcacheentry()"
+    },
+    {
+      "label": "parseReviewDateValue()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L65",
+      "_origin": "ast",
+      "id": "shop_productdetail_parsereviewdatevalue",
+      "community": 52,
+      "norm_label": "parsereviewdatevalue()"
+    },
+    {
+      "label": "formatReviewDate()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L83",
+      "_origin": "ast",
+      "id": "shop_productdetail_formatreviewdate",
+      "community": 52,
+      "norm_label": "formatreviewdate()"
+    },
+    {
+      "label": "extractReviewPurchasedAt()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L89",
+      "_origin": "ast",
+      "id": "shop_productdetail_extractreviewpurchasedat",
+      "community": 52,
+      "norm_label": "extractreviewpurchasedat()"
+    },
+    {
+      "label": "renderStars()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L98",
+      "_origin": "ast",
+      "id": "shop_productdetail_renderstars",
+      "community": 52,
+      "norm_label": "renderstars()"
+    },
+    {
+      "label": "getApiOrigin()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L100",
+      "_origin": "ast",
+      "id": "shop_productdetail_getapiorigin",
+      "community": 52,
+      "norm_label": "getapiorigin()"
+    },
+    {
+      "label": "toCleanUrl()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L108",
+      "_origin": "ast",
+      "id": "shop_productdetail_tocleanurl",
+      "community": 52,
+      "norm_label": "tocleanurl()"
+    },
+    {
+      "label": "hexStringToBytes()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L118",
+      "_origin": "ast",
+      "id": "shop_productdetail_hexstringtobytes",
+      "community": 52,
+      "norm_label": "hexstringtobytes()"
+    },
+    {
+      "label": "normalizeBase64String()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L128",
+      "_origin": "ast",
+      "id": "shop_productdetail_normalizebase64string",
+      "community": 52,
+      "norm_label": "normalizebase64string()"
+    },
+    {
+      "label": "bytesToBase64()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L141",
+      "_origin": "ast",
+      "id": "shop_productdetail_bytestobase64",
+      "community": 52,
+      "norm_label": "bytestobase64()"
+    },
+    {
+      "label": "mimeTypeFromEntry()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L152",
+      "_origin": "ast",
+      "id": "shop_productdetail_mimetypefromentry",
+      "community": 52,
+      "norm_label": "mimetypefromentry()"
+    },
+    {
+      "label": "imageDataToDataUrl()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L164",
+      "_origin": "ast",
+      "id": "shop_productdetail_imagedatatodataurl",
+      "community": 52,
+      "norm_label": "imagedatatodataurl()"
+    },
+    {
+      "label": "resolveImageUrl()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L183",
+      "_origin": "ast",
+      "id": "shop_productdetail_resolveimageurl",
+      "community": 52,
+      "norm_label": "resolveimageurl()"
+    },
+    {
+      "label": "normalizeCategoryValue()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L209",
+      "_origin": "ast",
+      "id": "shop_productdetail_normalizecategoryvalue",
+      "community": 52,
+      "norm_label": "normalizecategoryvalue()"
+    },
+    {
+      "label": "toCategoryArray()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L211",
+      "_origin": "ast",
+      "id": "shop_productdetail_tocategoryarray",
+      "community": 52,
+      "norm_label": "tocategoryarray()"
+    },
+    {
+      "label": "isPatternCategory()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L240",
+      "_origin": "ast",
+      "id": "shop_productdetail_ispatterncategory",
+      "community": 52,
+      "norm_label": "ispatterncategory()"
+    },
+    {
+      "label": "isPatternProductEntry()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L245",
+      "_origin": "ast",
+      "id": "shop_productdetail_ispatternproductentry",
+      "community": 52,
+      "norm_label": "ispatternproductentry()"
+    },
+    {
+      "label": "imageEntryNeedsLinkedTemplateFallback()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L248",
+      "_origin": "ast",
+      "id": "shop_productdetail_imageentryneedslinkedtemplatefallback",
+      "community": 52,
+      "norm_label": "imageentryneedslinkedtemplatefallback()"
+    },
+    {
+      "label": "ProductDetail()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L256",
+      "_origin": "ast",
+      "id": "shop_productdetail_productdetail",
+      "community": 52,
+      "norm_label": "productdetail()"
+    },
+    {
+      "label": "ReviewsPage.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "shop_reviewspage",
+      "community": 22,
+      "norm_label": "reviewspage.jsx"
+    },
+    {
+      "label": "parseReviewDateValue()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L6",
+      "_origin": "ast",
+      "id": "shop_reviewspage_parsereviewdatevalue",
+      "community": 22,
+      "norm_label": "parsereviewdatevalue()"
+    },
+    {
+      "label": "formatReviewDate()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L24",
+      "_origin": "ast",
+      "id": "shop_reviewspage_formatreviewdate",
+      "community": 22,
+      "norm_label": "formatreviewdate()"
+    },
+    {
+      "label": "renderStars()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L30",
+      "_origin": "ast",
+      "id": "shop_reviewspage_renderstars",
+      "community": 22,
+      "norm_label": "renderstars()"
+    },
+    {
+      "label": "getApiOrigin()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L32",
+      "_origin": "ast",
+      "id": "shop_reviewspage_getapiorigin",
+      "community": 22,
+      "norm_label": "getapiorigin()"
+    },
+    {
+      "label": "toCleanImageUrl()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L46",
+      "_origin": "ast",
+      "id": "shop_reviewspage_tocleanimageurl",
+      "community": 22,
+      "norm_label": "tocleanimageurl()"
+    },
+    {
+      "label": "resolveReviewPhotoUrl()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L74",
+      "_origin": "ast",
+      "id": "shop_reviewspage_resolvereviewphotourl",
+      "community": 22,
+      "norm_label": "resolvereviewphotourl()"
+    },
+    {
+      "label": "formatPurchaseSource()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L95",
+      "_origin": "ast",
+      "id": "shop_reviewspage_formatpurchasesource",
+      "community": 22,
+      "norm_label": "formatpurchasesource()"
+    },
+    {
+      "label": "extractReviewBodyMeta()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L104",
+      "_origin": "ast",
+      "id": "shop_reviewspage_extractreviewbodymeta",
+      "community": 22,
+      "norm_label": "extractreviewbodymeta()"
+    },
+    {
+      "label": "ReviewsPage()",
+      "file_type": "code",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L130",
+      "_origin": "ast",
+      "id": "shop_reviewspage_reviewspage",
+      "community": 22,
+      "norm_label": "reviewspage()"
+    },
+    {
+      "label": "Header.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/components/layout/header/Header.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "community": 66,
+      "norm_label": "header.jsx",
+      "id": "header_header"
+    },
+    {
+      "label": "getStoredShopTab()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/layout/header/Header.jsx",
+      "source_location": "L10",
+      "_origin": "ast",
+      "community": 66,
+      "norm_label": "getstoredshoptab()",
+      "id": "header_header_getstoredshoptab"
+    },
+    {
+      "label": "Header()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/layout/header/Header.jsx",
+      "source_location": "L16",
+      "_origin": "ast",
+      "community": 66,
+      "norm_label": "header()",
+      "id": "header_header_header"
+    },
+    {
       "label": "PublicReviewPage.jsx",
       "file_type": "code",
       "source_file": "frontend/src/pages/shop/PublicReviewPage.jsx",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "shop_publicreviewpage",
-      "community": 20,
-      "norm_label": "publicreviewpage.jsx"
+      "community": 19,
+      "norm_label": "publicreviewpage.jsx",
+      "id": "shop_publicreviewpage"
     },
     {
       "label": "PRODUCT_TYPES",
@@ -388,9 +928,9 @@
       "source_file": "frontend/src/pages/shop/PublicReviewPage.jsx",
       "source_location": "L7",
       "_origin": "ast",
-      "id": "shop_publicreviewpage_product_types",
-      "community": 20,
-      "norm_label": "product_types"
+      "community": 19,
+      "norm_label": "product_types",
+      "id": "shop_publicreviewpage_product_types"
     },
     {
       "label": "PURCHASE_SOURCES",
@@ -398,9 +938,9 @@
       "source_file": "frontend/src/pages/shop/PublicReviewPage.jsx",
       "source_location": "L13",
       "_origin": "ast",
-      "id": "shop_publicreviewpage_purchase_sources",
-      "community": 20,
-      "norm_label": "purchase_sources"
+      "community": 19,
+      "norm_label": "purchase_sources",
+      "id": "shop_publicreviewpage_purchase_sources"
     },
     {
       "label": "getQueryParam()",
@@ -408,9 +948,9 @@
       "source_file": "frontend/src/pages/shop/PublicReviewPage.jsx",
       "source_location": "L21",
       "_origin": "ast",
-      "id": "shop_publicreviewpage_getqueryparam",
-      "community": 20,
-      "norm_label": "getqueryparam()"
+      "community": 19,
+      "norm_label": "getqueryparam()",
+      "id": "shop_publicreviewpage_getqueryparam"
     },
     {
       "label": "PublicReviewPage()",
@@ -418,9 +958,9 @@
       "source_file": "frontend/src/pages/shop/PublicReviewPage.jsx",
       "source_location": "L26",
       "_origin": "ast",
-      "id": "shop_publicreviewpage_publicreviewpage",
-      "community": 20,
-      "norm_label": "publicreviewpage()"
+      "community": 19,
+      "norm_label": "publicreviewpage()",
+      "id": "shop_publicreviewpage_publicreviewpage"
     },
     {
       "label": "productDimensions.js",
@@ -428,9 +968,9 @@
       "source_file": "frontend/src/utils/productDimensions.js",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "utils_productdimensions",
-      "community": 68,
-      "norm_label": "productdimensions.js"
+      "community": 132,
+      "norm_label": "productdimensions.js",
+      "id": "utils_productdimensions"
     },
     {
       "label": "cleanDimensionToken()",
@@ -438,9 +978,9 @@
       "source_file": "frontend/src/utils/productDimensions.js",
       "source_location": "L3",
       "_origin": "ast",
-      "id": "utils_productdimensions_cleandimensiontoken",
-      "community": 68,
-      "norm_label": "cleandimensiontoken()"
+      "community": 132,
+      "norm_label": "cleandimensiontoken()",
+      "id": "utils_productdimensions_cleandimensiontoken"
     },
     {
       "label": "parseDimensionString()",
@@ -448,9 +988,9 @@
       "source_file": "frontend/src/utils/productDimensions.js",
       "source_location": "L17",
       "_origin": "ast",
-      "id": "utils_productdimensions_parsedimensionstring",
-      "community": 68,
-      "norm_label": "parsedimensionstring()"
+      "community": 132,
+      "norm_label": "parsedimensionstring()",
+      "id": "utils_productdimensions_parsedimensionstring"
     },
     {
       "label": "pickFirstDimensionValue()",
@@ -458,9 +998,9 @@
       "source_file": "frontend/src/utils/productDimensions.js",
       "source_location": "L36",
       "_origin": "ast",
-      "id": "utils_productdimensions_pickfirstdimensionvalue",
-      "community": 68,
-      "norm_label": "pickfirstdimensionvalue()"
+      "community": 132,
+      "norm_label": "pickfirstdimensionvalue()",
+      "id": "utils_productdimensions_pickfirstdimensionvalue"
     },
     {
       "label": "getProductDimensionsLabel()",
@@ -468,9 +1008,9 @@
       "source_file": "frontend/src/utils/productDimensions.js",
       "source_location": "L48",
       "_origin": "ast",
-      "id": "utils_productdimensions_getproductdimensionslabel",
-      "community": 68,
-      "norm_label": "getproductdimensionslabel()"
+      "community": 132,
+      "norm_label": "getproductdimensionslabel()",
+      "id": "utils_productdimensions_getproductdimensionslabel"
     },
     {
       "label": "settings.json",
@@ -1588,7 +2128,7 @@
       "source_file": "backend/app.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 97,
+      "community": 96,
       "norm_label": "app.py",
       "id": "backend_app"
     },
@@ -1598,7 +2138,7 @@
       "source_file": "backend/app.py",
       "source_location": "L39",
       "_origin": "ast",
-      "community": 97,
+      "community": 96,
       "norm_label": "_is_transient_db_disconnect()",
       "id": "backend_app_is_transient_db_disconnect"
     },
@@ -1608,7 +2148,7 @@
       "source_file": "backend/app.py",
       "source_location": "L51",
       "_origin": "ast",
-      "community": 97,
+      "community": 96,
       "norm_label": "_get_allowed_origins()",
       "id": "backend_app_get_allowed_origins"
     },
@@ -1618,7 +2158,7 @@
       "source_file": "backend/app.py",
       "source_location": "L58",
       "_origin": "ast",
-      "community": 97,
+      "community": 96,
       "norm_label": "_is_private_or_local_host()",
       "id": "backend_app_is_private_or_local_host"
     },
@@ -1638,7 +2178,7 @@
       "source_file": "backend/app.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 97,
+      "community": 96,
       "norm_label": "sgcg designer - flask application factory. initializes flask, cors, flask-sqlalc",
       "id": "backend_app_rationale_1"
     },
@@ -1648,7 +2188,7 @@
       "source_file": "backend/auth.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 106,
+      "community": 45,
       "norm_label": "auth.py",
       "id": "backend_auth"
     },
@@ -1658,7 +2198,7 @@
       "source_file": "backend/auth.py",
       "source_location": "L9",
       "_origin": "ast",
-      "community": 106,
+      "community": 45,
       "norm_label": "_jwt_secret()",
       "id": "backend_auth_jwt_secret"
     },
@@ -1688,7 +2228,7 @@
       "source_file": "backend/auth.py",
       "source_location": "L52",
       "_origin": "ast",
-      "community": 106,
+      "community": 45,
       "norm_label": "require_auth()",
       "id": "backend_auth_require_auth"
     },
@@ -1698,7 +2238,7 @@
       "source_file": "backend/auth.py",
       "source_location": "L75",
       "_origin": "ast",
-      "community": 106,
+      "community": 45,
       "norm_label": "require_customer()",
       "id": "backend_auth_require_customer"
     },
@@ -1838,7 +2378,7 @@
       "source_file": "backend/db.py",
       "source_location": "L45",
       "_origin": "ast",
-      "community": 55,
+      "community": 17,
       "norm_label": "_normalize_review_image_fields()",
       "id": "backend_db_normalize_review_image_fields"
     },
@@ -1908,7 +2448,7 @@
       "source_file": "backend/db.py",
       "source_location": "L158",
       "_origin": "ast",
-      "community": 80,
+      "community": 33,
       "norm_label": "_use_mysql()",
       "id": "backend_db_use_mysql"
     },
@@ -1928,7 +2468,7 @@
       "source_file": "backend/db.py",
       "source_location": "L166",
       "_origin": "ast",
-      "community": 80,
+      "community": 48,
       "norm_label": "_is_postgres_backend()",
       "id": "backend_db_is_postgres_backend"
     },
@@ -2208,7 +2748,7 @@
       "source_file": "backend/db.py",
       "source_location": "L1635",
       "_origin": "ast",
-      "community": 80,
+      "community": 33,
       "norm_label": "fetch_customer_by_email()",
       "id": "backend_db_fetch_customer_by_email"
     },
@@ -2218,7 +2758,7 @@
       "source_file": "backend/db.py",
       "source_location": "L1646",
       "_origin": "ast",
-      "community": 28,
+      "community": 33,
       "norm_label": "fetch_customer_by_id()",
       "id": "backend_db_fetch_customer_by_id"
     },
@@ -2228,7 +2768,7 @@
       "source_file": "backend/db.py",
       "source_location": "L1657",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "create_customer()",
       "id": "backend_db_create_customer"
     },
@@ -2268,7 +2808,7 @@
       "source_file": "backend/db.py",
       "source_location": "L1782",
       "_origin": "ast",
-      "community": 80,
+      "community": 16,
       "norm_label": "count_recent_password_reset_requests()",
       "id": "backend_db_count_recent_password_reset_requests"
     },
@@ -2278,7 +2818,7 @@
       "source_file": "backend/db.py",
       "source_location": "L1819",
       "_origin": "ast",
-      "community": 80,
+      "community": 16,
       "norm_label": "create_customer_password_reset()",
       "id": "backend_db_create_customer_password_reset"
     },
@@ -2468,7 +3008,7 @@
       "source_file": "backend/db.py",
       "source_location": "L2329",
       "_origin": "ast",
-      "community": 48,
+      "community": 50,
       "norm_label": "record_discount_redemption()",
       "id": "backend_db_record_discount_redemption"
     },
@@ -2488,7 +3028,7 @@
       "source_file": "backend/db.py",
       "source_location": "L2425",
       "_origin": "ast",
-      "community": 80,
+      "community": 33,
       "norm_label": "delete_customer_admin()",
       "id": "backend_db_delete_customer_admin"
     },
@@ -2508,7 +3048,7 @@
       "source_file": "backend/db.py",
       "source_location": "L2455",
       "_origin": "ast",
-      "community": 80,
+      "community": 48,
       "norm_label": "create_customer_address()",
       "id": "backend_db_create_customer_address"
     },
@@ -2568,7 +3108,7 @@
       "source_file": "backend/db.py",
       "source_location": "L2635",
       "_origin": "ast",
-      "community": 16,
+      "community": 50,
       "norm_label": "list_customer_cart_items()",
       "id": "backend_db_list_customer_cart_items"
     },
@@ -2578,7 +3118,7 @@
       "source_file": "backend/db.py",
       "source_location": "L2649",
       "_origin": "ast",
-      "community": 17,
+      "community": 33,
       "norm_label": "upsert_customer_cart_item()",
       "id": "backend_db_upsert_customer_cart_item"
     },
@@ -2608,7 +3148,7 @@
       "source_file": "backend/db.py",
       "source_location": "L2717",
       "_origin": "ast",
-      "community": 17,
+      "community": 50,
       "norm_label": "list_customer_orders()",
       "id": "backend_db_list_customer_orders"
     },
@@ -2718,7 +3258,7 @@
       "source_file": "backend/db.py",
       "source_location": "L3218",
       "_origin": "ast",
-      "community": 80,
+      "community": 17,
       "norm_label": "list_admin_recent_orders()",
       "id": "backend_db_list_admin_recent_orders"
     },
@@ -2768,7 +3308,7 @@
       "source_file": "backend/db.py",
       "source_location": "L3329",
       "_origin": "ast",
-      "community": 80,
+      "community": 17,
       "norm_label": "list_customer_order_events_for_orders()",
       "id": "backend_db_list_customer_order_events_for_orders"
     },
@@ -2868,7 +3408,7 @@
       "source_file": "backend/db.py",
       "source_location": "L3724",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "has_verified_purchase()",
       "id": "backend_db_has_verified_purchase"
     },
@@ -2888,7 +3428,7 @@
       "source_file": "backend/db.py",
       "source_location": "L3772",
       "_origin": "ast",
-      "community": 55,
+      "community": 17,
       "norm_label": "list_reviews_for_product()",
       "id": "backend_db_list_reviews_for_product"
     },
@@ -2898,7 +3438,7 @@
       "source_file": "backend/db.py",
       "source_location": "L3825",
       "_origin": "ast",
-      "community": 55,
+      "community": 17,
       "norm_label": "list_recent_reviews()",
       "id": "backend_db_list_recent_reviews"
     },
@@ -2968,7 +3508,7 @@
       "source_file": "backend/db.py",
       "source_location": "L4065",
       "_origin": "ast",
-      "community": 107,
+      "community": 33,
       "norm_label": "list_admin_invoices()",
       "id": "backend_db_list_admin_invoices"
     },
@@ -2998,7 +3538,7 @@
       "source_file": "backend/db.py",
       "source_location": "L4170",
       "_origin": "ast",
-      "community": 55,
+      "community": 17,
       "norm_label": "list_customer_reviews()",
       "id": "backend_db_list_customer_reviews"
     },
@@ -3008,7 +3548,7 @@
       "source_file": "backend/db.py",
       "source_location": "L4184",
       "_origin": "ast",
-      "community": 55,
+      "community": 17,
       "norm_label": "list_admin_reviews()",
       "id": "backend_db_list_admin_reviews"
     },
@@ -3038,7 +3578,7 @@
       "source_file": "backend/db.py",
       "source_location": "L4293",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "create_customer_review()",
       "id": "backend_db_create_customer_review"
     },
@@ -3058,7 +3598,7 @@
       "source_file": "backend/db.py",
       "source_location": "L4395",
       "_origin": "ast",
-      "community": 80,
+      "community": 48,
       "norm_label": "create_review_invite_code()",
       "id": "backend_db_create_review_invite_code"
     },
@@ -3068,7 +3608,7 @@
       "source_file": "backend/db.py",
       "source_location": "L4449",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "list_review_invite_codes()",
       "id": "backend_db_list_review_invite_codes"
     },
@@ -3078,7 +3618,7 @@
       "source_file": "backend/db.py",
       "source_location": "L4478",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "get_review_invite_code_by_hash()",
       "id": "backend_db_get_review_invite_code_by_hash"
     },
@@ -3088,7 +3628,7 @@
       "source_file": "backend/db.py",
       "source_location": "L4492",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "consume_review_invite_code()",
       "id": "backend_db_consume_review_invite_code"
     },
@@ -3178,7 +3718,7 @@
       "source_file": "backend/db.py",
       "source_location": "L4066",
       "_origin": "ast",
-      "community": 107,
+      "community": 33,
       "norm_label": "list invoices across all customers for admin management.",
       "id": "backend_db_rationale_4066"
     },
@@ -3298,7 +3838,7 @@
       "source_file": "backend/models/__init__.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 54,
+      "community": 7,
       "norm_label": "__init__.py",
       "id": "models_init"
     },
@@ -3308,7 +3848,7 @@
       "source_file": "backend/models/__init__.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 54,
+      "community": 7,
       "norm_label": "sgcg designer - sqlalchemy models. import db first so model modules can use it;",
       "id": "models_init_rationale_1"
     },
@@ -3318,7 +3858,7 @@
       "source_file": "backend/models/gallery_photo.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 72,
+      "community": 7,
       "norm_label": "gallery_photo.py",
       "id": "models_gallery_photo"
     },
@@ -3348,7 +3888,7 @@
       "source_file": "backend/models/gallery_photo.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 72,
+      "community": 7,
       "norm_label": "photo gallery model for user/admin submitted project photos.",
       "id": "models_gallery_photo_rationale_1"
     },
@@ -3608,7 +4148,7 @@
       "source_file": "backend/models/template.py",
       "source_location": "L98",
       "_origin": "ast",
-      "community": 7,
+      "community": 80,
       "norm_label": "templateregion",
       "id": "models_template_templateregion"
     },
@@ -3618,7 +4158,7 @@
       "source_file": "backend/models/template.py",
       "source_location": "L115",
       "_origin": "ast",
-      "community": 7,
+      "community": 80,
       "norm_label": ".__repr__()",
       "id": "models_template_templateregion_repr"
     },
@@ -3628,7 +4168,7 @@
       "source_file": "backend/models/template.py",
       "source_location": "L119",
       "_origin": "ast",
-      "community": 7,
+      "community": 80,
       "norm_label": ".validate_region_id()",
       "id": "models_template_templateregion_validate_region_id"
     },
@@ -3688,7 +4228,7 @@
       "source_file": "backend/models/template.py",
       "source_location": "L99",
       "_origin": "ast",
-      "community": 7,
+      "community": 80,
       "norm_label": "one glass piece (path) in a template. region_id must match <path id=\"...\"> in th",
       "id": "models_template_rationale_99"
     },
@@ -3698,7 +4238,7 @@
       "source_file": "backend/models/template.py",
       "source_location": "L120",
       "_origin": "ast",
-      "community": 7,
+      "community": 80,
       "norm_label": "basic validation: non-empty, safe for svg id (alphanumeric, hyphen, underscore).",
       "id": "models_template_rationale_120"
     },
@@ -3708,7 +4248,7 @@
       "source_file": "backend/models/work_order.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 54,
+      "community": 126,
       "norm_label": "work_order.py",
       "id": "models_work_order"
     },
@@ -3748,7 +4288,7 @@
       "source_file": "backend/models/work_order.py",
       "source_location": "L78",
       "_origin": "ast",
-      "community": 82,
+      "community": 126,
       "norm_label": ".to_dict()",
       "id": "models_work_order_workorder_to_dict"
     },
@@ -3758,7 +4298,7 @@
       "source_file": "backend/models/work_order.py",
       "source_location": "L146",
       "_origin": "ast",
-      "community": 44,
+      "community": 126,
       "norm_label": "workorderstatushistory",
       "id": "models_work_order_workorderstatushistory"
     },
@@ -3768,7 +4308,7 @@
       "source_file": "backend/models/work_order.py",
       "source_location": "L166",
       "_origin": "ast",
-      "community": 44,
+      "community": 126,
       "norm_label": ".__repr__()",
       "id": "models_work_order_workorderstatushistory_repr"
     },
@@ -3778,7 +4318,7 @@
       "source_file": "backend/models/work_order.py",
       "source_location": "L169",
       "_origin": "ast",
-      "community": 82,
+      "community": 126,
       "norm_label": ".to_dict()",
       "id": "models_work_order_workorderstatushistory_to_dict"
     },
@@ -3788,7 +4328,7 @@
       "source_file": "backend/models/work_order.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 54,
+      "community": 126,
       "norm_label": "workorder and workorderstatushistory models for the work order workflow.",
       "id": "models_work_order_rationale_1"
     },
@@ -3818,7 +4358,7 @@
       "source_file": "backend/models/work_order.py",
       "source_location": "L147",
       "_origin": "ast",
-      "community": 44,
+      "community": 126,
       "norm_label": "audit log of work order status changes.",
       "id": "models_work_order_rationale_147"
     },
@@ -4048,7 +4588,7 @@
       "source_file": "backend/routes/glass_types.py",
       "source_location": "L47",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "_upload_folder()",
       "id": "routes_glass_types_upload_folder"
     },
@@ -4078,7 +4618,7 @@
       "source_file": "backend/routes/glass_types.py",
       "source_location": "L93",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "create_glass_type()",
       "id": "routes_glass_types_create_glass_type"
     },
@@ -4088,7 +4628,7 @@
       "source_file": "backend/routes/glass_types.py",
       "source_location": "L143",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "update_glass_type()",
       "id": "routes_glass_types_update_glass_type"
     },
@@ -4128,7 +4668,7 @@
       "source_file": "backend/routes/glass_types.py",
       "source_location": "L48",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "base upload directory; textures stored in <upload_folder>/textures/.",
       "id": "routes_glass_types_rationale_48"
     },
@@ -4158,7 +4698,7 @@
       "source_file": "backend/routes/glass_types.py",
       "source_location": "L94",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "post /api/admin/glass-types     body: json with name, description?, texture_url",
       "id": "routes_glass_types_rationale_94"
     },
@@ -4168,7 +4708,7 @@
       "source_file": "backend/routes/glass_types.py",
       "source_location": "L144",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "put /api/admin/glass-types/<id>     body: json with name?, description?, textur",
       "id": "routes_glass_types_rationale_144"
     },
@@ -4268,7 +4808,7 @@
       "source_file": "backend/routes/invoices.py",
       "source_location": "L234",
       "_origin": "ast",
-      "community": 107,
+      "community": 33,
       "norm_label": "admin_list_all_invoices()",
       "id": "routes_invoices_admin_list_all_invoices"
     },
@@ -4418,7 +4958,7 @@
       "source_file": "backend/routes/invoices.py",
       "source_location": "L235",
       "_origin": "ast",
-      "community": 107,
+      "community": 33,
       "norm_label": "list all invoices for admin maintenance.",
       "id": "routes_invoices_rationale_235"
     },
@@ -4578,7 +5118,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L138",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "_save_review_image_file()",
       "id": "routes_shop_save_review_image_file"
     },
@@ -4908,7 +5448,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1254",
       "_origin": "ast",
-      "community": 28,
+      "community": 50,
       "norm_label": "_build_manual_product_public_link()",
       "id": "routes_shop_build_manual_product_public_link"
     },
@@ -4918,7 +5458,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1258",
       "_origin": "ast",
-      "community": 28,
+      "community": 50,
       "norm_label": "_post_manual_product_to_facebook_page()",
       "id": "routes_shop_post_manual_product_to_facebook_page"
     },
@@ -4938,7 +5478,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1339",
       "_origin": "ast",
-      "community": 50,
+      "community": 16,
       "norm_label": "_send_admin_order_email()",
       "id": "routes_shop_send_admin_order_email"
     },
@@ -4958,7 +5498,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1365",
       "_origin": "ast",
-      "community": 11,
+      "community": 50,
       "norm_label": "_send_customer_pattern_download_email()",
       "id": "routes_shop_send_customer_pattern_download_email"
     },
@@ -4968,7 +5508,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1375",
       "_origin": "ast",
-      "community": 11,
+      "community": 16,
       "norm_label": "_safe_text()",
       "id": "routes_shop_safe_text"
     },
@@ -4978,7 +5518,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1379",
       "_origin": "ast",
-      "community": 11,
+      "community": 16,
       "norm_label": "_list_to_text()",
       "id": "routes_shop_list_to_text"
     },
@@ -4988,7 +5528,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1385",
       "_origin": "ast",
-      "community": 11,
+      "community": 16,
       "norm_label": "_resolve_shop_contact_emails()",
       "id": "routes_shop_resolve_shop_contact_emails"
     },
@@ -4998,7 +5538,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1401",
       "_origin": "ast",
-      "community": 11,
+      "community": 16,
       "norm_label": "_normalize_shop_request_tag()",
       "id": "routes_shop_normalize_shop_request_tag"
     },
@@ -5008,7 +5548,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1406",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "_hash_review_invite_code()",
       "id": "routes_shop_hash_review_invite_code"
     },
@@ -5018,7 +5558,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1415",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "_split_name()",
       "id": "routes_shop_split_name"
     },
@@ -5028,7 +5568,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1425",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "_normalize_invite_for_public()",
       "id": "routes_shop_normalize_invite_for_public"
     },
@@ -5038,7 +5578,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1456",
       "_origin": "ast",
-      "community": 11,
+      "community": 16,
       "norm_label": "submit_custom_order_request()",
       "id": "routes_shop_submit_custom_order_request"
     },
@@ -5048,7 +5588,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1514",
       "_origin": "ast",
-      "community": 11,
+      "community": 16,
       "norm_label": "submit_contact_request()",
       "id": "routes_shop_submit_contact_request"
     },
@@ -5118,7 +5658,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1785",
       "_origin": "ast",
-      "community": 28,
+      "community": 33,
       "norm_label": "admin_delete_customer()",
       "id": "routes_shop_admin_delete_customer"
     },
@@ -5138,7 +5678,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1836",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "customer_signup()",
       "id": "routes_shop_customer_signup"
     },
@@ -5158,7 +5698,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1886",
       "_origin": "ast",
-      "community": 80,
+      "community": 16,
       "norm_label": "_password_reset_link()",
       "id": "routes_shop_password_reset_link"
     },
@@ -5168,7 +5708,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1905",
       "_origin": "ast",
-      "community": 80,
+      "community": 16,
       "norm_label": "_password_reset_email_body()",
       "id": "routes_shop_password_reset_email_body"
     },
@@ -5178,7 +5718,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L1924",
       "_origin": "ast",
-      "community": 80,
+      "community": 16,
       "norm_label": "customer_forgot_password()",
       "id": "routes_shop_customer_forgot_password"
     },
@@ -5228,7 +5768,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L2065",
       "_origin": "ast",
-      "community": 80,
+      "community": 48,
       "norm_label": "customer_add_address()",
       "id": "routes_shop_customer_add_address"
     },
@@ -5308,7 +5848,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L2177",
       "_origin": "ast",
-      "community": 16,
+      "community": 50,
       "norm_label": "customer_cart()",
       "id": "routes_shop_customer_cart"
     },
@@ -5318,7 +5858,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L2185",
       "_origin": "ast",
-      "community": 50,
+      "community": 28,
       "norm_label": "customer_cart_summary()",
       "id": "routes_shop_customer_cart_summary"
     },
@@ -5328,7 +5868,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L2194",
       "_origin": "ast",
-      "community": 17,
+      "community": 28,
       "norm_label": "customer_add_cart_item()",
       "id": "routes_shop_customer_add_cart_item"
     },
@@ -5488,7 +6028,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L2894",
       "_origin": "ast",
-      "community": 17,
+      "community": 50,
       "norm_label": "customer_orders()",
       "id": "routes_shop_customer_orders"
     },
@@ -5538,7 +6078,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L2963",
       "_origin": "ast",
-      "community": 28,
+      "community": 17,
       "norm_label": "admin_recent_orders()",
       "id": "routes_shop_admin_recent_orders"
     },
@@ -5598,7 +6138,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L3081",
       "_origin": "ast",
-      "community": 55,
+      "community": 17,
       "norm_label": "customer_reviews()",
       "id": "routes_shop_customer_reviews"
     },
@@ -5618,7 +6158,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L3096",
       "_origin": "ast",
-      "community": 55,
+      "community": 17,
       "norm_label": "product_reviews()",
       "id": "routes_shop_product_reviews"
     },
@@ -5628,7 +6168,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L3106",
       "_origin": "ast",
-      "community": 55,
+      "community": 17,
       "norm_label": "recent_reviews()",
       "id": "routes_shop_recent_reviews"
     },
@@ -5638,7 +6178,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L3113",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "validate_review_invite_code()",
       "id": "routes_shop_validate_review_invite_code"
     },
@@ -5648,7 +6188,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L3135",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "submit_review_with_invite_code()",
       "id": "routes_shop_submit_review_with_invite_code"
     },
@@ -5658,7 +6198,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L3219",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "submit_public_review()",
       "id": "routes_shop_submit_public_review"
     },
@@ -5668,7 +6208,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L3294",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "customer_create_review()",
       "id": "routes_shop_customer_create_review"
     },
@@ -5678,7 +6218,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L3325",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "admin_create_review()",
       "id": "routes_shop_admin_create_review"
     },
@@ -5698,7 +6238,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L3434",
       "_origin": "ast",
-      "community": 55,
+      "community": 17,
       "norm_label": "admin_reviews()",
       "id": "routes_shop_admin_reviews"
     },
@@ -5708,7 +6248,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L3446",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "admin_list_review_invite_codes()",
       "id": "routes_shop_admin_list_review_invite_codes"
     },
@@ -5718,7 +6258,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L3459",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "admin_create_review_invite_code()",
       "id": "routes_shop_admin_create_review_invite_code"
     },
@@ -5998,7 +6538,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L4160",
       "_origin": "ast",
-      "community": 28,
+      "community": 50,
       "norm_label": "publish_manual_product_to_facebook_page()",
       "id": "routes_shop_publish_manual_product_to_facebook_page"
     },
@@ -6008,7 +6548,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L139",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "save a review image to disk and return (url, bytes, mime_type).      returns (",
       "id": "routes_shop_rationale_139"
     },
@@ -6118,7 +6658,7 @@
       "source_file": "backend/routes/shop.py",
       "source_location": "L3220",
       "_origin": "ast",
-      "community": 80,
+      "community": 28,
       "norm_label": "public endpoint for customers to submit reviews without a code or authentication",
       "id": "routes_shop_rationale_3220"
     },
@@ -6268,7 +6808,7 @@
       "source_file": "backend/routes/templates.py",
       "source_location": "L208",
       "_origin": "ast",
-      "community": 76,
+      "community": 80,
       "norm_label": "_safe_session_rollback()",
       "id": "routes_templates_safe_session_rollback"
     },
@@ -6278,7 +6818,7 @@
       "source_file": "backend/routes/templates.py",
       "source_location": "L215",
       "_origin": "ast",
-      "community": 76,
+      "community": 80,
       "norm_label": "_sync_pattern_product_nonfatal()",
       "id": "routes_templates_sync_pattern_product_nonfatal"
     },
@@ -6348,7 +6888,7 @@
       "source_file": "backend/routes/templates.py",
       "source_location": "L430",
       "_origin": "ast",
-      "community": 76,
+      "community": 80,
       "norm_label": "create_template()",
       "id": "routes_templates_create_template"
     },
@@ -6358,7 +6898,7 @@
       "source_file": "backend/routes/templates.py",
       "source_location": "L521",
       "_origin": "ast",
-      "community": 76,
+      "community": 80,
       "norm_label": "update_template()",
       "id": "routes_templates_update_template"
     },
@@ -6368,7 +6908,7 @@
       "source_file": "backend/routes/templates.py",
       "source_location": "L620",
       "_origin": "ast",
-      "community": 76,
+      "community": 80,
       "norm_label": "delete_template()",
       "id": "routes_templates_delete_template"
     },
@@ -6438,7 +6978,7 @@
       "source_file": "backend/routes/templates.py",
       "source_location": "L431",
       "_origin": "ast",
-      "community": 76,
+      "community": 80,
       "norm_label": "post /api/admin/templates     body: name, description?, category?, svg_content,",
       "id": "routes_templates_rationale_431"
     },
@@ -6448,7 +6988,7 @@
       "source_file": "backend/routes/templates.py",
       "source_location": "L522",
       "_origin": "ast",
-      "community": 76,
+      "community": 80,
       "norm_label": "put /api/admin/templates/<id>     body: name?, description?, category?, svg_con",
       "id": "routes_templates_rationale_522"
     },
@@ -6458,7 +6998,7 @@
       "source_file": "backend/routes/templates.py",
       "source_location": "L621",
       "_origin": "ast",
-      "community": 76,
+      "community": 80,
       "norm_label": "delete /api/admin/templates/<id>     if ?hard=true is passed, permanently delet",
       "id": "routes_templates_rationale_621"
     },
@@ -6478,7 +7018,7 @@
       "source_file": "backend/routes/work_orders.py",
       "source_location": "L27",
       "_origin": "ast",
-      "community": 45,
+      "community": 44,
       "norm_label": "login_required()",
       "id": "routes_work_orders_login_required"
     },
@@ -6488,7 +7028,7 @@
       "source_file": "backend/routes/work_orders.py",
       "source_location": "L45",
       "_origin": "ast",
-      "community": 45,
+      "community": 44,
       "norm_label": "admin_required()",
       "id": "routes_work_orders_admin_required"
     },
@@ -6558,7 +7098,7 @@
       "source_file": "backend/routes/work_orders.py",
       "source_location": "L242",
       "_origin": "ast",
-      "community": 44,
+      "community": 126,
       "norm_label": "approve_work_order()",
       "id": "routes_work_orders_approve_work_order"
     },
@@ -6648,7 +7188,7 @@
       "source_file": "backend/routes/work_orders.py",
       "source_location": "L422",
       "_origin": "ast",
-      "community": 44,
+      "community": 54,
       "norm_label": "admin_send_template_to_customer()",
       "id": "routes_work_orders_admin_send_template_to_customer"
     },
@@ -6688,7 +7228,7 @@
       "source_file": "backend/routes/work_orders.py",
       "source_location": "L243",
       "_origin": "ast",
-      "community": 44,
+      "community": 126,
       "norm_label": "customer approves the current design.",
       "id": "routes_work_orders_rationale_243"
     },
@@ -6798,7 +7338,7 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "glass_type_service.py",
       "id": "services_glass_type_service"
     },
@@ -6808,7 +7348,7 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L16",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "_get_file_extension()",
       "id": "services_glass_type_service_get_file_extension"
     },
@@ -6818,7 +7358,7 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L23",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "validate_texture_image()",
       "id": "services_glass_type_service_validate_texture_image"
     },
@@ -6828,7 +7368,7 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L23",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "any",
       "id": "backend_services_glass_type_service_py_any"
     },
@@ -6838,7 +7378,7 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L66",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "save_texture_file()",
       "id": "services_glass_type_service_save_texture_file"
     },
@@ -6848,7 +7388,7 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L101",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "validate_glass_type_data()",
       "id": "services_glass_type_service_validate_glass_type_data"
     },
@@ -6858,7 +7398,7 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L162",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "validate_reorder_data()",
       "id": "services_glass_type_service_validate_reorder_data"
     },
@@ -6868,7 +7408,7 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "glass type business logic: texture image validation and file storage.",
       "id": "services_glass_type_service_rationale_1"
     },
@@ -6878,7 +7418,7 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L17",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "return lowercase extension without dot.",
       "id": "services_glass_type_service_rationale_17"
     },
@@ -6888,7 +7428,7 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L24",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "validate texture image: png or jpg, 256x256px, max 1mb.     file: werkzeug file",
       "id": "services_glass_type_service_rationale_24"
     },
@@ -6898,7 +7438,7 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L67",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "save texture file to uploads/textures/ with a unique name.     file: werkzeug f",
       "id": "services_glass_type_service_rationale_67"
     },
@@ -6908,7 +7448,7 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L102",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "validate glass type create/update payload (name, description, texture_url, is_ac",
       "id": "services_glass_type_service_rationale_102"
     },
@@ -6918,7 +7458,7 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L163",
       "_origin": "ast",
-      "community": 45,
+      "community": 0,
       "norm_label": "validate reorder payload: array of {id: int, display_order: int}.     accepts e",
       "id": "services_glass_type_service_rationale_163"
     },
@@ -7338,7 +7878,7 @@
       "source_file": "backend/services/work_order_service.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 44,
+      "community": 11,
       "norm_label": "work_order_service.py",
       "id": "services_work_order_service"
     },
@@ -7348,7 +7888,7 @@
       "source_file": "backend/services/work_order_service.py",
       "source_location": "L13",
       "_origin": "ast",
-      "community": 44,
+      "community": 11,
       "norm_label": "generate_work_order_number()",
       "id": "services_work_order_service_generate_work_order_number"
     },
@@ -7358,7 +7898,7 @@
       "source_file": "backend/services/work_order_service.py",
       "source_location": "L13",
       "_origin": "ast",
-      "community": 44,
+      "community": 11,
       "norm_label": "session",
       "id": "backend_services_work_order_service_py_session"
     },
@@ -7368,7 +7908,7 @@
       "source_file": "backend/services/work_order_service.py",
       "source_location": "L28",
       "_origin": "ast",
-      "community": 44,
+      "community": 54,
       "norm_label": "generate_custom_work_order_number()",
       "id": "services_work_order_service_generate_custom_work_order_number"
     },
@@ -7378,7 +7918,7 @@
       "source_file": "backend/services/work_order_service.py",
       "source_location": "L44",
       "_origin": "ast",
-      "community": 44,
+      "community": 11,
       "norm_label": "validate_design_completion()",
       "id": "services_work_order_service_validate_design_completion"
     },
@@ -7388,7 +7928,7 @@
       "source_file": "backend/services/work_order_service.py",
       "source_location": "L57",
       "_origin": "ast",
-      "community": 44,
+      "community": 11,
       "norm_label": "submit_work_order()",
       "id": "services_work_order_service_submit_work_order"
     },
@@ -7408,7 +7948,7 @@
       "source_file": "backend/services/work_order_service.py",
       "source_location": "L113",
       "_origin": "ast",
-      "community": 44,
+      "community": 11,
       "norm_label": "update_work_order_status()",
       "id": "services_work_order_service_update_work_order_status"
     },
@@ -7418,7 +7958,7 @@
       "source_file": "backend/services/work_order_service.py",
       "source_location": "L29",
       "_origin": "ast",
-      "community": 44,
+      "community": 54,
       "norm_label": "generate custom work order number in format cwo-yyyy-#### (e.g., cwo-2026-0001)",
       "id": "services_work_order_service_rationale_29"
     },
@@ -7748,7 +8288,7 @@
       "source_file": "backend/tests/test_templates.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 7,
+      "community": 96,
       "norm_label": "test_templates.py",
       "id": "tests_test_templates"
     },
@@ -7758,7 +8298,7 @@
       "source_file": "backend/tests/test_templates.py",
       "source_location": "L7",
       "_origin": "ast",
-      "community": 7,
+      "community": 96,
       "norm_label": "client()",
       "id": "tests_test_templates_client"
     },
@@ -7768,7 +8308,7 @@
       "source_file": "backend/tests/test_templates.py",
       "source_location": "L17",
       "_origin": "ast",
-      "community": 7,
+      "community": 96,
       "norm_label": "test_get_templates()",
       "id": "tests_test_templates_test_get_templates"
     },
@@ -7778,7 +8318,7 @@
       "source_file": "backend/tests/test_templates.py",
       "source_location": "L25",
       "_origin": "ast",
-      "community": 7,
+      "community": 96,
       "norm_label": "test_get_template_by_id()",
       "id": "tests_test_templates_test_get_template_by_id"
     },
@@ -7788,7 +8328,7 @@
       "source_file": "backend/tests/test_templates.py",
       "source_location": "L33",
       "_origin": "ast",
-      "community": 7,
+      "community": 96,
       "norm_label": "test_create_template()",
       "id": "tests_test_templates_test_create_template"
     },
@@ -7798,7 +8338,7 @@
       "source_file": "backend/tests/test_templates.py",
       "source_location": "L41",
       "_origin": "ast",
-      "community": 7,
+      "community": 96,
       "norm_label": "test_create_template_validation()",
       "id": "tests_test_templates_test_create_template_validation"
     },
@@ -7898,7 +8438,7 @@
       "source_file": "backend/utils/email.py",
       "source_location": "L18",
       "_origin": "ast",
-      "community": 11,
+      "community": 16,
       "norm_label": "send_email()",
       "id": "utils_email_send_email"
     },
@@ -7928,7 +8468,7 @@
       "source_file": "backend/utils/email.py",
       "source_location": "L78",
       "_origin": "ast",
-      "community": 11,
+      "community": 50,
       "norm_label": "digital_download_email()",
       "id": "utils_email_digital_download_email"
     },
@@ -7938,7 +8478,7 @@
       "source_file": "backend/wsgi.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 97,
+      "community": 96,
       "norm_label": "wsgi.py",
       "id": "backend_wsgi"
     },
@@ -9788,7 +10328,7 @@
       "source_file": "frontend/src/components/layout/footer/Footer.jsx",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 108,
+      "community": 41,
       "norm_label": "footer.jsx",
       "id": "footer_footer"
     },
@@ -9798,7 +10338,7 @@
       "source_file": "frontend/src/components/layout/footer/Footer.jsx",
       "source_location": "L3",
       "_origin": "ast",
-      "community": 108,
+      "community": 41,
       "norm_label": "social_links",
       "id": "footer_footer_social_links"
     },
@@ -9808,7 +10348,7 @@
       "source_file": "frontend/src/components/layout/footer/Footer.jsx",
       "source_location": "L10",
       "_origin": "ast",
-      "community": 108,
+      "community": 41,
       "norm_label": "rendersocialicon()",
       "id": "footer_footer_rendersocialicon"
     },
@@ -9818,7 +10358,7 @@
       "source_file": "frontend/src/components/layout/footer/Footer.jsx",
       "source_location": "L46",
       "_origin": "ast",
-      "community": 108,
+      "community": 41,
       "norm_label": "footer()",
       "id": "footer_footer_footer"
     },
@@ -9968,7 +10508,7 @@
       "source_file": "frontend/src/hooks/useCarousel.js",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "usecarousel.js",
       "id": "hooks_usecarousel"
     },
@@ -9978,7 +10518,7 @@
       "source_file": "frontend/src/hooks/useCarousel.js",
       "source_location": "L3",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "usecarousel()",
       "id": "hooks_usecarousel_usecarousel"
     },
@@ -10238,7 +10778,7 @@
       "source_file": "frontend/src/hooks/useWorkOrderSubmit.js",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 96,
+      "community": 78,
       "norm_label": "useworkordersubmit.js",
       "id": "hooks_useworkordersubmit"
     },
@@ -10248,7 +10788,7 @@
       "source_file": "frontend/src/hooks/useWorkOrderSubmit.js",
       "source_location": "L6",
       "_origin": "ast",
-      "community": 96,
+      "community": 78,
       "norm_label": "gethtml2canvas()",
       "id": "hooks_useworkordersubmit_gethtml2canvas"
     },
@@ -10258,7 +10798,7 @@
       "source_file": "frontend/src/hooks/useWorkOrderSubmit.js",
       "source_location": "L13",
       "_origin": "ast",
-      "community": 96,
+      "community": 78,
       "norm_label": "useworkordersubmit()",
       "id": "hooks_useworkordersubmit_useworkordersubmit"
     },
@@ -10338,7 +10878,7 @@
       "source_file": "frontend/src/pages/MyProjectsPage.jsx",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 19,
+      "community": 122,
       "norm_label": "myprojectspage.jsx",
       "id": "pages_myprojectspage"
     },
@@ -11188,7 +11728,7 @@
       "source_file": "frontend/src/pages/admin/AdminInvoicesDashboard.jsx",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 78,
+      "community": 108,
       "norm_label": "admininvoicesdashboard.jsx",
       "id": "admin_admininvoicesdashboard"
     },
@@ -11198,7 +11738,7 @@
       "source_file": "frontend/src/pages/admin/AdminInvoicesDashboard.jsx",
       "source_location": "L12",
       "_origin": "ast",
-      "community": 78,
+      "community": 108,
       "norm_label": "status_options",
       "id": "admin_admininvoicesdashboard_status_options"
     },
@@ -11208,7 +11748,7 @@
       "source_file": "frontend/src/pages/admin/AdminInvoicesDashboard.jsx",
       "source_location": "L13",
       "_origin": "ast",
-      "community": 78,
+      "community": 108,
       "norm_label": "status_meta",
       "id": "admin_admininvoicesdashboard_status_meta"
     },
@@ -11218,7 +11758,7 @@
       "source_file": "frontend/src/pages/admin/AdminInvoicesDashboard.jsx",
       "source_location": "L21",
       "_origin": "ast",
-      "community": 78,
+      "community": 108,
       "norm_label": "toinputdate()",
       "id": "admin_admininvoicesdashboard_toinputdate"
     },
@@ -11228,7 +11768,7 @@
       "source_file": "frontend/src/pages/admin/AdminInvoicesDashboard.jsx",
       "source_location": "L31",
       "_origin": "ast",
-      "community": 78,
+      "community": 108,
       "norm_label": "todisplaydate()",
       "id": "admin_admininvoicesdashboard_todisplaydate"
     },
@@ -11238,7 +11778,7 @@
       "source_file": "frontend/src/pages/admin/AdminInvoicesDashboard.jsx",
       "source_location": "L37",
       "_origin": "ast",
-      "community": 78,
+      "community": 108,
       "norm_label": "admininvoicesdashboard()",
       "id": "admin_admininvoicesdashboard_admininvoicesdashboard"
     },
@@ -12118,7 +12658,7 @@
       "source_file": "frontend/src/pages/customer/CustomerPortal.jsx",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "customerportal.jsx",
       "id": "customer_customerportal"
     },
@@ -12128,7 +12668,7 @@
       "source_file": "frontend/src/pages/customer/CustomerPortal.jsx",
       "source_location": "L28",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "tabs",
       "id": "customer_customerportal_tabs"
     },
@@ -12138,7 +12678,7 @@
       "source_file": "frontend/src/pages/customer/CustomerPortal.jsx",
       "source_location": "L30",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "tab_labels",
       "id": "customer_customerportal_tab_labels"
     },
@@ -12148,7 +12688,7 @@
       "source_file": "frontend/src/pages/customer/CustomerPortal.jsx",
       "source_location": "L42",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "star_scale",
       "id": "customer_customerportal_star_scale"
     },
@@ -12158,7 +12698,7 @@
       "source_file": "frontend/src/pages/customer/CustomerPortal.jsx",
       "source_location": "L44",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "resolvedownloadurl()",
       "id": "customer_customerportal_resolvedownloadurl"
     },
@@ -12168,7 +12708,7 @@
       "source_file": "frontend/src/pages/customer/CustomerPortal.jsx",
       "source_location": "L56",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "renderstars()",
       "id": "customer_customerportal_renderstars"
     },
@@ -12178,7 +12718,7 @@
       "source_file": "frontend/src/pages/customer/CustomerPortal.jsx",
       "source_location": "L58",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "extractpurchasedatfromreviewbody()",
       "id": "customer_customerportal_extractpurchasedatfromreviewbody"
     },
@@ -12188,7 +12728,7 @@
       "source_file": "frontend/src/pages/customer/CustomerPortal.jsx",
       "source_location": "L64",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "strippurchasedatfromreviewbody()",
       "id": "customer_customerportal_strippurchasedatfromreviewbody"
     },
@@ -12198,7 +12738,7 @@
       "source_file": "frontend/src/pages/customer/CustomerPortal.jsx",
       "source_location": "L72",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "todateinputvalue()",
       "id": "customer_customerportal_todateinputvalue"
     },
@@ -12208,7 +12748,7 @@
       "source_file": "frontend/src/pages/customer/CustomerPortal.jsx",
       "source_location": "L86",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "composereviewbodywithpurchasedat()",
       "id": "customer_customerportal_composereviewbodywithpurchasedat"
     },
@@ -12358,7 +12898,7 @@
       "source_file": "frontend/src/pages/home/HomePage.jsx",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 132,
+      "community": 120,
       "norm_label": "homepage.jsx",
       "id": "home_homepage"
     },
@@ -12368,7 +12908,7 @@
       "source_file": "frontend/src/pages/home/HomePage.jsx",
       "source_location": "L8",
       "_origin": "ast",
-      "community": 132,
+      "community": 120,
       "norm_label": "renderstars()",
       "id": "home_homepage_renderstars"
     },
@@ -12378,7 +12918,7 @@
       "source_file": "frontend/src/pages/home/HomePage.jsx",
       "source_location": "L10",
       "_origin": "ast",
-      "community": 132,
+      "community": 120,
       "norm_label": "getapiorigin()",
       "id": "home_homepage_getapiorigin"
     },
@@ -12388,7 +12928,7 @@
       "source_file": "frontend/src/pages/home/HomePage.jsx",
       "source_location": "L24",
       "_origin": "ast",
-      "community": 132,
+      "community": 120,
       "norm_label": "tocleanimageurl()",
       "id": "home_homepage_tocleanimageurl"
     },
@@ -12398,7 +12938,7 @@
       "source_file": "frontend/src/pages/home/HomePage.jsx",
       "source_location": "L55",
       "_origin": "ast",
-      "community": 132,
+      "community": 120,
       "norm_label": "resolvereviewimageurl()",
       "id": "home_homepage_resolvereviewimageurl"
     },
@@ -12408,7 +12948,7 @@
       "source_file": "frontend/src/pages/home/HomePage.jsx",
       "source_location": "L75",
       "_origin": "ast",
-      "community": 132,
+      "community": 120,
       "norm_label": "stripreviewbodymeta()",
       "id": "home_homepage_stripreviewbodymeta"
     },
@@ -12418,7 +12958,7 @@
       "source_file": "frontend/src/pages/home/HomePage.jsx",
       "source_location": "L82",
       "_origin": "ast",
-      "community": 132,
+      "community": 120,
       "norm_label": "homepage()",
       "id": "home_homepage_homepage"
     },
@@ -12428,7 +12968,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "featuredcarousel.jsx",
       "id": "featured_featuredcarousel"
     },
@@ -12438,7 +12978,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L9",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "manualcarouselimagecache",
       "id": "featured_featuredcarousel_manualcarouselimagecache"
     },
@@ -12448,7 +12988,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L10",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "carouselprefetchcache",
       "id": "featured_featuredcarousel_carouselprefetchcache"
     },
@@ -12458,7 +12998,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L12",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "getapiorigin()",
       "id": "featured_featuredcarousel_getapiorigin"
     },
@@ -12468,7 +13008,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L20",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "tocleanurl()",
       "id": "featured_featuredcarousel_tocleanurl"
     },
@@ -12478,7 +13018,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L51",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "normalizeresolvedurl()",
       "id": "featured_featuredcarousel_normalizeresolvedurl"
     },
@@ -12488,7 +13028,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L76",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "hexstringtobytes()",
       "id": "featured_featuredcarousel_hexstringtobytes"
     },
@@ -12498,7 +13038,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L86",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "normalizebase64string()",
       "id": "featured_featuredcarousel_normalizebase64string"
     },
@@ -12508,7 +13048,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L98",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "bytestobase64()",
       "id": "featured_featuredcarousel_bytestobase64"
     },
@@ -12518,7 +13058,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L109",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "mediatypefromentry()",
       "id": "featured_featuredcarousel_mediatypefromentry"
     },
@@ -12528,7 +13068,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L120",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "imagedatatodataurl()",
       "id": "featured_featuredcarousel_imagedatatodataurl"
     },
@@ -12538,7 +13078,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L136",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "resolveimageentryurl()",
       "id": "featured_featuredcarousel_resolveimageentryurl"
     },
@@ -12548,7 +13088,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L143",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "resolvecarouselimageurl()",
       "id": "featured_featuredcarousel_resolvecarouselimageurl"
     },
@@ -12558,7 +13098,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L174",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "extractmanualproductid()",
       "id": "featured_featuredcarousel_extractmanualproductid"
     },
@@ -12568,7 +13108,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L185",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "fetchmanualproductfallbackimageurl()",
       "id": "featured_featuredcarousel_fetchmanualproductfallbackimageurl"
     },
@@ -12578,7 +13118,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L215",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "preloadimage()",
       "id": "featured_featuredcarousel_preloadimage"
     },
@@ -12588,7 +13128,7 @@
       "source_file": "frontend/src/pages/home/components/featured/FeaturedCarousel.jsx",
       "source_location": "L225",
       "_origin": "ast",
-      "community": 68,
+      "community": 55,
       "norm_label": "featuredcarousel()",
       "id": "featured_featuredcarousel_featuredcarousel"
     },
@@ -12598,7 +13138,7 @@
       "source_file": "frontend/src/pages/home/components/hero/HeroSection.jsx",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 132,
+      "community": 120,
       "norm_label": "herosection.jsx",
       "id": "hero_herosection"
     },
@@ -12608,7 +13148,7 @@
       "source_file": "frontend/src/pages/home/components/hero/HeroSection.jsx",
       "source_location": "L4",
       "_origin": "ast",
-      "community": 132,
+      "community": 120,
       "norm_label": "herosection()",
       "id": "hero_herosection_herosection"
     },
@@ -12718,7 +13258,7 @@
       "source_file": "frontend/src/pages/my-projects/MyProjects.jsx",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 19,
+      "community": 122,
       "norm_label": "myprojects.jsx",
       "id": "my_projects_myprojects"
     },
@@ -12728,7 +13268,7 @@
       "source_file": "frontend/src/pages/my-projects/MyProjects.jsx",
       "source_location": "L10",
       "_origin": "ast",
-      "community": 19,
+      "community": 122,
       "norm_label": "sort_options",
       "id": "my_projects_myprojects_sort_options"
     },
@@ -12738,7 +13278,7 @@
       "source_file": "frontend/src/pages/my-projects/MyProjects.jsx",
       "source_location": "L14",
       "_origin": "ast",
-      "community": 19,
+      "community": 122,
       "norm_label": "filter_options",
       "id": "my_projects_myprojects_filter_options"
     },
@@ -12748,7 +13288,7 @@
       "source_file": "frontend/src/pages/my-projects/MyProjects.jsx",
       "source_location": "L23",
       "_origin": "ast",
-      "community": 19,
+      "community": 122,
       "norm_label": "status_labels",
       "id": "my_projects_myprojects_status_labels"
     },
@@ -12758,7 +13298,7 @@
       "source_file": "frontend/src/pages/my-projects/MyProjects.jsx",
       "source_location": "L31",
       "_origin": "ast",
-      "community": 19,
+      "community": 122,
       "norm_label": "status_colors",
       "id": "my_projects_myprojects_status_colors"
     },
@@ -12768,7 +13308,7 @@
       "source_file": "frontend/src/pages/my-projects/MyProjects.jsx",
       "source_location": "L39",
       "_origin": "ast",
-      "community": 19,
+      "community": 122,
       "norm_label": "getstatusstyle()",
       "id": "my_projects_myprojects_getstatusstyle"
     },
@@ -12778,7 +13318,7 @@
       "source_file": "frontend/src/pages/my-projects/MyProjects.jsx",
       "source_location": "L49",
       "_origin": "ast",
-      "community": 19,
+      "community": 122,
       "norm_label": "toprojectsarray()",
       "id": "my_projects_myprojects_toprojectsarray"
     },
@@ -12788,7 +13328,7 @@
       "source_file": "frontend/src/pages/my-projects/MyProjects.jsx",
       "source_location": "L58",
       "_origin": "ast",
-      "community": 19,
+      "community": 122,
       "norm_label": "normalizestatus()",
       "id": "my_projects_myprojects_normalizestatus"
     },
@@ -12798,7 +13338,7 @@
       "source_file": "frontend/src/pages/my-projects/MyProjects.jsx",
       "source_location": "L67",
       "_origin": "ast",
-      "community": 19,
+      "community": 122,
       "norm_label": "myprojects()",
       "id": "my_projects_myprojects_myprojects"
     },
@@ -12918,7 +13458,7 @@
       "source_file": "frontend/src/pages/shop/CheckoutPage.jsx",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 78,
+      "community": 19,
       "norm_label": "checkoutpage.jsx",
       "id": "shop_checkoutpage"
     },
@@ -12928,7 +13468,7 @@
       "source_file": "frontend/src/pages/shop/CheckoutPage.jsx",
       "source_location": "L17",
       "_origin": "ast",
-      "community": 78,
+      "community": 19,
       "norm_label": "tonumber()",
       "id": "shop_checkoutpage_tonumber"
     },
@@ -12938,7 +13478,7 @@
       "source_file": "frontend/src/pages/shop/CheckoutPage.jsx",
       "source_location": "L19",
       "_origin": "ast",
-      "community": 78,
+      "community": 19,
       "norm_label": "computelocaltotals()",
       "id": "shop_checkoutpage_computelocaltotals"
     },
@@ -12948,7 +13488,7 @@
       "source_file": "frontend/src/pages/shop/CheckoutPage.jsx",
       "source_location": "L36",
       "_origin": "ast",
-      "community": 78,
+      "community": 19,
       "norm_label": "productcard()",
       "id": "shop_checkoutpage_productcard"
     },
@@ -12961,256 +13501,6 @@
       "community": 103,
       "norm_label": "checkoutpage()",
       "id": "shop_checkoutpage_checkoutpage"
-    },
-    {
-      "label": "CheckoutSuccessPage.jsx",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 66,
-      "norm_label": "checkoutsuccesspage.jsx",
-      "id": "shop_checkoutsuccesspage"
-    },
-    {
-      "label": "CheckoutSuccessPage()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
-      "source_location": "L9",
-      "_origin": "ast",
-      "community": 103,
-      "norm_label": "checkoutsuccesspage()",
-      "id": "shop_checkoutsuccesspage_checkoutsuccesspage"
-    },
-    {
-      "label": "ProductDetail.jsx",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "productdetail.jsx",
-      "id": "shop_productdetail"
-    },
-    {
-      "label": "readProductViewCache()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L23",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "readproductviewcache()",
-      "id": "shop_productdetail_readproductviewcache"
-    },
-    {
-      "label": "writeProductViewCache()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L39",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "writeproductviewcache()",
-      "id": "shop_productdetail_writeproductviewcache"
-    },
-    {
-      "label": "readProductViewCacheEntry()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L47",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "readproductviewcacheentry()",
-      "id": "shop_productdetail_readproductviewcacheentry"
-    },
-    {
-      "label": "writeProductViewCacheEntry()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L55",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "writeproductviewcacheentry()",
-      "id": "shop_productdetail_writeproductviewcacheentry"
-    },
-    {
-      "label": "parseReviewDateValue()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L65",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "parsereviewdatevalue()",
-      "id": "shop_productdetail_parsereviewdatevalue"
-    },
-    {
-      "label": "formatReviewDate()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L83",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "formatreviewdate()",
-      "id": "shop_productdetail_formatreviewdate"
-    },
-    {
-      "label": "extractReviewPurchasedAt()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L89",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "extractreviewpurchasedat()",
-      "id": "shop_productdetail_extractreviewpurchasedat"
-    },
-    {
-      "label": "renderStars()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L98",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "renderstars()",
-      "id": "shop_productdetail_renderstars"
-    },
-    {
-      "label": "getApiOrigin()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L100",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "getapiorigin()",
-      "id": "shop_productdetail_getapiorigin"
-    },
-    {
-      "label": "toCleanUrl()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L108",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "tocleanurl()",
-      "id": "shop_productdetail_tocleanurl"
-    },
-    {
-      "label": "hexStringToBytes()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L118",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "hexstringtobytes()",
-      "id": "shop_productdetail_hexstringtobytes"
-    },
-    {
-      "label": "normalizeBase64String()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L128",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "normalizebase64string()",
-      "id": "shop_productdetail_normalizebase64string"
-    },
-    {
-      "label": "bytesToBase64()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L141",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "bytestobase64()",
-      "id": "shop_productdetail_bytestobase64"
-    },
-    {
-      "label": "mimeTypeFromEntry()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L152",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "mimetypefromentry()",
-      "id": "shop_productdetail_mimetypefromentry"
-    },
-    {
-      "label": "imageDataToDataUrl()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L164",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "imagedatatodataurl()",
-      "id": "shop_productdetail_imagedatatodataurl"
-    },
-    {
-      "label": "resolveImageUrl()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L183",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "resolveimageurl()",
-      "id": "shop_productdetail_resolveimageurl"
-    },
-    {
-      "label": "normalizeCategoryValue()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L209",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "normalizecategoryvalue()",
-      "id": "shop_productdetail_normalizecategoryvalue"
-    },
-    {
-      "label": "toCategoryArray()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L211",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "tocategoryarray()",
-      "id": "shop_productdetail_tocategoryarray"
-    },
-    {
-      "label": "isPatternCategory()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L240",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "ispatterncategory()",
-      "id": "shop_productdetail_ispatterncategory"
-    },
-    {
-      "label": "isPatternProductEntry()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L245",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "ispatternproductentry()",
-      "id": "shop_productdetail_ispatternproductentry"
-    },
-    {
-      "label": "imageEntryNeedsLinkedTemplateFallback()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L248",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "imageentryneedslinkedtemplatefallback()",
-      "id": "shop_productdetail_imageentryneedslinkedtemplatefallback"
-    },
-    {
-      "label": "ProductDetail()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L256",
-      "_origin": "ast",
-      "community": 52,
-      "norm_label": "productdetail()",
-      "id": "shop_productdetail_productdetail"
     },
     {
       "label": "ProductPage.jsx",
@@ -13443,106 +13733,6 @@
       "id": "shop_productpage_productpage"
     },
     {
-      "label": "ReviewsPage.jsx",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 22,
-      "norm_label": "reviewspage.jsx",
-      "id": "shop_reviewspage"
-    },
-    {
-      "label": "parseReviewDateValue()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L6",
-      "_origin": "ast",
-      "community": 22,
-      "norm_label": "parsereviewdatevalue()",
-      "id": "shop_reviewspage_parsereviewdatevalue"
-    },
-    {
-      "label": "formatReviewDate()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L24",
-      "_origin": "ast",
-      "community": 22,
-      "norm_label": "formatreviewdate()",
-      "id": "shop_reviewspage_formatreviewdate"
-    },
-    {
-      "label": "renderStars()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L30",
-      "_origin": "ast",
-      "community": 22,
-      "norm_label": "renderstars()",
-      "id": "shop_reviewspage_renderstars"
-    },
-    {
-      "label": "getApiOrigin()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L32",
-      "_origin": "ast",
-      "community": 22,
-      "norm_label": "getapiorigin()",
-      "id": "shop_reviewspage_getapiorigin"
-    },
-    {
-      "label": "toCleanImageUrl()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L46",
-      "_origin": "ast",
-      "community": 22,
-      "norm_label": "tocleanimageurl()",
-      "id": "shop_reviewspage_tocleanimageurl"
-    },
-    {
-      "label": "resolveReviewPhotoUrl()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L74",
-      "_origin": "ast",
-      "community": 22,
-      "norm_label": "resolvereviewphotourl()",
-      "id": "shop_reviewspage_resolvereviewphotourl"
-    },
-    {
-      "label": "formatPurchaseSource()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L95",
-      "_origin": "ast",
-      "community": 22,
-      "norm_label": "formatpurchasesource()",
-      "id": "shop_reviewspage_formatpurchasesource"
-    },
-    {
-      "label": "extractReviewBodyMeta()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L104",
-      "_origin": "ast",
-      "community": 22,
-      "norm_label": "extractreviewbodymeta()",
-      "id": "shop_reviewspage_extractreviewbodymeta"
-    },
-    {
-      "label": "ReviewsPage()",
-      "file_type": "code",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L130",
-      "_origin": "ast",
-      "community": 22,
-      "norm_label": "reviewspage()",
-      "id": "shop_reviewspage_reviewspage"
-    },
-    {
       "label": "ProductCard.jsx",
       "file_type": "code",
       "source_file": "frontend/src/pages/shop/components/ProductCard.jsx",
@@ -13608,7 +13798,7 @@
       "source_file": "frontend/src/pages/shop/components/ProductCard.jsx",
       "source_location": "L48",
       "_origin": "ast",
-      "community": 68,
+      "community": 132,
       "norm_label": "tocategorylist()",
       "id": "components_productcard_tocategorylist"
     },
@@ -13768,7 +13958,7 @@
       "source_file": "frontend/src/pages/shop/components/ProductCard.jsx",
       "source_location": "L314",
       "_origin": "ast",
-      "community": 68,
+      "community": 132,
       "norm_label": "productcard()",
       "id": "components_productcard_productcard"
     },
@@ -13798,7 +13988,7 @@
       "source_file": "frontend/src/pages/shop/components/Sidebar.jsx",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 184,
+      "community": 38,
       "norm_label": "sidebar.jsx",
       "id": "components_sidebar"
     },
@@ -13808,7 +13998,7 @@
       "source_file": "frontend/src/pages/shop/components/Sidebar.jsx",
       "source_location": "L3",
       "_origin": "ast",
-      "community": 184,
+      "community": 38,
       "norm_label": "sidebar()",
       "id": "components_sidebar_sidebar"
     },
@@ -14018,7 +14208,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L141",
       "_origin": "ast",
-      "community": 9,
+      "community": 78,
       "norm_label": "publishmanualproducttofacebook()",
       "id": "services_api_publishmanualproducttofacebook"
     },
@@ -14048,7 +14238,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L145",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "updatecustomerprofile()",
       "id": "services_api_updatecustomerprofile"
     },
@@ -14058,7 +14248,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L146",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "fetchcustomeraddresses()",
       "id": "services_api_fetchcustomeraddresses"
     },
@@ -14078,7 +14268,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L148",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "upsertcustomerprimaryaddress()",
       "id": "services_api_upsertcustomerprimaryaddress"
     },
@@ -14088,7 +14278,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L149",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "changecustomerpassword()",
       "id": "services_api_changecustomerpassword"
     },
@@ -14138,7 +14328,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L154",
       "_origin": "ast",
-      "community": 52,
+      "community": 78,
       "norm_label": "removecustomerfavorite()",
       "id": "services_api_removecustomerfavorite"
     },
@@ -14168,7 +14358,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L157",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "updatecustomercartitem()",
       "id": "services_api_updatecustomercartitem"
     },
@@ -14178,7 +14368,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L158",
       "_origin": "ast",
-      "community": 78,
+      "community": 19,
       "norm_label": "removecustomercartitem()",
       "id": "services_api_removecustomercartitem"
     },
@@ -14188,7 +14378,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L159",
       "_origin": "ast",
-      "community": 78,
+      "community": 19,
       "norm_label": "fetchcustomercartsummary()",
       "id": "services_api_fetchcustomercartsummary"
     },
@@ -14198,7 +14388,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L160",
       "_origin": "ast",
-      "community": 78,
+      "community": 19,
       "norm_label": "createcheckoutsession()",
       "id": "services_api_createcheckoutsession"
     },
@@ -14208,7 +14398,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L161",
       "_origin": "ast",
-      "community": 78,
+      "community": 19,
       "norm_label": "createguestcheckoutsession()",
       "id": "services_api_createguestcheckoutsession"
     },
@@ -14218,7 +14408,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L162",
       "_origin": "ast",
-      "community": 78,
+      "community": 19,
       "norm_label": "fetchcustomercheckoutpreview()",
       "id": "services_api_fetchcustomercheckoutpreview"
     },
@@ -14228,7 +14418,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L163",
       "_origin": "ast",
-      "community": 78,
+      "community": 19,
       "norm_label": "fetchguestcheckoutpreview()",
       "id": "services_api_fetchguestcheckoutpreview"
     },
@@ -14238,7 +14428,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L164",
       "_origin": "ast",
-      "community": 66,
+      "community": 103,
       "norm_label": "confirmcheckoutsession()",
       "id": "services_api_confirmcheckoutsession"
     },
@@ -14248,7 +14438,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L165",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "fetchcustomerorders()",
       "id": "services_api_fetchcustomerorders"
     },
@@ -14258,7 +14448,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L166",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "fetchcustomerorderitems()",
       "id": "services_api_fetchcustomerorderitems"
     },
@@ -14268,7 +14458,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L167",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "fetchcustomerpatterndownloads()",
       "id": "services_api_fetchcustomerpatterndownloads"
     },
@@ -14328,7 +14518,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L174",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "fetchcustomerreviews()",
       "id": "services_api_fetchcustomerreviews"
     },
@@ -14338,7 +14528,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L175",
       "_origin": "ast",
-      "community": 0,
+      "community": 78,
       "norm_label": "fetchcustomerreviewoptions()",
       "id": "services_api_fetchcustomerreviewoptions"
     },
@@ -14398,7 +14588,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L191",
       "_origin": "ast",
-      "community": 132,
+      "community": 22,
       "norm_label": "fetchrecentreviewscached()",
       "id": "services_api_fetchrecentreviewscached"
     },
@@ -14428,7 +14618,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L204",
       "_origin": "ast",
-      "community": 78,
+      "community": 22,
       "norm_label": "submitreviewwithcode()",
       "id": "services_api_submitreviewwithcode"
     },
@@ -14438,7 +14628,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L211",
       "_origin": "ast",
-      "community": 20,
+      "community": 19,
       "norm_label": "submitpublicreview()",
       "id": "services_api_submitpublicreview"
     },
@@ -14518,7 +14708,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L246",
       "_origin": "ast",
-      "community": 78,
+      "community": 9,
       "norm_label": "createadminreviewinvitecode()",
       "id": "services_api_createadminreviewinvitecode"
     },
@@ -14528,7 +14718,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L247",
       "_origin": "ast",
-      "community": 78,
+      "community": 9,
       "norm_label": "deleteadminreviewinvitecode()",
       "id": "services_api_deleteadminreviewinvitecode"
     },
@@ -14538,7 +14728,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L248",
       "_origin": "ast",
-      "community": 78,
+      "community": 9,
       "norm_label": "fetchadminhomepageinsights()",
       "id": "services_api_fetchadminhomepageinsights"
     },
@@ -14548,7 +14738,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L249",
       "_origin": "ast",
-      "community": 78,
+      "community": 9,
       "norm_label": "fetchadmindiscountcodes()",
       "id": "services_api_fetchadmindiscountcodes"
     },
@@ -14558,7 +14748,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L250",
       "_origin": "ast",
-      "community": 9,
+      "community": 78,
       "norm_label": "createadmindiscountcode()",
       "id": "services_api_createadmindiscountcode"
     },
@@ -14598,7 +14788,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L256",
       "_origin": "ast",
-      "community": 9,
+      "community": 78,
       "norm_label": "deleteadmindigitalcheckoutsession()",
       "id": "services_api_deleteadmindigitalcheckoutsession"
     },
@@ -14608,7 +14798,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L258",
       "_origin": "ast",
-      "community": 9,
+      "community": 78,
       "norm_label": "resendadmincheckoutdownloademail()",
       "id": "services_api_resendadmincheckoutdownloademail"
     },
@@ -14888,7 +15078,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L508",
       "_origin": "ast",
-      "community": 78,
+      "community": 108,
       "norm_label": "getnextcustomworkordernumber()",
       "id": "services_api_getnextcustomworkordernumber"
     },
@@ -14938,7 +15128,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L516",
       "_origin": "ast",
-      "community": 78,
+      "community": 9,
       "norm_label": "uploadproductimage()",
       "id": "services_api_uploadproductimage"
     },
@@ -14958,7 +15148,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L521",
       "_origin": "ast",
-      "community": 9,
+      "community": 78,
       "norm_label": "updateadmintemplate()",
       "id": "services_api_updateadmintemplate"
     },
@@ -14968,7 +15158,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L522",
       "_origin": "ast",
-      "community": 9,
+      "community": 78,
       "norm_label": "sendtemplatetocustomerworkorder()",
       "id": "services_api_sendtemplatetocustomerworkorder"
     },
@@ -15038,7 +15228,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L537",
       "_origin": "ast",
-      "community": 78,
+      "community": 108,
       "norm_label": "getadmininvoices()",
       "id": "services_api_getadmininvoices"
     },
@@ -15048,7 +15238,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L539",
       "_origin": "ast",
-      "community": 78,
+      "community": 108,
       "norm_label": "createadmininvoice()",
       "id": "services_api_createadmininvoice"
     },
@@ -15058,7 +15248,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L541",
       "_origin": "ast",
-      "community": 78,
+      "community": 108,
       "norm_label": "updateadmininvoice()",
       "id": "services_api_updateadmininvoice"
     },
@@ -15068,7 +15258,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L543",
       "_origin": "ast",
-      "community": 78,
+      "community": 108,
       "norm_label": "deleteadmininvoice()",
       "id": "services_api_deleteadmininvoice"
     },
@@ -15158,7 +15348,7 @@
       "source_file": "frontend/src/services/api.js",
       "source_location": "L561",
       "_origin": "ast",
-      "community": 20,
+      "community": 78,
       "norm_label": "getgalleryphotoscached()",
       "id": "services_api_getgalleryphotoscached"
     },
@@ -15448,7 +15638,7 @@
       "source_file": "frontend/src/utils/itemNumber.js",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 68,
+      "community": 107,
       "norm_label": "itemnumber.js",
       "id": "utils_itemnumber"
     },
@@ -15458,7 +15648,7 @@
       "source_file": "frontend/src/utils/itemNumber.js",
       "source_location": "L5",
       "_origin": "ast",
-      "community": 68,
+      "community": 107,
       "norm_label": "style_options",
       "id": "utils_itemnumber_style_options"
     },
@@ -15468,7 +15658,7 @@
       "source_file": "frontend/src/utils/itemNumber.js",
       "source_location": "L13",
       "_origin": "ast",
-      "community": 68,
+      "community": 107,
       "norm_label": "shape_options",
       "id": "utils_itemnumber_shape_options"
     },
@@ -15478,7 +15668,7 @@
       "source_file": "frontend/src/utils/itemNumber.js",
       "source_location": "L14",
       "_origin": "ast",
-      "community": 68,
+      "community": 107,
       "norm_label": "color_options",
       "id": "utils_itemnumber_color_options"
     },
@@ -15488,7 +15678,7 @@
       "source_file": "frontend/src/utils/itemNumber.js",
       "source_location": "L18",
       "_origin": "ast",
-      "community": 68,
+      "community": 107,
       "norm_label": "normalizetag()",
       "id": "utils_itemnumber_normalizetag"
     },
@@ -15498,7 +15688,7 @@
       "source_file": "frontend/src/utils/itemNumber.js",
       "source_location": "L25",
       "_origin": "ast",
-      "community": 68,
+      "community": 107,
       "norm_label": "parsedimensiontonumber()",
       "id": "utils_itemnumber_parsedimensiontonumber"
     },
@@ -15508,7 +15698,7 @@
       "source_file": "frontend/src/utils/itemNumber.js",
       "source_location": "L57",
       "_origin": "ast",
-      "community": 68,
+      "community": 107,
       "norm_label": "coercecategoryarray()",
       "id": "utils_itemnumber_coercecategoryarray"
     },
@@ -15518,7 +15708,7 @@
       "source_file": "frontend/src/utils/itemNumber.js",
       "source_location": "L79",
       "_origin": "ast",
-      "community": 68,
+      "community": 107,
       "norm_label": "floordimensiondigits()",
       "id": "utils_itemnumber_floordimensiondigits"
     },
@@ -15528,7 +15718,7 @@
       "source_file": "frontend/src/utils/itemNumber.js",
       "source_location": "L88",
       "_origin": "ast",
-      "community": 68,
+      "community": 107,
       "norm_label": "builditemnumber()",
       "id": "utils_itemnumber_builditemnumber"
     },
@@ -15538,7 +15728,7 @@
       "source_file": "frontend/src/utils/itemNumber.js",
       "source_location": "L120",
       "_origin": "ast",
-      "community": 68,
+      "community": 107,
       "norm_label": "pickdimension()",
       "id": "utils_itemnumber_pickdimension"
     },
@@ -15548,7 +15738,7 @@
       "source_file": "frontend/src/utils/itemNumber.js",
       "source_location": "L132",
       "_origin": "ast",
-      "community": 68,
+      "community": 107,
       "norm_label": "parsedimensionstring()",
       "id": "utils_itemnumber_parsedimensionstring"
     },
@@ -15558,7 +15748,7 @@
       "source_file": "frontend/src/utils/itemNumber.js",
       "source_location": "L148",
       "_origin": "ast",
-      "community": 68,
+      "community": 107,
       "norm_label": "getproductitemnumber()",
       "id": "utils_itemnumber_getproductitemnumber"
     },
@@ -21673,186 +21863,6 @@
       "id": "agents_graphify"
     },
     {
-      "label": "CLAUDE.md",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "claude.md",
-      "id": "claude"
-    },
-    {
-      "label": "CLAUDE.md",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "claude.md",
-      "id": "claude_claude_md"
-    },
-    {
-      "label": "Commands",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L5",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "commands",
-      "id": "claude_commands"
-    },
-    {
-      "label": "Frontend (`cd frontend`)",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L7",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "frontend (`cd frontend`)",
-      "id": "claude_frontend_cd_frontend"
-    },
-    {
-      "label": "Backend (`cd backend`)",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L15",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "backend (`cd backend`)",
-      "id": "claude_backend_cd_backend"
-    },
-    {
-      "label": "Tests",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L26",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "tests",
-      "id": "claude_tests"
-    },
-    {
-      "label": "Architecture",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L33",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "architecture",
-      "id": "claude_architecture"
-    },
-    {
-      "label": "Frontend (`frontend/src/`)",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L43",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "frontend (`frontend/src/`)",
-      "id": "claude_frontend_frontend_src"
-    },
-    {
-      "label": "Backend (`backend/`)",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L50",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "backend (`backend/`)",
-      "id": "claude_backend_backend"
-    },
-    {
-      "label": "Key Patterns",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L60",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "key patterns",
-      "id": "claude_key_patterns"
-    },
-    {
-      "label": "Authentication",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L62",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "authentication",
-      "id": "claude_authentication"
-    },
-    {
-      "label": "Work Order Status Machine",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L67",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "work order status machine",
-      "id": "claude_work_order_status_machine"
-    },
-    {
-      "label": "Image Storage / DB Fallback",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L71",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "image storage / db fallback",
-      "id": "claude_image_storage_db_fallback"
-    },
-    {
-      "label": "Design Data Format",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L74",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "design data format",
-      "id": "claude_design_data_format"
-    },
-    {
-      "label": "Database",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L79",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "database",
-      "id": "claude_database"
-    },
-    {
-      "label": "Deployment",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L87",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "deployment",
-      "id": "claude_deployment"
-    },
-    {
-      "label": "Environment Variables",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L97",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "environment variables",
-      "id": "claude_environment_variables"
-    },
-    {
-      "label": "graphify",
-      "file_type": "document",
-      "source_file": "CLAUDE.md",
-      "source_location": "L119",
-      "_origin": "ast",
-      "community": 74,
-      "norm_label": "graphify",
-      "id": "claude_graphify"
-    },
-    {
       "label": "MYSQL_SETUP_COMPLETE.md",
       "file_type": "document",
       "source_file": "MYSQL_SETUP_COMPLETE.md",
@@ -24393,99 +24403,182 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/layout/header/Header.jsx",
-      "source_location": "L10",
+      "source_file": "CLAUDE.md",
+      "source_location": "L1",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "header_header",
-      "target": "header_header_getstoredshoptab"
+      "source": "claude",
+      "target": "claude_claude_md"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/layout/header/Header.jsx",
-      "source_location": "L16",
+      "source_file": "CLAUDE.md",
+      "source_location": "L5",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "header_header",
-      "target": "header_header_header"
+      "source": "claude_claude_md",
+      "target": "claude_agent_policy",
+      "confidence_score": 1.0
     },
     {
-      "relation": "imports_from",
-      "context": "import",
+      "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/layout/header/Header.jsx",
-      "source_location": "L3",
+      "source_file": "CLAUDE.md",
+      "source_location": "L33",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "header_header",
-      "target": "services_api"
+      "source": "claude_claude_md",
+      "target": "claude_architecture"
     },
     {
-      "relation": "imports",
-      "context": "import",
+      "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/layout/header/Header.jsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "header_header",
-      "target": "services_api_fetchcustomercart"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/layout/header/Header.jsx",
-      "source_location": "L4",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "header_header",
-      "target": "utils_guestcart"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/layout/header/Header.jsx",
-      "source_location": "L4",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "header_header",
-      "target": "utils_guestcart_getguestcartcount"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/layout/header/Header.jsx",
+      "source_file": "CLAUDE.md",
       "source_location": "L5",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "header_header",
-      "target": "utils_navigation"
+      "source": "claude_claude_md",
+      "target": "claude_commands"
     },
     {
-      "relation": "imports",
-      "context": "import",
+      "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/layout/header/Header.jsx",
-      "source_location": "L5",
+      "source_file": "CLAUDE.md",
+      "source_location": "L79",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "header_header",
-      "target": "utils_navigation_getcurrentpathname"
+      "source": "claude_claude_md",
+      "target": "claude_database"
     },
     {
-      "relation": "imports_from",
-      "context": "import",
+      "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/App.jsx",
-      "source_location": "L4",
+      "source_file": "CLAUDE.md",
+      "source_location": "L87",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "src_app",
-      "target": "header_header"
+      "source": "claude_claude_md",
+      "target": "claude_deployment"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L97",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "claude_claude_md",
+      "target": "claude_environment_variables"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L119",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "claude_claude_md",
+      "target": "claude_graphify"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L60",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "claude_claude_md",
+      "target": "claude_key_patterns"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L15",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "claude_commands",
+      "target": "claude_backend_cd_backend"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L7",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "claude_commands",
+      "target": "claude_frontend_cd_frontend"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L26",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "claude_commands",
+      "target": "claude_tests"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L50",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "claude_architecture",
+      "target": "claude_backend_backend"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L43",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "claude_architecture",
+      "target": "claude_frontend_frontend_src"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L62",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "claude_key_patterns",
+      "target": "claude_authentication"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L74",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "claude_key_patterns",
+      "target": "claude_design_data_format"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L71",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "claude_key_patterns",
+      "target": "claude_image_storage_db_fallback"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L67",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "claude_key_patterns",
+      "target": "claude_work_order_status_machine"
     },
     {
       "relation": "imports_from",
@@ -25144,6 +25237,1061 @@
       "weight": 1.0,
       "source": "designer_designerpage_designerpage",
       "target": "hooks_usecustomerauth_usecustomerauth"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_checkoutsuccesspage",
+      "target": "components_loadingmessage"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_checkoutsuccesspage",
+      "target": "hooks_usecustomerauth"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_checkoutsuccesspage",
+      "target": "services_api"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_checkoutsuccesspage",
+      "target": "services_api_confirmcheckoutsession"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_checkoutsuccesspage",
+      "target": "shop_checkoutsuccesspage_checkoutsuccesspage"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_checkoutsuccesspage",
+      "target": "utils_guestcart"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_checkoutsuccesspage",
+      "target": "utils_guestcart_clearguestcart"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_checkoutsuccesspage",
+      "target": "utils_navigation"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_checkoutsuccesspage",
+      "target": "utils_navigation_getcurrentsearch"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "shop_checkoutsuccesspage_checkoutsuccesspage",
+      "target": "hooks_usecustomerauth_usecustomerauth"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "components_productcard"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "hooks_usecustomerauth"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "services_api"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "services_api_addcustomercartitem"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "services_api_addcustomerfavorite"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "services_api_downloadfreetemplatepattern"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "services_api_fetchcustomerfavorites"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "services_api_fetchmanualproduct"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "services_api_fetchproductreviews"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "services_api_gettemplate"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "services_api_removecustomerfavorite"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L141",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_bytestobase64"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L89",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_extractreviewpurchasedat"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L83",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_formatreviewdate"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L100",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_getapiorigin"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L118",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_hexstringtobytes"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L164",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_imagedatatodataurl"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L248",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_imageentryneedslinkedtemplatefallback"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L240",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_ispatterncategory"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L245",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_ispatternproductentry"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L152",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_mimetypefromentry"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L128",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_normalizebase64string"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L209",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_normalizecategoryvalue"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L65",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_parsereviewdatevalue"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L256",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_productdetail"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L23",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_readproductviewcache"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L47",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_readproductviewcacheentry"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L98",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_renderstars"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L183",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_resolveimageurl"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L211",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_tocategoryarray"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L108",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_tocleanurl"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L39",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_writeproductviewcache"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L55",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "shop_productdetail_writeproductviewcacheentry"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L16",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "utils_guestcart"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L16",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "utils_guestcart_addguestcartitem"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "utils_itemnumber"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "utils_itemnumber_getproductitemnumber"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L18",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "utils_navigation"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L18",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "utils_navigation_getcurrenturlkey"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L18",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "utils_navigation_navigateto"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L17",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "utils_wishlist"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L17",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "utils_wishlist_findwishlistentry"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L17",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail",
+      "target": "utils_wishlist_resolvewishlisttarget"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L50",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_readproductviewcacheentry",
+      "target": "shop_productdetail_readproductviewcache"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L58",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_writeproductviewcacheentry",
+      "target": "shop_productdetail_readproductviewcache"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L62",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_writeproductviewcacheentry",
+      "target": "shop_productdetail_writeproductviewcache"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L84",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_formatreviewdate",
+      "target": "shop_productdetail_parsereviewdatevalue"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L1153",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_productdetail",
+      "target": "shop_productdetail_formatreviewdate"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L1153",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_productdetail",
+      "target": "shop_productdetail_extractreviewpurchasedat"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L1148",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_productdetail",
+      "target": "shop_productdetail_renderstars"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L113",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_tocleanurl",
+      "target": "shop_productdetail_getapiorigin"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L185",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_resolveimageurl",
+      "target": "shop_productdetail_tocleanurl"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L171",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_imagedatatodataurl",
+      "target": "shop_productdetail_hexstringtobytes"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L179",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_imagedatatodataurl",
+      "target": "shop_productdetail_normalizebase64string"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L175",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_imagedatatodataurl",
+      "target": "shop_productdetail_bytestobase64"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L169",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_imagedatatodataurl",
+      "target": "shop_productdetail_mimetypefromentry"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L189",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_resolveimageurl",
+      "target": "shop_productdetail_imagedatatodataurl"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L241",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_ispatterncategory",
+      "target": "shop_productdetail_normalizecategoryvalue"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L246",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_ispatternproductentry",
+      "target": "shop_productdetail_tocategoryarray"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L989",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_productdetail",
+      "target": "shop_productdetail_tocategoryarray"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L776",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_productdetail_productdetail",
+      "target": "shop_productdetail_ispatternproductentry"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L267",
+      "weight": 1.0,
+      "source": "shop_productdetail_productdetail",
+      "target": "hooks_usecustomerauth_usecustomerauth"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
+      "source_location": "L963",
+      "weight": 1.0,
+      "source": "shop_productdetail_productdetail",
+      "target": "utils_itemnumber_getproductitemnumber"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage",
+      "target": "components_loadingmessage"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage",
+      "target": "services_api"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage",
+      "target": "services_api_fetchrecentreviewscached"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage",
+      "target": "services_api_submitreviewwithcode"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage",
+      "target": "services_api_validatereviewinvitecode"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L104",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage",
+      "target": "shop_reviewspage_extractreviewbodymeta"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L95",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage",
+      "target": "shop_reviewspage_formatpurchasesource"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L24",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage",
+      "target": "shop_reviewspage_formatreviewdate"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L32",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage",
+      "target": "shop_reviewspage_getapiorigin"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage",
+      "target": "shop_reviewspage_parsereviewdatevalue"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L30",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage",
+      "target": "shop_reviewspage_renderstars"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L74",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage",
+      "target": "shop_reviewspage_resolvereviewphotourl"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L130",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage",
+      "target": "shop_reviewspage_reviewspage"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L46",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage",
+      "target": "shop_reviewspage_tocleanimageurl"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L25",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage_formatreviewdate",
+      "target": "shop_reviewspage_parsereviewdatevalue"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L86",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage_resolvereviewphotourl",
+      "target": "shop_reviewspage_getapiorigin"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
+      "source_location": "L82",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "shop_reviewspage_resolvereviewphotourl",
+      "target": "shop_reviewspage_tocleanimageurl"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/layout/header/Header.jsx",
+      "source_location": "L10",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "header_header",
+      "target": "header_header_getstoredshoptab"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/layout/header/Header.jsx",
+      "source_location": "L16",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "header_header",
+      "target": "header_header_header"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/layout/header/Header.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "header_header",
+      "target": "services_api"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/layout/header/Header.jsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "header_header",
+      "target": "services_api_fetchcustomercart"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/layout/header/Header.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "header_header",
+      "target": "utils_guestcart"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/layout/header/Header.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "header_header",
+      "target": "utils_guestcart_getguestcartcount"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/layout/header/Header.jsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "header_header",
+      "target": "utils_navigation"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/layout/header/Header.jsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "header_header",
+      "target": "utils_navigation_getcurrentpathname"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/App.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "src_app",
+      "target": "header_header"
     },
     {
       "relation": "imports_from",
@@ -46922,28 +48070,6 @@
       "target": "components_loadingmessage"
     },
     {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
-      "source_location": "L4",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_checkoutsuccesspage",
-      "target": "components_loadingmessage"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L2",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage",
-      "target": "components_loadingmessage"
-    },
-    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/components/Navigation.jsx",
@@ -48054,28 +49180,6 @@
       "target": "hooks_usecustomerauth"
     },
     {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
-      "source_location": "L2",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_checkoutsuccesspage",
-      "target": "hooks_usecustomerauth"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L4",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "hooks_usecustomerauth"
-    },
-    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
@@ -48117,28 +49221,6 @@
       "source_location": "L65",
       "weight": 1.0,
       "source": "shop_checkoutpage_checkoutpage",
-      "target": "hooks_usecustomerauth_usecustomerauth"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
-      "source_location": "L10",
-      "weight": 1.0,
-      "source": "shop_checkoutsuccesspage_checkoutsuccesspage",
-      "target": "hooks_usecustomerauth_usecustomerauth"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L267",
-      "weight": 1.0,
-      "source": "shop_productdetail_productdetail",
       "target": "hooks_usecustomerauth_usecustomerauth"
     },
     {
@@ -53469,731 +54551,6 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_checkoutsuccesspage",
-      "target": "services_api"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_checkoutsuccesspage",
-      "target": "services_api_confirmcheckoutsession"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
-      "source_location": "L9",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_checkoutsuccesspage",
-      "target": "shop_checkoutsuccesspage_checkoutsuccesspage"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
-      "source_location": "L5",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_checkoutsuccesspage",
-      "target": "utils_guestcart"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
-      "source_location": "L5",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_checkoutsuccesspage",
-      "target": "utils_guestcart_clearguestcart"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
-      "source_location": "L6",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_checkoutsuccesspage",
-      "target": "utils_navigation"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/CheckoutSuccessPage.jsx",
-      "source_location": "L6",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_checkoutsuccesspage",
-      "target": "utils_navigation_getcurrentsearch"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "components_productcard"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L6",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "services_api"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L6",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "services_api_addcustomercartitem"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L6",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "services_api_addcustomerfavorite"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L6",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "services_api_downloadfreetemplatepattern"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L6",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "services_api_fetchcustomerfavorites"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L6",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "services_api_fetchmanualproduct"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L6",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "services_api_fetchproductreviews"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L6",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "services_api_gettemplate"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L6",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "services_api_removecustomerfavorite"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L141",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_bytestobase64"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L89",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_extractreviewpurchasedat"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L83",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_formatreviewdate"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L100",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_getapiorigin"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L118",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_hexstringtobytes"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L164",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_imagedatatodataurl"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L248",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_imageentryneedslinkedtemplatefallback"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L240",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_ispatterncategory"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L245",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_ispatternproductentry"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L152",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_mimetypefromentry"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L128",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_normalizebase64string"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L209",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_normalizecategoryvalue"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L65",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_parsereviewdatevalue"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L256",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_productdetail"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L23",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_readproductviewcache"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L47",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_readproductviewcacheentry"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L98",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_renderstars"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L183",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_resolveimageurl"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L211",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_tocategoryarray"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L108",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_tocleanurl"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L39",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_writeproductviewcache"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L55",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "shop_productdetail_writeproductviewcacheentry"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L16",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "utils_guestcart"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L16",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "utils_guestcart_addguestcartitem"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L5",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "utils_itemnumber"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L5",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "utils_itemnumber_getproductitemnumber"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L18",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "utils_navigation"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L18",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "utils_navigation_getcurrenturlkey"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L18",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "utils_navigation_navigateto"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L17",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "utils_wishlist"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L17",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "utils_wishlist_findwishlistentry"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L17",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail",
-      "target": "utils_wishlist_resolvewishlisttarget"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L50",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_readproductviewcacheentry",
-      "target": "shop_productdetail_readproductviewcache"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L58",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_writeproductviewcacheentry",
-      "target": "shop_productdetail_readproductviewcache"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L62",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_writeproductviewcacheentry",
-      "target": "shop_productdetail_writeproductviewcache"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L84",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_formatreviewdate",
-      "target": "shop_productdetail_parsereviewdatevalue"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L1153",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_productdetail",
-      "target": "shop_productdetail_formatreviewdate"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L1153",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_productdetail",
-      "target": "shop_productdetail_extractreviewpurchasedat"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L1148",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_productdetail",
-      "target": "shop_productdetail_renderstars"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L113",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_tocleanurl",
-      "target": "shop_productdetail_getapiorigin"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L185",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_resolveimageurl",
-      "target": "shop_productdetail_tocleanurl"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L171",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_imagedatatodataurl",
-      "target": "shop_productdetail_hexstringtobytes"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L179",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_imagedatatodataurl",
-      "target": "shop_productdetail_normalizebase64string"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L175",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_imagedatatodataurl",
-      "target": "shop_productdetail_bytestobase64"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L169",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_imagedatatodataurl",
-      "target": "shop_productdetail_mimetypefromentry"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L189",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_resolveimageurl",
-      "target": "shop_productdetail_imagedatatodataurl"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L241",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_ispatterncategory",
-      "target": "shop_productdetail_normalizecategoryvalue"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L246",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_ispatternproductentry",
-      "target": "shop_productdetail_tocategoryarray"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L989",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_productdetail",
-      "target": "shop_productdetail_tocategoryarray"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L776",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_productdetail_productdetail",
-      "target": "shop_productdetail_ispatternproductentry"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "frontend/src/pages/shop/ProductDetail.jsx",
-      "source_location": "L963",
-      "weight": 1.0,
-      "source": "shop_productdetail_productdetail",
-      "target": "utils_itemnumber_getproductitemnumber"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/shop/ProductPage.jsx",
       "source_location": "L3",
       "weight": 1.0,
@@ -54618,173 +54975,6 @@
       "confidence_score": 1.0,
       "source": "shop_productpage_producthassubcategory",
       "target": "shop_productpage_getproductsubcategories"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage",
-      "target": "services_api"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage",
-      "target": "services_api_fetchrecentreviewscached"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage",
-      "target": "services_api_submitreviewwithcode"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage",
-      "target": "services_api_validatereviewinvitecode"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L104",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage",
-      "target": "shop_reviewspage_extractreviewbodymeta"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L95",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage",
-      "target": "shop_reviewspage_formatpurchasesource"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L24",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage",
-      "target": "shop_reviewspage_formatreviewdate"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L32",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage",
-      "target": "shop_reviewspage_getapiorigin"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L6",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage",
-      "target": "shop_reviewspage_parsereviewdatevalue"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L30",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage",
-      "target": "shop_reviewspage_renderstars"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L74",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage",
-      "target": "shop_reviewspage_resolvereviewphotourl"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L130",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage",
-      "target": "shop_reviewspage_reviewspage"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L46",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage",
-      "target": "shop_reviewspage_tocleanimageurl"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L25",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage_formatreviewdate",
-      "target": "shop_reviewspage_parsereviewdatevalue"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L86",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage_resolvereviewphotourl",
-      "target": "shop_reviewspage_getapiorigin"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/pages/shop/ReviewsPage.jsx",
-      "source_location": "L82",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "shop_reviewspage_resolvereviewphotourl",
-      "target": "shop_reviewspage_tocleanimageurl"
     },
     {
       "relation": "contains",
@@ -63359,176 +63549,6 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L1",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude",
-      "target": "claude_claude_md"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L33",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_claude_md",
-      "target": "claude_architecture"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L5",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_claude_md",
-      "target": "claude_commands"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L79",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_claude_md",
-      "target": "claude_database"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L87",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_claude_md",
-      "target": "claude_deployment"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L97",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_claude_md",
-      "target": "claude_environment_variables"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L119",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_claude_md",
-      "target": "claude_graphify"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L60",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_claude_md",
-      "target": "claude_key_patterns"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L15",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_commands",
-      "target": "claude_backend_cd_backend"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L7",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_commands",
-      "target": "claude_frontend_cd_frontend"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L26",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_commands",
-      "target": "claude_tests"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L50",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_architecture",
-      "target": "claude_backend_backend"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L43",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_architecture",
-      "target": "claude_frontend_frontend_src"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L62",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_key_patterns",
-      "target": "claude_authentication"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L74",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_key_patterns",
-      "target": "claude_design_data_format"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L71",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_key_patterns",
-      "target": "claude_image_storage_db_fallback"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "CLAUDE.md",
-      "source_location": "L67",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "claude_key_patterns",
-      "target": "claude_work_order_status_machine"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
       "source_file": "MYSQL_SETUP_COMPLETE.md",
       "source_location": "L1",
       "weight": 1.0,
@@ -65925,5 +65945,5 @@
       "source_file": ".claude/skills/using-superpowers/SKILL.md"
     }
   ],
-  "built_at_commit": "82024316f225418d6018af8dbe8c956c31049013"
+  "built_at_commit": "16cc51b7a5829dc29e2f369789fc2b6ba340acbe"
 }
