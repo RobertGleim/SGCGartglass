@@ -54,11 +54,20 @@ export default function CheckoutSuccessPage() {
     if (hasTrackedConversion.current) return
     if (status !== 'success' && status !== 'guest-success') return
 
-    if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+    const send = () => {
+      if (typeof window.gtag !== 'function') return false
       window.gtag('event', 'conversion', {
         send_to: 'AW-18106685600/JSdOCJ6z-LMcEKCx-LlD',
       })
       hasTrackedConversion.current = true
+      return true
+    }
+
+    if (!send()) {
+      // gtag script not yet loaded — poll until ready or 5 s timeout
+      const interval = setInterval(() => { if (send()) clearInterval(interval) }, 200)
+      const timeout = setTimeout(() => clearInterval(interval), 5000)
+      return () => { clearInterval(interval); clearTimeout(timeout) }
     }
   }, [status])
 

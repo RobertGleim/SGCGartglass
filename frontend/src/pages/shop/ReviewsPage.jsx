@@ -169,6 +169,12 @@ export default function ReviewsPage() {
   }
 
   useEffect(() => {
+    if (typeof window.gtag === 'function') {
+      window.gtag('event', 'page_view', { send_to: 'AW-18106685600' })
+    }
+  }, [])
+
+  useEffect(() => {
     return loadRecentReviews({ forceFresh: true })
   }, [])
 

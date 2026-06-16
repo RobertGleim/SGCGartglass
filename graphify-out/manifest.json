@@ -420,9 +420,9 @@
     "semantic_hash": "91bb01d8d63389269c0420e1c38dd477"
   },
   "frontend/src/components/layout/header/Header.jsx": {
-    "mtime": 1780594735.429062,
-    "ast_hash": "9e8623cc496243c1c2320e6dba4807b0",
-    "semantic_hash": "9e8623cc496243c1c2320e6dba4807b0"
+    "mtime": 1781553004.7589996,
+    "ast_hash": "577954f035619cf44c6a78d4c32e00cb",
+    "semantic_hash": ""
   },
   "frontend/src/components/mobile/BottomSheet.jsx": {
     "mtime": 1774619004.3601856,
@@ -660,9 +660,9 @@
     "semantic_hash": "01e2f22a12773d91d182dedce4f8d17c"
   },
   "frontend/src/pages/designer/DesignerPage.jsx": {
-    "mtime": 1780594735.4432862,
-    "ast_hash": "397a4bd0d09f6085ee2655b88e44eb0c",
-    "semantic_hash": "397a4bd0d09f6085ee2655b88e44eb0c"
+    "mtime": 1781553018.8385289,
+    "ast_hash": "97d1c740f885e74e58dbe54c06586446",
+    "semantic_hash": ""
   },
   "frontend/src/pages/diagnostics/DiagnosticsPage.jsx": {
     "mtime": 1773078389.1311293,
@@ -745,9 +745,9 @@
     "semantic_hash": "60f07dd5168b59a3690c433dcb18e5a9"
   },
   "frontend/src/pages/shop/PublicReviewPage.jsx": {
-    "mtime": 1780594735.473088,
-    "ast_hash": "4978041d6a6b415ece5f071b21357254",
-    "semantic_hash": "4978041d6a6b415ece5f071b21357254"
+    "mtime": 1781553004.8590472,
+    "ast_hash": "3ac826ca7abc3a561dc118290112b18b",
+    "semantic_hash": ""
   },
   "frontend/src/pages/shop/ReviewsPage.jsx": {
     "mtime": 1779986150.6715379,
@@ -800,9 +800,9 @@
     "semantic_hash": "c464de2d4446f6eab5dedf8e1b3a180b"
   },
   "frontend/src/utils/productDimensions.js": {
-    "mtime": 1779983252.7285173,
-    "ast_hash": "0c74e05d61142cbc7af49cebace85ded",
-    "semantic_hash": "0c74e05d61142cbc7af49cebace85ded"
+    "mtime": 1781553004.9453788,
+    "ast_hash": "2f69f4dc1e813a4be4c5930a684f5886",
+    "semantic_hash": ""
   },
   "frontend/src/utils/request.js": {
     "mtime": 1772729431.5130353,

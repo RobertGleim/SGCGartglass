@@ -267,6 +267,12 @@ export default function ProductDetail({ product, products = [] }) {
   const { customerToken } = useCustomerAuth()
 
   useEffect(() => {
+    if (typeof window.gtag === 'function') {
+      window.gtag('event', 'page_view', { send_to: 'AW-18106685600' })
+    }
+  }, [])
+
+  useEffect(() => {
     const handleClearCache = () => {
       window.sessionStorage.removeItem(PRODUCT_VIEW_CACHE_KEY)
     }

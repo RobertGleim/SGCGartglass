@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Agent Policy
+
+**NEVER spawn a sub-agent (via the Agent tool) without first asking the user for explicit permission.**
+
+Before using the Agent tool for any reason:
+1. State what you intend to delegate and why
+2. Ask the user: "Can I spawn a sub-agent to handle this?"
+3. Wait for a clear "yes" before proceeding
+
+This applies to all agent types: Explore, Plan, feature-dev, code-review, swarm workers, background agents, etc.
+
 ## Commands
 
 ### Frontend (`cd frontend`)

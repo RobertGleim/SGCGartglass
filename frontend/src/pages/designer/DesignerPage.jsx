@@ -488,6 +488,13 @@ export default function DesignerPage() {
   const [selectedColor, setSelectedColor] = useState('#0057D9');
   // Ref so canvas event handlers (stale closures) always read the current color
   const selectedColorRef = useRef('#0057D9');
+
+  useEffect(() => {
+    if (typeof window.gtag === 'function') {
+      window.gtag('event', 'page_view', { send_to: 'AW-18106685600' })
+    }
+  }, [])
+
   useEffect(() => { selectedColorRef.current = selectedColor; }, [selectedColor]);
   const [adminFavoriteColors, setAdminFavoriteColors] = useState(() => Array(ADMIN_FAVORITE_COLOR_SLOTS).fill(''));
 
