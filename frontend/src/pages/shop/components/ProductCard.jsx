@@ -311,7 +311,7 @@ const fetchManualProductFallbackImageUrl = async (manualProductId) => {
   }
 }
 
-export default function ProductCard({ product }) {
+export default function ProductCard({ product, itemNumber: itemNumberProp }) {
   // Calculate discount if there's an old price
   const hasDiscount = product.old_price && product.old_price > product.price_amount
   const discountPercent = hasDiscount 
@@ -341,7 +341,7 @@ export default function ProductCard({ product }) {
     && Boolean(linkedPatternId)
     && (!manualProductId || linkedPatternId !== manualProductId)
   const dimensionsLabel = getProductDimensionsLabel(product)
-  const itemNumber = getProductItemNumber(product)
+  const itemNumber = itemNumberProp !== undefined ? itemNumberProp : getProductItemNumber(product)
   const shouldShowInstantDownload = isDigitalDownload || isPatternProduct
   const linkedTemplateId = String(product?.originalData?.related_links?.template_id || '').trim()
   const imageCandidates = useMemo(() => resolveCardImageCandidates(product), [product])

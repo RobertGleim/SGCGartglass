@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import './ProductDetail.css'
 import ProductCard from './components/ProductCard'
 import useCustomerAuth from '../../hooks/useCustomerAuth'
-import { getProductItemNumber } from '../../utils/itemNumber'
+import { getProductItemNumber, buildDeduplicatedItemNumbers } from '../../utils/itemNumber'
 import {
   addCustomerCartItem,
   addCustomerFavorite,
@@ -524,7 +524,12 @@ export default function ProductDetail({ product, products = [] }) {
 
     return shuffled.slice(0, 8)
   }, [products, product?.id])
-  
+
+  const relatedItemNumberMap = useMemo(
+    () => buildDeduplicatedItemNumbers(relatedProducts),
+    [relatedProducts]
+  )
+
   // Normalize media records from various API payload shapes and drop invalid URLs.
   const images = useMemo(() => {
     const sourceImages = manualProductDetails?.images?.length > 0
@@ -1194,7 +1199,7 @@ export default function ProductDetail({ product, products = [] }) {
         ) : (
           <div className="related-products-grid" aria-label="More items from this shop">
             {relatedProducts.map((relatedProduct) => (
-              <ProductCard key={`related-${relatedProduct.id}`} product={relatedProduct} />
+              <ProductCard key={`related-${relatedProduct.id}`} product={relatedProduct} itemNumber={relatedItemNumberMap.get(relatedProduct.id) ?? ''} />
             ))}
           </div>
         )}

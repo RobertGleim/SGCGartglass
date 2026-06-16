@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import useCarousel from '../../../../hooks/useCarousel'
 import LoadingMessage from '../../../../components/LoadingMessage'
 import { getProductDimensionsLabel } from '../../../../utils/productDimensions'
-import { getProductItemNumber } from '../../../../utils/itemNumber'
+import { getProductItemNumber, buildDeduplicatedItemNumbers } from '../../../../utils/itemNumber'
 import { navigateTo } from '../../../../utils/navigation'
 import './FeaturedCarousel.css'
 
@@ -230,6 +230,8 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
   const [suppressHoverPause, setSuppressHoverPause] = useState(false)
   const interactionResumeTimerRef = useRef(null)
 
+  const itemNumberMap = useMemo(() => buildDeduplicatedItemNumbers(items), [items])
+
   const itemsNeedingFallback = useMemo(() => {
     return items.filter((item) => {
       const manualId = extractManualProductId(item)
@@ -367,7 +369,7 @@ export default function FeaturedCarousel({ items, itemsLoading }) {
             const isImageLoading = !resolvedImageUrl && manualImageFetchState[itemId] === 'loading'
             const showLoadingText = isCenter && isImageLoading
             const dimensionsLabel = getProductDimensionsLabel(item)
-            const itemNumber = getProductItemNumber(item)
+            const itemNumber = itemNumberMap.get(item.id) ?? ''
 
             let scale = 1
             let opacity = 1

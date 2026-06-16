@@ -143,6 +143,21 @@ const parseDimensionString = (value) => {
   return { width: match[1], height: match[2] };
 };
 
+// Takes an ordered array of products; returns Map<product.id, finalItemNumber>.
+// First product with a given base code keeps it; duplicates get .2, .3, etc.
+export const buildDeduplicatedItemNumbers = (products) => {
+  const seen = new Map();
+  const result = new Map();
+  for (const product of (products || [])) {
+    const base = getProductItemNumber(product);
+    if (!base) { result.set(product.id, ''); continue; }
+    const n = (seen.get(base) || 0) + 1;
+    seen.set(base, n);
+    result.set(product.id, n === 1 ? base : `${base}.${n}`);
+  }
+  return result;
+};
+
 // Convenience wrapper for storefront components: derive the item number straight
 // from a normalized product object (mirrors getProductDimensionsLabel's sources).
 export const getProductItemNumber = (product) => {

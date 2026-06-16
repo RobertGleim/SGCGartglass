@@ -42,7 +42,7 @@ import Pagination from "../../components/Pagination";
 import { getProductDimensionsLabel } from "../../utils/productDimensions";
 import {
   buildItemNumber,
-  getProductItemNumber,
+  buildDeduplicatedItemNumbers,
   SHAPE_OPTIONS,
   COLOR_OPTIONS,
   STYLE_OPTIONS,
@@ -1040,6 +1040,16 @@ export default function AdminDashboard({
   const normalizedManualProducts = useMemo(
     () => ensureArray(manualProducts).map(normalizeManualProductRecord).filter(Boolean),
     [manualProducts],
+  );
+
+  const activeItemNumberMap = useMemo(
+    () => buildDeduplicatedItemNumbers(normalizedManualProducts.filter((p) => p.is_active)),
+    [normalizedManualProducts],
+  );
+
+  const deactivatedItemNumberMap = useMemo(
+    () => buildDeduplicatedItemNumbers(normalizedManualProducts.filter((p) => !p.is_active)),
+    [normalizedManualProducts],
   );
 
   const [activeTab, setActiveTab] = useState("products");
@@ -4504,6 +4514,7 @@ export default function AdminDashboard({
 
       drawHeader();
 
+      const pdfItemNumberMap = buildDeduplicatedItemNumbers(alphabetizedProducts);
       let y = contentTopY;
 
       for (let index = 0; index < alphabetizedProducts.length; index += 1) {
@@ -4515,7 +4526,7 @@ export default function AdminDashboard({
           product?.height ? `H: ${product.height}` : "",
           product?.depth ? `D: ${product.depth}` : "",
         ].filter(Boolean);
-        const itemNumber = getProductItemNumber(product);
+        const itemNumber = pdfItemNumberMap.get(product.id) ?? '';
         const dimensionsLabel = `Size: ${dimensionParts.length > 0 ? dimensionParts.join(" · ") : "No size listed"}${itemNumber ? ` · Item #: ${itemNumber}` : ""}`;
 
         const contentWidth = rowWidth - textXOffset - 2;
@@ -5852,7 +5863,7 @@ export default function AdminDashboard({
                           </h4>
                           {(() => {
                             const dimensionsLabel = getProductDimensionsLabel(product);
-                            const itemNumber = getProductItemNumber(product);
+                            const itemNumber = activeItemNumberMap.get(product.id) ?? '';
                             return dimensionsLabel || itemNumber ? (
                               <p className="product-dimensions-hint">
                                 {dimensionsLabel}
@@ -6135,7 +6146,7 @@ export default function AdminDashboard({
                           </h4>
                           {(() => {
                             const dimensionsLabel = getProductDimensionsLabel(product);
-                            const itemNumber = getProductItemNumber(product);
+                            const itemNumber = deactivatedItemNumberMap.get(product.id) ?? '';
                             return dimensionsLabel || itemNumber ? (
                               <p className="product-dimensions-hint">
                                 {dimensionsLabel}

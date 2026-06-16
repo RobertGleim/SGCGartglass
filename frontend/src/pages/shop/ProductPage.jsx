@@ -4,6 +4,7 @@ import ProductCard from './components/ProductCard';
 import SearchBar from './components/SearchBar';
 import Pagination from '../../components/Pagination';
 import './ProductPage.css';
+import { buildDeduplicatedItemNumbers } from '../../utils/itemNumber';
 import '../../styles/ReviewCard.css';
 import {
   fetchFavoritesSummary,
@@ -431,6 +432,8 @@ export default function ProductPage({ products }) {
     return filtered.slice(start, start + PRODUCTS_PER_PAGE)
   }, [filtered, safeCurrentPage])
 
+  const itemNumberMap = useMemo(() => buildDeduplicatedItemNumbers(filtered), [filtered])
+
   useEffect(() => {
     setCurrentPage(1)
   }, [
@@ -660,7 +663,7 @@ export default function ProductPage({ products }) {
               )
             ) : (
               paginatedProducts.map((product) => (
-                <ProductCard product={product} key={product.id} />
+                <ProductCard product={product} key={product.id} itemNumber={itemNumberMap.get(product.id) ?? ''} />
               ))
             )}
           </div>
