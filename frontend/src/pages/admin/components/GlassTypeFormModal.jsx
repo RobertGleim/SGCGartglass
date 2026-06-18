@@ -8,7 +8,7 @@ function validateImage(file, cb) {
   if (file.size > 1024 * 1024) return cb('File too large');
   const img = new window.Image();
   img.onload = () => {
-    if (img.width !== 256 || img.height !== 256) return cb('Image must be 256x256px');
+    if (img.width !== 800 || img.height !== 800) return cb('Image must be 800x800px');
     cb(null);
   };
   img.onerror = () => cb('Invalid image');

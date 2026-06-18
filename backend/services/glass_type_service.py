@@ -8,9 +8,9 @@ from typing import Any, Optional, Tuple
 # Allowed texture image constraints
 ALLOWED_EXTENSIONS = frozenset({"png", "jpg", "jpeg"})
 ALLOWED_MIME = frozenset({"image/png", "image/jpeg"})
-MAX_SIZE_BYTES = 1 * 1024 * 1024  # 1 MB
-REQUIRED_WIDTH = 256
-REQUIRED_HEIGHT = 256
+MAX_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
+REQUIRED_WIDTH = 800
+REQUIRED_HEIGHT = 800
 
 
 def _get_file_extension(filename: str) -> str:
@@ -22,7 +22,7 @@ def _get_file_extension(filename: str) -> str:
 
 def validate_texture_image(file: Any) -> Tuple[bool, str]:
     """
-    Validate texture image: PNG or JPG, 256x256px, max 1MB.
+    Validate texture image: PNG or JPG, 800x800px, max 5MB.
     file: Werkzeug FileStorage or object with .read(), .filename, .content_type.
     Returns (ok: bool, error_message: str).
     """
