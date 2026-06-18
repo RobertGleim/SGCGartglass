@@ -9,8 +9,8 @@ from typing import Any, Optional, Tuple
 ALLOWED_EXTENSIONS = frozenset({"png", "jpg", "jpeg"})
 ALLOWED_MIME = frozenset({"image/png", "image/jpeg"})
 MAX_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
-REQUIRED_WIDTH = 800
-REQUIRED_HEIGHT = 800
+MAX_WIDTH = 800
+MAX_HEIGHT = 800
 
 
 def _get_file_extension(filename: str) -> str:
@@ -22,7 +22,7 @@ def _get_file_extension(filename: str) -> str:
 
 def validate_texture_image(file: Any) -> Tuple[bool, str]:
     """
-    Validate texture image: PNG or JPG, 800x800px, max 5MB.
+    Validate texture image: PNG or JPG, at most 800x800px, max 5MB.
     file: Werkzeug FileStorage or object with .read(), .filename, .content_type.
     Returns (ok: bool, error_message: str).
     """
@@ -45,7 +45,7 @@ def validate_texture_image(file: Any) -> Tuple[bool, str]:
     if not data:
         return False, "File is empty"
     if len(data) > MAX_SIZE_BYTES:
-        return False, f"File size must be at most 1 MB (got {len(data) / (1024 * 1024):.2f} MB)"
+        return False, f"File size must be at most 5 MB (got {len(data) / (1024 * 1024):.2f} MB)"
 
     try:
         from PIL import Image
@@ -58,8 +58,8 @@ def validate_texture_image(file: Any) -> Tuple[bool, str]:
         return False, f"Invalid image: {e}"
 
     width, height = img.size
-    if width != REQUIRED_WIDTH or height != REQUIRED_HEIGHT:
-        return False, f"Image must be exactly {REQUIRED_WIDTH}x{REQUIRED_HEIGHT} px (got {width}x{height})"
+    if width > MAX_WIDTH or height > MAX_HEIGHT:
+        return False, f"Image must be at most {MAX_WIDTH}x{MAX_HEIGHT} px (got {width}x{height})"
     return True, ""
 
 

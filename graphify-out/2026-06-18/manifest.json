@@ -100,9 +100,9 @@
     "semantic_hash": "893ffe6a4cd415fb1cfcfcab7e89162a"
   },
   "backend/routes/glass_types.py": {
-    "mtime": 1781804563.1670096,
-    "ast_hash": "f722664917e0ddf968effd4640b57fe5",
-    "semantic_hash": ""
+    "mtime": 1779801328.64317,
+    "ast_hash": "2c9ef716f125675297701ca4a5b24d50",
+    "semantic_hash": "2c9ef716f125675297701ca4a5b24d50"
   },
   "backend/routes/invoices.py": {
     "mtime": 1773344909.408204,
@@ -140,9 +140,9 @@
     "semantic_hash": "f5411ed05ac041921614a673fc36cb4d"
   },
   "backend/services/glass_type_service.py": {
-    "mtime": 1781804559.2717817,
-    "ast_hash": "debfeccc98597a547ede0cc8f3d74a22",
-    "semantic_hash": ""
+    "mtime": 1774375124.2919822,
+    "ast_hash": "71d7a0c85430db6a1ecd3a67c2e3be1d",
+    "semantic_hash": "71d7a0c85430db6a1ecd3a67c2e3be1d"
   },
   "backend/services/pattern_render_service.py": {
     "mtime": 1779805856.4845364,
@@ -620,9 +620,9 @@
     "semantic_hash": "2d2b27c394fe65ff7fa1e5e696d3cca4"
   },
   "frontend/src/pages/admin/components/GlassTypeFormModal.jsx": {
-    "mtime": 1781804552.347519,
-    "ast_hash": "4dfa823d9b3fabe50690f81b45cdebab",
-    "semantic_hash": ""
+    "mtime": 1773072491.1612163,
+    "ast_hash": "c1013c8c5bd3ee03919f8eed07349715",
+    "semantic_hash": "c1013c8c5bd3ee03919f8eed07349715"
   },
   "frontend/src/pages/admin/components/SpecificationsTable.jsx": {
     "mtime": 1771613226.766767,
@@ -2650,13 +2650,13 @@
     "semantic_hash": ""
   },
   ".remember/tmp/last-ndc.ts": {
-    "mtime": 1781709484.0050056,
-    "ast_hash": "335b138627908e0a9e5c8fb208ef2bad",
+    "mtime": 1781632166.0249414,
+    "ast_hash": "69ff8dae7be723cb28293ba8b841014e",
     "semantic_hash": ""
   },
   ".remember/tmp/last-save.json": {
-    "mtime": 1781709482.424247,
-    "ast_hash": "1fed7f093d8147e86589be12d596ecc6",
+    "mtime": 1781632390.1400716,
+    "ast_hash": "253d7cf0febdb385775dd3590a2f4f98",
     "semantic_hash": ""
   },
   "frontend/src/utils/itemNumber.js": {
@@ -2665,18 +2665,18 @@
     "semantic_hash": ""
   },
   ".remember/archive.md": {
-    "mtime": 1781804344.231252,
+    "mtime": 1781626865.422665,
     "ast_hash": "17a7b1ee0c9da6ca4795646eb4e6e17b",
     "semantic_hash": ""
   },
   ".remember/now.md": {
-    "mtime": 1781709535.5166914,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "mtime": 1781632389.3165805,
+    "ast_hash": "019f65a2c42b5b607e9847f2a5b66b1b",
     "semantic_hash": ""
   },
   ".remember/recent.md": {
-    "mtime": 1781804344.056122,
-    "ast_hash": "16c06cafe9281db10e575a4366c58b93",
+    "mtime": 1781626865.3695023,
+    "ast_hash": "2c68f7ccc9d4ecd50daeff1bced8873a",
     "semantic_hash": ""
   },
   ".remember/today-2026-06-09.done.md": {
@@ -2789,14 +2789,9 @@
     "ast_hash": "b219da0ad7fc32f6abf5822ab4d853ce",
     "semantic_hash": ""
   },
-  ".remember/today-2026-06-16.done.md": {
+  ".remember/today-2026-06-16.md": {
     "mtime": 1781632203.7572556,
     "ast_hash": "cefbcedbdfdea08a158687622647683a",
-    "semantic_hash": ""
-  },
-  ".remember/today-2026-06-17.done.md": {
-    "mtime": 1781709535.4813795,
-    "ast_hash": "a5eb80560c455796c037151899dcc0f1",
     "semantic_hash": ""
   }
 }

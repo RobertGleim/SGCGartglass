@@ -94,7 +94,7 @@ def create_glass_type():
     """
     POST /api/admin/glass-types
     Body: JSON with name, description?, texture_url?, is_active?, display_order?
-    Or multipart/form-data: same fields + optional file "texture" (PNG/JPG 800x800, max 5MB).
+    Or multipart/form-data: same fields + optional file "texture" (PNG/JPG max 800x800, max 5MB).
     If file is provided and valid, texture_url is set from saved file.
     """
     try:

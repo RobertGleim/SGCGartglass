@@ -1,16 +1,16 @@
-# Graph Report - Sgcg  (2026-06-18)
+# Graph Report - Sgcg  (2026-06-16)
 
 ## Corpus Check
-- 243 files · ~9,707,303 words
+- 242 files · ~9,707,212 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2413 nodes · 3974 edges · 181 communities (157 shown, 24 thin omitted)
+- 2413 nodes · 3974 edges · 179 communities (157 shown, 22 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 20 edges (avg confidence: 0.83)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `827e616d`
+- Built from commit: `d2c41877`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -126,7 +126,6 @@
 - [[_COMMUNITY_Community 123|Community 123]]
 - [[_COMMUNITY_Community 124|Community 124]]
 - [[_COMMUNITY_Community 125|Community 125]]
-- [[_COMMUNITY_Community 126|Community 126]]
 - [[_COMMUNITY_Community 127|Community 127]]
 - [[_COMMUNITY_Community 128|Community 128]]
 - [[_COMMUNITY_Community 129|Community 129]]
@@ -143,7 +142,6 @@
 - [[_COMMUNITY_Community 140|Community 140]]
 - [[_COMMUNITY_Community 141|Community 141]]
 - [[_COMMUNITY_Community 142|Community 142]]
-- [[_COMMUNITY_Community 143|Community 143]]
 - [[_COMMUNITY_Community 144|Community 144]]
 - [[_COMMUNITY_Community 145|Community 145]]
 - [[_COMMUNITY_Community 146|Community 146]]
@@ -204,15 +202,15 @@
 - **Admin Product Forms System (StainedGlass + Woodwork forms with scoped CSS)** — forms_readme_stainedglass_form, forms_readme_woodwork_form, docs_form_customization_stainedglass_css, docs_form_customization_woodwork_css, docs_webpage_admin_dashboard [EXTRACTED 1.00]
 - **Cross-Platform Skill Tool Mapping (Claude Code, Copilot CLI, Codex, Gemini CLI)** — using_superpowers_skill_framework, references_codex_tools_mapping, references_copilot_tools_mapping, references_gemini_tools_mapping [EXTRACTED 1.00]
 
-## Communities (181 total, 24 thin omitted)
+## Communities (179 total, 22 thin omitted)
 
 ### Community 0 - "Project Stack & Docs"
-Cohesion: 0.11
-Nodes (28): Any, admin_list_glass_types(), create_glass_type(), list_glass_types(), Glass type API: public list (active only) and admin CRUD + toggle + reorder., PUT /api/admin/glass-types/<id>     Body: JSON with name?, description?, textur, PUT /api/admin/glass-types/<id>/toggle     Flips is_active (activate/deactivate, PUT /api/admin/glass-types/reorder     Body: { "items": [ { "id": 1, "display_o (+20 more)
+Cohesion: 0.16
+Nodes (19): Any, create_glass_type(), PUT /api/admin/glass-types/<id>     Body: JSON with name?, description?, textur, Base upload directory; textures stored in <upload_folder>/textures/., POST /api/admin/glass-types     Body: JSON with name, description?, texture_url, update_glass_type(), _upload_folder(), _get_file_extension() (+11 more)
 
 ### Community 1 - "Backend Dependencies & Deployment"
-Cohesion: 0.15
-Nodes (20): consume_review_invite_code(), create_customer(), create_customer_review(), create_review_invite_code(), get_review_invite_code_by_hash(), has_verified_purchase(), list_review_invite_codes(), admin_create_review() (+12 more)
+Cohesion: 0.08
+Nodes (18): composeReviewBodyWithPurchasedAt(), STAR_SCALE, stripPurchasedAtFromReviewBody(), TAB_LABELS, TABS, changeCustomerPassword(), fetchCustomerAddresses(), fetchCustomerCart() (+10 more)
 
 ### Community 2 - "UI/UX Design Skills"
 Cohesion: 0.18
@@ -236,19 +234,19 @@ Nodes (6): Google Analytics / Google Tag (gtag.js AW-18106685600), Frontend Entr
 
 ### Community 7 - "Glass Designer Canvas"
 Cohesion: 0.25
-Nodes (4): Basic validation: non-empty, safe for SVG id (alphanumeric, hyphen, underscore)., Serialize to JSON-friendly dict., One glass piece (path) in a template. region_id must match <path id="..."> in th, TemplateRegion
+Nodes (4): SVG template: one design (e.g. Sunflower, Geometric Panel).     svg_content hol, Check that path_id exists as a region for this template.         Optionally che, Serialize to JSON-friendly dict., Template
 
 ### Community 9 - "Admin Admindashboard Admindashboard"
 Cohesion: 0.03
-Nodes (76): AdminDashboard(), applyRelatedLinkSelection(), bytesToBase64(), canUseTemplateForCustomer(), CATEGORY_TYPE_ALIASES, categoryTagExists(), createDefaultRelatedLinkManualOverrides(), createDefaultRelatedLinks() (+68 more)
+Nodes (73): AdminDashboard(), applyRelatedLinkSelection(), bytesToBase64(), canUseTemplateForCustomer(), CATEGORY_TYPE_ALIASES, categoryTagExists(), createDefaultRelatedLinkManualOverrides(), createDefaultRelatedLinks() (+65 more)
 
 ### Community 10 - "Admin Adminglasstypespage Adminglasstype"
 Cohesion: 0.04
 Nodes (48): 1. Flexible Images, 1. Fluid Grid, 1. Hamburger Menu, 1. Horizontal Scroll, 2. Column Drop, 2. Priority+ Navigation, 2. Responsive Images (srcset), 2. Stacked Layout (+40 more)
 
 ### Community 11 - "Admin Admininvoicesdashboard Admininvoic"
-Cohesion: 0.12
-Nodes (17): delete_admin_digital_checkout_session(), delete_admin_review(), delete_review_invite_code(), list_customer_order_events(), list_discount_codes(), mark_customer_order_admin_seen(), update_admin_review(), admin_delete_digital_checkout_session() (+9 more)
+Cohesion: 0.13
+Nodes (21): _apply_linked_template_preview(), _coerce_bool(), _deserialize_related_links(), fetch_items(), _fetch_linked_template_preview(), fetch_manual_product(), fetch_manual_products(), fetch_manual_products_catalog() (+13 more)
 
 ### Community 13 - "Admin Admintemplatespage Admintemplatesp"
 Cohesion: 0.04
@@ -259,36 +257,36 @@ Cohesion: 0.07
 Nodes (24): buildWorkOrderPacketHtml(), escapeHtml(), EXPORTABLE_STATUS_KEYS, formatDateTime(), formatMoney(), formatOrderAddressLines(), getApiOrigin(), getSectionEntries() (+16 more)
 
 ### Community 15 - "Admin Gallerymanagement Gallerymanagemen"
-Cohesion: 0.12
-Nodes (10): getApiOrigin(), resolveGalleryImageUrl(), TemplateCard, debounce(), TemplateGallery(), deleteAdminGalleryPhoto(), getAdminGalleryPhotos(), getTemplates() (+2 more)
+Cohesion: 0.29
+Nodes (4): TemplateCard, debounce(), TemplateGallery(), getTemplates()
 
 ### Community 16 - "Admin Glasstypemanagement Glasstypemanag"
-Cohesion: 0.29
-Nodes (11): _list_to_text(), _normalize_shop_request_tag(), _resolve_shop_contact_emails(), _safe_text(), submit_contact_request(), submit_custom_order_request(), send_work_order_emails(), _admin_work_order_url() (+3 more)
+Cohesion: 0.26
+Nodes (12): _list_to_text(), _normalize_shop_request_tag(), _resolve_shop_contact_emails(), _safe_text(), submit_contact_request(), submit_custom_order_request(), submit_work_order_route(), send_work_order_emails() (+4 more)
 
 ### Community 17 - "Admin Templatemanagement Templatemanagem"
 Cohesion: 0.06
-Nodes (57): append_customer_order_event(), _coerce_manual_product_digital_download(), consume_customer_password_reset(), count_recent_password_reset_requests(), create_customer_address(), create_customer_order_with_items(), create_customer_password_reset(), create_manual_product() (+49 more)
+Nodes (84): add_customer_favorite(), append_customer_order_event(), _coerce_manual_product_digital_download(), consume_customer_password_reset(), consume_review_invite_code(), count_recent_password_reset_requests(), create_customer_address(), create_customer_checkout_session_snapshot() (+76 more)
 
 ### Community 18 - "Admin Workorderdashboard Workorderdashbo"
 Cohesion: 0.04
 Nodes (44): 1. Perceivable, 2. Operable, 3. Understandable, 4. Robust, Abbreviations, Accessibility Guidelines (WCAG 2.1/2.2), Alternative Text, ARIA (Accessible Rich Internet Applications) (+36 more)
 
 ### Community 19 - "Admin Workorderdetail Workorderdetail"
-Cohesion: 0.09
-Nodes (4): GlassTypeSelector(), buildPageItems(), Pagination(), useGlassTypes()
+Cohesion: 0.07
+Nodes (10): getApiOrigin(), resolveGalleryImageUrl(), GlassTypeSelector(), buildPageItems(), Pagination(), useGlassTypes(), deleteAdminGalleryPhoto(), getAdminGalleryPhotos() (+2 more)
 
 ### Community 20 - "Auth Customerresetpassword Customerreset"
-Cohesion: 0.10
-Nodes (19): getResetToken(), AuthBanner(), SignInModal(), getApiOrigin(), getInitialPhotoIdFromHash(), getInitialTemplateIdFromHash(), getLinkedParamsFromHash(), PhotoGalleryPage() (+11 more)
+Cohesion: 0.14
+Nodes (15): getResetToken(), getApiOrigin(), getInitialPhotoIdFromHash(), getInitialTemplateIdFromHash(), getLinkedParamsFromHash(), PhotoGalleryPage(), resolveGalleryImageUrl(), fetchCustomerProfile() (+7 more)
 
 ### Community 21 - "Auth Unifiedlogin Unifiedlogin"
-Cohesion: 0.29
-Nodes (5): extractHashRoute(), getCurrentUrlKey(), migrateLegacyHashToCleanUrl(), navigateTo(), normalizePath()
+Cohesion: 0.16
+Nodes (11): getCurrentRoutePath(), getRoute(), parseParts(), useHashRoute(), requestCustomerPasswordReset(), extractHashRoute(), getCurrentPathname(), getCurrentUrlKey() (+3 more)
 
 ### Community 22 - "Components Appdownloadsection Appdownloa"
-Cohesion: 0.18
-Nodes (10): AuthProvider(), CustomerAuthProvider(), adminLogin(), customerLogin(), customerSignup(), extractAuthToken(), cleanupInteractionGuard, cleanupLegacyHashNavigation (+2 more)
+Cohesion: 0.24
+Nodes (6): validateReviewInviteCode(), formatReviewDate(), getApiOrigin(), parseReviewDateValue(), resolveReviewPhotoUrl(), toCleanImageUrl()
 
 ### Community 23 - "Components Authbanner Authbanner"
 Cohesion: 0.04
@@ -303,20 +301,20 @@ Cohesion: 0.38
 Nodes (3): _CursorStub, test_manual_product_download_metadata_falls_back_to_manual_image_without_template_asset(), test_manual_product_download_metadata_prefers_linked_template_assets()
 
 ### Community 28 - "Components Glasstypeformmodal Glasstypef"
-Cohesion: 0.07
-Nodes (49): add_customer_favorite(), count_customer_favorites_total(), fetch_items(), list_all_customers(), list_customer_favorites(), list_customer_order_items(), record_homepage_visit(), remove_customer_cart_item() (+41 more)
+Cohesion: 0.06
+Nodes (81): _add_column_if_missing(), count_customer_favorites_total(), create_customer(), delete_admin_digital_checkout_session(), fetch_customer_by_id(), get_manual_product_download_metadata(), get_review_invite_code_by_hash(), init_db() (+73 more)
 
 ### Community 29 - "Components Glasstypeselector Glasstypese"
 Cohesion: 0.05
 Nodes (36): dependencies, axios, dompurify, fabric, @hello-pangea/dnd, imagetracerjs, jspdf, pdfjs-dist (+28 more)
 
 ### Community 33 - "Components Loadingmessage Loadingmessage"
-Cohesion: 0.08
-Nodes (36): create_customer_invoice(), get_invoice_by_id(), Create a new invoice for a customer., Atomically reserve and return the next CWO-YYYY-#### value., Get a specific invoice by ID, optionally verify it belongs to a customer., Update the status of an invoice., Update editable invoice fields from admin tools., reserve_next_custom_work_order_number() (+28 more)
+Cohesion: 0.07
+Nodes (38): create_customer_invoice(), get_invoice_by_id(), Create a new invoice for a customer., Atomically reserve and return the next CWO-YYYY-#### value., Get a specific invoice by ID, optionally verify it belongs to a customer., Update the status of an invoice., reserve_next_custom_work_order_number(), update_invoice_status() (+30 more)
 
 ### Community 35 - "Components Pagination Pagination"
-Cohesion: 0.17
-Nodes (24): _build_line_mask(), _build_region_map(), _collect_dark_components(), _collect_numbered_regions(), _erase_existing_label_components(), _estimate_clearance_at_point(), _expand_line_mask(), _filter_small_line_components() (+16 more)
+Cohesion: 0.14
+Nodes (27): build_pattern_download_response(), Shared pattern download response helpers., _resolve_pattern_image_bytes(), _build_line_mask(), _build_region_map(), _collect_dark_components(), _collect_numbered_regions(), _erase_existing_label_components() (+19 more)
 
 ### Community 36 - "Components Productcard Productcard"
 Cohesion: 0.22
@@ -351,20 +349,20 @@ Cohesion: 0.18
 Nodes (9): CATEGORY_TYPE_ALIASES, createDefaultRelatedLinks(), DIFFICULTY_OPTIONS, getApiOrigin(), getPdfjsLib(), normalizeRelatedLinksForForm(), pdfToBlob(), resolveImageUrl() (+1 more)
 
 ### Community 44 - "Components Templategallery Templategalle"
-Cohesion: 0.10
-Nodes (20): Session, admin_get_next_custom_wo_number(), admin_get_work_order(), admin_list_revisions(), admin_send_template_to_customer(), admin_update_work_order_status(), delete_work_order(), list_revisions() (+12 more)
+Cohesion: 0.09
+Nodes (25): Session, Audit log of work order status changes., WorkOrderStatusHistory, admin_get_next_custom_wo_number(), admin_get_work_order(), admin_list_revisions(), admin_required(), admin_send_template_to_customer() (+17 more)
 
 ### Community 45 - "Components Templatepreviewmodal Template"
-Cohesion: 0.29
-Nodes (6): getCurrentRoutePath(), getRoute(), parseParts(), useHashRoute(), requestCustomerPasswordReset(), getCurrentPathname()
+Cohesion: 0.12
+Nodes (16): decode_token(), _jwt_secret(), require_auth(), require_customer(), admin_list_glass_types(), list_glass_types(), Glass type API: public list (active only) and admin CRUD + toggle + reorder., PUT /api/admin/glass-types/<id>/toggle     Flips is_active (activate/deactivate (+8 more)
 
 ### Community 46 - "Components Toolbar Toolbar"
 Cohesion: 0.29
 Nodes (6): ACTIONS, TOOL_ICONS, TOOL_NAMES, Toolbar(), TOOL_KEYS, useToolbar()
 
 ### Community 48 - "Contexts Authcontext Authprovider"
-Cohesion: 0.09
-Nodes (49): _apply_linked_template_preview(), _auth_login_retention_days(), clear_login_failures(), _coerce_bool(), _count_unique_homepage_ips(), create_discount_code(), _db_backend(), _deserialize_related_links() (+41 more)
+Cohesion: 0.13
+Nodes (22): _count_unique_homepage_ips(), create_discount_code(), discount_email_has_paid_order(), _fetch_manual_product_download_metadata(), _fetch_template_download_metadata(), get_customer_pattern_download_by_token(), get_discount_code_by_code(), get_homepage_visit_insights() (+14 more)
 
 ### Community 49 - "Contexts Customerauthcontext Customeraut"
 Cohesion: 0.07
@@ -372,11 +370,11 @@ Nodes (29): active, bases:Create new base, canvas:Create new canvas, command-pal
 
 ### Community 50 - "Customer Customerlogin Customerlogin"
 Cohesion: 0.11
-Nodes (30): delete_customer_admin(), fetch_customer_by_id(), list_customer_cart_items(), upsert_customer_cart_item(), admin_delete_customer(), _apply_discount_to_summary(), _as_money(), _build_checkout_pricing_preview() (+22 more)
+Nodes (29): admin_recover_checkout_session(), _apply_discount_to_summary(), _as_money(), _build_checkout_pricing_preview(), _build_checkout_summary(), _build_checkout_summary_from_items(), _calculate_checkout_totals(), customer_add_cart_item() (+21 more)
 
 ### Community 51 - "Customer Customerportal Customerportal"
-Cohesion: 0.17
-Nodes (24): _build_pattern_product_payload(), _can_access_template(), create_template(), delete_template(), download_free_template(), _free_download_rate_limit_key(), _get_request_auth_payload(), get_template() (+16 more)
+Cohesion: 0.20
+Nodes (15): _build_pattern_product_payload(), _can_access_template(), download_free_template(), _free_download_rate_limit_key(), _get_request_auth_payload(), get_template(), _is_private_template(), list_templates() (+7 more)
 
 ### Community 52 - "Customer Customersignup Customersignup"
 Cohesion: 0.10
@@ -387,8 +385,8 @@ Cohesion: 0.08
 Nodes (25): DesignerPage(), estimateClearanceAtPoint(), extractSectionsFromDesignData(), getAnchorForFabricObject(), getAnchorFromRegionPixels(), getApiOrigin(), getBestInteriorPoint(), getLinkedParamsFromHash() (+17 more)
 
 ### Community 54 - "Diagnostics Diagnosticspage Diagnosticsp"
-Cohesion: 0.14
-Nodes (8): SGCG Designer - SQLAlchemy models. Import db first so model modules can use it;, UserProject model: saved designer projects with JSON design_data., Validate design_data structure: dict of region_id -> { color?, glassTypeId? }., Saved design. design_data is JSON: { "regionId": { "color": "#hex", "glassTypeId, UserProject, SVG template: one design (e.g. Sunflower, Geometric Panel).     svg_content hol, Check that path_id exists as a region for this template.         Optionally che, Template
+Cohesion: 0.18
+Nodes (6): SGCG Designer - SQLAlchemy models. Import db first so model modules can use it;, UserProject model: saved designer projects with JSON design_data., Validate design_data structure: dict of region_id -> { color?, glassTypeId? }., Saved design. design_data is JSON: { "regionId": { "color": "#hex", "glassTypeId, UserProject, WorkOrder and WorkOrderStatusHistory models for the work order workflow.
 
 ### Community 55 - "Featured Featuredcarousel Featuredcarous"
 Cohesion: 0.18
@@ -399,8 +397,8 @@ Cohesion: 0.25
 Nodes (5): GlassType, GlassType model: texture library for the designer (Clear, Frosted, Cathedral, et, Glass texture type. Only active types appear in the designer dropdown., Seed the glass_types table with 37 stained glass types from Glassified Studio's, seed()
 
 ### Community 58 - "Forms Adminloginform Adminloginform"
-Cohesion: 0.67
-Nodes (3): build_pattern_download_response(), Shared pattern download response helpers., _resolve_pattern_image_bytes()
+Cohesion: 0.32
+Nodes (4): AuthBanner(), SignInModal(), AuthContext, useAuth()
 
 ### Community 59 - "Forms Customerloginform Customerloginfor"
 Cohesion: 0.08
@@ -415,12 +413,12 @@ Cohesion: 0.09
 Nodes (22): computedHash, skillPath, source, sourceType, computedHash, skillPath, source, sourceType (+14 more)
 
 ### Community 66 - "Header Header Header"
-Cohesion: 0.67
-Nodes (3): _prepare_uploaded_template_image(), POST /api/admin/templates/upload-image     Accepts multipart file upload (JPEG,, upload_template_image()
+Cohesion: 0.44
+Nodes (8): addGuestCartItem(), clearGuestCart(), getGuestCartCount(), normalizeGuestCartEntry(), readGuestCart(), removeGuestCartItem(), toNumber(), writeGuestCart()
 
 ### Community 67 - "Hero Herosection Herosection"
-Cohesion: 0.16
-Nodes (16): create_app(), migrate(), Migrate glass_types from local SQLite (backend/data.db) to Render PostgreSQL., migrate_database(), Migrate all data from Hostinger MySQL to Render PostgreSQL This script copies a, Copy all tables and data from MySQL to PostgreSQL, migrate(), Migrate SQLAlchemy model tables from local SQLite to Render PostgreSQL. (+8 more)
+Cohesion: 0.20
+Nodes (10): create_app(), migrate(), Migrate glass_types from local SQLite (backend/data.db) to Render PostgreSQL., migrate_database(), Migrate all data from Hostinger MySQL to Render PostgreSQL This script copies a, Copy all tables and data from MySQL to PostgreSQL, migrate(), Migrate SQLAlchemy model tables from local SQLite to Render PostgreSQL. (+2 more)
 
 ### Community 68 - "Home Homepage Homepage"
 Cohesion: 0.16
@@ -439,12 +437,12 @@ Cohesion: 0.10
 Nodes (19): 1. AdminLoginForm, 2. CustomerLoginForm, 3. CustomerSignupForm, 4. AddEtsyListingForm, 5. ManualProductForm (DEPRECATED), 6. StainedGlassForm G��, 7. WoodworkForm G��, Adding a New Form (+11 more)
 
 ### Community 72 - "Hooks Usecustomerauth Usecustomerauth"
-Cohesion: 0.16
-Nodes (20): GalleryPhoto, Photo gallery model for user/admin submitted project photos., admin_delete_gallery_photo(), admin_list_gallery_photos(), admin_update_gallery_photo(), create_gallery_photo(), _extract_payload_from_request(), _get_public_base_url() (+12 more)
+Cohesion: 0.18
+Nodes (19): GalleryPhoto, Photo gallery model for user/admin submitted project photos., admin_delete_gallery_photo(), admin_list_gallery_photos(), admin_update_gallery_photo(), create_gallery_photo(), _extract_payload_from_request(), _get_public_base_url() (+11 more)
 
 ### Community 73 - "Hooks Useglasstypes Useglasstypes"
-Cohesion: 0.15
-Nodes (19): decode_token(), Session, admin_required(), login_required(), Customer authentication decorator., Admin authentication decorator., delete_project_route(), get_project_route() (+11 more)
+Cohesion: 0.29
+Nodes (11): Session, delete_project_route(), get_project_route(), list_projects_route(), login_required(), save_project_route(), calculate_completion_percentage(), delete_project() (+3 more)
 
 ### Community 74 - "Hooks Usehashroute Usehashroute"
 Cohesion: 0.11
@@ -455,8 +453,8 @@ Cohesion: 0.12
 Nodes (16): Backend Endpoint, Base URL, Customization Ideas, Example URLs, For Development/Testing, How to Create QR Codes, Other Products Review Link, Overview (+8 more)
 
 ### Community 76 - "Hooks Useinstallprompt Useinstallprompt"
-Cohesion: 0.19
-Nodes (14): Any, Element, SGCG Designer - Business logic layer., generate_thumbnail_png(), _get_id(), _local_tag(), parse_svg_regions(), Template business logic: SVG parsing, validation, thumbnail generation. (+6 more)
+Cohesion: 0.09
+Nodes (32): Any, Element, Basic validation: non-empty, safe for SVG id (alphanumeric, hyphen, underscore)., One glass piece (path) in a template. region_id must match <path id="..."> in th, TemplateRegion, admin_get_template(), admin_list_templates(), create_template() (+24 more)
 
 ### Community 77 - "Hooks Usepaintbucket Usepaintbucket"
 Cohesion: 0.12
@@ -464,22 +462,22 @@ Nodes (15): 1) Decide your Hostinger plan, 2) Environment variables, 3) Build fr
 
 ### Community 78 - "Hooks Useprojectsave Useprojectsave"
 Cohesion: 0.04
-Nodes (41): composeReviewBodyWithPurchasedAt(), STAR_SCALE, stripPurchasedAtFromReviewBody(), TAB_LABELS, TABS, api, buildPublicCacheKey(), changeCustomerPassword() (+33 more)
+Nodes (38): adminLogin(), api, buildPublicCacheKey(), clearManualProductsSummaryCache(), clearPublicCacheByPathPrefix(), clearRecentReviewsCache(), configuredBaseURL, createAdminReview() (+30 more)
 
 ### Community 79 - "Hooks Useregionselection Useregionselect"
 Cohesion: 0.17
-Nodes (15): count_home_featured_manual_products(), delete_manual_product(), demote_oldest_home_featured_manual_product(), fetch_item(), list_customer_order_items_for_order(), extract_listing_id(), admin_order_items(), _catalog_cache_invalidate() (+7 more)
+Nodes (15): count_home_featured_manual_products(), demote_oldest_home_featured_manual_product(), fetch_item(), _is_mysql_backend(), upsert_item(), extract_listing_id(), admin_order_items(), _catalog_cache_invalidate() (+7 more)
 
 ### Community 80 - "Hooks Usetoolbar Usetoolbar"
-Cohesion: 0.11
-Nodes (22): create_customer_checkout_session_snapshot(), get_customer_checkout_session_snapshot(), list_customer_orders(), mark_customer_checkout_session_processed(), mark_pattern_downloads_emailed(), record_discount_redemption(), admin_recover_checkout_session(), admin_resend_checkout_download_email() (+14 more)
+Cohesion: 0.13
+Nodes (19): get_customer_order_id_by_payment_reference(), list_customer_orders(), mark_pattern_downloads_emailed(), record_discount_redemption(), admin_resend_checkout_download_email(), _build_order_response(), customer_orders(), customer_pattern_downloads() (+11 more)
 
 ### Community 81 - "Hooks Useworkordersubmit Useworkordersub"
 Cohesion: 0.13
 Nodes (14): 1. Understand Requirements, 2. Research & Strategy, 3. Design & Prototype, 4. Ensure Accessibility, 5. Design Responsive Layouts, 6. Build Component Libraries, 7. Optimize Performance, 8. Document & Handoff (+6 more)
 
 ### Community 82 - "Hooks Usezoompan Usezoompan"
-Cohesion: 0.20
+Cohesion: 0.17
 Nodes (4): Customer work order submission. work_order_number format: WO-YYYY-#### (regular), Validate format WO-YYYY-#### (e.g. WO-2025-0001) or CWO-YYYY-#### (e.g. CWO-2026, WorkOrder, test_status_update()
 
 ### Community 89 - "My Projects Myprojects Myprojects"
@@ -491,32 +489,32 @@ Cohesion: 0.19
 Nodes (8): EDITABLE_STATUSES, getProjectName(), getStatusBadgeStyle(), MyWorkOrders(), normalizeStatus(), STATUS_COLORS, STATUS_LABELS, approveWorkOrder()
 
 ### Community 92 - "Shop Checkoutpage Checkoutpage"
-Cohesion: 0.11
-Nodes (27): _add_column_if_missing(), fetch_customer_by_email(), init_db(), list_admin_reviews(), list_customer_addresses(), list_customer_review_options(), list_customer_reviews(), list_recent_reviews() (+19 more)
+Cohesion: 0.18
+Nodes (17): _auth_login_retention_days(), clear_login_failures(), fetch_customer_by_email(), get_login_lockout_remaining(), _login_identifiers(), _prune_auth_login_failures(), record_login_failure(), _to_datetime() (+9 more)
 
 ### Community 93 - "Shop Checkoutsuccesspage Checkoutsuccess"
 Cohesion: 0.14
 Nodes (13): 1. Local `.env` file configured with MySQL credentials:, 2. Code changes:, 3. Documentation created:, CRITICAL: Next steps for Render deployment, Local development notes, MySQL Configuration Complete G��, Security reminder, Step 1: Render's outbound IP discovered G�� (+5 more)
 
 ### Community 94 - "Community 94"
-Cohesion: 0.36
-Nodes (7): create_token(), _jwt_secret(), require_auth(), require_customer(), _admin_headers(), _template_image_bytes(), test_upload_template_image_normalizes_raster_template_to_png()
+Cohesion: 0.30
+Nodes (10): create_token(), _admin_headers(), test_admin_pattern_download_generates_numbered_png_for_image_templates(), test_admin_pattern_download_prefers_linked_template_asset(), test_admin_pattern_download_rejects_non_digital_manual_product(), test_admin_pattern_download_returns_attachment_for_digital_manual_product(), _two_box_pattern_bytes(), _admin_headers() (+2 more)
 
 ### Community 95 - "Shop Productpage Productpage"
 Cohesion: 0.15
 Nodes (12): DB Mode Auto-Detection (SQLite vs MySQL via DB_HOST), Database mode detection, Option A: Static outbound IP (recommended for production), Option B: Dynamic IP allowlist (not recommended), Prerequisites, Render + Hostinger MySQL Setup Guide, Step 1: Get Hostinger MySQL details, Step 2: Allow Render's IP in Hostinger (+4 more)
 
 ### Community 96 - "Community 96"
-Cohesion: 0.14
-Nodes (4): _get_allowed_origins(), SGCG Designer - Flask application factory. Initializes Flask, CORS, Flask-SQLAlc, get_config(), Template and TemplateRegion models for SVG templates and their glass regions (pa
+Cohesion: 0.15
+Nodes (3): _get_allowed_origins(), SGCG Designer - Flask application factory. Initializes Flask, CORS, Flask-SQLAlc, Template and TemplateRegion models for SVG templates and their glass regions (pa
 
 ### Community 97 - "Shop Reviewspage Reviewspage"
-Cohesion: 0.29
-Nodes (8): BaseConfig, DevelopmentConfig, _env_int(), ProductionConfig, Build SQLAlchemy URI from DATABASE_URL/POSTGRES_URL (PostgreSQL only)., _sqlalchemy_connect_args(), _sqlalchemy_database_uri(), TestingConfig
+Cohesion: 0.25
+Nodes (9): BaseConfig, DevelopmentConfig, _env_int(), get_config(), ProductionConfig, Build SQLAlchemy URI from DATABASE_URL/POSTGRES_URL (PostgreSQL only)., _sqlalchemy_connect_args(), _sqlalchemy_database_uri() (+1 more)
 
 ### Community 98 - "Utils Auth Cleanupcorruptedtokens"
-Cohesion: 0.24
-Nodes (9): AuthContext, getRoutePath(), getTokenForRequest(), isTopLevelEndpoint(), cleanupCorruptedTokens(), decodeJwtPayload(), getAuthToken(), isAuthenticated() (+1 more)
+Cohesion: 0.15
+Nodes (15): AuthProvider(), CustomerAuthProvider(), customerSignup(), getRoutePath(), getTokenForRequest(), isTopLevelEndpoint(), cleanupInteractionGuard, cleanupLegacyHashNavigation (+7 more)
 
 ### Community 99 - "Utils Auth Getauthtoken"
 Cohesion: 0.18
@@ -535,8 +533,8 @@ Cohesion: 0.18
 Nodes (11): 10. Charts & Data (LOW), 1. Accessibility (CRITICAL), 2. Touch & Interaction (CRITICAL), 3. Performance (HIGH), 4. Style Selection (HIGH), 5. Layout & Responsive (HIGH), 6. Typography & Color (MEDIUM), 7. Animation (MEDIUM) (+3 more)
 
 ### Community 103 - "Community 103"
-Cohesion: 0.09
-Nodes (22): CustomerAuthContext, CustomerPortal(), CustomerSignup(), useCustomerAuth(), confirmCheckoutSession(), createCheckoutSession(), createGuestCheckoutSession(), fetchCustomerCart() (+14 more)
+Cohesion: 0.24
+Nodes (7): CustomerAuthContext, CustomerPortal(), CustomerSignup(), useCustomerAuth(), confirmCheckoutSession(), CheckoutPage(), CheckoutSuccessPage()
 
 ### Community 104 - "Utils Canvasrenderer Applycolortoregion"
 Cohesion: 0.20
@@ -579,8 +577,8 @@ Cohesion: 0.22
 Nodes (8): Available Domains, Available Stacks, How to Use, Output Formats, Prerequisites, Rule Categories by Priority, Search Reference, UI/UX Pro Max - Design Intelligence
 
 ### Community 115 - "Community 115"
-Cohesion: 0.11
-Nodes (12): WorkOrderRevision model — tracks each design edit by customer or admin.  Every, Immutable snapshot of a work order's design at a point in time., WorkOrderRevision, WorkOrder and WorkOrderStatusHistory models for the work order workflow., Audit log of work order status changes., WorkOrderStatusHistory, admin_create_revision(), approve_work_order() (+4 more)
+Cohesion: 0.20
+Nodes (7): WorkOrderRevision model — tracks each design edit by customer or admin.  Every, Immutable snapshot of a work order's design at a point in time., WorkOrderRevision, admin_create_revision(), create_customer_revision(), Customer submits a new design revision., Admin creates a new revision and optionally sends for customer review.
 
 ### Community 116 - "Community 116"
 Cohesion: 0.27
@@ -599,8 +597,8 @@ Cohesion: 0.29
 Nodes (6): Example, How to Request, Integration with Workflows, Red Flags, Requesting Code Review, When to Request Review
 
 ### Community 120 - "Community 120"
-Cohesion: 0.09
-Nodes (18): AppDownloadSection(), isAndroid(), isIOS(), PWAInstallPrompt(), getApiOrigin(), HomePage(), renderStars(), resolveReviewImageUrl() (+10 more)
+Cohesion: 0.17
+Nodes (11): AppDownloadSection(), isAndroid(), isIOS(), PWAInstallPrompt(), getApiOrigin(), HomePage(), renderStars(), resolveReviewImageUrl() (+3 more)
 
 ### Community 121 - "Community 121"
 Cohesion: 0.33
@@ -725,22 +723,22 @@ Nodes (3): Design System Structure, Design Systems, Popular Design Systems
 ## Knowledge Gaps
 - **766 isolated node(s):** `CUSTOMER_LIST_TABS`, `MANUAL_PRODUCT_LIST_TABS`, `PRODUCT_UPLOAD_IMAGE_EXTENSIONS`, `PRODUCT_UPLOAD_VIDEO_EXTENSIONS`, `STAR_SCALE` (+761 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **24 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **22 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `decode_token()` connect `Hooks Useglasstypes Useglasstypes` to `Project Stack & Docs`, `Components Loadingmessage Loadingmessage`, `Hooks Usecustomerauth Usecustomerauth`, `Components Templategallery Templategalle`, `Customer Customerportal Customerportal`, `Community 94`?**
+- **Why does `render_numbered_pattern_raster()` connect `Components Pagination Pagination` to `Components Glasstypeformmodal Glasstypef`, `Community 118`, `Hooks Useinstallprompt Useinstallprompt`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._
-- **Why does `create_app()` connect `Hero Herosection Herosection` to `Community 96`, `Community 128`, `Admin Templatemanagement Templatemanagem`, `Community 117`, `Community 118`, `Footer Footer Footer`, `Community 94`?**
-  _High betweenness centrality (0.003) - this node is a cross-community bridge._
-- **Why does `get_db()` connect `Admin Templatemanagement Templatemanagem` to `Community 96`, `Backend Dependencies & Deployment`, `Components Loadingmessage Loadingmessage`, `Hero Herosection Herosection`, `Admin Admininvoicesdashboard Admininvoic`, `Hooks Useregionselection Useregionselect`, `Contexts Authcontext Authprovider`, `Hooks Usetoolbar Usetoolbar`, `Customer Customerlogin Customerlogin`, `Shop Checkoutpage Checkoutpage`, `Components Glasstypeformmodal Glasstypef`?**
-  _High betweenness centrality (0.003) - this node is a cross-community bridge._
-- **What connects `Glass type API: public list (active only) and admin CRUD + toggle + reorder.`, `Base upload directory; textures stored in <upload_folder>/textures/.`, `GET /api/glass-types     Returns only active glass types, ordered by display_or` to the rest of the system?**
+- **Why does `WorkOrder` connect `Hooks Usezoompan Usezoompan` to `Hooks Useglasstypes Useglasstypes`, `Components Loadingmessage Loadingmessage`, `Components Templategallery Templategalle`, `Diagnostics Diagnosticspage Diagnosticsp`?**
+  _High betweenness centrality (0.004) - this node is a cross-community bridge._
+- **What connects `CUSTOMER_LIST_TABS`, `MANUAL_PRODUCT_LIST_TABS`, `PRODUCT_UPLOAD_IMAGE_EXTENSIONS` to the rest of the system?**
   _895 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `Project Stack & Docs` be split into smaller, more focused modules?**
-  _Cohesion score 0.10804597701149425 - nodes in this community are weakly interconnected._
 - **Should `Backend Dependencies & Deployment` be split into smaller, more focused modules?**
-  _Cohesion score 0.14736842105263157 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08 - nodes in this community are weakly interconnected._
 - **Should `Dev Tools & Code Review` be split into smaller, more focused modules?**
   _Cohesion score 0.1111111111111111 - nodes in this community are weakly interconnected._
+- **Should `Forms & Admin UI` be split into smaller, more focused modules?**
+  _Cohesion score 0.07459677419354839 - nodes in this community are weakly interconnected._
+- **Should `Admin Admindashboard Admindashboard` be split into smaller, more focused modules?**
+  _Cohesion score 0.03418803418803419 - nodes in this community are weakly interconnected._

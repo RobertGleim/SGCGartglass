@@ -5,10 +5,10 @@ import styles from './GlassTypeFormModal.module.css';
 function validateImage(file, cb) {
   if (!file) return cb('No file');
   if (!['image/png', 'image/jpeg'].includes(file.type)) return cb('Invalid file type');
-  if (file.size > 1024 * 1024) return cb('File too large');
+  if (file.size > 5 * 1024 * 1024) return cb('File too large (max 5MB)');
   const img = new window.Image();
   img.onload = () => {
-    if (img.width !== 800 || img.height !== 800) return cb('Image must be 800x800px');
+    if (img.width > 800 || img.height > 800) return cb('Image must be at most 800x800px');
     cb(null);
   };
   img.onerror = () => cb('Invalid image');
