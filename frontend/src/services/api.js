@@ -321,6 +321,14 @@ const normalizeBaseURL = (value) => {
 };
 
 const baseURL = isLocalDevHost ? '/api' : normalizeBaseURL(configuredBaseURL);
+
+export function getBackendUrl(path) {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const origin = isLocalDevHost ? '' : (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+  return `${origin}${path}`;
+}
+
 const api = axios.create({
   baseURL,
   withCredentials: false,

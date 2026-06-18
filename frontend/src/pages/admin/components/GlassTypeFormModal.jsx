@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import api from '../../../services/api';
+import api, { getBackendUrl } from '../../../services/api';
 import styles from './GlassTypeFormModal.module.css';
 
 function validateImage(file, cb) {
@@ -20,7 +20,7 @@ export default function GlassTypeFormModal({ open, onClose, glassType, onSuccess
     name: glassType?.name || '',
     description: glassType?.description || '',
     textureFile: null,
-    textureUrl: glassType?.textureUrl || '',
+    textureUrl: getBackendUrl(glassType?.texture_url || glassType?.textureUrl || ''),
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);

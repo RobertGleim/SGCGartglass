@@ -353,14 +353,14 @@
       "norm_label": "return lowercase extension without dot."
     },
     {
-      "label": "Validate texture image: PNG or JPG, 800x800px, max 5MB.     file: Werkzeug File",
+      "label": "Validate texture image: PNG or JPG, at most 800x800px, max 5MB.     file: Werkz",
       "file_type": "rationale",
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L24",
       "_origin": "ast",
       "id": "services_glass_type_service_rationale_24",
       "community": 0,
-      "norm_label": "validate texture image: png or jpg, 800x800px, max 5mb.     file: werkzeug file"
+      "norm_label": "validate texture image: png or jpg, at most 800x800px, max 5mb.     file: werkz"
     },
     {
       "label": "Save texture file to uploads/textures/ with a unique name.     file: Werkzeug F",
@@ -24921,9 +24921,9 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L23",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_glass_type_service_validate_texture_image",
-      "target": "any",
-      "confidence_score": 1.0
+      "target": "any"
     },
     {
       "relation": "imports",
@@ -24943,9 +24943,9 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L66",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_glass_type_service_save_texture_file",
-      "target": "any",
-      "confidence_score": 1.0
+      "target": "any"
     },
     {
       "relation": "references",
@@ -24954,9 +24954,9 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L101",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_glass_type_service_validate_glass_type_data",
-      "target": "any",
-      "confidence_score": 1.0
+      "target": "any"
     },
     {
       "relation": "references",
@@ -24965,9 +24965,9 @@
       "source_file": "backend/services/glass_type_service.py",
       "source_location": "L162",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_glass_type_service_validate_reorder_data",
-      "target": "any",
-      "confidence_score": 1.0
+      "target": "any"
     },
     {
       "relation": "rationale_for",
@@ -66031,5 +66031,5 @@
       "source_file": ".claude/skills/using-superpowers/SKILL.md"
     }
   ],
-  "built_at_commit": "827e616df08f46e5ef950eb0dee9dee723ae59c4"
+  "built_at_commit": "0f0cc2d294a56c93b74e7bd4051856fc375817b5"
 }

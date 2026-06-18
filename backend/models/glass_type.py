@@ -25,11 +25,18 @@ class GlassType(db.Model):
         return f"<GlassType id={self.id} name={self.name!r} is_active={self.is_active}>"
 
     def to_dict(self):
+        texture = self.texture_url
+        if texture and not texture.startswith('http'):
+            try:
+                from flask import request
+                texture = f"{request.url_root.rstrip('/')}{texture}"
+            except RuntimeError:
+                pass  # outside request context — leave relative
         return {
             "id": self.id,
             "name": self.name,
             "description": self.description,
-            "texture_url": self.texture_url,
+            "texture_url": texture,
             "is_active": self.is_active,
             "display_order": self.display_order,
             "created_at": self.created_at.isoformat() if self.created_at else None,

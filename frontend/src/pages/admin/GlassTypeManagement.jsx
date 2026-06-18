@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import api from '../../services/api';
+import api, { getBackendUrl } from '../../services/api';
 import LoadingMessage from '../../components/LoadingMessage';
 import GlassTypeFormModal from './components/GlassTypeFormModal';
 import Pagination from '../../components/Pagination';
@@ -132,7 +132,7 @@ export default function GlassTypeManagement() {
                         <span className={styles.orderIndex}>{absoluteIndex + 1}</span>
                       </div>
                     </td>
-                    <td><img src={g.texture_url || g.textureUrl} alt={g.name} className={styles.texture} /></td>
+                    <td><img src={getBackendUrl(g.texture_url || g.textureUrl)} alt={g.name} className={styles.texture} /></td>
                     <td>{g.name}</td>
                     <td>{g.description}</td>
                     <td>
