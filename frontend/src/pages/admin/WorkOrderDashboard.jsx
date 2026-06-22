@@ -650,12 +650,33 @@ export default function WorkOrderDashboard({ onActiveCountChange = () => {} }) {
 
     try {
       const addressLines = formatOrderAddressLines(selectedShippingOrder.shipping_address);
-      const itemRows = selectedShippingOrderItems.map((item) => {
+      const itemRows = selectedShippingOrderItems.map((item, idx) => {
         const quantity = Math.max(1, Number(item?.quantity || 1));
         const unitPrice = Number(item?.price || 0);
-        return `
+        const w = item?.product_width;
+        const h = item?.product_height;
+        const d = item?.product_depth;
+        const detailParts = [];
+        if (w || h) {
+          detailParts.push([w && `${w}"W`, h && `${h}"H`, d && `${d}"D`].filter(Boolean).join(' × '));
+        }
+        const cat = Array.isArray(item?.product_category)
+          ? item.product_category.join(', ')
+          : (item?.product_category || '');
+        if (cat) detailParts.push(cat);
+        const mats = Array.isArray(item?.product_materials)
+          ? item.product_materials.join(', ')
+          : (item?.product_materials || '');
+        if (mats) detailParts.push(mats);
+        const detailLine = detailParts.join(' · ');
+        const itemNumber = buildItemNumber({ category: item?.product_category, width: w, height: h });
+        const separator = idx > 0 ? '<tr class="item-separator"><td colspan="5"></td></tr>' : '';
+        return `${separator}
           <tr>
-            <td>${escapeHtml(getOrderItemName(item))}</td>
+            <td>
+              <strong>${escapeHtml(getOrderItemName(item))}${itemNumber ? ` <span class="item-tag">${escapeHtml(itemNumber)}</span>` : ''}</strong>
+              ${detailLine ? `<div class="item-meta">${escapeHtml(detailLine)}</div>` : ''}
+            </td>
             <td>${escapeHtml(String(item?.product_type || '-'))}</td>
             <td>${quantity}</td>
             <td>${escapeHtml(formatMoney(unitPrice))}</td>
@@ -767,6 +788,25 @@ export default function WorkOrderDashboard({ onActiveCountChange = () => {} }) {
         margin-top: 8px;
         font-size: 13px;
         font-weight: 600;
+      }
+      .item-tag {
+        display: inline-block;
+        margin-left: 8px;
+        padding: 1px 6px;
+        background: #e8f0fe;
+        color: #1a56db;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .item-meta {
+        margin-top: 3px;
+        font-size: 12px;
+        color: #6b7280;
+      }
+      .item-separator td {
+        padding: 4px 0;
+        border-bottom: 1px solid #e5e7eb;
       }
       @media print {
         body {

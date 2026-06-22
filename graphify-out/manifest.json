@@ -115,8 +115,8 @@
     "semantic_hash": "3969eb916230ed7b6d291bae7496f3dc"
   },
   "backend/routes/shop.py": {
-    "mtime": 1782149227.8230476,
-    "ast_hash": "0431a632741d4bdb7e95be5003685d5a",
+    "mtime": 1782150735.6004977,
+    "ast_hash": "cbd35990560ba9041154f94f481f04f1",
     "semantic_hash": ""
   },
   "backend/routes/templates.py": {
@@ -605,8 +605,8 @@
     "semantic_hash": "a428b23964b29c07751b38cf32e96be2"
   },
   "frontend/src/pages/admin/WorkOrderDashboard.jsx": {
-    "mtime": 1782145455.2306733,
-    "ast_hash": "e4a132713878d681e55e2d4307bd1eae",
+    "mtime": 1782150976.7819815,
+    "ast_hash": "46731f0dd049820b28cfd6be27b8ab94",
     "semantic_hash": ""
   },
   "frontend/src/pages/admin/WorkOrderDetail.jsx": {
@@ -2655,8 +2655,8 @@
     "semantic_hash": ""
   },
   ".remember/tmp/last-save.json": {
-    "mtime": 1782149129.4354875,
-    "ast_hash": "2d92033350881e99a1a19eec0e8d7e69",
+    "mtime": 1782150427.4960196,
+    "ast_hash": "c95f68ca2f6ad10045ae2d27e7938277",
     "semantic_hash": ""
   },
   "frontend/src/utils/itemNumber.js": {
@@ -2670,8 +2670,8 @@
     "semantic_hash": ""
   },
   ".remember/now.md": {
-    "mtime": 1782149129.1410573,
-    "ast_hash": "16a11e9545a6643cdfcc41ec053a971d",
+    "mtime": 1782150427.0278928,
+    "ast_hash": "e820e7e33ed87c13b4bcbade5944bb28",
     "semantic_hash": ""
   },
   ".remember/recent.md": {

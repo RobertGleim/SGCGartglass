@@ -115,9 +115,9 @@
     "semantic_hash": "3969eb916230ed7b6d291bae7496f3dc"
   },
   "backend/routes/shop.py": {
-    "mtime": 1780424221.156897,
-    "ast_hash": "748932de9b0d49415b5fa06bd25eac8e",
-    "semantic_hash": "748932de9b0d49415b5fa06bd25eac8e"
+    "mtime": 1782149227.8230476,
+    "ast_hash": "0431a632741d4bdb7e95be5003685d5a",
+    "semantic_hash": ""
   },
   "backend/routes/templates.py": {
     "mtime": 1780330940.559026,
@@ -125,9 +125,9 @@
     "semantic_hash": "1829a7bb1ad417dbe481164831cc4501"
   },
   "backend/routes/work_orders.py": {
-    "mtime": 1773344830.8800201,
-    "ast_hash": "2c2d7babbd60764e824d3d1e263142f1",
-    "semantic_hash": "2c2d7babbd60764e824d3d1e263142f1"
+    "mtime": 1782147921.9913802,
+    "ast_hash": "2c8a9c6fa6c93ac4db423a2fa6690eb4",
+    "semantic_hash": ""
   },
   "backend/services/__init__.py": {
     "mtime": 1774375124.3027942,
@@ -560,8 +560,8 @@
     "semantic_hash": "05ed4d2902a1656d60d15009e6c40d21"
   },
   "frontend/src/pages/admin/AdminDashboard.jsx": {
-    "mtime": 1781632877.3643832,
-    "ast_hash": "1c7e2015eb4e6c963f677b7d96114e03",
+    "mtime": 1782149316.9893026,
+    "ast_hash": "3e1a739cec969ed7725337449140c36d",
     "semantic_hash": ""
   },
   "frontend/src/pages/admin/AdminGlassTypesPage.jsx": {
@@ -605,9 +605,9 @@
     "semantic_hash": "a428b23964b29c07751b38cf32e96be2"
   },
   "frontend/src/pages/admin/WorkOrderDashboard.jsx": {
-    "mtime": 1780594735.439779,
-    "ast_hash": "fc6e3b6532b1d18811d2abf19650a72e",
-    "semantic_hash": "fc6e3b6532b1d18811d2abf19650a72e"
+    "mtime": 1782145455.2306733,
+    "ast_hash": "e4a132713878d681e55e2d4307bd1eae",
+    "semantic_hash": ""
   },
   "frontend/src/pages/admin/WorkOrderDetail.jsx": {
     "mtime": 1773078389.139131,
@@ -770,8 +770,8 @@
     "semantic_hash": "c81d48cecbbcda4163e1bc8045d238b4"
   },
   "frontend/src/services/api.js": {
-    "mtime": 1781808172.6268728,
-    "ast_hash": "c2a2a4f37ce2dc2777d07e0b0b6bea72",
+    "mtime": 1782149268.9999819,
+    "ast_hash": "f034dc67ee7a88db542da01ee2564dc1",
     "semantic_hash": ""
   },
   "frontend/src/utils/auth.js": {
@@ -2650,13 +2650,13 @@
     "semantic_hash": ""
   },
   ".remember/tmp/last-ndc.ts": {
-    "mtime": 1781807818.91346,
-    "ast_hash": "c9fc403126ec11c75f8366ba94f29f55",
+    "mtime": 1782148924.0245228,
+    "ast_hash": "e1e9dd3b0507d8199aad4c3d72e49fdc",
     "semantic_hash": ""
   },
   ".remember/tmp/last-save.json": {
-    "mtime": 1781809255.2125158,
-    "ast_hash": "54c5262350f36d5f43118b3909c0009f",
+    "mtime": 1782149129.4354875,
+    "ast_hash": "2d92033350881e99a1a19eec0e8d7e69",
     "semantic_hash": ""
   },
   "frontend/src/utils/itemNumber.js": {
@@ -2665,18 +2665,18 @@
     "semantic_hash": ""
   },
   ".remember/archive.md": {
-    "mtime": 1781804344.231252,
-    "ast_hash": "17a7b1ee0c9da6ca4795646eb4e6e17b",
+    "mtime": 1782144683.6008592,
+    "ast_hash": "45453e07e4c113b35d1a9472da807c7d",
     "semantic_hash": ""
   },
   ".remember/now.md": {
-    "mtime": 1781809254.7285993,
-    "ast_hash": "94704697c9fb7eb53cb8e2066c47969d",
+    "mtime": 1782149129.1410573,
+    "ast_hash": "16a11e9545a6643cdfcc41ec053a971d",
     "semantic_hash": ""
   },
   ".remember/recent.md": {
-    "mtime": 1781804344.056122,
-    "ast_hash": "16c06cafe9281db10e575a4366c58b93",
+    "mtime": 1782144683.4804773,
+    "ast_hash": "8ec93ade6de879ee725e097fc3d39872",
     "semantic_hash": ""
   },
   ".remember/today-2026-06-09.done.md": {
@@ -2799,9 +2799,19 @@
     "ast_hash": "a5eb80560c455796c037151899dcc0f1",
     "semantic_hash": ""
   },
-  ".remember/today-2026-06-18.md": {
+  ".remember/today-2026-06-18.done.md": {
     "mtime": 1781807840.973599,
     "ast_hash": "47bd1c0d948502918105d3c9c205be87",
+    "semantic_hash": ""
+  },
+  ".remember/today-2026-06-22.md": {
+    "mtime": 1782148949.151177,
+    "ast_hash": "0480475c72fb58e5a1107db9741e88f7",
+    "semantic_hash": ""
+  },
+  "backend/uploads/reviews/00380c422efd45929658929186f8fb66.jpg": {
+    "mtime": 1782143578.8405333,
+    "ast_hash": "9b0970548d8bc51904fc5ba138d76161",
     "semantic_hash": ""
   }
 }
