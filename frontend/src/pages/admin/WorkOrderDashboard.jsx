@@ -12,6 +12,7 @@ import {
 import LoadingMessage from '../../components/LoadingMessage';
 import ColoredDesignPreview from './components/ColoredDesignPreview';
 import { navigateTo } from '../../utils/navigation';
+import { buildItemNumber } from '../../utils/itemNumber';
 import styles from './WorkOrderDashboard.module.css';
 
 const STATUS_OPTIONS = ['pending', 'review', 'revision_requested', 'revision_submitted', 'quote', 'approved', 'production', 'completed', 'cancelled'];
@@ -1493,17 +1494,52 @@ export default function WorkOrderDashboard({ onActiveCountChange = () => {} }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedShippingOrderItems.map((item) => {
+                      {selectedShippingOrderItems.map((item, idx) => {
                         const quantity = Math.max(1, Number(item?.quantity || 1));
                         const unitPrice = Number(item?.price || 0);
+                        const w = item?.product_width;
+                        const h = item?.product_height;
+                        const d = item?.product_depth;
+                        const detailParts = [];
+                        if (w || h) {
+                          detailParts.push([w && `${w}"W`, h && `${h}"H`, d && `${d}"D`].filter(Boolean).join(' × '));
+                        }
+                        const cat = Array.isArray(item?.product_category)
+                          ? item.product_category.join(', ')
+                          : (item?.product_category || '');
+                        if (cat) detailParts.push(cat);
+                        const mats = Array.isArray(item?.product_materials)
+                          ? item.product_materials.join(', ')
+                          : (item?.product_materials || '');
+                        if (mats) detailParts.push(mats);
+                        const detailLine = detailParts.join(' · ');
+                        const itemNumber = buildItemNumber({
+                          category: item?.product_category,
+                          width: w,
+                          height: h,
+                        });
+                        const rowKey = item?.id || `${item?.product_type || 'item'}-${item?.product_id || ''}-${item?.title || ''}`;
                         return (
-                          <tr key={item?.id || `${item?.product_type || 'item'}-${item?.product_id || ''}-${item?.title || ''}`}>
-                            <td>{getOrderItemName(item)}</td>
-                            <td>{item?.product_type || '-'}</td>
-                            <td>{quantity}</td>
-                            <td>{formatMoney(unitPrice)}</td>
-                            <td>{formatMoney(unitPrice * quantity)}</td>
-                          </tr>
+                          <React.Fragment key={rowKey}>
+                            {idx > 0 && (
+                              <tr className={styles.itemSeparatorRow}>
+                                <td colSpan={5}><hr /></td>
+                              </tr>
+                            )}
+                            <tr>
+                              <td>
+                                <strong className={styles.itemTitle}>
+                                  {getOrderItemName(item)}
+                                  {itemNumber && <span className={styles.itemNumberTag}>{itemNumber}</span>}
+                                </strong>
+                                {detailLine && <div className={styles.itemDetailMeta}>{detailLine}</div>}
+                              </td>
+                              <td>{item?.product_type || '-'}</td>
+                              <td>{quantity}</td>
+                              <td>{formatMoney(unitPrice)}</td>
+                              <td>{formatMoney(unitPrice * quantity)}</td>
+                            </tr>
+                          </React.Fragment>
                         );
                       })}
                     </tbody>

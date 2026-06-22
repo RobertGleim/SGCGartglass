@@ -3033,6 +3033,11 @@ def admin_order_items(order_id):
                     payload["image_url"] = first_image.get("image_url") or payload.get("image_url")
                 if not payload.get("price"):
                     payload["price"] = product.get("price") or payload.get("price")
+                payload["product_width"] = product.get("width")
+                payload["product_height"] = product.get("height")
+                payload["product_depth"] = product.get("depth")
+                payload["product_category"] = product.get("category")
+                payload["product_materials"] = product.get("materials")
 
         elif product_id.isdigit():
             listing = fetch_item(int(product_id))
