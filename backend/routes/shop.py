@@ -2996,6 +2996,18 @@ def admin_shipping_orders():
     return jsonify({"items": orders})
 
 
+@api.get("/admin/orders/shipping/count")
+@require_auth
+def admin_shipping_orders_count():
+    init_db()
+    if not _is_admin_request():
+        return jsonify({"error": "forbidden"}), 403
+
+    orders = list_admin_shipping_orders(limit=500)
+    active_count = sum(1 for o in orders if o.get("shipping_status") != "completed")
+    return jsonify({"active_count": active_count})
+
+
 @api.get("/admin/orders/<int:order_id>/items")
 @require_auth
 def admin_order_items(order_id):
@@ -3019,13 +3031,18 @@ def admin_order_items(order_id):
                     images = product.get("images") if isinstance(product.get("images"), list) else []
                     first_image = images[0] if images else {}
                     payload["image_url"] = first_image.get("image_url") or payload.get("image_url")
+                if not payload.get("price"):
+                    payload["price"] = product.get("price") or payload.get("price")
 
-        elif not str(payload.get("image_url") or "").strip() and product_id.isdigit():
+        elif product_id.isdigit():
             listing = fetch_item(int(product_id))
             if listing:
-                payload["image_url"] = listing.get("image_url") or payload.get("image_url")
                 if not str(payload.get("title") or "").strip():
                     payload["title"] = listing.get("title") or payload.get("title")
+                if not str(payload.get("image_url") or "").strip():
+                    payload["image_url"] = listing.get("image_url") or payload.get("image_url")
+                if not payload.get("price"):
+                    payload["price"] = listing.get("price") or payload.get("price")
 
         hydrated_items.append(payload)
 

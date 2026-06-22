@@ -65,9 +65,9 @@
     "semantic_hash": "003d37a233789a8c72d0513b060330d3"
   },
   "backend/models/glass_type.py": {
-    "mtime": 1774375124.3104692,
-    "ast_hash": "b0fb052431e1df226dabdfd862530614",
-    "semantic_hash": "b0fb052431e1df226dabdfd862530614"
+    "mtime": 1781808932.1751704,
+    "ast_hash": "0ad25463bfd62229ac21ef69e6d6590e",
+    "semantic_hash": ""
   },
   "backend/models/project.py": {
     "mtime": 1774375124.3055196,
@@ -595,9 +595,9 @@
     "semantic_hash": "e4689c309398d1764cbf307ac40c67c4"
   },
   "frontend/src/pages/admin/GlassTypeManagement.jsx": {
-    "mtime": 1779990867.349204,
-    "ast_hash": "98624f62dd97b327e0d25588b27ba41a",
-    "semantic_hash": "98624f62dd97b327e0d25588b27ba41a"
+    "mtime": 1781808191.793061,
+    "ast_hash": "8e48bd950fee08115711588df934a927",
+    "semantic_hash": ""
   },
   "frontend/src/pages/admin/TemplateManagement.jsx": {
     "mtime": 1780594735.4387794,
@@ -620,8 +620,8 @@
     "semantic_hash": "2d2b27c394fe65ff7fa1e5e696d3cca4"
   },
   "frontend/src/pages/admin/components/GlassTypeFormModal.jsx": {
-    "mtime": 1781805339.1741912,
-    "ast_hash": "302bad94e4d126e68f9960bb32829d13",
+    "mtime": 1781808195.2324204,
+    "ast_hash": "ed4ac49156c81c4e6fce1541b3c1bf95",
     "semantic_hash": ""
   },
   "frontend/src/pages/admin/components/SpecificationsTable.jsx": {
@@ -770,9 +770,9 @@
     "semantic_hash": "c81d48cecbbcda4163e1bc8045d238b4"
   },
   "frontend/src/services/api.js": {
-    "mtime": 1780594735.4750829,
-    "ast_hash": "798ec3068d1b9d4c652bf01404948599",
-    "semantic_hash": "798ec3068d1b9d4c652bf01404948599"
+    "mtime": 1781808172.6268728,
+    "ast_hash": "c2a2a4f37ce2dc2777d07e0b0b6bea72",
+    "semantic_hash": ""
   },
   "frontend/src/utils/auth.js": {
     "mtime": 1773775164.8946655,
@@ -2650,13 +2650,13 @@
     "semantic_hash": ""
   },
   ".remember/tmp/last-ndc.ts": {
-    "mtime": 1781709484.0050056,
-    "ast_hash": "335b138627908e0a9e5c8fb208ef2bad",
+    "mtime": 1781807818.91346,
+    "ast_hash": "c9fc403126ec11c75f8366ba94f29f55",
     "semantic_hash": ""
   },
   ".remember/tmp/last-save.json": {
-    "mtime": 1781709482.424247,
-    "ast_hash": "1fed7f093d8147e86589be12d596ecc6",
+    "mtime": 1781809255.2125158,
+    "ast_hash": "54c5262350f36d5f43118b3909c0009f",
     "semantic_hash": ""
   },
   "frontend/src/utils/itemNumber.js": {
@@ -2670,8 +2670,8 @@
     "semantic_hash": ""
   },
   ".remember/now.md": {
-    "mtime": 1781709535.5166914,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "mtime": 1781809254.7285993,
+    "ast_hash": "94704697c9fb7eb53cb8e2066c47969d",
     "semantic_hash": ""
   },
   ".remember/recent.md": {
@@ -2797,6 +2797,11 @@
   ".remember/today-2026-06-17.done.md": {
     "mtime": 1781709535.4813795,
     "ast_hash": "a5eb80560c455796c037151899dcc0f1",
+    "semantic_hash": ""
+  },
+  ".remember/today-2026-06-18.md": {
+    "mtime": 1781807840.973599,
+    "ast_hash": "47bd1c0d948502918105d3c9c205be87",
     "semantic_hash": ""
   }
 }

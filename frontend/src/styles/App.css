@@ -817,6 +817,10 @@
   vertical-align: middle;
 }
 
+.tab-count-badge--green {
+  background: #16a34a;
+}
+
 .product-actions {
   display: flex;
   gap: 0.5rem;

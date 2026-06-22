@@ -89,6 +89,20 @@ const extractProjectName = (order) => {
 
 const EXPORTABLE_STATUS_KEYS = new Set(['approved', 'production', 'completed']);
 
+const NEXT_ACTIONS = {
+  pending:            [{ label: 'Start Review',     next: 'review' }],
+  review:             [{ label: 'Request Revision', next: 'revision_requested' }, { label: 'Send Quote', next: 'quote' }],
+  revision_requested: [],
+  revision_submitted: [{ label: 'Send Quote',       next: 'quote' }, { label: 'Request Revision', next: 'revision_requested' }],
+  quote:              [{ label: 'Mark Approved',    next: 'approved' }],
+  approved:           [{ label: 'Start Production', next: 'production' }],
+  production:         [{ label: 'Mark Complete',    next: 'completed' }],
+  completed:          [{ label: 'Reactivate',       next: 'pending' }],
+  cancelled:          [{ label: 'Reactivate',       next: 'pending' }],
+};
+
+const ACTIVE_STATUSES = new Set(['pending', 'review', 'revision_requested', 'revision_submitted', 'quote', 'approved', 'production']);
+
 const formatDateTime = (value) => {
   if (!value) return 'Not available';
   const parsed = new Date(value);
@@ -455,7 +469,7 @@ const buildWorkOrderPacketHtml = (order, designMarkup) => {
 </html>`;
 };
 
-export default function WorkOrderDashboard() {
+export default function WorkOrderDashboard({ onActiveCountChange = () => {} }) {
   const [orders, setOrders] = useState([]);
   const [shippingOrders, setShippingOrders] = useState([]);
   const [shippingLoading, setShippingLoading] = useState(true);
@@ -519,6 +533,7 @@ export default function WorkOrderDashboard() {
         templateName: order?.template?.name || 'Custom Design',
       }));
       setOrders(normalized);
+      onActiveCountChange(normalized.filter(o => ACTIVE_STATUSES.has(o.status_key)).length);
     } catch {
       window.toast && window.toast('Failed to load work orders', { type: 'error' });
     } finally {
@@ -550,7 +565,11 @@ export default function WorkOrderDashboard() {
     setUpdating(true);
     try {
       await api.put(`/admin/work-orders/${orderId}/status`, { new_status: STATUS_LABELS[newStatus] || newStatus });
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: STATUS_LABELS[newStatus], status_key: newStatus } : o));
+      setOrders(prev => {
+        const next = prev.map(o => o.id === orderId ? { ...o, status: STATUS_LABELS[newStatus], status_key: newStatus } : o);
+        onActiveCountChange(next.filter(o => ACTIVE_STATUSES.has(o.status_key)).length);
+        return next;
+      });
       if (selectedOrder?.id === orderId) {
         setSelectedOrder(prev => ({ ...prev, status: STATUS_LABELS[newStatus], status_key: newStatus }));
       }
@@ -1135,6 +1154,7 @@ export default function WorkOrderDashboard() {
 
   // Summary counts
   const summary = {
+    totalActive: orders.filter(o => ACTIVE_STATUSES.has(o.status_key)).length,
     pending: orders.filter(o => o.status_key === 'pending').length,
     review: orders.filter(o => o.status_key === 'review').length,
     revision_submitted: orders.filter(o => o.status_key === 'revision_submitted').length,
@@ -1146,7 +1166,11 @@ export default function WorkOrderDashboard() {
 
   // Filtering
   let filtered = orders;
-  if (statusFilter !== 'all') filtered = filtered.filter(o => o.status_key === statusFilter);
+  if (statusFilter === 'active') {
+    filtered = filtered.filter(o => ACTIVE_STATUSES.has(o.status_key));
+  } else if (statusFilter !== 'all') {
+    filtered = filtered.filter(o => o.status_key === statusFilter);
+  }
   if (dateRange.from) filtered = filtered.filter(o => new Date(o.date) >= new Date(dateRange.from));
   if (dateRange.to) filtered = filtered.filter(o => new Date(o.date) <= new Date(dateRange.to));
   if (customerSearch) filtered = filtered.filter(o => String(o?.customer || '').toLowerCase().includes(customerSearch.toLowerCase()));
@@ -1263,6 +1287,15 @@ export default function WorkOrderDashboard() {
                               </button>
                             </>
                           )}
+                          {shippingTab === 'archived' && (
+                            <button
+                              className={styles.unarchiveBtn}
+                              onClick={() => handleShippingStatusUpdate(order, 'need_to_ship')}
+                              disabled={isUpdating}
+                            >
+                              {isUpdating ? 'Saving...' : 'Unarchive'}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1275,6 +1308,7 @@ export default function WorkOrderDashboard() {
       </section>
 
       <div className={styles.summary}>
+        <div className={`${styles.card} ${styles.cardAllActive}`} onClick={() => setStatusFilter('active')}>All Active: {summary.totalActive}</div>
         <div className={styles.card} style={getStatusStyle('pending')} onClick={() => setStatusFilter('pending')}>Pending Review: {summary.pending}</div>
         <div className={styles.card} style={getStatusStyle('review')} onClick={() => setStatusFilter('review')}>Under Review: {summary.review}</div>
         <div className={styles.card} style={getStatusStyle('revision_submitted')} onClick={() => setStatusFilter('revision_submitted')}>Revisions In: {summary.revision_submitted}</div>
@@ -1286,6 +1320,7 @@ export default function WorkOrderDashboard() {
       <div className={styles.filters}>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="all">All Statuses</option>
+          <option value="active">All Active</option>
           {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{STATUS_LABELS[opt] || opt}</option>)}
         </select>
         <input type="date" value={dateRange.from} onChange={e => setDateRange(r => ({ ...r, from: e.target.value }))} />
@@ -1366,17 +1401,29 @@ export default function WorkOrderDashboard() {
                 </td>
                 <td>{o.date ? new Date(o.date).toLocaleString() : '-'}</td>
                 <td>
-                  <button onClick={(e) => openPreview(o, e)}>View</button>
-                  <button
-                    className={styles.designerBtn}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigateTo(`/designer?workorder=${o.id}`);
-                    }}
-                  >
-                    🎨 Edit
-                  </button>
-                  <button className={styles.deleteBtn} onClick={(e) => handleDelete(o.id, e)}>Delete</button>
+                  <div className={styles.actionGroup}>
+                    <button onClick={(e) => openPreview(o, e)}>View</button>
+                    {(NEXT_ACTIONS[o.status_key] || []).map(action => (
+                      <button
+                        key={action.next}
+                        className={styles.nextActionBtn}
+                        onClick={(e) => { e.stopPropagation(); handleStatusChange(o.id, action.next); }}
+                        disabled={updating}
+                      >
+                        {action.label}
+                      </button>
+                    ))}
+                    <button
+                      className={styles.designerBtn}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigateTo(`/designer?workorder=${o.id}`);
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button className={styles.deleteBtn} onClick={(e) => handleDelete(o.id, e)}>Delete</button>
+                  </div>
                 </td>
               </tr>
             ))}

@@ -264,7 +264,11 @@ def approve_work_order(order_id):
 @admin_work_orders_bp.route('/api/admin/work-orders', methods=['GET'])
 @admin_required
 def admin_list_work_orders():
-    orders = WorkOrder.query.order_by(WorkOrder.created_at.desc()).all()
+    from sqlalchemy.orm import joinedload
+    orders = (WorkOrder.query
+              .options(joinedload(WorkOrder.project))
+              .order_by(WorkOrder.created_at.desc())
+              .all())
     return jsonify({
         'work_orders': [
             o.to_dict(
@@ -277,6 +281,16 @@ def admin_list_work_orders():
             for o in orders
         ]
     }), 200
+
+@admin_work_orders_bp.route('/api/admin/work-orders/count', methods=['GET'])
+@admin_required
+def admin_work_order_count():
+    active_statuses = [
+        'Pending Review', 'Under Review', 'Revision Requested',
+        'Revision Submitted', 'Quote Sent', 'Approved', 'In Production',
+    ]
+    count = WorkOrder.query.filter(WorkOrder.status.in_(active_statuses)).count()
+    return jsonify({'active_count': count}), 200
 
 @admin_work_orders_bp.route('/api/admin/next-custom-work-order-number', methods=['GET'])
 @admin_required

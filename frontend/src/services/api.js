@@ -513,6 +513,8 @@ export const getMyWorkOrders = () => api.get('/work-orders');
 export const getAdminTemplates = () => api.get('/admin/templates');
 export const getAdminGlassTypes = () => api.get('/admin/glass-types');
 export const getAdminWorkOrders = () => api.get('/admin/work-orders');
+export const getAdminWorkOrderCount = () => api.get('/admin/work-orders/count');
+export const fetchAdminShippingOrderCount = () => api.get('/admin/orders/shipping/count');
 export const getNextCustomWorkOrderNumber = () => api.get('/admin/next-custom-work-order-number');
 export const getAdminWorkOrder = (id) => api.get(`/admin/work-orders/${id}`);
 export const updateWorkOrderStatus = (id, status, notes) => api.put(`/admin/work-orders/${id}/status`, { new_status: status, notes });

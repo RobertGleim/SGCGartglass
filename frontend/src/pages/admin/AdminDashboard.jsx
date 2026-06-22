@@ -33,6 +33,8 @@ import {
   updateAdminGalleryPhoto,
   updateAdminTemplate,
   updateCustomer,
+  getAdminWorkOrderCount,
+  fetchAdminShippingOrderCount,
 } from "../../services/api.js";
 import TemplateManagement from "./TemplateManagement";
 import GlassTypeManagement from "./GlassTypeManagement";
@@ -1054,6 +1056,8 @@ export default function AdminDashboard({
   );
 
   const [activeTab, setActiveTab] = useState("products");
+  const [activeWorkOrderCount, setActiveWorkOrderCount] = useState(0);
+  const [activeShippingCount, setActiveShippingCount] = useState(0);
   const [customers, setCustomers] = useState([]);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [customerForm, setCustomerForm] = useState({
@@ -1232,6 +1236,24 @@ export default function AdminDashboard({
       loadDiscountCodes();
     }
   }, [activeTab, loadCustomerInsight, loadDiscountCodes]);
+
+  useEffect(() => {
+    const refreshCounts = () => {
+      getAdminWorkOrderCount()
+        .then((res) => {
+          setActiveWorkOrderCount(Number(res?.active_count ?? res?.data?.active_count ?? 0));
+        })
+        .catch(() => {});
+      fetchAdminShippingOrderCount()
+        .then((res) => {
+          setActiveShippingCount(Number(res?.active_count ?? res?.data?.active_count ?? 0));
+        })
+        .catch(() => {});
+    };
+    refreshCounts();
+    const interval = setInterval(refreshCounts, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const loadAdminReviews = useCallback(async () => {
     try {
@@ -5211,6 +5233,9 @@ export default function AdminDashboard({
           onClick={() => setActiveTab("work-orders")}
         >
           Work Orders
+          {(activeWorkOrderCount + activeShippingCount) > 0 && (
+            <span className="tab-count-badge tab-count-badge--green">{activeWorkOrderCount + activeShippingCount}</span>
+          )}
         </button>
         <button
           className={`tab ${activeTab === "gallery" ? "active" : ""}`}
@@ -6857,7 +6882,7 @@ export default function AdminDashboard({
 
         {activeTab === "work-orders" && (
           <div className="tab-panel">
-            <WorkOrderDashboard />
+            <WorkOrderDashboard onActiveCountChange={setActiveWorkOrderCount} />
           </div>
         )}
 

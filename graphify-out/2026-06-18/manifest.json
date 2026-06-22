@@ -100,8 +100,8 @@
     "semantic_hash": "893ffe6a4cd415fb1cfcfcab7e89162a"
   },
   "backend/routes/glass_types.py": {
-    "mtime": 1781804563.1670096,
-    "ast_hash": "f722664917e0ddf968effd4640b57fe5",
+    "mtime": 1781805359.480963,
+    "ast_hash": "f78c8db0b580907dcd8d866a52789e6b",
     "semantic_hash": ""
   },
   "backend/routes/invoices.py": {
@@ -140,8 +140,8 @@
     "semantic_hash": "f5411ed05ac041921614a673fc36cb4d"
   },
   "backend/services/glass_type_service.py": {
-    "mtime": 1781804559.2717817,
-    "ast_hash": "debfeccc98597a547ede0cc8f3d74a22",
+    "mtime": 1781805356.0564518,
+    "ast_hash": "f74fb329c71071f8572d064689201382",
     "semantic_hash": ""
   },
   "backend/services/pattern_render_service.py": {
@@ -620,8 +620,8 @@
     "semantic_hash": "2d2b27c394fe65ff7fa1e5e696d3cca4"
   },
   "frontend/src/pages/admin/components/GlassTypeFormModal.jsx": {
-    "mtime": 1781804552.347519,
-    "ast_hash": "4dfa823d9b3fabe50690f81b45cdebab",
+    "mtime": 1781805339.1741912,
+    "ast_hash": "302bad94e4d126e68f9960bb32829d13",
     "semantic_hash": ""
   },
   "frontend/src/pages/admin/components/SpecificationsTable.jsx": {
